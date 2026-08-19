@@ -314,53 +314,25 @@ grok --prompt-file docs/tasks/phase0-t1-windowmanager.md \
 
 `wasDiscarded` 字段已存在（`AnimatedCardList.swift:183`、`CardBar.swift:890` 都在比较它），坟场数据见 Phase 2.1 引用的 `Player.swift` 分区数组。
 
-#### Spike：Firestone 到底怎么处理卡条状态变化（2026-08-20，已读源码）
+#### Spike：Firestone 的卡条状态处理（已用实机录像 + 源码双重验证）
 
-**结论：Firestone 没有状态变化动效。**原本的假设（"卡牌被抽到/打出/撕掉时应该有动效"）不成立。
+**完整调研见 `docs/research/firestone-overlay.md`。**
 
-读的是 `Zero-to-Heroes/firestone@master`（partial clone + sparse checkout，4.7MB）。证据：
+结论摘要（原假设"卡牌被抽到/打出/撕掉时应该有动效"**不成立**）：
 
-1. **记牌器目录下 85 个 `.ts` 文件，Angular 动画使用 0 处。**
-   `@angular/animations@^19` 在 `package.json` 里，但记牌器一处没用（`grep "from '@angular/animations'|animations: \[|trigger("` 无命中）。
+- **卡条插入无动画**。实机 120fps 逐帧：新行瞬间出现在最终位置，维持约 **125ms 的空白灰条**，
+  内容再瞬间填入。没有位移、没有淡入。这是渲染延迟造成的占位符闪烁，**是缺陷不是设计**。
+- **关联高亮是硬切换**。测量卡表平均色：10 帧不变 → 1 帧跳变 → 14 帧不变，零中间值，8.3ms 完成。
+- 源码侧交叉验证：1076 个 `.ts` 里用 Angular 动画的只有 5 个且全不在记牌器；
+  卡条自身的 transition 被注释掉了，注释写着 `Removing the transition fixes the flicker`。
+  `BrowserAnimationsModule` 是注册了的，所以**不做动画是选择而非能力缺失**。
 
-2. **他们唯一有过的动画被主动删了。**
-   `deck-card.component.scss:11-20`：
-   ```scss
-   // Removing the transition fixes the flicker
-   // transition: transform 0.2s ease-in-out;
-   &:hover {
-       transform: scale(1.1);   // 瞬时，无过渡
-       // animation: card-zoom 0.2s ease-in-out;
-   }
-   ```
-   `@keyframes card-zoom` 还留在 `:286`，但只被注释引用，是死代码。注释里链的是 webkit 在 `transform: scale` 下文字闪烁的问题。
+**对 2.7 的影响**：状态图标的做法可以借鉴（它有 8 种：骷髅/爆牌/被弃/转化/被偷/挖掘/衍生/传说），
+但**插入时的空白占位不要照抄**。跨分区移动动画 Firestone 结构上做不到（每分区独立 `*ngFor`，
+换区即销毁重建），SwiftUI 的 `matchedGeometryEffect` 可以 —— **前提是 Phase 1.3 先落地**。
 
-3. **跨分区移动动画在他们的架构里做不到。**
-   `deck-zone.component.ts:55-57` 每个分区是独立的 `*ngFor`，`trackBy: trackCard` 返回 `card.cardId`（`:242`）。
-   同一分区内 DOM 复用，但卡牌**跨分区移动时是在 A 里销毁、在 B 里新建**，没有 DOM 连续性可供过渡。
-
-**它实际靠什么表达状态**：7 个布尔态各自叠一个 SVG 图标，加一个三值 `highlight` class。
-
-| 条件 | 图标 |
-|---|---|
-| `isGraveyard` | `card_graveyard.svg`（骷髅） |
-| `isBurned` | `card_burned.svg`（爆牌） |
-| `isDiscarded` | `card_discarded.svg` |
-| `isTransformed` | `card_transformed.svg` |
-| `isStolen` | `card_stolen.svg` |
-| `isCountered` | — |
-| `isDredged` | `dredged.svg` |
-| 另有 | `card_gift.svg`（衍生物）、`card_legendary.svg` |
-
-`VisualDeckCard.highlight` 只有 `'dim' | 'normal' | 'in-hand'` 三个值。图标本身也无动效。
-
-**对我们的三点影响**
-
-- **不能把"Firestone 有动效"当作设计前提**，它没有。要做就是我们自己开路，而不是抄。
-- **但他们不做的理由对我们不成立。** 那是 webkit 的文字渲染缺陷；AppKit/SwiftUI 走 Core Animation，不存在这个问题。
-- **SwiftUI 反而能做他们做不到的事。** `matchedGeometryEffect` 正是为"同一元素在两个容器间移动"设计的，能让卡牌从「牌库中」滑到「其他」而保持视觉连续 —— 这是他们 `*ngFor` 跨分区结构上做不到的。**但它依赖 Phase 1.3「消灭每帧视图树重建」先落地**，否则每帧重建的视图树没有身份，动画无从谈起。
-
-**许可证警告**：Firestone 仓库 `License: None`，即默认保留所有权利。**只可阅读理解设计，不可拷贝其代码或 SVG 资源**，图标需自行绘制或另找可商用来源。
+关联高亮（2.6）反而值得**加**一个 100~150ms 淡入：Firestone 是硬切换，而我们的问题是高亮太弱，
+淡入能强化存在感且不像位移动画那样干扰读牌。
 
 ---
 
