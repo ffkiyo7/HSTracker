@@ -314,6 +314,54 @@ grok --prompt-file docs/tasks/phase0-t1-windowmanager.md \
 
 `wasDiscarded` 字段已存在（`AnimatedCardList.swift:183`、`CardBar.swift:890` 都在比较它），坟场数据见 Phase 2.1 引用的 `Player.swift` 分区数组。
 
+#### Spike：Firestone 到底怎么处理卡条状态变化（2026-08-20，已读源码）
+
+**结论：Firestone 没有状态变化动效。**原本的假设（"卡牌被抽到/打出/撕掉时应该有动效"）不成立。
+
+读的是 `Zero-to-Heroes/firestone@master`（partial clone + sparse checkout，4.7MB）。证据：
+
+1. **记牌器目录下 85 个 `.ts` 文件，Angular 动画使用 0 处。**
+   `@angular/animations@^19` 在 `package.json` 里，但记牌器一处没用（`grep "from '@angular/animations'|animations: \[|trigger("` 无命中）。
+
+2. **他们唯一有过的动画被主动删了。**
+   `deck-card.component.scss:11-20`：
+   ```scss
+   // Removing the transition fixes the flicker
+   // transition: transform 0.2s ease-in-out;
+   &:hover {
+       transform: scale(1.1);   // 瞬时，无过渡
+       // animation: card-zoom 0.2s ease-in-out;
+   }
+   ```
+   `@keyframes card-zoom` 还留在 `:286`，但只被注释引用，是死代码。注释里链的是 webkit 在 `transform: scale` 下文字闪烁的问题。
+
+3. **跨分区移动动画在他们的架构里做不到。**
+   `deck-zone.component.ts:55-57` 每个分区是独立的 `*ngFor`，`trackBy: trackCard` 返回 `card.cardId`（`:242`）。
+   同一分区内 DOM 复用，但卡牌**跨分区移动时是在 A 里销毁、在 B 里新建**，没有 DOM 连续性可供过渡。
+
+**它实际靠什么表达状态**：7 个布尔态各自叠一个 SVG 图标，加一个三值 `highlight` class。
+
+| 条件 | 图标 |
+|---|---|
+| `isGraveyard` | `card_graveyard.svg`（骷髅） |
+| `isBurned` | `card_burned.svg`（爆牌） |
+| `isDiscarded` | `card_discarded.svg` |
+| `isTransformed` | `card_transformed.svg` |
+| `isStolen` | `card_stolen.svg` |
+| `isCountered` | — |
+| `isDredged` | `dredged.svg` |
+| 另有 | `card_gift.svg`（衍生物）、`card_legendary.svg` |
+
+`VisualDeckCard.highlight` 只有 `'dim' | 'normal' | 'in-hand'` 三个值。图标本身也无动效。
+
+**对我们的三点影响**
+
+- **不能把"Firestone 有动效"当作设计前提**，它没有。要做就是我们自己开路，而不是抄。
+- **但他们不做的理由对我们不成立。** 那是 webkit 的文字渲染缺陷；AppKit/SwiftUI 走 Core Animation，不存在这个问题。
+- **SwiftUI 反而能做他们做不到的事。** `matchedGeometryEffect` 正是为"同一元素在两个容器间移动"设计的，能让卡牌从「牌库中」滑到「其他」而保持视觉连续 —— 这是他们 `*ngFor` 跨分区结构上做不到的。**但它依赖 Phase 1.3「消灭每帧视图树重建」先落地**，否则每帧重建的视图树没有身份，动画无从谈起。
+
+**许可证警告**：Firestone 仓库 `License: None`，即默认保留所有权利。**只可阅读理解设计，不可拷贝其代码或 SVG 资源**，图标需自行绘制或另找可商用来源。
+
 ---
 
 ## Phase 3 — 补全简体中文
