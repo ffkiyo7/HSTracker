@@ -39,7 +39,7 @@ class Game: NSObject, PowerEventHandler {
 	 */
     internal let windowManager = WindowManager()
 	
-    static let guiUpdateDelay: TimeInterval = 0.5
+    static let guiUpdateDelay: TimeInterval = 0.1
 	
 	private let turnTimer: TurnTimer
     
@@ -1562,32 +1562,43 @@ class Game: NSObject, PowerEventHandler {
         }
     }
     
-    private var counter = 0
-    
+    // Window polling is deliberately slower than the GUI tick: each reload() is
+    // four blocking AX round-trips into Hearthstone's run loop, so polling every
+    // 100ms tick would add load to the game itself. 250ms is still ~8x faster at
+    // following the window than the 2s this used to take.
+    private static let windowPollInterval: TimeInterval = 0.25
+    private var lastWindowPoll: TimeInterval = 0
+
     private func internalUpdateCheck() {
-        if self.guiNeedsUpdate {
-            self.guiNeedsUpdate = false
-            self.updateAllTrackers()
-            self.guiUpdateResets = false
-            self.counter = 0
-        } else if self.counter > 3 {
+        // Poll outside the guiNeedsUpdate branch: updateAllTrackers() used to
+        // reload() on entry, so trackers were always drawn against a fresh rect.
+        // Now that it doesn't, a busy log (guiNeedsUpdate true every tick) would
+        // otherwise leave the overlay pinned to a stale window position.
+        var windowChanged = false
+        let now = Date().timeIntervalSince1970
+        if now - lastWindowPoll >= Game.windowPollInterval {
+            lastWindowPoll = now
             let rect = SizeHelper.hearthstoneWindow.frame
             // fullscreen-flag flips can leave _frame unchanged but still shift the 50px game-menu offset
             let wasFullscreen = SizeHelper.hearthstoneWindow.isFullscreen()
             SizeHelper.hearthstoneWindow.reload()
-            if rect != SizeHelper.hearthstoneWindow.frame || wasFullscreen != SizeHelper.hearthstoneWindow.isFullscreen() {
-                self.updateAllTrackers()
-                self.updateBattlegroundsOverlays()
-                self.updateConstructedMulliganOverlays()
-                self.updateActiveEffects()
-                if #available(macOS 10.15, *) {
-                    self.updateMaxResourcesWidget()
-                    self.updateRootOverlay()
-                }
+            windowChanged = rect != SizeHelper.hearthstoneWindow.frame
+                || wasFullscreen != SizeHelper.hearthstoneWindow.isFullscreen()
+        }
+
+        if self.guiNeedsUpdate {
+            self.guiNeedsUpdate = false
+            self.updateAllTrackers()
+            self.guiUpdateResets = false
+        } else if windowChanged {
+            self.updateAllTrackers()
+            self.updateBattlegroundsOverlays()
+            self.updateConstructedMulliganOverlays()
+            self.updateActiveEffects()
+            if #available(macOS 10.15, *) {
+                self.updateMaxResourcesWidget()
+                self.updateRootOverlay()
             }
-            self.counter = 0
-        } else {
-            self.counter += 1
         }
         
         self.updateBoardOverlay()
