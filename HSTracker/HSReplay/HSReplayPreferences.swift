@@ -12,7 +12,7 @@ import Preferences
 class HSReplayPreferences: PreferencePaneController, PreferencePane {
     var preferencePaneIdentifier = Preferences.PaneIdentifier.hsreplay
     
-    var preferencePaneTitle = "HSReplay"
+    var preferencePaneTitle = String.localizedString("HSReplay", comment: "")
     
     var toolbarItemIcon = NSImage(named: "settings-hsreplay")!
     

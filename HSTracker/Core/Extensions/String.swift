@@ -85,11 +85,25 @@ extension String {
         }
         
         let language = "Base"
-        guard let path = Bundle.main.path(forResource: language, ofType: "lproj") else { return key }
+        guard let path = Bundle.main.path(forResource: language, ofType: "lproj") else {
+            #if DEBUG
+            logger.warning("Missing localization key: \(key)")
+            #endif
+            return key
+        }
         let bundle = Bundle(path: path)
         if let forcedString = bundle?.localizedString(forKey: key, value: nil, table: nil) {
+            // NSBundle returns the key itself when the entry is missing.
+            #if DEBUG
+            if forcedString == key {
+                logger.warning("Missing localization key: \(key)")
+            }
+            #endif
             return forcedString
         } else {
+            #if DEBUG
+            logger.warning("Missing localization key: \(key)")
+            #endif
             return key
         }
     }
