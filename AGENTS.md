@@ -74,6 +74,16 @@ env -u http_proxy -u https_proxy -u all_proxy -u HTTP_PROXY -u HTTPS_PROXY -u AL
   -configuration Debug -destination 'platform=macOS' clean build
 ```
 
+`Contents/Resources/Resources/` 在 bundle 里有**两个写入者**：`Resources` build phase 会把
+`HSTracker/Resources/` 这个 folder reference 整目录拷过去，而 `Download cards XML` 和 `Embed Mono`
+往同一个目录里写 `Cards/` 和 `Managed/<arch>/`。**任何 build phase 都不许改写 `HSTracker/Resources/`** ——
+一改就会重新触发那个整目录拷贝，它可能落在脚本阶段之后，把 `Cards/` 和 `Managed/arm64` 冲掉，
+表现为 mono 找不到 corlib 而 `abort()`（在 Xcode 里看是「应用程序没有响应」）。下载产物一律放
+`downloaded-frameworks/`，再由 `Embed Mono`（排在 `Resources` 之后）拷进 bundle。
+
+`Embed Mono` 拷 `net8.0` **整个目录**而不是白名单：BobsBuddy 下载的永远是最新版，它每新增一个 BCL
+依赖，手写清单就会静默漏掉一个，且只在运行时报错。全量 17MB/arch。
+
 只有 **github.com 需要走代理**（直连超时），nuget / libs.hearthsim.net / api.hearthstonejson.com 直连均可。
 `CardDefs.xml` 约 100MB，按版本缓存在 `downloaded-frameworks/cards/`，只有 `cards-version.txt` 变了才重新下载。
 
