@@ -17,10 +17,14 @@ struct SizeHelper {
     static let BaseHeight: CGFloat = 922.0
     
     class HearthstoneWindow {
-        var _frame = NSRect.zero
-        var windowId: CGWindowID?
-        var screenRect = NSRect()
-        var fullscreen = false
+        private let lock = UnfairLock()
+        private var _frame = NSRect.zero
+        private var _windowId: CGWindowID?
+        private var _screenRect = NSRect()
+        private var _fullscreen = false
+        
+        private var cachedAppPid: pid_t?
+        private var cachedAppRef: AXUIElement?
         
         static var axErrorReported = false
         
@@ -44,13 +48,23 @@ struct SizeHelper {
             }).sorted(by: {
                 return area(dict: $1) > area(dict: $0)
             }).last {
+                var newWindowId: CGWindowID?
+                var hasWindowId = false
                 if let id = info["kCGWindowNumber"] as? Int {
-                    self.windowId = CGWindowID(id)
+                    newWindowId = CGWindowID(id)
+                    hasWindowId = true
                 }
 
                 let pid = info["kCGWindowOwnerPID"] as? pid_t ?? 0
 
-                let appRef = AXUIElementCreateApplication(pid)
+                let appRef: AXUIElement
+                if let cached = cachedAppRef, cachedAppPid == pid {
+                    appRef = cached
+                } else {
+                    appRef = AXUIElementCreateApplication(pid)
+                    cachedAppRef = appRef
+                    cachedAppPid = pid
+                }
                 var window: CFTypeRef?
 
                 let result: AXError = AXUIElementCopyAttributeValue(appRef, kAXFocusedWindowAttribute as CFString, &window)
@@ -58,6 +72,9 @@ struct SizeHelper {
                 // kCGWindowBounds can return a stale Mission Control thumbnail rect for some
                 // time after MC dismisses; AX reflects HS's actual NSWindow.frame.
                 var axRect: CGRect?
+                var newFullscreen: Bool?
+                var newScreenRect: NSRect?
+                var newFrame: NSRect?
                 if result == .success, let axWindow = window {
                     // swiftlint:disable force_cast
                     let axWindowRef = axWindow as! AXUIElement
@@ -66,9 +83,9 @@ struct SizeHelper {
                     var fs: CFTypeRef?
                     AXUIElementCopyAttributeValue(axWindowRef, "AXFullScreen" as CFString, &fs)
                     if let nsvalue = fs as? NSNumber {
-                        fullscreen = nsvalue.intValue != 0
+                        newFullscreen = nsvalue.intValue != 0
                     } else {
-                        fullscreen = false
+                        newFullscreen = false
                     }
 
                     var posRef: CFTypeRef?
@@ -102,11 +119,11 @@ struct SizeHelper {
                     // Warning: this function assumes that the
                     // first screen in the list is the active one
                     if let screen = NSScreen.screens.first {
-                        screenRect = screen.frame
+                        newScreenRect = screen.frame
                         frame.origin.y = screen.frame.maxY - rect.maxY
                     }
 
-                    self._frame = frame
+                    newFrame = frame
 
                     if calculateFromFrame {
                         var fs = false
@@ -114,37 +131,67 @@ struct SizeHelper {
                             fs = true
                             break
                         }
-                        fullscreen = fs
+                        newFullscreen = fs
+                    }
+                }
+
+                // Publish after AX returns so reload() stays synchronous for
+                // internalUpdateCheck's before/after comparison, without holding
+                // the lock across the blocking calls.
+                lock.around {
+                    if hasWindowId {
+                        _windowId = newWindowId
+                    }
+                    if let newFullscreen {
+                        _fullscreen = newFullscreen
+                    }
+                    if let newScreenRect {
+                        _screenRect = newScreenRect
+                    }
+                    if let newFrame {
+                        _frame = newFrame
                     }
                 }
             }
         }
         
+        var windowId: CGWindowID? {
+            return lock.around { _windowId }
+        }
+        
+        var screenRect: NSRect {
+            return lock.around { _screenRect }
+        }
+        
         var width: CGFloat {
-            return _frame.width
+            return lock.around { _frame.width }
         }
         
         static var titlebarHeight: CGFloat = 0.0
         
         var height: CGFloat {
-            let height = _frame.height
-            return isFullscreen() ? height : max(height - SizeHelper.HearthstoneWindow.titlebarHeight, 0)
+            return lock.around {
+                _fullscreen ? _frame.height : max(_frame.height - SizeHelper.HearthstoneWindow.titlebarHeight, 0)
+            }
         }
         
         fileprivate var left: CGFloat {
-            return _frame.minX
+            return lock.around { _frame.minX }
         }
         
         fileprivate var top: CGFloat {
-            return _frame.minY
+            return lock.around { _frame.minY }
         }
         
         func isFullscreen() -> Bool {
-            return fullscreen
+            return lock.around { _fullscreen }
         }
         
         var frame: NSRect {
-            return NSRect(x: left, y: top, width: width, height: height)
+            return lock.around {
+                let height = _fullscreen ? _frame.height : max(_frame.height - SizeHelper.HearthstoneWindow.titlebarHeight, 0)
+                return NSRect(x: _frame.minX, y: _frame.minY, width: _frame.width, height: height)
+            }
         }
         
         var scaleX: CGFloat {

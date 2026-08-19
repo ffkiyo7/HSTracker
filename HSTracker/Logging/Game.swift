@@ -206,8 +206,6 @@ class Game: NSObject, PowerEventHandler {
 	private let _queue = DispatchQueue(label: "net.hearthsim.hstracker.guiupdate", attributes: [])
 	
     private func updateAllTrackers() {
-		SizeHelper.hearthstoneWindow.reload()
-		
 		self.updatePlayerTracker(reset: guiUpdateResets)
 		self.updateOpponentTracker(reset: guiUpdateResets)
         self.updateCardHud()
