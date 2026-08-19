@@ -60,10 +60,22 @@ xcodebuild -project HSTracker.xcodeproj -scheme HSTracker \
   -configuration Debug -destination 'platform=macOS' build
 ```
 
-三个下载 phase（Mono / HearthMirror / BobsBuddy+HearthDb）用的是 `wget`，而 **Xcode.app 由 launchd 拉起，
-PATH 里没有 homebrew**；命令行 `xcodebuild` 继承 shell 的 PATH 则没这个问题。所以这三个脚本开头都注入了
-`export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"`。**判断「构建能不能过」时必须区分这两个环境** ——
-在 shell 里 `command -v wget` 有结果，不代表 Xcode 里点 Build 能过。
+**Xcode.app 由 launchd 拉起，既没有 homebrew 的 PATH，也没有 shell 里的代理变量**；命令行 `xcodebuild`
+两样都继承，所以同一份代码在命令行能过、在 Xcode 里会挂。五个联网 phase 的开头因此都注入了 PATH 和
+**条件代理**（`nc -z 127.0.0.1 7890` 探测到才设，没开代理时回落直连）。
+
+**判断「构建能不能过」时必须区分这两个环境** —— 在 shell 里 `command -v wget` 有结果、`curl` 能通，
+都不代表 Xcode 里点 Build 能过。要验证就用受限环境跑：
+
+```
+env -u http_proxy -u https_proxy -u all_proxy -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY \
+  PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+  xcodebuild -project HSTracker.xcodeproj -scheme HSTracker \
+  -configuration Debug -destination 'platform=macOS' clean build
+```
+
+只有 **github.com 需要走代理**（直连超时），nuget / libs.hearthsim.net / api.hearthstonejson.com 直连均可。
+`CardDefs.xml` 约 100MB，按版本缓存在 `downloaded-frameworks/cards/`，只有 `cards-version.txt` 变了才重新下载。
 
 注意 `HSTracker.xcodeproj/project.pbxproj` 里 "Embed Mono" build phase 的 `NET_VERSION` 是 `net8.0`
 （上游 `d70efe05` 升级 mono 到 8.0.29 时漏改，我们在 `2a050460` 修了）。**除非任务明确要求，不要动这个文件。**
