@@ -3,9 +3,15 @@
 > 计划全文见 `docs/PLAN.md`。本文件只记录**做到哪了 / 下一步是什么**，每完成一项就更新。
 
 **最后更新**：2026-08-19
-**分支**：`phase0+3`（基于 `master` = upstream `ecf64cff` / 3.6.4）—— 原名 `perf/phase0-overlay`；后续阶段落地后再改名
-**构建状态**：Debug `BUILD SUCCEEDED`
+**分支**：`phase0+3`（基于 `master` = upstream `77a85be2` / **3.6.5**）—— 原名 `perf/phase0-overlay`；后续阶段落地后再改名
+**构建状态**：合并 3.6.5 后**尚未重新构建**（3.6.4 基线上是 Debug `BUILD SUCCEEDED`）
 **当前卡在**：等待人工游戏内实测（Phase 0 效果验证）—— Phase 3 已完成，不阻塞它
+
+**已跟上游 3.6.5**（2026-08-19）：`git merge master` 无冲突，两处重叠文件（`Game.swift` / `project.pbxproj`）
+自动合并且两边改动都保留。3.6.5 对齐炉石 36.2.2（卡牌数据 248348 → 249896、BobsBuddy 1.57.6 → 1.62.1），
+修了 Duos 里 Sandy 的崩溃，新增 Eternal Knight / Ancestral Automaton 两个战棋计数器。
+**不产生新的本地化欠账** —— 3.6.5 没碰任何 `.xcstrings`，新文件里也没有用户可见文案。
+顺带一提，上游 `89548845` 把 mirror 读取从 `currentGameType` 的 getter 里挪走了，和 Phase 0 同向。
 
 ---
 
