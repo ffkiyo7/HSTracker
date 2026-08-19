@@ -2,16 +2,64 @@
 
 > 计划全文见 `docs/PLAN.md`。本文件只记录**做到哪了 / 下一步是什么**，每完成一项就更新。
 
-**最后更新**：2026-08-19
+**最后更新**：2026-08-20
 **分支**：`phase0+3`（基于 `master` = upstream `77a85be2` / **3.6.5**）—— 原名 `perf/phase0-overlay`；后续阶段落地后再改名
-**构建状态**：合并 3.6.5 后**尚未重新构建**（3.6.4 基线上是 Debug `BUILD SUCCEEDED`）
-**当前卡在**：等待人工游戏内实测（Phase 0 效果验证）—— Phase 3 已完成，不阻塞它
+**构建状态**：Debug `BUILD SUCCEEDED`（clean + 增量都验证过，且是在剥掉 PATH 和代理的受限环境下）
+**当前卡在**：无阻塞。下一步是**日志→overlay 延迟埋点**
 
 **已跟上游 3.6.5**（2026-08-19）：`git merge master` 无冲突，两处重叠文件（`Game.swift` / `project.pbxproj`）
 自动合并且两边改动都保留。3.6.5 对齐炉石 36.2.2（卡牌数据 248348 → 249896、BobsBuddy 1.57.6 → 1.62.1），
 修了 Duos 里 Sandy 的崩溃，新增 Eternal Knight / Ancestral Automaton 两个战棋计数器。
 **不产生新的本地化欠账** —— 3.6.5 没碰任何 `.xcstrings`，新文件里也没有用户可见文案。
 顺带一提，上游 `89548845` 把 mirror 读取从 `currentGameType` 的 getter 里挪走了，和 Phase 0 同向。
+
+---
+
+## 2026-08-19 夜：跟上游 3.6.5 + 五处构建修复
+
+合并本身无冲突，但**在 Xcode 里构建暴露了一连串问题**，全部修完并已推送：
+
+| 提交 | 修的什么 | 性质 |
+|---|---|---|
+| `990af8ec` | Xcode 的 launchd 环境没有 homebrew，`wget` 找不到 | 环境（条件式） |
+| `33a8b001` | 同上，没有代理，GitHub 拉不动；顺带给 100MB 卡牌数据加按版本缓存 | 环境（条件式） |
+| `9648aabf` | `outputPaths`/`inputPaths` 写错 → Resources 拷贝冲掉 bundle 里的 `Cards/` 和 `Managed/arm64/` | **上游缺陷** |
+| `9648aabf` | `ASSEMBLIES` 白名单漏 `System.Runtime.Intrinsics`（BobsBuddy 1.62.3 新增依赖）→ 改为拷贝整个 net8.0 | **上游缺陷** |
+| `5e91c63f` | 启动自检抛未知异常时 `fatalError` 干掉整个 app | **上游缺陷** |
+
+**验证方式已固化进 `AGENTS.md`**：必须在剥掉 PATH 和代理的受限环境下跑 clean + 增量两次。
+先前三次「验证通过」全用 clean build，而 bug 只在增量构建触发 —— 这是这次排查最大的教训。
+
+**遗留**：上游 3.6.5 的两个战棋计数器（Eternal Knight / Ancestral Automaton）**没登记进 pbxproj**，
+上游发布版同样缺。`BobsBuddy-version.txt` 是装饰品，实际永远拉最新版。两者都待处理。
+
+---
+
+## 验收标准的修订（2026-08-20）
+
+游戏内实测结果是「感觉不卡」，但这个标准**已被判定不合格**：M4 上记牌器让炉石掉帧属于工程事故，
+不该拿它当及格线；而且它**不可比较** —— Phase 1 换 SwiftUI 之后无法判断是好了还是差了 5%。
+
+真正的目标已经明确为**「抽到一张牌 → 右侧 overlay 有反应」的延迟**。已从代码读出预算：
+
+```
+炉石写 Power.log
+   │   ← 炉石自己的 flush 延迟【未测，这是地板值】
+LogReader 线程       Thread.sleep(0.05)              →  0~50ms
+LogReaderManager     Thread.sleep(0.05)              →  0~50ms
+Game._queue          guiUpdateDelay = 0.1            →  0~100ms
+   ▼  updateAllTrackers() → 主线程
+```
+
+**我们自己造成的：均值 ~100ms，最坏 ~200ms**（T3 之前是均值 ~300ms / 最坏 600ms）。
+
+三个候选优化，**必须先埋点测出炉石的 flush 地板再决定做哪些**：
+
+1. GUI tick 改防抖（均值 50ms → ~5ms，最大单项收益，57 个调用点不用动）
+2. 两个日志轮询用信号量串起来（均值 25ms → ~0）
+3. 文件轮询换 `DispatchSource` 监听（均值 25ms → ~0，**收益完全取决于炉石 flush 行为**）
+
+注：165Hz 外接屏下一帧只有 6ms，先前按 60Hz 定的 16ms 停顿阈值作废。
 
 ---
 
@@ -23,12 +71,14 @@
 | T1 | `WindowManager.show()` 去抖 | ✅ 完成并 review |
 | T2 | AX 调用移出主线程 | ✅ 完成并 review |
 | T3 | 提高 tick 频率 + 跟窗 | ✅ 完成并 review（review 时加了一处设计改动） |
-| — | **游戏内实测** | ⏸ **待办 —— 下一步就是这个** |
+| — | **游戏内实测** | ✅ 已做（2026-08-19 夜）——「感觉不卡」，但**这个标准已作废**，见下 |
+| — | **延迟埋点** | ⏸ **待办 —— 下一步就是这个** |
 | T4 | 部署目标 → macOS 14.0 | ⬜ 未开始（**刻意压后到实测之后**） |
 | Phase 1 | SwiftUI 记牌器渲染 | ⬜ 未开始 |
 | Phase 2 | 记牌器分区（牌库/手牌/已打出） | ⬜ 未开始（依赖 Phase 1） |
 | Phase 3 | 补全简体中文 | ✅ 完成并 review（未译 410 → 7，99.2%） |
 | Phase 4 | 设置 UI + Dock 菜单 | ⬜ 4.1/4.2 可随时开始；**4.3 被 T4 阻塞** |
+| Phase 5 | 计数器 overlay 可拖动 | ⬜ 未开始（新增，见 PLAN Phase 5） |
 
 ---
 
@@ -117,31 +167,23 @@ T2 已把 `reload()` 从 `updateAllTrackers()` 里摘掉，于是 `reload()` 只
 
 ---
 
-## 下一步：游戏内实测
+## 下一步：延迟埋点
 
-Debug 构建产物：
-```
-~/Library/Developer/Xcode/DerivedData/HSTracker-aqezlgillbghuralonpbmtmljzam/Build/Products/Debug/HSTracker.app
-```
+游戏内实测已完成（2026-08-19 夜，结论「感觉不卡」），该阶段的注意事项已归档到本文件末尾的环境备注。
+现在的下一步是给「日志行 → overlay 更新完成」这条链路埋点，产出分段耗时。
 
-**测之前注意：**
-1. 先退出已安装的 3.6.2，否则两个实例会同时 tail 炉石日志。
-2. 这个构建是 **ad-hoc 签名**，macOS 视其为与 3.6.2 不同的 app —— 辅助功能（Accessibility）和屏幕录制权限**要单独授予**，不会继承。
-3. 启动时会弹「移动到「应用程序」」对话框（`AppDelegate.swift:63` 无条件调 `AppMover.moveApp()`）——
-   **选否**，否则 DerivedData 里的构建会把自己搬走。
+**要测的四段：**
 
-**该看什么：**
-- overlay 对游戏状态的反应从 2fps → 10fps
-- 拖动/缩放炉石窗口，overlay 跟随从最长 2 秒 → 约 250ms
-- 闪烁减少（`styleMask` 不再每 tick 被重写约 20 次）
-- 主线程不再因 Accessibility 调用卡住
+| 段 | 起点 | 终点 | 说明 |
+|---|---|---|---|
+| A | 日志行自带的时间戳（`LogDate`） | `LogReaderManager.processLine` 拿到它 | **包含炉石自己的 flush 延迟**，是不可优化的地板 |
+| B | `processLine` 开始 | `updateTrackers()` 置 `guiNeedsUpdate` | 解析耗时 |
+| C | `guiNeedsUpdate` 置位 | `internalUpdateCheck` 消费它 | 就是 `guiUpdateDelay` 那 0~100ms |
+| D | `updateAllTrackers()` 开始 | 主线程 UI 提交完成 | 渲染耗时，Phase 1 要优化的就是它 |
 
-**该预期什么：**
-Phase 0 完全没碰渲染层。主题 PNG 仍每次 draw 从磁盘重新解码，`AnimatedCardList` 仍每帧拆掉整棵视图树。
-所以预期是「更跟手、更少抖」，**不是**「像 Firestone 一样顺」。忙碌回合里仍然发沉是**预期结果，不是失败**。
+统计 p50 / p95 / p99，落日志。**A 段的结果决定 2/3 两个优化做不做。**
 
-若要留对照数据：Instruments 的 Time Profiler + Core Animation FPS，重点看主线程 CPU 占用，
-以及 `AXUIElementCopyAttributeValue` 是否已从主线程调用栈上消失。
+对照基线：现在均值 ~100ms（B+C+D 中我们可控的部分），T3 之前是 ~300ms。
 
 ---
 

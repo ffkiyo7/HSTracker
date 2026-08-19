@@ -262,6 +262,58 @@ grok --prompt-file docs/tasks/phase0-t1-windowmanager.md \
 - **必须**把新 key 加进 `Game.swift:1508` 的 `playerTrackerUpdateEvents`，否则改设置不会实时重绘
 - `TrackersPreferences.swift` 加 outlet + `viewWillAppear` 读取 + `checkboxClicked` 写回（`:52-55` / `:109-117` 的现有模式）
 
+### 2.4 顶部信息区重做（移除现有面板，改 Firestone 三行式）
+
+现有顶部堆了四个独立组件，**用户看不懂且没有任何 tooltip**，要整块拿掉：
+
+| 组件 | 文件 | 显示内容 | 开关 |
+|---|---|---|---|
+| 手牌数 / 牌库数 | `CardCounter.swift`（`Tracker.swift:18` outlet，`:409-410` 赋值） | 图标 + `4` / `21` | `Settings.showPlayerCardCount`（`:321`） |
+| **抽卡概率** | `PlayerDrawChance.swift:17-18,24-25` | `1 4.76%` `2 9.52%` | `Settings.showPlayerDrawChance`（`:319`） |
+| 疲劳指示 | — | `1` / `0` | `Settings.fatigueIndicator`（`:427`） |
+| 胜负比 | `Tracker.swift` | `6 - 7 (46%)` | `Settings.showWinLossRatio`（`:391`） |
+
+**抽卡概率那两个百分比是重灾区** —— `1 4.76%` / `2 9.52%` 是「下回合抽到某张牌的概率（该牌剩 1 张 / 剩 2 张时）」，但界面上没有任何东西说明这一点，鼠标悬停也没有提示。
+
+替换为 Firestone 式三行头：
+
+```
+第 1 行   套牌名称          手牌数  牌库数
+第 2 行   套牌胜率     58.7%      27 / 19
+第 3 行   对阵 <对方职业>  62.5%   10 / 6
+```
+
+- 第 1 行的数字沿用 `CardCounter` 现有的 `deckCount` / `handCount` 数据源，只换呈现
+- 第 2/3 行需要统计数据，数据源待调研（`StatsManager` 下已有胜率统计，第 3 行的「对阵职业」维度是否现成需确认）
+- 套牌名称沿用 `Settings.showDeckNameInTracker`（`:451`）
+
+**注意**：第 3 行依赖「已知对手职业」，开局前应显示占位或整行隐藏。
+
+### 2.5 ETC（牛头人酋长）改为悬停展开
+
+现在备牌占一块独立区域，完整铺开三张卡条 —— `Tracker.swift:123` `playerSideboards.update(sideboards:)`，高度按 `Tracker.swift:337` 的 `count * cardHeight + smallFrameHeight * sideboardCount` 算，很占竖向空间。
+
+改为：**ETC 本体只显示一条卡条**，光标移上去时才浮出它所携带的三张卡（形态参照现有的「相关牌」衍生物提示）。实现落点 `DeckSideboards.swift`。
+
+### 2.6 关联卡牌高亮加强
+
+能力已经有：`CardBar.swift:348` 读 `card.highlightColor`，主题资源在 `ThemeElement.swift:174-176`（`highlight_teal.png` / `highlight_orange.png` / `highlight_green.png`）。
+
+问题**纯粹是视觉强度不够** —— 例如光标移到弑君者，牌库里所有传说牌确实会高亮，但在游戏画面背景上几乎看不出来。属于主题资源 + 混合模式的调整，不需要动数据层。
+
+### 2.7 已打出段的卡条形态
+
+三段式落地后，**抽到过的牌不再暗色处理，直接移出「牌库中」段**。现在的暗色逻辑在 `AnimatedCardList.swift:45` 和 `CardBar.swift:362`（`card.count <= 0 || card.jousted`），分段后这两处的暗色分支应当废弃 —— 暗色卡条留在原位会持续抢占视觉注意力，这正是要解决的问题。
+
+「已打出」段的卡条右侧加状态图标（参照 Firestone）：
+
+| 图标 | 含义 |
+|---|---|
+| 骷髅 | 进了坟场 |
+| 火焰 | 被弃 / 被撕 / 爆牌销毁 |
+
+`wasDiscarded` 字段已存在（`AnimatedCardList.swift:183`、`CardBar.swift:890` 都在比较它），坟场数据见 Phase 2.1 引用的 `Player.swift` 分区数组。
+
 ---
 
 ## Phase 3 — 补全简体中文
@@ -361,6 +413,26 @@ grok --prompt-file docs/tasks/phase0-t1-windowmanager.md \
 既然已经上了 macOS 14 + SwiftUI，用 SwiftUI 的 `Form` + `Section` 重建面板，原生外观直接就对了，还自带分节标题和 footer 说明。
 
 **先只做 Trackers 一页**（问题最集中、20 个开关最需要分组），验证 `NSHostingController` 接进 `PreferencePane` 协议的接法可行后，再逐页迁移。分页标题与图标定义在各控制器的 13/15/17 行（`preferencePaneIdentifier` / `preferencePaneTitle` / `toolbarItemIcon`），图标资源在 `HSTracker/Assets/Assets.xcassets/settings-*.imageset`，这部分不动。
+
+---
+
+## Phase 5 — 计数器 overlay 可自由拖动
+
+场攻 / 无界空宇 / 大范等计数器（`CountersOverlay.swift`，由 `CounterSystem/` 下的 `StatsCounter` 子类供数）**位置写死**，用户无法拖到自己习惯的位置。
+
+现在的位置由 `SizeHelper.playerCountersFrame()`（`:609`）和 `opponentCountersFrame()`（`:602`）按炉石窗口算出来，每次刷新都重算，因此拖了也会被弹回去。
+
+**已有现成范式可照抄** —— `TimerHud` 就是可拖动且位置持久化的：
+
+```
+TimerHud.swift:76     拖动结束 → Settings.timerHudFrame = self.window?.frame
+Settings.swift:383    @UserDefaultCustom(key: timer_hud_frame, defaultValue: nil)
+Game.swift:443        重新定位时优先读 SizeHelper.timerHudFrame()
+```
+
+照这个模式给两个 counters overlay 各加一个持久化 frame，`nil` 时回落到现有算法。**需要额外考虑**：计数器数量会随对局变化（新增/移除计数器），持久化的应当是**锚点**而非绝对 rect，否则计数器变多时会溢出屏幕。
+
+设置里应提供「重置计数器位置」入口（Phase 4.3 设置界面重做时一并做）。
 
 ---
 
