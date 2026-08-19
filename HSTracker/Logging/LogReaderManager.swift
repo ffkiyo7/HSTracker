@@ -169,6 +169,7 @@ final class LogReaderManager {
 	}
 	
 	private func processLine(line: LogLine) {
+        LatencyProbe.shared.logLineSeen(time: line.time)
         switch line.namespace {
         case .power:
             if line.content.hasPrefix("GameState.") {

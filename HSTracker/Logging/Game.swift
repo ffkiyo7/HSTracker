@@ -244,6 +244,7 @@ class Game: NSObject, PowerEventHandler {
     
     func updateTrackers(reset: Bool = false) {
         _queue.async {
+            LatencyProbe.shared.updateRequested()
             self.guiNeedsUpdate = true
             self.guiUpdateResets = reset || self.guiUpdateResets
         }
@@ -411,6 +412,7 @@ class Game: NSObject, PowerEventHandler {
             } else {
                 self.windowManager.show(controller: tracker, show: false)
             }
+            LatencyProbe.shared.updateCommitted()
         }
     }
     
@@ -1576,6 +1578,7 @@ class Game: NSObject, PowerEventHandler {
 
         if self.guiNeedsUpdate {
             self.guiNeedsUpdate = false
+            LatencyProbe.shared.updateStarted()
             self.updateAllTrackers()
             self.guiUpdateResets = false
         } else if windowChanged {
