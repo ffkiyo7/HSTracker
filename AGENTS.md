@@ -1,0 +1,88 @@
+# AGENTS.md
+
+写给在这个仓库里干活的 AI 助手（Claude Code / 本机 grok-4.6 / Codex 等）。人也可以看。
+
+优先级：**本文件 > 上游 `CONTRIBUTING.md`**。理由见下一节。
+
+## 这是什么仓库
+
+HSTracker —— macOS 上的炉石传说记牌器，Swift + AppKit。
+
+- 本仓库是 `HearthSim/HSTracker` 的**个人自用 fork**（`ffkiyo7/HSTracker`）。
+- **不打算把改动回流上游**。因此上游的 `CONTRIBUTING.md` 只当参考，不是我们的规矩。
+- 但**会持续从上游 merge**，每个 release 跟一次。下面好几条约定是由这一条推出来的。
+
+改造计划见 `docs/PLAN.md`，当前进度见 `docs/PROGRESS.md`。
+
+## Commit 规范
+
+用 Conventional Commits 前缀：`feat` / `fix` / `perf` / `docs` / `chore`（merge commit 不加前缀）。
+
+**理由是我们自己的**，不是照抄上游：跟完上游之后 `git log` 里两边的提交是混在一起的，
+上游恰好也在用同一套前缀，统一纯粹是为了我们自己翻历史时好读。哪天不再跟上游了，这条可以推翻。
+
+- 标题：**≤50 字符**，祈使语气，不加句号。前缀后面小写开头（专有名词除外）。
+- 正文：解释**为什么**这么改，而不是复述 diff 改了什么。按**显示宽度**折行，
+  **≤80 列**（中日韩字符算 2 列）。
+- 正文里注明代码是谁写的：如果由 grok-4.6 按任务书生成，写明依据哪本任务书、
+  以及 review 时额外改了什么。
+- 结尾保留 `Co-Authored-By:` 尾注。
+- **不要写 `Claude-Session:` 或任何 `https://claude.ai/code/session_...` 链接。**
+- 一个 commit 只做一件事。
+
+## 跟上游的流程
+
+```
+git fetch upstream --tags
+git checkout master && git merge --ff-only upstream/master   # master 只做快进，不在上面提交
+git checkout <工作分支> && git merge master
+```
+
+`master` 是上游的纯镜像 —— **任何我们自己的改动都不许提交到 master**，否则以后没法快进。
+合完之后要更新 `docs/PROGRESS.md` 里的基线 commit 和构建状态。
+
+## 分工：任务书交给本地模型
+
+Phase 0 / Phase 3 的代码由本机 grok-4.6 按 `docs/tasks/*.md` 里的任务书写成，人工 review 后提交。
+给这类模型下任务时，任务书必须复述以下硬性规则（现有的写在 `docs/tasks/_common*.md`）：
+
+1. **只改任务书明确指定的文件。** 发现别处也有问题，写进报告，不要顺手改。
+2. **不要 `git add`，不要 `commit`。** 改完留在工作区，由人 review 后统一提交。
+3. **不要动 `Config.xcconfig`。** 它已改成本地签名并 `git update-index --skip-worktree`。
+4. 保持与周围代码一致的风格。这个仓库注释偏少，**不要加大段注释**；
+   只在改动原因不明显时写一两行说明为什么。
+5. 改完自己跑一遍验收构建，确认 `BUILD SUCCEEDED`。
+
+## 构建
+
+```
+xcodebuild -project HSTracker.xcodeproj -scheme HSTracker \
+  -configuration Debug -destination 'platform=macOS' build
+```
+
+注意 `HSTracker.xcodeproj/project.pbxproj` 里 "Embed Mono" build phase 的 `NET_VERSION` 是 `net8.0`
+（上游 `d70efe05` 升级 mono 到 8.0.29 时漏改，我们在 `2a050460` 修了）。**除非任务明确要求，不要动这个文件。**
+
+工程是 `objectVersion = 70` + `PBXFileSystemSynchronizedRootGroup`，
+**新加的 `.swift` 文件会被 Xcode 自动纳入**，不需要手工往 pbxproj 里加 file ref。
+
+## 本地化
+
+简体中文（zh-Hans）已补到 99.2%，详见 `docs/PROGRESS.md` 的 Phase 3 小节。
+
+- 译文只放在 **String Catalog（`.xcstrings`）** 里。
+  各语言的 `.lproj/*.strings` 已在 `3f87e5cb` 删除 —— 那些文件从来没参与过编译，
+  **不要再新建**。
+- 动过 `.xcstrings` 之后必须过校验器：
+
+  ```
+  python3 docs/tasks/tools/check_xcstrings.py --baseline <改动前的 git ref>
+  ```
+
+  它会挡住：格式偏离 Xcode 规范写法、增删 key、改动 zh-Hans 以外的语言、
+  覆盖已有的 zh-Hans 译文、占位符（`%@` / `%1$@`）不匹配、`state` 不是 `translated`。
+
+## 文档
+
+`docs/` 下的文档用中文写。`docs/PROGRESS.md` 是「做到哪了 / 下一步是什么」的唯一入口，
+**每完成一项就更新它**，不要让它落后于 `git log`。
