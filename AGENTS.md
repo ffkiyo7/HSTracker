@@ -63,8 +63,17 @@ xcodebuild -project HSTracker.xcodeproj -scheme HSTracker \
 注意 `HSTracker.xcodeproj/project.pbxproj` 里 "Embed Mono" build phase 的 `NET_VERSION` 是 `net8.0`
 （上游 `d70efe05` 升级 mono 到 8.0.29 时漏改，我们在 `2a050460` 修了）。**除非任务明确要求，不要动这个文件。**
 
-工程是 `objectVersion = 70` + `PBXFileSystemSynchronizedRootGroup`，
-**新加的 `.swift` 文件会被 Xcode 自动纳入**，不需要手工往 pbxproj 里加 file ref。
+**新加的 `.swift` 文件必须手工登记进 `project.pbxproj`**（`PBXBuildFile` + `PBXFileReference` +
+所属 group + Sources build phase，共 4 处）。工程虽然是 `objectVersion = 70`，但唯一的
+`PBXFileSystemSynchronizedRootGroup` 只覆盖 `AnimalCompanionGenerator/`，`HSTracker/` 不在其中。
+
+漏登记**不会报编译错误** —— 文件被静默忽略，只有当别处按名字引用它时才会暴露。上游 3.6.5 就踩了这个坑：
+`EternalKnightCounter.swift` / `AncestralAutomatonCounter.swift` 两个文件加进了仓库却没进 pbxproj，
+CHANGELOG 宣传的两个战棋计数器实际没有被编译。加完新文件后请自查：
+
+```
+grep -c "你的新文件.swift" HSTracker.xcodeproj/project.pbxproj   # 应为 3~4，不是 0
+```
 
 ## 本地化
 
