@@ -170,7 +170,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "显示对手抽卡机会"
+            "value" : "显示对手抽到概率"
           }
         },
         "zh-Hant" : {
@@ -260,7 +260,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "显示对手英雄和名字"
+            "value" : "显示对手职业和名字"
           }
         },
         "zh-Hant" : {
@@ -440,7 +440,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "清空对手记牌器"
+            "value" : "对局结束清空对手记牌器"
           }
         },
         "zh-Hant" : {
@@ -530,7 +530,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "显示场攻（包括武器）"
+            "value" : "显示场攻"
           }
         },
         "zh-Hant" : {
@@ -620,7 +620,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "显示对手的卡牌数"
+            "value" : "显示对手卡牌数"
           }
         },
         "zh-Hant" : {
@@ -646,6 +646,12 @@
             "state" : "translated",
             "value" : "Afficher les compteurs"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示计数器"
+          }
         }
       }
     },
@@ -664,6 +670,12 @@
             "state" : "translated",
             "value" : "Afficher les effets actifs"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示激活效果"
+          }
         }
       }
     },
@@ -681,6 +693,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Afficher les maximums de points de vie, de mana et de cartes en main"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示生命值、法力水晶和手牌上限"
           }
         }
       }
@@ -830,7 +848,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "鼠标进入时显示卡牌列表"
+            "value" : "鼠标悬停显示卡牌列表"
           }
         },
         "zh-Hant" : {
@@ -945,6 +963,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Afficher l'infobulle des cartes liées"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示相关卡牌提示信息"
           }
         }
       }
@@ -1095,6 +1119,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Autoriser la sélection du deck de l'adversaire hors parties amicales"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在非好友对战中启用对手卡组设置"
           }
         }
       }

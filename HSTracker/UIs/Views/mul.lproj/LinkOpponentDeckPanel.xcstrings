@@ -80,7 +80,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Error"
+            "value" : "错误"
           }
         },
         "zh-Hant" : {
@@ -254,7 +254,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Copy a deck code to your clipboard and click the button below to see their deck update as they play"
+            "value" : "将卡组代码复制到剪贴板，然后点击下方按钮，即可在对局过程中看到对手卡组的更新。"
           }
         },
         "zh-Hant" : {
@@ -344,7 +344,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Clear"
+            "value" : "清除"
           }
         },
         "zh-Hant" : {
@@ -434,7 +434,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Set deck from clipboard"
+            "value" : "从剪贴板设置卡组"
           }
         },
         "zh-Hant" : {
@@ -524,7 +524,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Know your opponent's deck?"
+            "value" : "知道对手的卡组？"
           }
         },
         "zh-Hant" : {

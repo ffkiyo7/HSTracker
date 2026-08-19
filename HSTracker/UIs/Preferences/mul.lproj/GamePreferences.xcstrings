@@ -146,7 +146,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在每轮结束时，自动存储竞技模式套牌"
+            "value" : "每轮结束时自动存档竞技场卡组"
           }
         },
         "zh-Hant" : {
@@ -326,7 +326,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "自动导入并选择套牌"
+            "value" : "自动导入并选择卡组"
           }
         },
         "zh-Hant" : {

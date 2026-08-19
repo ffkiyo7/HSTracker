@@ -104,7 +104,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "自动移动记牌器"
+            "value" : "自动设定记牌器位置"
           }
         },
         "zh-Hant" : {
@@ -345,6 +345,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "HSTracker will be visible on all your workspace while playing"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "游戏时，记牌器会在你的所有桌面显示"
           }
         },
         "zh-Hant" : {
@@ -820,6 +826,12 @@
             "state" : "translated",
             "value" : "Activer le Mulligan Guide"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启用起手留牌指南"
+          }
         }
       }
     },
@@ -992,7 +1004,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "寒冰"
+            "value" : "冰霜"
           }
         },
         "zh-Hant" : {
@@ -1202,7 +1214,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "显示风味文字"
+            "value" : "显示卡牌趣闻"
           }
         }
       }
@@ -1215,6 +1227,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Enable Mulligan G-V2"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启用起手留牌指南G-V2"
           }
         }
       }
@@ -1328,7 +1346,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "显示构造调度建议"
+            "value" : "构筑模式中显示起手留牌指南"
           }
         }
       }
@@ -1864,6 +1882,12 @@
             "state" : "translated",
             "value" : "Afficher la disponibilité sur l'écran de sélection des decks"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在卡组选择界面显示起手留牌指南可用性"
+          }
         }
       }
     },
@@ -1946,7 +1970,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "卡牌数为零时不显示该卡牌"
+            "value" : "若卡牌数为零，移除该卡牌"
           }
         },
         "zh-Hant" : {
@@ -1971,6 +1995,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Afficher l'overlay de mulligan en début de partie"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "游戏开始时显示起手留牌窗口"
           }
         }
       }
@@ -2234,7 +2264,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "显示弃掉的卡牌"
+            "value" : "高亮弃掉的卡牌"
           }
         },
         "zh-Hant" : {
