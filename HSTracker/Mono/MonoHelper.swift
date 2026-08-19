@@ -499,8 +499,14 @@ class MonoHelper {
             exc[0] = nil
             _ = mono_runtime_invoke(mw, inst2, nil, exc)
             if exc[0] != nil {
+                // This is a startup self-test, so an exception here must not take the
+                // app down with it: the loop below only knows two exception types, and
+                // BobsBuddy is downloaded as "latest" rather than the version this code
+                // was written against, so an unrecognised one is expected to show up
+                // eventually. Log what it actually is instead.
+                logger.error("testSimulation threw: \(MonoHelper.toString(obj: MonoHandle(obj: exc[0])))")
                 var aggregate: AggregateExceptionProxy! = AggregateExceptionProxy(obj: exc[0])
-                while true {
+                while aggregate != nil {
                     let inner = aggregate.innerException
                     if let class_ = UnsupportedInteractionExceptionProxy._class, MonoHelper.isInstance(obj: inner, klass: class_) {
                         let uie = UnsupportedInteractionExceptionProxy(obj: inner.get())
@@ -510,11 +516,14 @@ class MonoHelper {
                     } else if let class_ = AggregateExceptionProxy._class, MonoHelper.isInstance(obj: aggregate, klass: class_) {
                         aggregate = AggregateExceptionProxy(obj: inner.get())
                     } else {
-                        fatalError("Unsupported exception")
+                        logger.error("testSimulation: unrecognised exception type, giving up on unwrapping it")
+                        break
                     }
                 }
-                let str = MonoHelper.toString(obj: aggregate)
-                logger.debug(str)
+                if aggregate != nil {
+                    let str = MonoHelper.toString(obj: aggregate)
+                    logger.debug(str)
+                }
             }
             exc.deallocate()
 
