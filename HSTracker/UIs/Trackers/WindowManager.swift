@@ -262,6 +262,9 @@ class WindowManager {
 
     private var lastCardsUpdateRequest = Date.distantPast.timeIntervalSince1970
 
+    // Last title applied via show(); skip addWindowsItem / title writes when unchanged.
+    private var appliedWindowTitles: [ObjectIdentifier: String] = [:]
+
     var triggers: [NSObjectProtocol] = []
     
     func startManager() {
@@ -430,10 +433,15 @@ class WindowManager {
         if show {
             // add the window in the "windows menu"
             if let title = title {
-                NSApp.addWindowsItem(window,
-                                     title: String.localizedString(title, comment: ""),
-                                     filename: false)
-                window.title = String.localizedString(title, comment: "")
+                let windowId = ObjectIdentifier(window)
+                if appliedWindowTitles[windowId] != title {
+                    let localizedTitle = String.localizedString(title, comment: "")
+                    NSApp.addWindowsItem(window,
+                                         title: localizedTitle,
+                                         filename: false)
+                    window.title = localizedTitle
+                    appliedWindowTitles[windowId] = title
+                }
             }
 
             // update gui elements
@@ -455,22 +463,33 @@ class WindowManager {
             } else {
                 level = Int(CGWindowLevelForKey(CGWindowLevelKey.normalWindow))
             }
-            window.level = NSWindow.Level(rawValue: level)
+            let windowLevel = NSWindow.Level(rawValue: level)
+            if window.level != windowLevel {
+                window.level = windowLevel
+            }
 
             // if the setting is on, set the window behavior to join all workspaces
+            let collectionBehavior: NSWindow.CollectionBehavior
             if Settings.canJoinFullscreen {
-                window.collectionBehavior = [NSWindow.CollectionBehavior.canJoinAllSpaces, NSWindow.CollectionBehavior.fullScreenAuxiliary]
+                collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
             } else {
-                window.collectionBehavior = []
+                collectionBehavior = []
+            }
+            if window.collectionBehavior != collectionBehavior {
+                window.collectionBehavior = collectionBehavior
             }
 
             let locked = Settings.windowsLocked || controller.alwaysLocked
+            let styleMask: NSWindow.StyleMask
             if locked {
-                window.styleMask = [.borderless, .nonactivatingPanel]
+                styleMask = [.borderless, .nonactivatingPanel]
             } else {
-                window.styleMask = [.titled, .miniaturizable,
-                                    .resizable, .borderless,
-                                    .nonactivatingPanel]
+                styleMask = [.titled, .miniaturizable,
+                             .resizable, .borderless,
+                             .nonactivatingPanel]
+            }
+            if window.styleMask != styleMask {
+                window.styleMask = styleMask
             }
 
             window.orderFront(nil)
