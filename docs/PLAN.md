@@ -360,6 +360,66 @@ HSTracker 的 `AnimatedCardList.swift` 是 `AnimatedCardList.xaml.cs` 的逐行�
 **前提同样是 Phase 1.3** —— `AnimatedCardList.updateFrames()`（`:186-199`）每次刷新都
 `removeFromSuperview` 全部子视图再 `addSubview` 回去，在这样的容器里做布局动画没有意义。
 
+### 2.8 尺寸重做：解耦宽高、改为按窗口比例
+
+现状问题（用户反馈：**全屏下卡条太宽、整体太高**）：
+
+**（1）尺寸全部写死，且不随炉石窗口缩放。**
+
+```swift
+// SizeHelper.swift:311-321
+width:  max(trackerWidth, width),              // 绝对点值（.big = 217）
+height: max(100, hearthstoneWindow.frame.height - offset - yOffset)
+return hearthstoneWindow.relativeFrame(frame, relative: false)   // keepRatio 默认 false
+```
+
+`relativeFrame` 只在 `keepRatio: true` 时缩放宽高（`:220-223`），记牌器用的是默认 `false`。
+而常量是按 `BaseWidth = 1440` / `BaseHeight = 922`（`:16-17`，注释写明是**原作者的 MBA 分辨率**）
+调的，所以只在那一个分辨率下比例正确。
+
+**（2）五档预设共用同一个宽高比，无法表达目标比例。**
+
+`CardSize.swift` 里宽度是从高度推出来的（`kSmallFrameWidth = kFrameWidth / kRowHeight * kSmallRowHeight`），
+五档全部锁死 **6.38 : 1**。而 Firestone 实测是 **8.14 : 1**（171 × 21 px @1080p）。
+选 `small` 宽度差 14%，选 `medium` 行高差 38% —— **调参数解决不了，缺的是"宽高可独立设置"这个能力**。
+
+**（3）行高被挤压时宽度不跟着收，破坏宽高比。**
+
+```swift
+// Tracker.swift:296-299
+cardHeight = min(cardHeight, (windowHeight - offsetFrames) / CGFloat(totalCards))
+```
+
+40 张牌 × 34pt = 1360pt 超过屏高，于是行高被压到 ~24pt，**但宽度仍是 217** ——
+宽高比从 6.38 掉到 9.0，贴图纵向压扁。`CardBar.ratioHeight`（`:841-858`）里
+`if baseHeight > self.bounds.height { return kRowHeight / self.bounds.height }`
+就是在给这种情况打补丁，只压高不压宽。
+
+#### 目标尺寸（实测见 `docs/research/firestone-overlay.md` 第七节）
+
+| 项 | 目标 | 表达为占比 |
+|---|---|---|
+| 面板宽 | 171 px @1920 | **8.9% 窗口宽** |
+| 卡条高 | 21 px @1080 | **1.94% 窗口高** |
+| 宽高比 | 8.14 : 1 | — |
+| 费用格 | 22 × 21（近正方） | 12.9% 面板宽 |
+| 标题栏 / 套牌行 / 分段标题 | 22 / 23 / 22 px | **均与卡条同高** |
+
+#### 改法
+
+1. **`trackerFrame()` 改为按窗口比例算宽度**，不再用绝对 `trackerWidth`；
+   或保留绝对值但乘 `scaleX`（能力已有，只是记牌器没用）。
+2. **宽高解耦**：`CardSize` 从"一个枚举推出宽高"改成两个独立量
+   （或保留预设但每档各自给定宽和高，不再用 `kFrameWidth / kRowHeight * x` 推导）。
+3. **行高挤压时宽度同步收缩**，保持宽高比恒定；`CardBar.ratioHeight` 那个补丁随之删除。
+4. **顶部信息区（2.4）统一到卡条行高**，Firestone 四类元素全在 21~23px，我们现在
+   `smallFrameHeight` / `bigFrameHeight` 各不相同，是"整体太高"的另一半原因。
+
+**绑定工作量：主题贴图。** `HSTracker/Resources/Themes/Bars/*/` 全部是 1x 的 217×34 PNG，
+**没有 `@2x`**。改宽高比会直接拉伸它们，而 Retina 屏上本来就已经是放大后的模糊结果。
+Phase 1 换 SwiftUI 时应把卡条框架改成矢量绘制（`Path` / `Shape`），彻底摆脱固定尺寸贴图 ——
+这样 2.8 就不需要重新出图。**因此 2.8 建议排在 Phase 1 之后。**
+
 ---
 
 ## Phase 3 — 补全简体中文
