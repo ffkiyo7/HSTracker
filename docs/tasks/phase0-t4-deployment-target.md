@@ -18,8 +18,17 @@ Debug 和 Release 两处配置**都要改**。
 
 ## 明确不要动
 
-- pbxproj 里另有一处 `MACOSX_DEPLOYMENT_TARGET = 10.12;`，**属于另一个 target，不要动它**。
-  改之前先 `grep -n "MACOSX_DEPLOYMENT_TARGET" HSTracker.xcodeproj/project.pbxproj` 看清楚每一处属于谁。
+- pbxproj 里一共有 **6 处** `MACOSX_DEPLOYMENT_TARGET`，只动其中 2 处：
+
+  | 值 | 归属 | 动不动 |
+  |---|---|---|
+  | `10.12` ×2 | PBXProject "HSTracker"（工程级默认，配置列表 `439C7E431C7772C000D29859`） | **不动** |
+  | `10.14` ×2 | PBXNativeTarget "HSTracker"（`439C7E711C7772C100D29859` Debug / `439C7E721C7772C100D29859` Release） | **改成 `14.0`** |
+  | `11.0` ×2 | PBXNativeTarget "HSTrackerTests"（`439C7E741C7772C100D29859` / `439C7E751C7772C100D29859`） | **不动** |
+
+  动手前先 `grep -n "MACOSX_DEPLOYMENT_TARGET" HSTracker.xcodeproj/project.pbxproj` 核对一遍，
+  确认待改的两行确实落在上表说的那两个配置块里 —— app target 的两块紧跟着
+  `PRODUCT_NAME = "$(TARGET_NAME)";`，工程级那两块没有。
 - **不要清理那 97 处 `@available(macOS 10.15, *)` 守卫。** 提升部署目标之后它们只是恒真，
   仍然完全合法。清理是可选的后续收尾，不在本任务范围，动了会把 diff 撑爆、掩盖真正的改动。
 - 不要改 `SWIFT_VERSION`、`ARCHS`、`ONLY_ACTIVE_ARCH` 或任何其它构建设置。
@@ -28,7 +37,20 @@ Debug 和 Release 两处配置**都要改**。
 ## 验收
 
 1. `grep -n "MACOSX_DEPLOYMENT_TARGET" HSTracker.xcodeproj/project.pbxproj` 的输出里，
-   原来两处 `10.14` 变成 `14.0`，那处 `10.12` 原封不动。
-2. 构建通过。
-3. `git diff --stat` 只显示 `project.pbxproj` 一个文件、改动行数很少（个位数）。
+   原来两处 `10.14` 变成 `14.0`，两处 `10.12` 和两处 `11.0` 原封不动 —— 仍是 6 行。
+2. 构建通过。本任务改的是**构建设置**，所以验收构建要在**受限环境**下跑（Xcode 由 launchd 拉起，
+   既没有 homebrew 的 PATH 也没有代理，命令行两样都继承，不剥掉就测不出真实情况）：
+
+   ```
+   cd /Users/wadorudi/Desktop/dev/HSTracker
+   env -u http_proxy -u https_proxy -u all_proxy -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY \
+     PATH=/usr/bin:/bin:/usr/sbin:/sbin \
+     xcodebuild -project HSTracker.xcodeproj -scheme HSTracker \
+     -configuration Debug -destination 'platform=macOS' build
+   ```
+
+   改部署目标会让模块缓存整体失效，这一次实际上是全量重编，耗时较长，属正常现象。
+3. 提升部署目标后新冒出来的**警告**（deprecated API、恒真的 `@available` 等）**一律不要修**，
+   数一数有多少、挑几条有代表性的写进报告即可。
+4. `git diff --stat` 只显示 `project.pbxproj` 一个文件、改动行数很少（个位数）。
    如果 diff 很大，说明文件被重排了，请还原重做。
