@@ -90,7 +90,7 @@ final class LatencyProbe {
         lock.unlock()
     }
 
-    /// Game.internalUpdateCheck, where the tick picks the flag up.
+    /// Game.runGuiUpdate, where the scheduled update picks the flag up.
     func updateStarted() {
         guard LatencyProbe.enabled else { return }
         let t = LatencyProbe.now()
@@ -145,7 +145,7 @@ final class LatencyProbe {
 
         logger.info("[latency] all values in ms, dropped \(dropped) outliers (>\(Int(LatencyProbe.outlierCutoff))s)")
         logger.info("[latency] A log line -> parsed   \(f)   <- includes Hearthstone's own flush delay, the floor")
-        logger.info("[latency] C requested -> tick    \(t)   <- guiUpdateDelay")
+        logger.info("[latency] C requested -> tick    \(t)   <- debounce")
         logger.info("[latency] D tick -> UI committed \(r)   <- render cost")
         logger.info("[latency] E2E line -> UI         \(e)")
     }

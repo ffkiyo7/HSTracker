@@ -5,8 +5,9 @@
 **最后更新**：2026-08-21
 **分支**：`phase0+3`（基于 `master` = upstream `77a85be2` / **3.6.5**）—— 原名 `perf/phase0-overlay`；后续阶段落地后再改名
 **构建状态**：Debug / Release 均 `BUILD SUCCEEDED`（clean + 增量都验证过，且是在剥掉 PATH 和代理的受限环境下）
-**当前卡在**：无阻塞。Debug / Release 两轮埋点都已实测（见下），优化顺序已按实测重排，
-下一步是**动手做第 1 项：GUI tick 改防抖**（C 段 p50 107ms，E2E 里最大的一块可控成本）
+**当前卡在**：无阻塞。优化顺序已按 Release 实测重排，第 1 项（GUI tick 改防抖）已落地 = T5。
+下一步二选一：**再跑一次探针确认 T5 的收益**（拿去比 `C p50=106.9 / E2E p50=309.8`），
+或直接做第 2 项（两个日志轮询用信号量串起来，A 段 ~50ms）
 
 **已跟上游 3.6.5**（2026-08-19）：`git merge master` 无冲突，两处重叠文件（`Game.swift` / `project.pbxproj`）
 自动合并且两边改动都保留。3.6.5 对齐炉石 36.2.2（卡牌数据 248348 → 249896、BobsBuddy 1.57.6 → 1.62.1），
@@ -296,6 +297,57 @@ HSTracker 完全没启动）。
 
 ---
 
+## 2026-08-21：T5 —— GUI 刷新由轮询改为防抖调度
+
+按上面重排后的第 1 项动手。任务书 `docs/tasks/phase0-t5-gui-debounce.md`，
+代码由本机 grok-4.6（`--effort high`）写成。
+
+**改动**：`updateTrackers()`（`Game.swift:243`）置位后直接排一次 16ms 的合并刷新，
+取代原来 100ms 的自轮询。`internalUpdateCheck()` 拆成两半 ——
+`housekeepingTick()`（窗口轮询 250ms 节流 + `updateBoardOverlay()`）搬到新的
+`_windowQueue`，`applyWindowChange()` 留在 `_queue`。51 个 `updateTrackers()` 调用点一处未动。
+
+预期 C 段 p50 由 106.9ms 降到 ~16ms + 上一轮主线程耗时。
+
+### 三个必须记住的设计点
+
+1. **不是经典 trailing-edge debounce。** 那种「每次新请求都把定时器推后」的写法，
+   在日志密集时请求永不停歇 → 定时器无限推后 → **overlay 永远不刷新**。
+   这里是「第一个请求排一次、窗口内后续只置标志」（`guard !guiUpdateScheduled`）。
+2. **`guiUpdateInFlight` 不是可选项。** 防抖窗口 16ms，而 D 段 p95 有 273ms ——
+   没有在途标志，上一轮还堵在主线程时下一轮就排进去了，必然堆积。
+   有了它节奏自动变成「上一轮主线程耗时 + 16ms」，**由结构保证压不垮主线程**。
+   完成时机靠一个排在那 20 个块之后的 marker 判断（主队列 FIFO）。
+3. **`Game.swift:857` / `:868` 两处曾直接写 `guiNeedsUpdate = true`**，不走 `updateTrackers()`。
+   有轮询兜底时它们照样生效，改成事件驱动后**将永远等不到刷新** ——
+   这是「单看任务本身发现不了」的组合型回归，和 T3 那次同一类。两处已改走 `updateTrackers()`，
+   顺带消掉了它们对 `_queue` 私有状态的数据竞争（一处跑在主线程上）。
+
+顺带把 `SizeHelper.hearthstoneWindow.reload()`（4 次阻塞式跨进程 AX 调用）挪出 `_queue`。
+它和 tick 共用一条串行队列，正是 C 段 p95 195ms（约两拍）最可能的来源。
+
+### review 时改了什么
+
+**注释语言。** grok 把任务书里代码片段的中文注释原样抄进了 `Game.swift`，
+而这个仓库的代码注释一律英文。已全部改写为英文。**这是任务书的锅** ——
+以后往任务书里贴代码片段，注释就得先用英文写好。
+
+### 验证与遗留
+
+Debug / Release 构建均 `BUILD SUCCEEDED`（受限环境）。**按判断没做游戏内实测**：
+改的是调度时序，正确性由构建 + 上面三点的代码审查覆盖。
+
+**但收益数字尚未实测。** 想确认 C 段真的降下来了，就再跑一次探针
+（`HSTRACKER_LATENCY_PROBE=1`，Release 版，一整局），拿去和 8-21 那组
+`C p50=106.9 / E2E p50=309.8` 对比。`guiUpdateDebounce = 0.016` 是有理由的初值而非实测最优，
+调它必须拿探针数据说话。
+
+一个已知的副作用：窗口矩形变化触发的刷新会打出 `updateStarted()` 却没有配对的
+`updateRequested()`，于是产生没有 C 样本的 D 样本（旧代码在那条分支上连 `updateStarted()`
+都不打）。拖动窗口时才会发生，不影响日志驱动的 C/D/E2E 基线，但对比时要知道有这回事。
+
+---
+
 ## 状态总览
 
 | 阶段 | 内容 | 状态 |
@@ -307,6 +359,7 @@ HSTracker 完全没启动）。
 | — | **游戏内实测** | ✅ 已做（2026-08-19 夜）——「感觉不卡」，但**这个标准已作废**，见下 |
 | — | **延迟埋点** | ✅ Debug（8-20）+ Release 对照（8-21）都已实测，优化顺序已重排 |
 | T4 | 部署目标 → macOS 14.0 | ✅ 完成并 review |
+| T5 | GUI 刷新改防抖（实测后新增） | ✅ 完成并 review（**未做游戏内实测**） |
 | Phase 1 | SwiftUI 记牌器渲染 | ⬜ 未开始 |
 | Phase 2 | 记牌器分区（牌库/手牌/已打出） | ⬜ 未开始（依赖 Phase 1） |
 | Phase 3 | 补全简体中文 | ✅ 完成并 review（未译 410 → 7，99.2%） |

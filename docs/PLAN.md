@@ -164,6 +164,20 @@ T1 与 T2 互不相干可并行，但都改 overlay 行为，**建议还是串�
 - **注意**：pbxproj 里一共 6 处 `MACOSX_DEPLOYMENT_TARGET` —— `10.12` ×2 是工程级默认、`11.0` ×2 属 HSTrackerTests，**都不要动**。提升部署目标不会破坏编译，现存 97 处 `@available(macOS 10.15, *)` 守卫仍然合法（只是恒真），清理它们是可选的后续收尾，**本任务不做**
 - **验收**：构建通过；`grep -n "MACOSX_DEPLOYMENT_TARGET" HSTracker.xcodeproj/project.pbxproj` 确认改到位；应用能正常启动
 
+### T5 — GUI 刷新由轮询改为防抖调度（**实测之后新增的任务**）
+
+原计划没有这一项。它是 2026-08-21 Release 版埋点实测的直接产物：C 段（置位 → tick 消费）
+实测 p50 106.9ms，占 E2E 的 35%，是当时最大的一块可控成本；而同一轮实测把 D 段
+（渲染）打到只剩 20ms，原来排在前面的「优化 `updateFrames()`」因此失去意义。
+
+- **文件**：`HSTracker/Logging/Game.swift`、`HSTracker/Utility/LatencyProbe.swift`（后者只改文案）
+- **改动**：`updateTrackers()` 置位后直接排一次 16ms 的合并刷新，取代 100ms 轮询；
+  `internalUpdateCheck()` 拆成跑在独立队列上的 `housekeepingTick()`（窗口轮询 + `updateBoardOverlay()`）
+  与 `applyWindowChange()`
+- **注意**：**不是经典 trailing-edge debounce**（每次请求重置定时器会在日志密集时饿死 overlay）；
+  必须有 `guiUpdateInFlight` 挡住主线程还没画完时的下一轮，否则 16ms 窗口对上 D 段 273ms 的 p95 必然堆积
+- **任务书**：`docs/tasks/phase0-t5-gui-debounce.md`
+
 ### grok 调用方式
 
 每个任务一次独立调用，跑完我 review diff、确认验收项，再放下一个：

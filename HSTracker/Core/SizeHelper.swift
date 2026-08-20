@@ -136,7 +136,7 @@ struct SizeHelper {
                 }
 
                 // Publish after AX returns so reload() stays synchronous for
-                // internalUpdateCheck's before/after comparison, without holding
+                // housekeepingTick's before/after comparison, without holding
                 // the lock across the blocking calls.
                 lock.around {
                     if hasWindowId {

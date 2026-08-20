@@ -39,7 +39,11 @@ class Game: NSObject, PowerEventHandler {
 	 */
     internal let windowManager = WindowManager()
 	
-    static let guiUpdateDelay: TimeInterval = 0.1
+    static let housekeepingInterval: TimeInterval = 0.1
+
+    /// Window a refresh request is coalesced over. A frame and a bit: smaller lets
+    /// bursty logs through one at a time, larger gives back what the poll was costing.
+    static let guiUpdateDebounce: TimeInterval = 0.016
 	
 	private let turnTimer: TurnTimer
     
@@ -203,7 +207,10 @@ class Game: NSObject, PowerEventHandler {
 	
 	private var guiNeedsUpdate = false
 	private var guiUpdateResets = false
+	private var guiUpdateScheduled = false
+	private var guiUpdateInFlight = false
 	private let _queue = DispatchQueue(label: "net.hearthsim.hstracker.guiupdate", attributes: [])
+	private let _windowQueue = DispatchQueue(label: "net.hearthsim.hstracker.windowpoll", attributes: [])
 	
     private func updateAllTrackers() {
 		self.updatePlayerTracker(reset: guiUpdateResets)
@@ -247,6 +254,37 @@ class Game: NSObject, PowerEventHandler {
             LatencyProbe.shared.updateRequested()
             self.guiNeedsUpdate = true
             self.guiUpdateResets = reset || self.guiUpdateResets
+            self.scheduleGuiUpdate()
+        }
+    }
+
+    /// Must be called on _queue.
+    private func scheduleGuiUpdate() {
+        guard !guiUpdateScheduled, !guiUpdateInFlight else { return }
+        guiUpdateScheduled = true
+        _queue.asyncAfter(deadline: .now() + Game.guiUpdateDebounce, execute: {
+            self.runGuiUpdate()
+        })
+    }
+
+    /// Must be called on _queue.
+    private func runGuiUpdate() {
+        guiUpdateScheduled = false
+        guard guiNeedsUpdate else { return }
+        guiNeedsUpdate = false
+        guiUpdateInFlight = true
+        LatencyProbe.shared.updateStarted()
+        updateAllTrackers()
+        guiUpdateResets = false
+        // updateAllTrackers() only enqueues its ~20 blocks on the main queue, and that
+        // queue is FIFO - so a block queued behind them runs once the refresh is really done.
+        DispatchQueue.main.async {
+            self._queue.async {
+                self.guiUpdateInFlight = false
+                if self.guiNeedsUpdate {
+                    self.scheduleGuiUpdate()
+                }
+            }
         }
     }
 	
@@ -854,7 +892,7 @@ class Game: NSObject, PowerEventHandler {
                 experienceCounter.needsDisplay = true
                 self.windowManager.experiencePanel.visible = true
                 self.updateExperienceOverlay()
-                self.guiNeedsUpdate = true
+                self.updateTrackers()
             }
             Thread.sleep(forTimeInterval: Game.experienceFadeDelay)
         } else {
@@ -865,7 +903,7 @@ class Game: NSObject, PowerEventHandler {
         }
         if currentMode != Mode.hub {
             windowManager.experiencePanel.visible = false
-            guiNeedsUpdate = true
+            updateTrackers()
         }
     }
 
@@ -1537,13 +1575,7 @@ class Game: NSObject, PowerEventHandler {
             self.observers.append(observer)
 		}
 		
-		// start gui updater thread
-		_queue.async {
-//			while true {
-            self.internalUpdateCheck()
-//				Thread.sleep(forTimeInterval: Game.guiUpdateDelay)
-//			}
-		}
+		_windowQueue.async { self.housekeepingTick() }
     }
     
     deinit {
@@ -1559,12 +1591,10 @@ class Game: NSObject, PowerEventHandler {
     private static let windowPollInterval: TimeInterval = 0.25
     private var lastWindowPoll: TimeInterval = 0
 
-    private func internalUpdateCheck() {
-        // Poll outside the guiNeedsUpdate branch: updateAllTrackers() used to
-        // reload() on entry, so trackers were always drawn against a fresh rect.
-        // Now that it doesn't, a busy log (guiNeedsUpdate true every tick) would
-        // otherwise leave the overlay pinned to a stale window position.
-        var windowChanged = false
+    /// Self-perpetuating on _windowQueue. reload() is 4 blocking cross-process AX calls;
+    /// leaving it on _queue pushed the next refresh out behind them - the 195ms p95 measured
+    /// on "request -> update starts" (about two ticks) was most likely this.
+    private func housekeepingTick() {
         let now = Date().timeIntervalSince1970
         if now - lastWindowPoll >= Game.windowPollInterval {
             lastWindowPoll = now
@@ -1572,31 +1602,25 @@ class Game: NSObject, PowerEventHandler {
             // fullscreen-flag flips can leave _frame unchanged but still shift the 50px game-menu offset
             let wasFullscreen = SizeHelper.hearthstoneWindow.isFullscreen()
             SizeHelper.hearthstoneWindow.reload()
-            windowChanged = rect != SizeHelper.hearthstoneWindow.frame
-                || wasFullscreen != SizeHelper.hearthstoneWindow.isFullscreen()
-        }
-
-        if self.guiNeedsUpdate {
-            self.guiNeedsUpdate = false
-            LatencyProbe.shared.updateStarted()
-            self.updateAllTrackers()
-            self.guiUpdateResets = false
-        } else if windowChanged {
-            self.updateAllTrackers()
-            self.updateBattlegroundsOverlays()
-            self.updateConstructedMulliganOverlays()
-            self.updateActiveEffects()
-            if #available(macOS 10.15, *) {
-                self.updateMaxResourcesWidget()
-                self.updateRootOverlay()
+            if rect != SizeHelper.hearthstoneWindow.frame
+                || wasFullscreen != SizeHelper.hearthstoneWindow.isFullscreen() {
+                _queue.async { self.applyWindowChange() }
             }
         }
-        
+
         self.updateBoardOverlay()
 
-        _queue.asyncAfter(deadline: DispatchTime.now() + Game.guiUpdateDelay, execute: {
-            self.internalUpdateCheck()
+        _windowQueue.asyncAfter(deadline: .now() + Game.housekeepingInterval, execute: {
+            self.housekeepingTick()
         })
+    }
+
+    /// Must be called on _queue. The window rect moved, so every overlay has to be
+    /// redrawn against the new position.
+    private func applyWindowChange() {
+        guiNeedsUpdate = true
+        scheduleGuiUpdate()
+        updateBattlegroundsOverlays()
     }
 
     func reset() {
