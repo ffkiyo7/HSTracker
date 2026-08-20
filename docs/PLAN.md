@@ -334,6 +334,32 @@ grok --prompt-file docs/tasks/phase0-t1-windowmanager.md \
 关联高亮（2.6）反而值得**加**一个 100~150ms 淡入：Firestone 是硬切换，而我们的问题是高亮太弱，
 淡入能强化存在感且不像位移动画那样干扰读牌。
 
+#### Spike：HDT（Windows 端）的卡条动效 —— 我们端口时丢掉的东西
+
+**完整调研见 `docs/research/hdt-overlay.md`。**
+
+Firestone 没有动效，但**我们自己的上游 HDT 有**，而且正是 2.7 想要的形态。
+HSTracker 的 `AnimatedCardList.swift` 是 `AnimatedCardList.xaml.cs` 的逐行翻译，
+**唯独动画层没跟着翻译过来**：
+
+| | HDT | 我们 |
+|---|---|---|
+| 抽牌闪烁 | 1.0s（0.5 淡入 + 0.5 淡出） | 0.5s，**只有淡出**（`CardBar.swift:262-268`） |
+| 卡条移除 | 淡出 0.7s **+ 布局高度 ScaleY 1→0 塌陷** | 只有 `alphaValue → 0.3`，**无高度动画**（`:285-292`） |
+| 下方卡条上移 | 随塌陷连续上移 | **无 —— 600ms 后跳一格**（`AnimatedCardList.swift:167-172`） |
+| 卡条插入 | ScaleY 0→1 撑开 | 只有 alpha（`:275-283`） |
+
+关键实现细节：HDT 用的是 WPF 的 **`LayoutTransform`**（参与布局测量）而非 `RenderTransform`，
+所以卡条收缩时下方内容**每帧重排**、连续上移。我们这边 `frame` 是在 `updateFrames()` 里直接赋值、
+不走 animator，布局变化永远是一帧跳变 —— 这就是"向上合并"缺失的直接原因。
+
+**对 2.7 的影响**：卡条移出「牌库中」段时照 HDT 的两段式做（先闪、再塌陷），
+但**总时长压到约一半**（HDT 是 1.7s，且数字要等 1.0s 才变，快速连抽会滞后于游戏画面）。
+建议 **闪烁 0.4s + 塌陷 0.25s，数字立即更新**。
+
+**前提同样是 Phase 1.3** —— `AnimatedCardList.updateFrames()`（`:186-199`）每次刷新都
+`removeFromSuperview` 全部子视图再 `addSubview` 回去，在这样的容器里做布局动画没有意义。
+
 ---
 
 ## Phase 3 — 补全简体中文
@@ -453,6 +479,20 @@ Game.swift:443        重新定位时优先读 SizeHelper.timerHudFrame()
 照这个模式给两个 counters overlay 各加一个持久化 frame，`nil` 时回落到现有算法。**需要额外考虑**：计数器数量会随对局变化（新增/移除计数器），持久化的应当是**锚点**而非绝对 rect，否则计数器变多时会溢出屏幕。
 
 设置里应提供「重置计数器位置」入口（Phase 4.3 设置界面重做时一并做）。
+
+#### HDT 已有现成方案（调研见 `docs/research/hdt-overlay.md` 第四节）
+
+上游 Windows 端把 14 个 overlay 元素（含 `PlayerCounters` / `OpponentCounters` / 场攻图标 / 
+活跃效果）登记进 `_movableElements` 全部可拖，**三个设计点正好印证上面"存锚点不存 rect"的判断**：
+
+1. **存百分比不存像素** —— `PlayerCountersVertical += delta.Y / Height`，换分辨率自动跟随。
+2. **横向额外过一次画面比例折算**（`GetScaledXPos(pct, width, ScreenRatio)`）——
+   炉石在超宽屏上是居中 letterbox，直接按窗口宽取百分比会飘。我们 `SizeHelper` 有同类问题。
+3. **玩家侧锚上边、对手侧锚下边**（对手侧 `Height - (自身高度 + Height * pct/100)`），
+   面板朝**远离锚定边**的方向生长 —— 这就是"计数器数量变化时往哪长"的答案。
+
+另有一个 UX 细节值得抄：进入拖动模式时**强制显示一组示例计数器**
+（`ForceShowExampleCounters()`），否则当前没有计数器激活时用户看不到自己在拖什么。
 
 ---
 
