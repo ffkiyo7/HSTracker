@@ -5,9 +5,14 @@
 **最后更新**：2026-08-21
 **分支**：`phase0+3`（基于 `master` = upstream `77a85be2` / **3.6.5**）—— 原名 `perf/phase0-overlay`；后续阶段落地后再改名
 **构建状态**：Debug / Release 均 `BUILD SUCCEEDED`（clean + 增量都验证过，且是在剥掉 PATH 和代理的受限环境下）
-**当前卡在**：无阻塞。优化顺序已按 Release 实测重排，第 1 项（GUI tick 改防抖）已落地 = T5。
-下一步二选一：**再跑一次探针确认 T5 的收益**（拿去比 `C p50=106.9 / E2E p50=309.8`），
-或直接做第 2 项（两个日志轮询用信号量串起来，A 段 ~50ms）
+**当前卡在**：无阻塞。**Phase 0 五项全部完成，Phase 1 的硬前置已清零。**
+下一步（2026-08-22）：拿 Phase 1 的第一块切片做一次模型 A/B —— 同一本任务书
+`docs/tasks/phase1-t1-card-row.md`，grok-4.6 `high` 与 codex CLI 的 GPT-5.6-sol `medium`
+各跑一次，各自隔离在 worktree、**构建不并行**，比实现质量与成本。方法见 PLAN。
+
+**开工前还欠一件有时间窗口的事**：再跑一局 Release 探针 + 同规格录像。
+它同时是「确认 T5 收益」和「Phase 1 的 before 基线」——
+现存基线是 Debug 版且在 T5 之前，一旦动了渲染层就再也补不回来了。
 
 **已跟上游 3.6.5**（2026-08-19）：`git merge master` 无冲突，两处重叠文件（`Game.swift` / `project.pbxproj`）
 自动合并且两边改动都保留。3.6.5 对齐炉石 36.2.2（卡牌数据 248348 → 249896、BobsBuddy 1.57.6 → 1.62.1），
@@ -360,7 +365,8 @@ Debug / Release 构建均 `BUILD SUCCEEDED`（受限环境）。**按判断没�
 | — | **延迟埋点** | ✅ Debug（8-20）+ Release 对照（8-21）都已实测，优化顺序已重排 |
 | T4 | 部署目标 → macOS 14.0 | ✅ 完成并 review |
 | T5 | GUI 刷新改防抖（实测后新增） | ✅ 完成并 review（**未做游戏内实测**） |
-| Phase 1 | SwiftUI 记牌器渲染 | ⬜ 未开始 |
+| Phase 1 | SwiftUI 记牌器渲染 | ⬜ 未开始（前置已清零；验收标准已按实测重定，见 PLAN） |
+| — | T1 切片的模型 A/B | ⬜ 2026-08-22，grok-4.6 vs GPT-5.6-sol，任务书已就绪 |
 | Phase 2 | 记牌器分区（牌库/手牌/已打出） | ⬜ 未开始（依赖 Phase 1） |
 | Phase 3 | 补全简体中文 | ✅ 完成并 review（未译 410 → 7，99.2%） |
 | Phase 4 | 设置 UI + Dock 菜单 | ⬜ 未开始（**4.3 的阻塞已由 T4 解除**，三项都可随时开始） |
