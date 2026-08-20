@@ -2,7 +2,7 @@
 
 ## Context
 
-`~/Desktop/HSTracker` 是 HearthSim/HSTracker 的 fork，当前与 upstream 完全一致（`ecf64cff` = 3.6.4，本机安装的是 3.6.2）。定位为**个人自用版**，不以回合并 upstream 为约束。
+`~/Desktop/dev/HSTracker` 是 HearthSim/HSTracker 的 fork，当前与 upstream 完全一致（`ecf64cff` = 3.6.4，本机安装的是 3.6.2）。定位为**个人自用版**，不以回合并 upstream 为约束。
 
 用户在实际使用中提出四个问题，已逐条定位到源码根因：
 
@@ -81,9 +81,9 @@
 
 ## Phase 0 任务拆分（交给本机 grok headless 执行）
 
-计划本身另存一份到项目内：`/Users/wadorudi/Desktop/HSTracker/docs/PLAN.md`，任务书放 `docs/tasks/`。
+计划本身另存一份到项目内：`/Users/wadorudi/Desktop/dev/HSTracker/docs/PLAN.md`，任务书放 `docs/tasks/`。
 
-本机已确认：`grok` 在 `~/.grok/bin/grok`，已登录 grok.com，`~/.grok/config.toml` 里 `default = "grok-4.6"`、`default_reasoning_effort = "xhigh"`，与要求一致（下面仍显式传参，保证可复现）。
+本机已确认：`grok` 在 `~/.grok/bin/grok`，已登录 grok.com，`~/.grok/config.toml` 里 `default = "grok-4.6"`、`default_reasoning_effort = "high"`，与要求一致（下面仍显式传参，保证可复现）。
 
 ### T0 — 前置环境（**先做，不交给 grok**）
 
@@ -104,7 +104,7 @@
 基线构建命令（同时作为后续每个任务的验收命令）：
 
 ```
-cd /Users/wadorudi/Desktop/HSTracker
+cd /Users/wadorudi/Desktop/dev/HSTracker
 xcodebuild -project HSTracker.xcodeproj -scheme HSTracker \
   -configuration Debug -destination 'platform=macOS' build
 ```
@@ -161,7 +161,7 @@ T1 与 T2 互不相干可并行，但都改 overlay 行为，**建议还是串�
 
 - **文件**：`HSTracker.xcodeproj/project.pbxproj`
 - **改动**：`MACOSX_DEPLOYMENT_TARGET` 由 `10.14` 改为 `14.0`（Debug / Release 两处都要）
-- **注意**：pbxproj 里另有一处 `10.12`，属于其它 target，**不要动**。提升部署目标不会破坏编译，现存 97 处 `@available(macOS 10.15, *)` 守卫仍然合法（只是恒真），清理它们是可选的后续收尾，**本任务不做**
+- **注意**：pbxproj 里一共 6 处 `MACOSX_DEPLOYMENT_TARGET` —— `10.12` ×2 是工程级默认、`11.0` ×2 属 HSTrackerTests，**都不要动**。提升部署目标不会破坏编译，现存 97 处 `@available(macOS 10.15, *)` 守卫仍然合法（只是恒真），清理它们是可选的后续收尾，**本任务不做**
 - **验收**：构建通过；`grep -n "MACOSX_DEPLOYMENT_TARGET" HSTracker.xcodeproj/project.pbxproj` 确认改到位；应用能正常启动
 
 ### grok 调用方式
@@ -169,12 +169,18 @@ T1 与 T2 互不相干可并行，但都改 overlay 行为，**建议还是串�
 每个任务一次独立调用，跑完我 review diff、确认验收项，再放下一个：
 
 ```
-cd /Users/wadorudi/Desktop/HSTracker
+cd /Users/wadorudi/Desktop/dev/HSTracker
 grok --prompt-file docs/tasks/phase0-t1-windowmanager.md \
-     -m grok-4.6 --effort xhigh \
-     --permission-mode acceptEdits \
+     -m grok-4.6 --effort high \
+     --permission-mode auto \
      --output-format plain
 ```
+
+**`--permission-mode` 必须是 `auto`，不能用 `acceptEdits`。** 2026-08-20 跑 T4 时踩到：
+`acceptEdits` 下 grok 的 `search_replace` 仍然要人工批准，而非交互会话没人可问，
+它被判成「用户取消」→ 整个任务中止。恶心的地方是**退出码仍是 0**、输出看起来像正常收尾
+（"接下来只改这两行"然后就没了），不看 `git diff` 会以为它干完了。
+所以每次 grok 跑完都要先 `git status` 确认真的有改动，再看它的报告。
 
 任务书里统一要求：**只改任务指定的文件**、改完自己跑一遍验收构建、输出改动摘要、**不要 commit**（由我 review 后再提交，每个任务一个独立 commit）。
 
