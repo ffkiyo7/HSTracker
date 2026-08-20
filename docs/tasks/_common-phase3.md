@@ -1,6 +1,6 @@
 # 通用约束（所有 Phase 3 任务共用）
 
-项目：HSTracker，macOS 上的炉石传说记牌器，Swift + AppKit，仓库根目录 `/Users/wadorudi/Desktop/HSTracker`。
+项目：HSTracker，macOS 上的炉石传说记牌器，Swift + AppKit，仓库根目录 `/Users/wadorudi/Desktop/dev/HSTracker`。
 个人自用 fork，不需要考虑回合并 upstream。
 
 本阶段目标：**把简体中文补全**。全项目 846 个可翻译 key，当前 410 个没有 zh-Hans（48%）。
@@ -58,7 +58,7 @@ Python 会写成 `{}` —— 校验器已对该文件豁免 E2，不用管。
 仓库里有 `docs/tasks/tools/check_xcstrings.py`。**每个任务收尾前必须跑它，且必须通过：**
 
 ```
-cd /Users/wadorudi/Desktop/HSTracker
+cd /Users/wadorudi/Desktop/dev/HSTracker
 python3 docs/tasks/tools/check_xcstrings.py
 ```
 
@@ -132,7 +132,7 @@ Bob's Buddy、Twitch、Firestone、MMR、Blizzard、Battle.net、Discord。
 JSON 坏了会直接构建失败）：
 
 ```
-cd /Users/wadorudi/Desktop/HSTracker
+cd /Users/wadorudi/Desktop/dev/HSTracker
 xcodebuild -project HSTracker.xcodeproj -scheme HSTracker \
   -configuration Debug -destination 'platform=macOS' build
 ```

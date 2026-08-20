@@ -1,6 +1,6 @@
 ## 通用约束（所有 Phase 0 任务共用）
 
-项目：HSTracker，macOS 上的炉石传说记牌器，Swift + AppKit，仓库根目录 `/Users/wadorudi/Desktop/HSTracker`。
+项目：HSTracker，macOS 上的炉石传说记牌器，Swift + AppKit，仓库根目录 `/Users/wadorudi/Desktop/dev/HSTracker`。
 这是个人自用 fork，不需要考虑回合并 upstream。
 
 背景：本任务属于「Phase 0 — 地基」，目标是消除 overlay 卡顿的几个结构性原因。
@@ -16,7 +16,7 @@
 6. 改完必须自己跑一遍验收构建，确认通过：
 
 ```
-cd /Users/wadorudi/Desktop/HSTracker
+cd /Users/wadorudi/Desktop/dev/HSTracker
 xcodebuild -project HSTracker.xcodeproj -scheme HSTracker \
   -configuration Debug -destination 'platform=macOS' build
 ```
