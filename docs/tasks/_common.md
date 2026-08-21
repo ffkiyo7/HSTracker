@@ -1,10 +1,11 @@
 ## 通用约束（所有 Phase 0 任务共用）
 
-项目：HSTracker，macOS 上的炉石传说记牌器，Swift + AppKit，仓库根目录 `/Users/wadorudi/Desktop/dev/HSTracker`。
-这是个人自用 fork，不需要考虑回合并 upstream。
+项目：HSTracker，macOS 上的炉石传说记牌器，Swift + AppKit。这是个人自用 fork，不需要考虑回合并 upstream。
 
-背景：本任务属于「Phase 0 — 地基」，目标是消除 overlay 卡顿的几个结构性原因。
-完整计划见 `docs/PLAN.md`，动手前请先读它的「Phase 0」小节建立上下文。
+**仓库根目录就是你当前的工作目录**（`git rev-parse --show-toplevel`）。它可能是一个 git worktree，
+路径不固定 —— 任何地方都不要写死绝对路径，更不要 `cd` 到别的 HSTracker 副本去。
+
+完整计划见 `docs/PLAN.md`，动手前先读你的任务所属那个 Phase 的小节建立上下文。
 
 ### 硬性规则
 
@@ -16,7 +17,6 @@
 6. 改完必须自己跑一遍验收构建，确认通过：
 
 ```
-cd /Users/wadorudi/Desktop/dev/HSTracker
 xcodebuild -project HSTracker.xcodeproj -scheme HSTracker \
   -configuration Debug -destination 'platform=macOS' build
 ```
@@ -37,4 +37,4 @@ xcodebuild -project HSTracker.xcodeproj -scheme HSTracker \
    但没同步更新脚本里的 `NET_VERSION`，导致全新 clone 必然构建失败（下载到的 8.0.29 只有 `net8.0` 目录）。
    **除非你的任务书明确指定要改 pbxproj，否则不要动这个文件。**
 
-基线状态：上述两处改动到位后，Debug 构建 `BUILD SUCCEEDED`，`downloaded-frameworks/` 已暖好（125MB）。
+基线状态：上述两处改动到位后，Debug 构建 `BUILD SUCCEEDED`，`downloaded-frameworks/` 已暖好。
