@@ -2,19 +2,18 @@
 
 > 计划全文见 `docs/PLAN.md`。本文件只记录**做到哪了 / 下一步是什么**，每完成一项就更新。
 
-**最后更新**：2026-08-21
+**最后更新**：2026-08-22
 **分支**：`phase0+3`（基于 `master` = upstream `77a85be2` / **3.6.5**）—— 原名 `perf/phase0-overlay`；后续阶段落地后再改名
 **构建状态**：Debug / Release 均 `BUILD SUCCEEDED`（clean + 增量都验证过，且是在剥掉 PATH 和代理的受限环境下）
-**当前卡在**：本机终端没有「屏幕录制」权限，`screencapture` 报
-`could not create image from display`，所以 A/B 两份产出的**像素比对做不了**，
-这是 Phase 1 验收第 1 条。两个比对窗都已构建可用，人工开一眼即可，命令见下面 A/B 那节。
+**当前卡在**：无阻塞。**Phase 0 五项全部完成；Phase 1 的第一块（T1，卡行 + 主题缓存 + 并排比对窗）已合入。**
+模型 A/B 于 2026-08-21 跑完（原定 8-22），结论是合 grok 那版，见下节。
 
-**Phase 0 五项全部完成，Phase 1 的硬前置已清零。**
-模型 A/B 已于 2026-08-21 跑完（原定 8-22，提前一天），结论见下节。
+**下一步**：Phase 1 的第二块切片。比对窗（`HSTRACKER_CARD_ROW_COMPARE=1`）已经在仓库里，
+后续每块都用它验收。
 
 **开工前还欠一件有时间窗口的事**：再跑一局 Release 探针 + 同规格录像。
-它同时是「确认 T5 收益」和「Phase 1 的 before 基线」——
-现存基线是 Debug 版且在 T5 之前，一旦动了渲染层就再也补不回来了。
+它同时是「确认 T5 收益」和「Phase 1 的 before 基线」—— T1 没有接进现有记牌器（两套渲染并存），
+所以基线**还没被破坏**，但一旦某块把 `CardBar` 换下来就补不回来了。
 
 **已跟上游 3.6.5**（2026-08-19）：`git merge master` 无冲突，两处重叠文件（`Game.swift` / `project.pbxproj`）
 自动合并且两边改动都保留。3.6.5 对齐炉石 36.2.2（卡牌数据 248348 → 249896、BobsBuddy 1.57.6 → 1.62.1），
@@ -355,11 +354,15 @@ Debug / Release 构建均 `BUILD SUCCEEDED`（受限环境）。**按判断没�
 
 ---
 
-## 2026-08-21：Phase 1 / T1 的模型 A/B
+## 2026-08-21：Phase 1 / T1 的模型 A/B —— **grok 版已合入**
 
 任务书 `docs/tasks/phase1-t1-card-row.md`（60 行、0 代码块，按 AGENTS.md 新规矩只给约束）。
 两份产出各自提交在 `ab/t1-grok`（`e831fefa`）和 `ab/t1-codex`（`3bf73187`），是**未经人工修改的原始输出**，都没 push。
 worktree 在 `~/Desktop/dev/HSTracker-ab/{grok,codex}`，日志在同目录 `logs/`。
+
+**结论（8-22 人工看过比对窗后确认）：合 grok 那版。**
+决定性的是描边那条 —— 见下面「正确性」一节，它是换方案才能修的结构性差异，
+而 grok 那版的两处错都是一行的事。codex 版保留在 `ab/t1-codex` 作对照，worktree 不删。
 
 ### 跑之前必须先填的三个 worktree 坑
 
@@ -439,9 +442,26 @@ codex 有一条态度值得记：它明说「macOS 拒绝了自动屏幕截图�
 
 grok 的理由是从任务书约束反推出来的，倾向它。
 
-### 欠的：像素比对
+### 合入时 review 改了什么
 
-`screencapture` 需要「屏幕录制」权限，本机终端没有。人工看的话：
+只有两处，都是上面「codex 更忠实」那两条：
+
+1. `countTextColor` 改用 `card.rarity` 而不是折算过 ELITE 的 `effectiveRarity` ——
+   `MinimalBar.countTextColor` 用的是原始 rarity。
+2. darken 补上 `&& playerType != .cardList && playerType != .editDeck`。
+
+其余一行未动。合入后在受限环境（剥掉 PATH 和代理）跑了 Debug 构建，`BUILD SUCCEEDED`。
+
+顺带核过、确认 grok 原样就是对的几处：卡名宽度的三段扣减（`- 38`、
+`- boxRect.width`、`- abs(createdIconOffset)`）与 `addCardName` 一致；
+gem 与 cost 一起开关是对的，因为 `addGem` 和 `addCost` 带的是同一对 guard
+（`isHero && !isPlayableHero`、`cost < 0`）；classic 的卡名固定宽度对应
+`ClassicBar.addCardName` 的覆写。
+
+### 像素比对
+
+`screencapture` 需要「屏幕录制」权限，本机终端没有，所以是**人工看的**（8-22，结论：grok 版明显更好）。
+要再看的话：
 
 ```
 env HSTRACKER_CARD_ROW_COMPARE=1 \
@@ -467,8 +487,8 @@ env HSTRACKER_CARD_ROW_COMPARISON=1 \
 | — | **延迟埋点** | ✅ Debug（8-20）+ Release 对照（8-21）都已实测，优化顺序已重排 |
 | T4 | 部署目标 → macOS 14.0 | ✅ 完成并 review |
 | T5 | GUI 刷新改防抖（实测后新增） | ✅ 完成并 review（**未做游戏内实测**） |
-| Phase 1 | SwiftUI 记牌器渲染 | ⬜ 未开始（前置已清零；验收标准已按实测重定，见 PLAN） |
-| — | T1 切片的模型 A/B | 🟡 两边都跑完并已核对代码，**只欠像素比对**（缺屏幕录制权限） |
+| Phase 1 | SwiftUI 记牌器渲染 | 🟡 进行中 —— T1（卡行 + 主题缓存 + 比对窗）✅ 完成并 review |
+| — | T1 切片的模型 A/B | ✅ 完成，合入 grok 版（codex 版留在 `ab/t1-codex`） |
 | Phase 2 | 记牌器分区（牌库/手牌/已打出） | ⬜ 未开始（依赖 Phase 1） |
 | Phase 3 | 补全简体中文 | ✅ 完成并 review（未译 410 → 7，99.2%） |
 | Phase 4 | 设置 UI + Dock 菜单 | ⬜ 未开始（**4.3 的阻塞已由 T4 解除**，三项都可随时开始） |

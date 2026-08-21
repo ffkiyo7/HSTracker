@@ -228,7 +228,13 @@ grok --prompt-file docs/tasks/phase0-t1-windowmanager.md \
 > 动渲染层之前应当再跑一局 Release 探针 + 同规格录像 —— 一旦开始改，
 > 「旧渲染层 + Phase 0 全部优化」这个状态就再也拿不回来了。
 
-### 借第一块做一次模型 A/B（2026-08-22）
+### 借第一块做一次模型 A/B（2026-08-21，已完成）
+
+> **结论：合入 grok 那版。** 详细比对见 `docs/PROGRESS.md` 同名小节。
+> 决定性的一条是文字描边 —— `CardBar` 用 `.strokeWidth`（字号百分比），
+> codex 用四个 1px 阴影模拟，行高越小偏差越大，属于换方案才能修的结构性差异；
+> 而 grok 那版的两处错都是一行的事，review 时已修。
+> codex 的产出保留在分支 `ab/t1-codex`。
 
 Phase 1 是本计划工作量最大的一块，正好拿它的第一个切片做一次对照实验：
 **同一本任务书，grok-4.6 `--effort high` 与 codex CLI 的 GPT-5.6-sol `medium` 各跑一次**，
