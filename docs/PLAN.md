@@ -204,6 +204,12 @@ grok --prompt-file docs/tasks/phase0-t1-windowmanager.md \
 
 ### 验收标准（2026-08-21 按 Release 实测重定）
 
+> **2026-08-22 补注：下面「D 只有 20ms」这个前提已经存疑。**
+> `updateCommitted()` 只覆盖 `updateAllTrackers()` 派出的 18 个主队列 block 里的第一个，
+> 一次完整刷新可能是 ~100ms。详见 `docs/PROGRESS.md` 同日那节。
+> **本节三条验收标准不受影响**（都不用 ms 表达），所以不改；
+> 但「渲染这块没肉了」这句话别再当定论用。
+
 **延迟不再是本阶段的 KPI。** 原本的理由是「渲染慢」，但 Release 版实测 D 段
 （tick → UI 提交）p50 只有 **20ms**（Debug 下那 180ms 里约 160ms 是 `-Onone`）。
 为 20ms 重写 908 行的 `CardBar` 说不过去 —— 拿延迟当验收标准，做完一测「只快了 20ms」，
