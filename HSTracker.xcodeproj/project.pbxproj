@@ -1506,6 +1506,9 @@
 		C9BDB3C81D20BC4C00886A11 /* StatsTab.xib in Resources */ = {isa = PBXBuildFile; fileRef = C9BDB3CA1D20BC4C00886A11 /* StatsTab.xib */; };
 		C9BDB3D71D20BE9500886A11 /* LadderTab.xib in Resources */ = {isa = PBXBuildFile; fileRef = C9BDB3D91D20BE9500886A11 /* LadderTab.xib */; };
 		CAB1941AFC7E94E2D2F47408 /* RootOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1F19717A4A8D185811FB9E /* RootOverlayView.swift */; };
+		C4D801A12FC0000100010002 /* ThemeImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010001 /* ThemeImageCache.swift */; };
+		C4D801A12FC0000100010004 /* CardRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010003 /* CardRowView.swift */; };
+		C4D801A12FC0000100010006 /* CardRowCompareWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010005 /* CardRowCompareWindow.swift */; };
 		E30590BB21174FC900679D66 /* UploadCollectionData.swift in Sources */ = {isa = PBXBuildFile; fileRef = E30590BA21174FC900679D66 /* UploadCollectionData.swift */; };
 		EF3B5194CD86CE62EAA0D5E7 /* ConstructedMulliganV2SingleCardHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 172D1024C17902D2BE62ABF7 /* ConstructedMulliganV2SingleCardHeaderView.swift */; };
 		F719B88A200ACAE3004F5E36 /* DefaultDecks.swift in Sources */ = {isa = PBXBuildFile; fileRef = F719B889200ACAE3004F5E36 /* DefaultDecks.swift */; };
@@ -2753,6 +2756,9 @@
 		F79833961FFF324200D2893E /* Events.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Events.swift; sourceTree = "<group>"; };
 		F7D7A3A52011B67D00E3A5F0 /* Hearthstone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Hearthstone.swift; sourceTree = "<group>"; };
 		F7D7A3AD2017B51300E3A5F0 /* dsa_pub.pem */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = dsa_pub.pem; path = HSTracker/Resources/dsa_pub.pem; sourceTree = SOURCE_ROOT; };
+		C4D801A12FC0000100010001 /* ThemeImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeImageCache.swift; sourceTree = "<group>"; };
+		C4D801A12FC0000100010003 /* CardRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardRowView.swift; sourceTree = "<group>"; };
+		C4D801A12FC0000100010005 /* CardRowCompareWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardRowCompareWindow.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -3300,8 +3306,19 @@
 				B850AA34252CB0FA0031E8F2 /* TurnCounter.swift */,
 				B850AA32252CB0490031E8F2 /* TurnCounter.xib */,
 				43BDF0BD1DB89A830081964A /* WindowManager.swift */,
+				C4D801A12FC0000100010007 /* SwiftUI */,
 			);
 			path = Trackers;
+			sourceTree = "<group>";
+		};
+		C4D801A12FC0000100010007 /* SwiftUI */ = {
+			isa = PBXGroup;
+			children = (
+				C4D801A12FC0000100010003 /* CardRowView.swift */,
+				C4D801A12FC0000100010005 /* CardRowCompareWindow.swift */,
+				C4D801A12FC0000100010001 /* ThemeImageCache.swift */,
+			);
+			path = SwiftUI;
 			sourceTree = "<group>";
 		};
 		439C7EE71C777FCF00D29859 /* Extensions */ = {
@@ -6246,6 +6263,9 @@
 				6F10D744995FB62C28FB3813 /* MulliganTipIconView.swift in Sources */,
 				1F966AEAB083406B7A9876F0 /* RootOverlayViewModel.swift in Sources */,
 				CAB1941AFC7E94E2D2F47408 /* RootOverlayView.swift in Sources */,
+				C4D801A12FC0000100010002 /* ThemeImageCache.swift in Sources */,
+				C4D801A12FC0000100010004 /* CardRowView.swift in Sources */,
+				C4D801A12FC0000100010006 /* CardRowCompareWindow.swift in Sources */,
 				947577168CC05BE7DC23659A /* RootOverlayWindow.swift in Sources */,
 				4C8E201F195AC2873021D4F9 /* MulliganV2StatusParams.swift in Sources */,
 				3DEAC63A9D588D131162ABF7 /* MulliganV2StatusData.swift in Sources */,
