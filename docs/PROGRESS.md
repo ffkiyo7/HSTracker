@@ -521,6 +521,68 @@ Release 3.6.5（含 T5 + T1），一整局标准模式，OBS 同规格。
 
 ---
 
+## 2026-08-22：Phase 1 / T2 —— 卡行接进记牌器
+
+任务书 `docs/tasks/phase1-t2-tracker-list.md`（68 行、0 代码块）。代码由本机 grok-4.6（`--effort high`）
+一次跑成，日志在 `~/Desktop/dev/HSTracker-ab/logs/run-grok-t2.log`。A/B 已在 T1 结束，这次只跑 grok。
+
+主牌表（`Tracker.swift` 的 `cardsView`）现在可以由 `Settings.useSwiftUITracker` 切到 SwiftUI 渲染。
+两个新文件 `TrackerCardListView.swift` / `TrackerCardListViewModel.swift`，玩家和对手记牌器共用 `Tracker`，一起生效。
+
+```
+defaults write net.hearthsim.hstracker use_swiftui_tracker -bool true
+```
+
+### 默认值是 false，和 PLAN 第 3 节写的不一样
+
+PLAN 说 `useSwiftUITracker` 默认 true，那是**全部验收通过后**的终态。现在按切片推进，
+每一片都要在真实对局里看过才算数，而这台机器每天在打游戏 —— 默认值不能是没验收过的那条路径。
+Phase 1 收尾时连同开关一起删掉。
+
+### 挂载：宿主是 `cardsView` 的兄弟视图
+
+`.xib` 不许改，`cardsView` 的 outlet 类型只能还是 `AnimatedCardList`。
+grok 的解法是把 `NSHostingView` 包一层 `TrackerCardListHost`，程序里 `addSubview` 到 `contentView`，
+和 `cardsView` 同级，两者按开关互相让位（一个 `isHidden = true` + `frame = .zero`）。
+`Tracker.updateFrames()` 里原来读 `cardsView.count` 的两处换成 `mainListCount`，按开关取值。
+
+从 SwiftUI 切回 AppKit 时对 `cardsView` 强制 `reset: true` —— 隐藏期间那份 diff 已经过期，
+不重置会把回来的列表带偏。这一条是它自己想到的。
+
+### 悬停：superview 遍历这次没删成，但也没扩散
+
+`getHoverComponent()`（靠向上遍历 superview 猜分段）还在，因为 `DeckLens` / `DeckSideboards` 仍是
+`AnimatedCardList`，那条路径还得用它。新路径不走它：分段身份在 `hover()` 时直接传参。
+顺带把 tooltip 载荷从 `[String: Any]` 换成了一个 class —— 原因是 `Timer.userInfo` 里塞 Swift enum
+会在桥接时丢类型，相关牌 tooltip 会静默失效。这是它自己发现并绕开的。
+
+### review 时改了什么
+
+一处。`TrackerCardRowID` 完全照 `AnimatedCardList.areEqualForList` 复刻（id + jousted + isCreated +
+条件性 wasDiscarded + deckListIndex + `IncindiusCounter`），逐条核过是对的，但**这套键可以撞**：
+一张创生牌同时在手上和在牌库里，两行的六个字段全一样。旧路径撞了会静默合成一行；
+`ForEach` 撞 id 是未定义行为，可能少画一行 —— 在记牌器里就是牌数报错。
+给 ID 加了个 `occurrence` 序号，正常情况恒为 0，撞了才编号。
+
+### 验证到哪
+
+- 受限环境（剥掉 PATH 和代理）Debug 构建 `BUILD SUCCEEDED`，新文件没有新警告
+- 两个新文件在 `project.pbxproj` 里各 4 处登记
+- `git diff --stat` 多出一个既有文件 `CardRowView.swift`：协同高亮的边框要画在 gem/费用之后、
+  卡名之前（对应 `CardBar.addHighlightColor` 的图层顺序），T1 把这层排除在范围外了。加的是默认
+  `.none` 的参数，比对窗不传，外观不变。理由成立，接受
+- **实战里的逐元素比对还没做** —— 需要开着开关打一局
+
+### 已知的、本切片故意没做的
+
+- 动效全部没做：淡入淡出、抽卡闪光、位置动画。`AnimatedCardList` 那个 600ms 空等没有被搬过来
+- `DeckLens` / `DeckSideboards` / 战棋三处仍是 `AnimatedCardList`，600ms 空等还在
+- 协同高亮只画边框，没有闪光
+- `Game.swift` 的 `playerTrackerUpdateEvents` 没加这个 key（任务书没允许改那个文件）——
+  `defaults write` 不发通知，要等下一拍 tracker 刷新才生效
+
+---
+
 ## 状态总览
 
 | 阶段 | 内容 | 状态 |
@@ -535,6 +597,7 @@ Release 3.6.5（含 T5 + T1），一整局标准模式，OBS 同规格。
 | T5 | GUI 刷新改防抖（实测后新增） | ✅ 完成并 review；8-22 已实测，**预期收益未兑现**，见该节 |
 | Phase 1 | SwiftUI 记牌器渲染 | 🟡 进行中 —— T1（卡行 + 主题缓存 + 比对窗）✅ 完成并 review |
 | — | T1 切片的模型 A/B | ✅ 完成，合入 grok 版（codex 版留在 `ab/t1-codex`） |
+| — | T2 卡行接进记牌器 | ✅ 完成并 review；**实战比对未做**，开关默认关 |
 | Phase 2 | 记牌器分区（牌库/手牌/已打出） | ⬜ 未开始（依赖 Phase 1） |
 | Phase 3 | 补全简体中文 | ✅ 完成并 review（未译 410 → 7，99.2%） |
 | Phase 4 | 设置 UI + Dock 菜单 | ⬜ 未开始（**4.3 的阻塞已由 T4 解除**，三项都可随时开始） |
