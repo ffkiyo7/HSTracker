@@ -5,10 +5,12 @@
 **最后更新**：2026-08-21
 **分支**：`phase0+3`（基于 `master` = upstream `77a85be2` / **3.6.5**）—— 原名 `perf/phase0-overlay`；后续阶段落地后再改名
 **构建状态**：Debug / Release 均 `BUILD SUCCEEDED`（clean + 增量都验证过，且是在剥掉 PATH 和代理的受限环境下）
-**当前卡在**：无阻塞。**Phase 0 五项全部完成，Phase 1 的硬前置已清零。**
-下一步（2026-08-22）：拿 Phase 1 的第一块切片做一次模型 A/B —— 同一本任务书
-`docs/tasks/phase1-t1-card-row.md`，grok-4.6 `high` 与 codex CLI 的 GPT-5.6-sol `medium`
-各跑一次，各自隔离在 worktree、**构建不并行**，比实现质量与成本。方法见 PLAN。
+**当前卡在**：本机终端没有「屏幕录制」权限，`screencapture` 报
+`could not create image from display`，所以 A/B 两份产出的**像素比对做不了**，
+这是 Phase 1 验收第 1 条。两个比对窗都已构建可用，人工开一眼即可，命令见下面 A/B 那节。
+
+**Phase 0 五项全部完成，Phase 1 的硬前置已清零。**
+模型 A/B 已于 2026-08-21 跑完（原定 8-22，提前一天），结论见下节。
 
 **开工前还欠一件有时间窗口的事**：再跑一局 Release 探针 + 同规格录像。
 它同时是「确认 T5 收益」和「Phase 1 的 before 基线」——
@@ -353,6 +355,106 @@ Debug / Release 构建均 `BUILD SUCCEEDED`（受限环境）。**按判断没�
 
 ---
 
+## 2026-08-21：Phase 1 / T1 的模型 A/B
+
+任务书 `docs/tasks/phase1-t1-card-row.md`（60 行、0 代码块，按 AGENTS.md 新规矩只给约束）。
+两份产出各自提交在 `ab/t1-grok`（`e831fefa`）和 `ab/t1-codex`（`3bf73187`），是**未经人工修改的原始输出**，都没 push。
+worktree 在 `~/Desktop/dev/HSTracker-ab/{grok,codex}`，日志在同目录 `logs/`。
+
+### 跑之前必须先填的三个 worktree 坑
+
+1. **`_common.md` 把仓库根写死成 `/Users/wadorudi/Desktop/dev/HSTracker`**，验收构建那段还以 `cd` 到该路径开头。
+   照做的话两个模型会去构建甚至改动主仓库或对方的 checkout。已改成「仓库根就是你当前工作目录」（`50e2ec7f`）。
+2. **`Config.xcconfig` 是 `skip-worktree` 的本地签名版**，新 worktree checkout 出来的是 Developer ID 那版。
+   已在两个 worktree 各写本地签名版并各自 `git update-index --skip-worktree` ——
+   否则它会出现在 `git diff --stat` 里，**直接打破任务书验收第 3 条**。
+3. **`downloaded-frameworks/` 是 `$SRCROOT` 相对且 gitignored**（269MB）。用 APFS clone（`cp -Rc`）复制进两个 worktree，
+   秒完、不额外占盘，省掉两遍 100MB `CardDefs.xml` 下载。
+
+两边先各跑一次基线构建确认环境（150s / 130s，都 `BUILD SUCCEEDED`），起跑时冷热一致。
+
+### 结果
+
+| 维度 | grok-4.6 high | GPT-5.6-sol medium |
+|---|---|---|
+| 耗时 | 17m40s | 12m59s |
+| token | **不可得** —— `--output-format plain` 不打账 | 280,815 |
+| 产出 | 1004 行 / 3 文件 | 573 行 / 3 文件 |
+| 既有文件 | pbxproj +20、AppDelegate +2 | pbxproj +20、AppDelegate +11 |
+| pbxproj 4 处登记 | 3 个文件都 4/4 | 3 个文件都 4/4 |
+| 一次过 | 否，自修一轮（仓库的 `enum State` 撞 SwiftUI `@State`） | 否，自修至少一轮 |
+| 自验做到哪 | 构建 | 构建 + `plutil -lint` + `git diff --check` + **真的启动 app 确认比对窗打开** |
+
+**沙箱不对等，记一笔**：grok 用 `--permission-mode auto`（无沙箱），codex 那边
+`--dangerously-bypass-approvals-and-sandbox` 被 Claude Code 的分类器拦了，退而用
+`--sandbox workspace-write` + `network_access=true` + `--add-dir` 放行 DerivedData 和 SPM 缓存。
+codex 受的限制略紧，耗时对比要打这个折扣。
+
+### 正确性：拿 `CardBar` + 四个子类逐条核
+
+**grok 更忠实的三处**
+
+- **文字描边。** `CardBar.add(text:)` 用 `.strokeWidth: -2.0`（cost 是 `-1.0`）+ `.strokeColor: .black`。
+  grok 用 `NSViewRepresentable` 走同一条 NSString 绘制路径，连 `minimumScaleFactor = 0.001` 都一样；
+  **codex 用四个 1px 阴影模拟描边**。`strokeWidth` 是字号的百分比、阴影是固定像素，
+  行高 17 的 tiny 档会明显偏重。这一条直接顶在验收第 1 条「视觉不可区分」上。
+- **`addCardImage` 的运算符优先级。** `offset && abs(count) > 1 && playerType != .editDeck || rarity == .legendary`
+  没加括号，`&&` 结合更紧，所以 **frost / minimal（`offsetByCountBox: false`）遇上传说卡仍要位移 `imageOffset`（-23）**。
+  grok 复刻了并在注释里点名；codex 的 frost 写死 `-1`、minimal 用 `frameRect`，传说卡的卡图位置会错。
+- **两档缩放比。** `CardBar` 的 `ratioWidth` / `ratioHeight` 是两个值，且有 `baseHeight > bounds.height` 的分支；
+  grok 复刻，codex 只用一个比值。（codex 那版在 huge 档反而更"对"，但不忠实 —— 见下面两边都发现的 `AnimatedCardList` 隐患。）
+
+**codex 更忠实的两处**
+
+- `MinimalBar.countTextColor` 用的是 `card.rarity`，**不是**把 ELITE 折算成 legendary 之后的 rarity。codex 对，grok 错。
+- darken 的条件 `&& playerType != .cardList && playerType != .editDeck`，codex 有，grok 漏。
+  （反过来，卡名/费用在 cardList / editDeck 下强制白色这条，grok 有、codex 漏。）
+
+**一处工程性差异单独记：codex 缺图时用 `preconditionFailure` / `precondition`。**
+`precondition` 在 `-O` 下不会被剥掉，所以主题少一张 PNG 的后果是 **Release 崩溃**；
+而 `CardBar` 的 `hasAllRequired` 是「这一帧不画」。任务书写了「不要崩、不要报错」。
+
+### 自主性：两边都超预期，而且互相印证
+
+两个模型**各自独立**报出了同样两条范围外的问题：
+
+- **`Resources/Small/<cardId>.png` 在 bundle 里不存在** → `MinimalBar.swift:32` 那条模糊卡图路径是死的。
+  已 `ls` 验证：`HSTracker/Resources/` 下确实没有 `Small/`。所以 Minimal 主题新旧两侧都没有卡图。
+- **`AnimatedCardList` 在 `cardHeight == nil` 时拿 `kHighRowFrameWidth`（宽度常量，~332）当 huge 档的行高。**
+  实战路径 `Tracker` 会传真值所以碰不到，但是个埋着的雷。
+
+两个独立实现同时指向同一处，可信度比任何单边报告都高 —— 这是双模型对照最实在的收益。
+
+grok 另外报了四条（`ClassicBar.textFontSize` / `_costRect` 定义了没用、`cardLayer` 从不接内容每帧被清、
+`flashLayer` 只加不删、上游两个战棋计数器仍没进 pbxproj）；codex 另外报了启动时 OAuth `invalid_grant`（真跑起来才看得到）。
+
+codex 有一条态度值得记：它明说「macOS 拒绝了自动屏幕截图，因此没有冒充完成最终肉眼像素验收」——
+**主动声明自己没做到**，而不是含糊带过。
+
+### 挂载点：两种选法，理由都成立
+
+- grok 选环境变量、**不加** `#if DEBUG`。理由：比对是 Phase 1 后续每块的验收产物，视觉基线是 Release 版，
+  所以必须能在 Release 下开；而不许改 `.xib` 就没法给 Debug 菜单加项。
+- codex 选 `#if DEBUG` + 环境变量，Release 里完全不存在。
+
+grok 的理由是从任务书约束反推出来的，倾向它。
+
+### 欠的：像素比对
+
+`screencapture` 需要「屏幕录制」权限，本机终端没有。人工看的话：
+
+```
+env HSTRACKER_CARD_ROW_COMPARE=1 \
+  ~/Library/Developer/Xcode/DerivedData/HSTracker-ajzeuoosmscserctkdytyfltkokj/Build/Products/Debug/HSTracker.app/Contents/MacOS/HSTracker
+
+env HSTRACKER_CARD_ROW_COMPARISON=1 \
+  ~/Library/Developer/Xcode/DerivedData/HSTracker-bbofxpfahpsxfaayfqgmlhsdaqjq/Build/Products/Debug/HSTracker.app/Contents/MacOS/HSTracker
+```
+
+（前者是 grok 版、后者是 codex 版；环境变量名两边不同。一次只开一个，两份产物共用同一份用户设置。）
+
+---
+
 ## 状态总览
 
 | 阶段 | 内容 | 状态 |
@@ -366,7 +468,7 @@ Debug / Release 构建均 `BUILD SUCCEEDED`（受限环境）。**按判断没�
 | T4 | 部署目标 → macOS 14.0 | ✅ 完成并 review |
 | T5 | GUI 刷新改防抖（实测后新增） | ✅ 完成并 review（**未做游戏内实测**） |
 | Phase 1 | SwiftUI 记牌器渲染 | ⬜ 未开始（前置已清零；验收标准已按实测重定，见 PLAN） |
-| — | T1 切片的模型 A/B | ⬜ 2026-08-22，grok-4.6 vs GPT-5.6-sol，任务书已就绪 |
+| — | T1 切片的模型 A/B | 🟡 两边都跑完并已核对代码，**只欠像素比对**（缺屏幕录制权限） |
 | Phase 2 | 记牌器分区（牌库/手牌/已打出） | ⬜ 未开始（依赖 Phase 1） |
 | Phase 3 | 补全简体中文 | ✅ 完成并 review（未译 410 → 7，99.2%） |
 | Phase 4 | 设置 UI + Dock 菜单 | ⬜ 未开始（**4.3 的阻塞已由 T4 解除**，三项都可随时开始） |
