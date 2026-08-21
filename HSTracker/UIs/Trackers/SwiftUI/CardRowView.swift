@@ -18,6 +18,7 @@ struct CardRowView: View {
     var showRarityColors: Bool = Settings.showRarityColors
     var rowHeight: CGFloat?
     var backgroundImage: NSImage?
+    var highlightColor: HighlightColor = .none
 
     @SwiftUI.State private var tile: NSImage?
 
@@ -182,6 +183,12 @@ struct CardRowView: View {
                         size: size, rw: rw, rh: rh)
         }
 
+        if let highlightFile = highlightFile {
+            themeLayer(file: highlightFile,
+                       rect: layout.frameRect,
+                       size: size, rw: rw, rh: rh)
+        }
+
         let nameRect = cardNameRect(layout: layout, rarity: rarity, absCount: absCount)
         strokedText(cardName,
                     fontName: layout.textFontName,
@@ -204,6 +211,15 @@ struct CardRowView: View {
         card.rarity == .invalid && card.mechanics.contains("ELITE")
             ? .legendary
             : card.rarity
+    }
+
+    private var highlightFile: String? {
+        switch highlightColor {
+        case .green: return "highlight_green.png"
+        case .teal: return "highlight_teal.png"
+        case .orange: return "highlight_orange.png"
+        default: return nil
+        }
     }
 
     private var showsGemAndCost: Bool {

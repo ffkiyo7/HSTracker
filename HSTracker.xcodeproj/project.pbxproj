@@ -1509,6 +1509,8 @@
 		C4D801A12FC0000100010002 /* ThemeImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010001 /* ThemeImageCache.swift */; };
 		C4D801A12FC0000100010004 /* CardRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010003 /* CardRowView.swift */; };
 		C4D801A12FC0000100010006 /* CardRowCompareWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010005 /* CardRowCompareWindow.swift */; };
+		C4D801A12FC0000100010009 /* TrackerCardListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010008 /* TrackerCardListViewModel.swift */; };
+		C4D801A12FC000010001000B /* TrackerCardListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC000010001000A /* TrackerCardListView.swift */; };
 		E30590BB21174FC900679D66 /* UploadCollectionData.swift in Sources */ = {isa = PBXBuildFile; fileRef = E30590BA21174FC900679D66 /* UploadCollectionData.swift */; };
 		EF3B5194CD86CE62EAA0D5E7 /* ConstructedMulliganV2SingleCardHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 172D1024C17902D2BE62ABF7 /* ConstructedMulliganV2SingleCardHeaderView.swift */; };
 		F719B88A200ACAE3004F5E36 /* DefaultDecks.swift in Sources */ = {isa = PBXBuildFile; fileRef = F719B889200ACAE3004F5E36 /* DefaultDecks.swift */; };
@@ -2759,6 +2761,8 @@
 		C4D801A12FC0000100010001 /* ThemeImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeImageCache.swift; sourceTree = "<group>"; };
 		C4D801A12FC0000100010003 /* CardRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardRowView.swift; sourceTree = "<group>"; };
 		C4D801A12FC0000100010005 /* CardRowCompareWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardRowCompareWindow.swift; sourceTree = "<group>"; };
+		C4D801A12FC0000100010008 /* TrackerCardListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerCardListViewModel.swift; sourceTree = "<group>"; };
+		C4D801A12FC000010001000A /* TrackerCardListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerCardListView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -3317,6 +3321,8 @@
 				C4D801A12FC0000100010003 /* CardRowView.swift */,
 				C4D801A12FC0000100010005 /* CardRowCompareWindow.swift */,
 				C4D801A12FC0000100010001 /* ThemeImageCache.swift */,
+				C4D801A12FC0000100010008 /* TrackerCardListViewModel.swift */,
+				C4D801A12FC000010001000A /* TrackerCardListView.swift */,
 			);
 			path = SwiftUI;
 			sourceTree = "<group>";
@@ -6266,6 +6272,8 @@
 				C4D801A12FC0000100010002 /* ThemeImageCache.swift in Sources */,
 				C4D801A12FC0000100010004 /* CardRowView.swift in Sources */,
 				C4D801A12FC0000100010006 /* CardRowCompareWindow.swift in Sources */,
+				C4D801A12FC0000100010009 /* TrackerCardListViewModel.swift in Sources */,
+				C4D801A12FC000010001000B /* TrackerCardListView.swift in Sources */,
 				947577168CC05BE7DC23659A /* RootOverlayWindow.swift in Sources */,
 				4C8E201F195AC2873021D4F9 /* MulliganV2StatusParams.swift in Sources */,
 				3DEAC63A9D588D131162ABF7 /* MulliganV2StatusData.swift in Sources */,

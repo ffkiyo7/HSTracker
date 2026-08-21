@@ -351,6 +351,8 @@ final class Settings {
     static var showOpponentCounters: Bool
     @UserDefault(key: Settings.remove_cards_from_deck, defaultValue: false)
     static var removeCardsFromDeck: Bool
+    @UserDefault(key: Settings.use_swiftui_tracker, defaultValue: false)
+    static var useSwiftUITracker: Bool
     @UserDefault(key: Settings.highlight_last_drawn, defaultValue: true)
     static var highlightLastDrawn: Bool
     @UserDefault(key: Settings.highlight_cards_in_hand, defaultValue: false)
@@ -650,6 +652,7 @@ extension Settings {
     static let opponent_max_resources = "opponent_max_resources"
 
     static let remove_cards_from_deck = "remove_cards_from_deck"
+    static let use_swiftui_tracker = "use_swiftui_tracker"
     static let highlight_last_drawn = "highlight_last_drawn"
     static let highlight_cards_in_hand = "highlight_cards_in_hand"
     static let highlight_discarded = "highlight_discarded"

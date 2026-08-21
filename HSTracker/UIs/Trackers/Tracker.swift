@@ -28,6 +28,8 @@ class Tracker: OverWindowController, CardCellHover {
 
     private var hero: CardBar?
     private var heroCard: Card?
+    private var swiftUICards: TrackerCardListHost?
+    private var swiftUIListActive = false
     
     var bottomY = CGFloat(0.0)
 
@@ -117,11 +119,59 @@ class Tracker: OverWindowController, CardCellHover {
 
     // MARK: - Game
     func update(cards: [Card], top: [Card], bottom: [Card], sideboards: [Sideboard], relatedCards: [Card], reset: Bool = false) {
-        cardsView.update(cards: cards, reset: reset)
+        if Settings.useSwiftUITracker {
+            let host = ensureSwiftUICards()
+            if let playerType {
+                host.viewModel.playerType = playerType
+            }
+            host.viewModel.update(cards: cards)
+            host.isHidden = false
+            cardsView.isHidden = true
+            swiftUIListActive = true
+        } else {
+            if swiftUIListActive {
+                cardsView.update(cards: cards, reset: true)
+                swiftUIListActive = false
+            } else {
+                cardsView.update(cards: cards, reset: reset)
+            }
+            if swiftUICards != nil {
+                cardsView.isHidden = false
+                swiftUICards?.isHidden = true
+            }
+        }
         playerBottom.update(cards: bottom, reset: reset)
         playerTop.update(cards: top, reset: reset)
         playerSideboards.update(sideboards: sideboards, reset: reset)
         opponentRelatedCards.update(cards: relatedCards, reset: reset)
+    }
+
+    private func ensureSwiftUICards() -> TrackerCardListHost {
+        if let swiftUICards {
+            return swiftUICards
+        }
+        let host = TrackerCardListHost(frame: .zero)
+        host.onHover = { [weak self] card, view in
+            guard let self else { return }
+            let component: HoveredComponent = self.playerType == .player ? .playerCardView : .opponentCardView
+            self.hover(card: card, frameView: view, component: component)
+        }
+        host.onExit = { [weak self] card in
+            self?.out(card: card)
+        }
+        if let playerType {
+            host.viewModel.playerType = playerType
+        }
+        window?.contentView?.addSubview(host)
+        swiftUICards = host
+        return host
+    }
+
+    private var mainListCount: Int {
+        if Settings.useSwiftUITracker {
+            return swiftUICards?.count ?? 0
+        }
+        return cardsView.count
     }
     
     override func updateFrames() {
@@ -268,7 +318,7 @@ class Tracker: OverWindowController, CardCellHover {
             offsetFrames += smallFrameHeight
         }
 
-        var totalCards = cardsView.count
+        var totalCards = mainListCount
 
         if playerBottom.count > 0 && Settings.showPlayerCardsBottom {
             offsetFrames += smallFrameHeight
@@ -299,7 +349,7 @@ class Tracker: OverWindowController, CardCellHover {
             cardHeight = min(cardHeight, (windowHeight - offsetFrames) / CGFloat(totalCards))
         }
         
-        let cardViewHeight = CGFloat(cardsView.count) * cardHeight
+        let cardViewHeight = CGFloat(mainListCount) * cardHeight
         var y: CGFloat = windowHeight - startHeight
 
         if playerTop.count > 0 && Settings.showPlayerCardsTop {
@@ -315,12 +365,30 @@ class Tracker: OverWindowController, CardCellHover {
         }
 
         y -= cardViewHeight
-        cardsView.cardHeight = cardHeight
-        cardsView.frame = NSRect(x: 0,
-                                 y: y,
-                                 width: windowWidth,
-                                 height: cardViewHeight)
-        cardsView.updateFrames()
+        if Settings.useSwiftUITracker {
+            let host = ensureSwiftUICards()
+            host.cardHeight = cardHeight
+            host.viewModel.syncAppearance()
+            host.frame = NSRect(x: 0,
+                                y: y,
+                                width: windowWidth,
+                                height: cardViewHeight)
+            host.isHidden = false
+            cardsView.frame = .zero
+            cardsView.isHidden = true
+        } else {
+            cardsView.cardHeight = cardHeight
+            cardsView.frame = NSRect(x: 0,
+                                     y: y,
+                                     width: windowWidth,
+                                     height: cardViewHeight)
+            cardsView.updateFrames()
+            if let host = swiftUICards {
+                cardsView.isHidden = false
+                host.frame = .zero
+                host.isHidden = true
+            }
+        }
                 
         if playerBottom.count > 0 && Settings.showPlayerCardsBottom {
             let playerBottomHeight = CGFloat(playerBottom.count) * cardHeight + smallFrameHeight + 5
@@ -527,24 +595,50 @@ class Tracker: OverWindowController, CardCellHover {
     func highlightPlayerDeckCards(highlightSourceCardId: String?) {
         guard let highlightSourceCardId, !highlightSourceCardId.isEmpty, Settings.showPlayerHighlightSynergies else {
             cardsView?.shouldHighlightCard = nil
+            swiftUICards?.viewModel.setHighlight(nil)
             return
         }
         
         let game = AppDelegate.instance().coreManager.game
         let highlightSourceCard = game.relatedCardsManager.getCardWithHighlight(highlightSourceCardId)
-        cardsView?.shouldHighlightCard = highlightSourceCard?.shouldHighlight
+        let fn = highlightSourceCard?.shouldHighlight
+        if Settings.useSwiftUITracker {
+            swiftUICards?.viewModel.setHighlight(fn)
+            cardsView?.shouldHighlightCard = nil
+        } else {
+            cardsView?.shouldHighlightCard = fn
+            swiftUICards?.viewModel.setHighlight(nil)
+        }
     }
         
     func hover(cell: CardBar, card: Card) {
+        hover(card: card, frameView: cell, component: getHoverComponent(cell))
+    }
+
+    private func hover(card: Card, frameView: NSView, component: HoveredComponent) {
         if playerType == .player {
             highlightPlayerDeckCards(highlightSourceCardId: card.id)
         }
         delayedTooltip?.cancel()
-        delayedTooltip = DelayedTooltip(handler: tooltipDisplay, 0.400, ["cell": cell, "card": card])
+        delayedTooltip = DelayedTooltip(handler: tooltipDisplay, 0.400,
+                                        HoverTooltipPayload(cell: frameView, card: card, component: component))
+    }
+
+    private final class HoverTooltipPayload {
+        let cell: NSView
+        let card: Card
+        let component: HoveredComponent
+        init(cell: NSView, card: Card, component: HoveredComponent) {
+            self.cell = cell
+            self.card = card
+            self.component = component
+        }
     }
     
     private func tooltipDisplay(_ userInfo: Any?) {
-        if let window, let dict = userInfo as? [String: Any?], let cell = dict["cell"] as? CardBar, let card = dict["card"] as? Card {
+        if let window, let payload = userInfo as? HoverTooltipPayload {
+            let cell = payload.cell
+            let card = payload.card
             let windowRect = window.frame
             
             let hoverFrame = NSRect(x: 0, y: 0, width: 256, height: 388)
@@ -578,8 +672,7 @@ class Tracker: OverWindowController, CardCellHover {
                       object: nil,
                       userInfo: userinfo)
             
-            let hoverLocation = getHoverComponent(cell)
-            switch hoverLocation {
+            switch payload.component {
             case .opponentRelatedCards, .opponentCardView:
                 if Settings.showOpponentRelatedCards {
                     setRelatedCardsTooltip(AppDelegate.instance().coreManager.game.opponent, card.id, NSRect(x: frame[0], y: frame[1], width: frame[2], height: frame[3]))
