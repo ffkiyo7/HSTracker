@@ -266,6 +266,36 @@ Phase 1 是本计划工作量最大的一块，正好拿它的第一个切片做
 
 两份产出都留着，择优合入，另一份的 worktree 保留作对照。
 
+### 切片划分
+
+下面 1.1–1.5 是技术分解，不是干活的顺序。实际按这 8 片推进，每片一本任务书、一次 review、一个 commit：
+
+| 片 | 内容 | 状态 |
+|---|---|---|
+| T1 | `CardRowView` + `ThemeImageCache` + 并排比对窗 | ✅ 2026-08-22 |
+| T2 | 主牌表接进 `Tracker`，`Settings.useSwiftUITracker` 开关 | ✅ 2026-08-22 |
+| T3 | 其余四段卡表：置顶 / 置底 / 相关牌 / 备牌（`DeckLens` ×3 + `DeckSideboards`） | ⬜ |
+| T4 | 四种横条 → `TrackerBarViews`（`CardCounter` / 抽卡率 / 坟场 / 战绩） | ⬜ |
+| T5 | 根视图 `TrackerView` + `TrackerViewModel`，布局收口（见 1.4） | ⬜ |
+| T6 | 卡图异步加载 + `ImageUtils` 缓存加 LRU（见 1.2） | ⬜ |
+| T7 | 动效：淡入淡出、抽卡闪光、布局动画（验收标准第 3 条） | ⬜ |
+| T8 | 收尾：删开关、删 `Tracker` 里的旧路径 | ⬜ |
+
+几条排序上的约束：
+
+- **T3 做完，`Tracker.getHoverComponent()` 那段靠 superview 遍历猜分段的代码才能删干净**（1.5 的后半）。
+  T2 只让主牌表不再依赖它，另外四段还在用。
+- **T5 是最难的一片**，`Tracker.updateFrames()` 是 280 行手工排版、十几个条件分支，
+  要整体换成 SwiftUI 布局。前面每一片都在给它减负 —— 它排的段越少越好动。
+- **T6 与其余各片无依赖**，随时可以插队。它是唯一一片纯粹修性能、不改渲染结构的。
+- **Phase 2（分区）依赖 T3 和 T5** —— 分段头和段容器是 T3 做出来的 `TrackerSectionView`，
+  三段并排的高度分配要等 T5 的布局收口。
+
+> **`CardBar` 在 Phase 1 结束后仍然不能删。** 除了记牌器，`CardList.swift`、`EditDeck.swift`、
+> `DeckManager.swift`、战棋的 `BattlegroundsTierDetailsView` 都在用 `CardBar.factory()`，
+> `AnimatedCardList` 也还被 `BattlegroundsCardsGroups` 用着。T8 删掉的是**开关和记牌器里的旧路径**，
+> 不是这两个类本身。要连类一起删得等这些界面也换掉，那不在本计划范围内。
+
 新目录 `HSTracker/UIs/Trackers/SwiftUI/`：
 
 | 文件 | 职责 | 取代 |
