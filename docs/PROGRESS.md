@@ -564,6 +564,19 @@ grok 的解法是把 `NSHostingView` 包一层 `TrackerCardListHost`，程序里
 `ForEach` 撞 id 是未定义行为，可能少画一行 —— 在记牌器里就是牌数报错。
 给 ID 加了个 `occurrence` 序号，正常情况恒为 0，撞了才编号。
 
+### 第一次实测作废了：包里没有卡库
+
+给出去的 Debug 包是增量 `build` 出来的，`Contents/Resources/Resources/Cards/` 整个不在。
+一整局下来记牌器只有计数 / 抽牌概率 / 胜率三个框，一根卡条都没有 —— 看着像渲染层炸了，
+实际是 `Database.swift:252` 读不到 `CardDefs.xml`，`Cards.by(cardId:)` 全返回 nil，卡表本身就是空的。
+
+而且 `use_swiftui_tracker` 那一刻根本没写进 defaults，**这一局全程走的旧 AppKit 路径**，
+T2 一点没被碰到。两件事叠在一起，这次实测零信息量。
+
+机制和补救写进了 `AGENTS.md` 的「构建」一节：`Embed Mono` 不声明 outputs 所以每次都跑、
+`Managed/` 能自愈；`Download cards XML` 声明了 outputs 会被跳过、`Cards/` 不能自愈。
+**交给人实测的包必须 `clean build`。**
+
 ### 验证到哪
 
 - 受限环境（剥掉 PATH 和代理）Debug 构建 `BUILD SUCCEEDED`，新文件没有新警告

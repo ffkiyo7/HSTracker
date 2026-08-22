@@ -104,6 +104,19 @@ env -u http_proxy -u https_proxy -u all_proxy -u HTTP_PROXY -u HTTPS_PROXY -u AL
 表现为 mono 找不到 corlib 而 `abort()`（在 Xcode 里看是「应用程序没有响应」）。下载产物一律放
 `downloaded-frameworks/`，再由 `Embed Mono`（排在 `Resources` 之后）拷进 bundle。
 
+**不需要有人改写 `HSTracker/Resources/` 也会踩到 —— 增量 `build` 里那个整目录拷贝自己重跑就够了。**
+两个脚本阶段的自愈能力不对称：`Embed Mono` 没声明 outputs，每次构建都跑，所以 `Managed/` 总能补回来；
+`Download cards XML` 声明了 outputs，被依赖分析判为最新就跳过，`Cards/` **不会**补回来。
+2026-08-22 实际踩了一次：包里没有 `Cards/CardDefs.xml`，`Database.swift:252` 读不到卡库，
+`Cards.by(cardId:)` 对每张卡都返回 nil，于是**记牌器只剩计数 / 抽牌概率 / 胜率那几个框，一根卡条都没有**
+（那几个框走 entity 计数和 Realm，不依赖卡库）。症状很像渲染层的 bug，实际是构建产物残缺。
+
+所以：**要交给人做实测的包必须 `clean build`**，或者构建完自查一行：
+
+```
+ls "$(...)/HSTracker.app/Contents/Resources/Resources/Cards/CardDefs.xml"
+```
+
 `Embed Mono` 拷 `net8.0` **整个目录**而不是白名单：BobsBuddy 下载的永远是最新版，它每新增一个 BCL
 依赖，手写清单就会静默漏掉一个，且只在运行时报错。全量 17MB/arch。
 
