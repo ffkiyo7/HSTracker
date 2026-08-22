@@ -274,22 +274,35 @@ Phase 1 是本计划工作量最大的一块，正好拿它的第一个切片做
 |---|---|---|
 | T1 | `CardRowView` + `ThemeImageCache` + 并排比对窗 | ✅ 2026-08-22 |
 | T2 | 主牌表接进 `Tracker`，`Settings.useSwiftUITracker` 开关 | ✅ 2026-08-22 |
-| T3 | 其余四段卡表：置顶 / 置底 / 相关牌 / 备牌（`DeckLens` ×3 + `DeckSideboards`） | ⬜ |
-| T4 | 顶部信息区重做：拿掉四个旧面板，上 Firestone 三行头（详见 2.4，**从 Phase 2 提前到这里**） | ⬜ |
-| T5 | 根视图 `TrackerView` + `TrackerViewModel`，布局收口（见 1.4） | ⬜ |
-| T6 | 卡图异步加载 + `ImageUtils` 缓存加 LRU（见 1.2） | ⬜ |
-| T7 | 动效：淡入淡出、抽卡闪光、布局动画（验收标准第 3 条） | ⬜ |
-| T8 | 收尾：删开关、删 `Tracker` 里的旧路径 | ⬜ |
+| T3 | ETC / 深邃之王 改悬停浮出，备牌段整体消失（见 2.5，**从 Phase 2 提前**） | ⬜ |
+| T4 | 其余三段卡表 → `TrackerSectionView`：置顶 / 置底 / 相关牌（`DeckLens` ×3） | ⬜ |
+| T5 | 顶部信息区重做：拿掉旧面板，上 Firestone 三行头（见 2.4，**从 Phase 2 提前**） | ⬜ |
+| T6 | 根视图 `TrackerView` + `TrackerViewModel`，布局收口（见 1.4） | ⬜ |
+| T7 | 卡图异步加载 + `ImageUtils` 缓存加 LRU（见 1.2） | ⬜ |
+| T8 | 动效：淡入淡出、抽卡闪光、布局动画（验收标准第 3 条） | ⬜ |
+| T9 | 收尾：删开关、删 `Tracker` 里的旧路径 | ⬜ |
 
-几条排序上的约束：
+### 排序的总规则
 
-- **T3 做完，`Tracker.getHoverComponent()` 那段靠 superview 遍历猜分段的代码才能删干净**（1.5 的后半）。
-  T2 只让主牌表不再依赖它，另外四段还在用。
-- **T5 是最难的一片**，`Tracker.updateFrames()` 是 280 行手工排版、十几个条件分支，
-  要整体换成 SwiftUI 布局。前面每一片都在给它减负 —— 它排的段越少越好动。
-- **T6 与其余各片无依赖**，随时可以插队。它是唯一一片纯粹修性能、不改渲染结构的。
-- **Phase 2（分区）依赖 T3 和 T5** —— 分段头和段容器是 T3 做出来的 `TrackerSectionView`，
-  三段并排的高度分配要等 T5 的布局收口。
+**Phase 2 里凡是「删掉某组件」或「改变某组件形态」的条目，一律排在 Phase 1 对应的移植片之前。**
+否则就是把马上要删的东西先用 SwiftUI 重写一遍 —— 和「不在旧 AppKit 布局里做分区」是同一条道理。
+已知的两条是 **2.4**（删四个顶部面板）和 **2.5**（备牌改悬停），都已提前。
+2.6 / 2.7 是改视觉不改结构，2.7 还依赖分区先落地，都留在 Phase 2。2.8 见下面的待决项。
+
+其余约束：
+
+- **T4 做完，`Tracker.getHoverComponent()` 那段靠 superview 遍历猜分段的代码才能删干净**（1.5 的后半）。
+  T2 只让主牌表不再依赖它，其余各段还在用。
+- **T6 是最难的一片**，`Tracker.updateFrames()` 是 280 行手工排版、十几个条件分支，
+  要整体换成 SwiftUI 布局。T3 / T4 / T5 都在给它减负 —— 它要排的段越少越好动。
+- **T3 和 T7 与 SwiftUI 迁移无依赖**，随时可以插队。T3 用现成的 `tooltipGridCards`，
+  T7 是纯性能、不改渲染结构。
+- **Phase 2（分区）依赖 T4 和 T6** —— 分段头和段容器是 T4 做出来的 `TrackerSectionView`，
+  三段并排的高度分配要等 T6 的布局收口。
+
+> **待决：2.8（尺寸重做）要不要并进 T6。** 2.8 的「改法」第 3 条（行高挤压时宽度同步收缩）
+> 和第 4 条（顶部统一到卡条行高）动的正是 T6 和 T5 那两段代码，分两次做等于把同一段布局逻辑写两遍。
+> 但 2.8 还绑着贴图问题（见该节末尾），那部分是独立的资源工作。**尚未决定。**
 
 > **`CardBar` 在 Phase 1 结束后仍然不能删。** 除了记牌器，`CardList.swift`、`EditDeck.swift`、
 > `DeckManager.swift`、战棋的 `BattlegroundsTierDetailsView` 都在用 `CardBar.factory()`，
@@ -369,7 +382,10 @@ Phase 1 是本计划工作量最大的一块，正好拿它的第一个切片做
 ### 2.2 UI 层
 分组直接喂给 Phase 1 的 `TrackerSectionView`。分段头沿用 `DeckLens` 现有视觉（底色 `#23272A`、边框 `#141617`、左侧 17×17 图标 + 白字标题，见 `DeckLens.swift:29-41`），空段自动折叠（`DeckLens.swift:59-68` 的现有行为）。
 
-现存的「置顶」「置底」「备牌」「相关牌」本来就是分段，在新结构里成为同一套 `TrackerSectionView` 的不同实例，`Tracker.swift:74-78` 那几处 `String.localizedString("On Top"/"On Bottom"/"Related_Cards")` 沿用。
+现存的「置顶」「置底」「相关牌」本来就是分段，在新结构里成为同一套 `TrackerSectionView` 的不同实例，`Tracker.swift:74-78` 那几处 `String.localizedString("On Top"/"On Bottom"/"Related_Cards")` 沿用。
+
+**「备牌」不在此列 —— 见 2.5，它整段消失、改成悬停浮出。** 本节原来把它算作一个分段，
+和 2.5 直接矛盾（2026-08-22 发现并改掉）。
 
 ### 2.3 设置接线
 - `Settings.swift` ~L352 加属性、~L652 加 key 常量（照 `removeCardsFromDeck` 的写法）
@@ -421,6 +437,12 @@ Phase 1 是本计划工作量最大的一块，正好拿它的第一个切片做
 现在备牌占一块独立区域，完整铺开三张卡条 —— `Tracker.swift:123` `playerSideboards.update(sideboards:)`，高度按 `Tracker.swift:337` 的 `count * cardHeight + smallFrameHeight * sideboardCount` 算，很占竖向空间。
 
 改为：**ETC 本体只显示一条卡条**，光标移上去时才浮出它所携带的三张卡（形态参照现有的「相关牌」衍生物提示）。实现落点 `DeckSideboards.swift`。
+
+> **执行时机：Phase 1 的 T3，排在移植分段之前。** 否则会先把备牌段搬成 SwiftUI、再把它删掉。
+> **「深邃之王」同样处理** —— `DeckSideboards` 里装的是两段（`cards` 和
+> `kingOfTheUnderbellyCardList`），是同一种备牌机制，本节原来只点了 ETC。
+> 浮出的载体用现成的 `windowManager.tooltipGridCards`（`Tracker.setRelatedCardsTooltip` 在用），
+> 所以这一片**不依赖 SwiftUI 迁移**，在旧路径上就能做完。
 
 ### 2.6 关联卡牌高亮加强
 
@@ -544,8 +566,13 @@ cardHeight = min(cardHeight, (windowHeight - offsetFrames) / CGFloat(totalCards)
 
 **绑定工作量：主题贴图。** `HSTracker/Resources/Themes/Bars/*/` 全部是 1x 的 217×34 PNG，
 **没有 `@2x`**。改宽高比会直接拉伸它们，而 Retina 屏上本来就已经是放大后的模糊结果。
-Phase 1 换 SwiftUI 时应把卡条框架改成矢量绘制（`Path` / `Shape`），彻底摆脱固定尺寸贴图 ——
-这样 2.8 就不需要重新出图。**因此 2.8 建议排在 Phase 1 之后。**
+卡条框架应改成矢量绘制（`Path` / `Shape`），彻底摆脱固定尺寸贴图 —— 这样就不需要重新出图。
+
+> **2026-08-22 修正：矢量化归本节，不归 Phase 1。** 原文写的是「Phase 1 换 SwiftUI 时应
+> 把卡条框架改成矢量绘制」，但那和 Phase 1 的验收标准第 1 条**直接冲突** —— 那条要求
+> 「逐元素与现有 `CardBar` 比对、不可区分」，而矢量重画本身就是把外观换掉。
+> T1 / T2 因此照着 PNG 逐像素复刻，比对窗也是按这个基线做的。
+> 矢量化是**视觉重做**，和 2.8 的宽高比一起做才成立。
 
 ---
 
