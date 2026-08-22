@@ -13,6 +13,8 @@ HSTracker —— macOS 上的炉石传说记牌器，Swift + AppKit。
 - 但**会持续从上游 merge**，每个 release 跟一次。下面好几条约定是由这一条推出来的。
 
 改造计划见 `docs/PLAN.md`，当前进度见 `docs/PROGRESS.md`。
+这两份是**精简版**，只写「要做什么 / 做到哪了」；每个任务的执行细节、review 记录、
+A/B 比对等过程材料归档在 `docs/archive/`，不要往 PLAN / PROGRESS 里堆。
 
 ## Commit 规范
 
@@ -140,7 +142,7 @@ grep -c "你的新文件.swift" HSTracker.xcodeproj/project.pbxproj   # 应为 3
 
 ## 本地化
 
-简体中文（zh-Hans）已补到 99.2%，详见 `docs/PROGRESS.md` 的 Phase 3 小节。
+简体中文（zh-Hans）已补到 99.2%，详见 `docs/PLAN.md` 的 Phase 3 小节。
 
 - 译文只放在 **String Catalog（`.xcstrings`）** 里。
   各语言的 `.lproj/*.strings` 已在 `3f87e5cb` 删除 —— 那些文件从来没参与过编译，
