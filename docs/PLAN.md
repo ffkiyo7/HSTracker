@@ -275,7 +275,7 @@ Phase 1 是本计划工作量最大的一块，正好拿它的第一个切片做
 | T1 | `CardRowView` + `ThemeImageCache` + 并排比对窗 | ✅ 2026-08-22 |
 | T2 | 主牌表接进 `Tracker`，`Settings.useSwiftUITracker` 开关 | ✅ 2026-08-22 |
 | T3 | 其余四段卡表：置顶 / 置底 / 相关牌 / 备牌（`DeckLens` ×3 + `DeckSideboards`） | ⬜ |
-| T4 | 四种横条 → `TrackerBarViews`（`CardCounter` / 抽卡率 / 坟场 / 战绩） | ⬜ |
+| T4 | 顶部信息区重做：拿掉四个旧面板，上 Firestone 三行头（详见 2.4，**从 Phase 2 提前到这里**） | ⬜ |
 | T5 | 根视图 `TrackerView` + `TrackerViewModel`，布局收口（见 1.4） | ⬜ |
 | T6 | 卡图异步加载 + `ImageUtils` 缓存加 LRU（见 1.2） | ⬜ |
 | T7 | 动效：淡入淡出、抽卡闪光、布局动画（验收标准第 3 条） | ⬜ |
@@ -300,11 +300,11 @@ Phase 1 是本计划工作量最大的一块，正好拿它的第一个切片做
 
 | 文件 | 职责 | 取代 |
 |---|---|---|
-| `TrackerViewModel.swift` | `@Observable`，持有分组、计数器、W/L、抽卡率、坟场统计 | — |
+| `TrackerViewModel.swift` | `@Observable`，持有分组、以及 2.4 三行头要的套牌名 / 手牌数 / 牌库数 / 胜率 | — |
 | `TrackerView.swift` | 根 `VStack`，按设置条件拼装各段 | `Tracker.updateFrames()` |
 | `TrackerSectionView.swift` | 分段头（图标+标题）+ 卡行列表，空则折叠 | `DeckLens` / `DeckSideboards` |
 | `CardRowView.swift` | 单张卡行 | `CardBar` + 4 个主题子类 |
-| `TrackerBarViews.swift` | 卡数 / 抽卡率 / 坟场 / 战绩 四种横条 | `CardCounter` 等 4 个 `TextFrame` 子类 |
+| `TrackerHeaderView.swift` | 2.4 的三行头 | `CardCounter` / `PlayerDrawChance` / `OpponentDrawChance` / `StringTracker`（**删掉，不移植**） |
 | `ThemeImageCache.swift` | 主题 PNG 一次性加载缓存 | — |
 
 ### 1.1 `CardRowView` —— 本阶段的核心
@@ -378,6 +378,11 @@ Phase 1 是本计划工作量最大的一块，正好拿它的第一个切片做
 
 ### 2.4 顶部信息区重做（移除现有面板，改 Firestone 三行式）
 
+> **执行时机：Phase 1 的 T4，不等到 Phase 2。** 理由是 T5 要把 `Tracker.updateFrames()`
+> 的手工排版整体交给 SwiftUI，而那 280 行里有一大块就是在排这四个面板 ——
+> 先删掉再做布局收口，才不会为「马上要删的东西」写一遍布局代码。
+> 这和「不在旧 AppKit 布局里做分区」是同一条道理。规格仍以本节为准。
+
 现有顶部堆了四个独立组件，**用户看不懂且没有任何 tooltip**，要整块拿掉：
 
 | 组件 | 文件 | 显示内容 | 开关 |
@@ -386,6 +391,12 @@ Phase 1 是本计划工作量最大的一块，正好拿它的第一个切片做
 | **抽卡概率** | `PlayerDrawChance.swift:17-18,24-25` | `1 4.76%` `2 9.52%` | `Settings.showPlayerDrawChance`（`:319`） |
 | 疲劳指示 | — | `1` / `0` | `Settings.fatigueIndicator`（`:427`） |
 | 胜负比 | `Tracker.swift` | `6 - 7 (46%)` | `Settings.showWinLossRatio`（`:391`） |
+| 坟场计数 | `GraveyardCounter.swift`（`Tracker.swift:23` outlet） | 随从数 / 鱼人数，可展开随从列表 | `Settings.showPlayerGraveyard` / `showOpponentGraveyard` |
+
+坟场计数是 2026-08-22 补进这张表的 —— 原来全文没交代它的去留。**一并删掉**：Phase 2 的「已打出」段
+已经能看到哪些牌离开了牌库，顶部再挂一条计数是重复信息。**代价记在这里**：对手侧的
+「坟场里几个随从 / 几条鱼人」是「已打出」段覆盖不到的（那段只讲自己牌库里的牌），
+真需要的时候得单独加回来，不要以为分区顺带做掉了。
 
 **抽卡概率那两个百分比是重灾区** —— `1 4.76%` / `2 9.52%` 是「下回合抽到某张牌的概率（该牌剩 1 张 / 剩 2 张时）」，但界面上没有任何东西说明这一点，鼠标悬停也没有提示。
 
@@ -398,7 +409,9 @@ Phase 1 是本计划工作量最大的一块，正好拿它的第一个切片做
 ```
 
 - 第 1 行的数字沿用 `CardCounter` 现有的 `deckCount` / `handCount` 数据源，只换呈现
-- 第 2/3 行需要统计数据，数据源待调研（`StatsManager` 下已有胜率统计，第 3 行的「对阵职业」维度是否现成需确认）
+- 第 2/3 行的数据源**已确认现成**（2026-08-22 核过）：`StatsHelper.getDeckRecord(deck:againstClass:mode:)`
+  （`Statistics/StatsHelper.swift:64,87`）本来就带 `againstClass` 维度，第 2 行传 `.neutral` 取总体、
+  第 3 行传对手职业即可。原来「待调研」那句作废
 - 套牌名称沿用 `Settings.showDeckNameInTracker`（`:451`）
 
 **注意**：第 3 行依赖「已知对手职业」，开局前应显示占位或整行隐藏。
