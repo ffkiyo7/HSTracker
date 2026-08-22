@@ -6,7 +6,7 @@
 | 分支 | `phase0+3`（基于 `master` = upstream `77a85be2` / **3.6.5**） |
 | 构建 | Debug / Release 均 `BUILD SUCCEEDED`，受限环境（剥掉 PATH 和代理）下 clean + 增量都验过 |
 | 阻塞 | 无 |
-| **下一步** | **Phase 1 的 T3 切片**（ETC / 深邃之王 改悬停浮出） |
+| **下一步** | **Phase 1 的 T4 切片**（三段 DeckLens → `TrackerSectionView`），任务书已写好 |
 
 > 本文件只回答三件事：**做到哪了 / 下一步是什么 / 哪些结论还作数**。
 >
@@ -35,7 +35,7 @@
 |---|---|---|
 | T1 | `CardRowView` + `ThemeImageCache` + 并排比对窗 | ✅ 合入 grok 版（模型 A/B 的产物，codex 版留在 `ab/t1-codex`） |
 | T2 | 主牌表接进 `Tracker` + `Settings.useSwiftUITracker` 开关 | ✅ 实战验过一局，**开关默认关** |
-| T3 | ETC / 深邃之王 改悬停浮出 | ⬜ 下一步 |
+| T3 | ETC / 深邃之王 改悬停浮出 | ✅ 完成并 review，**未实战**（等卡点 ①） |
 | T4 | 其余三段卡表 → `TrackerSectionView` | ⬜ |
 | T5 | 顶部信息区重做（Firestone 三行头） | ⬜ |
 | T6 | 根视图 + 布局收口 | ⬜ |
@@ -145,9 +145,21 @@ defaults write net.hearthsim.hstracker use_swiftui_tracker -bool true
 而这台机器每天在打游戏 —— 默认值不能是没验收过的那条路径。**开关在 Phase 2 之后才删**
 （Phase 2 的分区还要靠它做对照）。
 
-**故意没做的**：动效全部没做；`DeckLens` / `DeckSideboards` / 战棋三处仍是 `AnimatedCardList`
-（600ms 空等还在）；协同高亮只画边框没有闪光；`Game.swift` 的 `playerTrackerUpdateEvents`
-没加这个 key，所以 `defaults write` 要等下一拍 tracker 刷新才生效。
+**故意没做的**：动效全部没做；`DeckLens` / 战棋两处仍是 `AnimatedCardList`（600ms 空等还在）；
+协同高亮只画边框没有闪光；`Game.swift` 的 `playerTrackerUpdateEvents` 没加这个 key，
+所以 `defaults write` 要等下一拍 tracker 刷新才生效。
+
+## T3 的当前状态（2026-08-22 完成，未实战）
+
+备牌段已从记牌器里拿掉，改成悬停牌表里的 ETC / 深邃之王**本体那一行**时浮出携带的卡，
+载体是现成的 `windowManager.tooltipGridCards`。`Settings.hidePlayerSideboards` 为 true 时整条路径短路。
+
+- 匹配按 `Sideboard.ownerCardId` 通用进行，不硬编码卡 ID
+- 一张卡同时有备牌和相关牌时**备牌优先**（两者共用同一扇浮窗，不能同时亮）
+- 浮窗标题用 `card.name`，不是旧段头那个 `DeckSideboard_Label_ETCBand`
+- **`DeckSideboards.swift` 从此喂不到数据**，是死代码，留到收尾阶段统一删
+
+> **实战要一副带 ETC 或深邃之王的牌**，跟 T4 / T7 一起在卡点 ① 验。
 
 **没条件验证、不是没通过的三项**（不值得再打一局，改设置或用比对窗静态看即可）：
 协同高亮边框、行高压缩、frost / minimal 的传说卡位移。
