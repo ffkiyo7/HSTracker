@@ -872,6 +872,15 @@ class BobsBuddyInvoker {
                 let atk = attached[.tag_script_data_num_1]
                 let health = attached[.tag_script_data_num_2]
                 minion.setBloodGemStats(atk, health)
+            case CardIds.NonCollectible.Neutral.TorethsBlessing:
+                let torethsBlessing = sim.enchantmentFactory.create(cardId: CardIds.NonCollectible.Neutral.TorethsBlessing, controlledByPlayer: minion.controlledByPlayer)
+                if torethsBlessing.get() != nil {
+                    // The engine keeps the shield's remaining-hit count in the minion's
+                    // DIVINE_SHIELD tag (not always 3 at combat start — can be lower
+                    // due to card effects like persist poet);
+                    torethsBlessing.scriptDataNum1 = Int32(entity[.divine_shield])
+                    minion.attachEnchantment(enchantment: torethsBlessing)
+                }
             default:
                 if attached.card.type == .enchantment && !attached.cardId.isEmpty {
                     let enchantment = sim.enchantmentFactory.create(cardId: attached.cardId, controlledByPlayer: minion.controlledByPlayer)
