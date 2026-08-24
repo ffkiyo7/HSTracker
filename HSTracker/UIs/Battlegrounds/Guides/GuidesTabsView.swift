@@ -42,7 +42,7 @@ struct GuidesTabsView: View {
         // lobby in BattlegroundsMinionsViewModel.availableRaces, or the Minions
         // tab comes up with no races and an empty Card Types grid.
         // if true {
-        if viewModel.showBrowser && AppDelegate.instance().coreManager.game.isBattlegroundsMatch() {
+        if viewModel.showBrowser && (AppDelegate.instance().coreManager.game.isBattlegroundsMatch() || viewModel.isPreLobby) {
             VStack(spacing: 0) {
                 // Stand-alone mode drops the tab strip and shows the minions
                 // browser on its own, matching HDT's third top-bar state
@@ -54,6 +54,8 @@ struct GuidesTabsView: View {
                     tabStrip
                     if let activeTab = viewModel.activeTab {
                         tabContent(activeTab)
+                    } else if viewModel.metaSnapshotVisible {
+                        metaSnapshotPromo
                     }
                 }
             }
@@ -147,12 +149,47 @@ struct GuidesTabsView: View {
             GuidesTabButton(
                 imageName: questGuides.hasQuests ? "icon-hero-and-quest" : "icon-hero",
                 iconSize: questGuides.hasQuests ? CGSize(width: 21, height: 34) : CGSize(width: 21, height: 23),
-                isActive: viewModel.activeTab == .heroes
+                isActive: viewModel.activeTab == .heroes,
+                isEnabled: viewModel.heroesTabEnabled
             ) {
                 viewModel.toggleHeroes()
             }
         }
         .background(Color(hex: "#2C3135"))
+    }
+
+    // HDT's meta snapshot promo card: shown in the pre-lobby in place of tab
+    // content while no tab is open and the player has not yet queued.
+    private var metaSnapshotPromo: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Check out the latest Battlegrounds meta on HSReplay.")
+                .foregroundColor(Color(hex: "#9CA3A8"))
+                .font(.system(size: 12))
+                .fixedSize(horizontal: false, vertical: true)
+            Button(action: { viewModel.openMetaSnapshot() }) {
+                Text("View Meta Snapshot")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 7)
+                    .background(
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(Color(hex: "#7636A8"))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 3)
+                            .stroke(Color(hex: "#B78BDB"), lineWidth: 1)
+                    )
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(10)
+        .frame(width: Self.width, alignment: .leading)
+        .background(Color(hex: "#23272A"))
+        .overlay(
+            Rectangle()
+                .stroke(Color(hex: "#3f4346"), lineWidth: 1)
+        )
     }
 
     @ViewBuilder
@@ -188,6 +225,10 @@ private struct GuidesTabButton: View {
     let imageName: String
     let iconSize: CGSize
     let isActive: Bool
+    // There are no heroes to guide before a match has started (HDT's
+    // HeroesTabEnabled); every other tab is always enabled. Dimmed and
+    // non-interactive rather than hidden, matching HDT's IsEnabled binding.
+    var isEnabled: Bool = true
     let action: () -> Void
 
     @SwiftUI.State private var isHovering = false
@@ -207,6 +248,7 @@ private struct GuidesTabButton: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: iconSize.width, height: iconSize.height)
+                    .opacity(isEnabled ? 1 : 0.4)
             }
             .frame(width: Self.buttonWidth, height: Self.buttonHeight)
             // BorderThickness "1,0,0,1", dropping to "1,0,0,0" on the active
@@ -222,6 +264,7 @@ private struct GuidesTabButton: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(!isEnabled)
         .onHover { hovering in
             isHovering = hovering
         }

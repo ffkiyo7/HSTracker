@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import AppKit
 import Combine
 
 // Mirrors HDT's BattlegroundsGuidesTabsViewModel.ActiveViewModel - which of
@@ -33,6 +34,30 @@ final class BattlegroundsGuidesTabsViewModel: ObservableObject {
 
     /// True when the browser shows without the tabs above it - HDT's IsStandAloneMode.
     var isStandAlone: Bool { !showGuides }
+
+    // Mirrors HDT's BgsGuidesPreLobbyVisible: the browser is showing in the
+    // Battlegrounds pre-lobby (before a match has started) rather than in a match.
+    // Driven by Game.updateBattlegroundsGuidesPreLobbyVisibility(), hooked off
+    // SceneHandler's BACON transitions - see that function for why the panel
+    // isn't torn down again until the match itself takes over.
+    @Published var isPreLobby = false
+
+    // There are no heroes to guide before a match has started - HDT's HeroesTabEnabled.
+    var heroesTabEnabled: Bool { !isPreLobby }
+
+    // HDT's IsInQueue: hides the meta snapshot promo once the player queues up,
+    // without hiding the browser itself.
+    @Published var isInQueue = false
+
+    // HDT's MetaSnapshotVisible. Unlike HDT this does not also require "room" for
+    // it (HeroesTabVisible's aspect-ratio gate isn't ported), so it simply follows
+    // whether a tab is open.
+    var metaSnapshotVisible: Bool { isPreLobby && !isInQueue && activeTab == nil }
+
+    func openMetaSnapshot() {
+        let url = Helper.buildHsReplayNetUrl("/battlegrounds/", "bgs_lobby_meta_snapshot", nil, ["meta-snapshot"])
+        NSWorkspace.shared.open(URL(string: url)!)
+    }
 
     private var settingsCancellable: AnyCancellable?
 

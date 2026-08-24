@@ -293,6 +293,10 @@ final class Settings {
 
     @UserDefault(key: Settings.show_battlegrounds_guides, defaultValue: true)
     static var showBattlegroundsGuides: Bool
+    // Mirrors HDT's ShowMinionBrowserBetweenGames: whether the Minions/Comp Guides
+    // browser also shows in the Battlegrounds pre-lobby, before a match starts.
+    @UserDefault(key: Settings.show_battlegrounds_guides_pre_lobby, defaultValue: true)
+    static var showBattlegroundsGuidesPreLobby: Bool
     @UserDefault(key: Settings.show_battlecry_deathrattle_on_tiers, defaultValue: true)
     static var showBattlecryDeathrattleOnTiers: Bool
     @UserDefault(key: Settings.show_tavern_spells, defaultValue: true)
@@ -649,6 +653,7 @@ extension Settings {
     static let show_opponent_warband = "show_opponent_warband"
     static let show_tiers = "show_tiers"
     static let show_battlegrounds_guides = "show_battlegrounds_guides"
+    static let show_battlegrounds_guides_pre_lobby = "show_battlegrounds_guides_pre_lobby"
     static let show_battlecry_deathrattle_on_tiers = "show_battlecry_deathrattle_on_tiers"
     static let show_tavern_spells = "show_tavern_spells"
     static let show_tavern_triples = "show_tavern_triples"

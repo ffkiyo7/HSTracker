@@ -750,6 +750,10 @@ class Game: NSObject, PowerEventHandler {
             // which this is the analogue of. The available races are not readable
             // from the mirror yet at gameStart, so they have to be picked up here.
             if #available(macOS 10.15, *), isBG {
+                // The real match takes over the same panel the pre-lobby was
+                // showing - HDT's LeaveBgsGuidesPreLobby, called from this
+                // function's HDT analogue (ShowBgsTopBar).
+                self.windowManager.rootOverlay?.viewModel.battlegroundsGuidesTabs.isPreLobby = false
                 self.windowManager.rootOverlay?.viewModel.battlegroundsMinionsGuide.updateLobby()
                 // OverlayWindow.Update re-evaluates ShouldShowBgsMinionPinning()
                 // and re-pushes AvailableRaces on the same tick, for the same
@@ -992,14 +996,16 @@ class Game: NSObject, PowerEventHandler {
         if #available(macOS 10.15, *) {
             DispatchQueue.main.async {
                 self.updateTier7PreLobbyVisibility()
+                self.updateBattlegroundsGuidesPreLobbyVisibility()
             }
         }
     }
-    
+
     func setBaconQueue(_ isAnyOpen: Bool) {
         if #available(macOS 10.15, *) {
             DispatchQueue.main.async {
                 self.updateTier7PreLobbyVisibility()
+                self.updateBattlegroundsGuidesPreLobbyVisibility()
             }
         }
     }
@@ -1024,6 +1030,55 @@ class Game: NSObject, PowerEventHandler {
         } else {
             self.windowManager.tier7PreLobby.isVisible = false
             self.windowManager.show(controller: self.windowManager.tier7PreLobby, show: false)
+        }
+    }
+
+    // Mirrors HDT's InBattlegroundsScene: true while sitting in the Battlegrounds
+    // lobby, or transitioning between it and a match in either direction. The
+    // scene goes nil for the duration of a transition, so BACON -> GAMEPLAY (a
+    // match starting) must be told apart from BACON -> anything else (leaving to
+    // the main menu) purely from lastScene/nextScene.
+    private var isBaconSceneOrTransitioningToFromMatch: Bool {
+        if SceneHandler.scene == .bacon {
+            return true
+        }
+        guard SceneHandler.scene == nil else {
+            return false
+        }
+        return (SceneHandler.lastScene == .bacon && SceneHandler.nextScene == .gameplay)
+            || (SceneHandler.lastScene == .gameplay && SceneHandler.nextScene == .bacon)
+    }
+
+    // Mirrors HDT's ShouldShowBattlegroundsGuidesPreLobby/UpdateBattlegroundsGuidesPreLobbyVisibility.
+    // Unlike Tier7PreLobby this stays up while queued (only the meta snapshot
+    // promo hides then) - HDT's own panel does the same, since browsing guides
+    // while waiting in queue is the point.
+    //
+    // Safe to call from the leave-BACON transition as well as the enter-BACON
+    // one (see SceneHandler.swift): isBaconSceneOrTransitioningToFromMatch keeps
+    // this true through a BACON -> GAMEPLAY transition, so isPreLobby is not
+    // cleared out from under a match that is about to take the panel over via
+    // updateBattlegroundsOverlay()'s hand-off - only a genuine leave (back to the
+    // main menu, say) clears it here.
+    @available(macOS 10.15, *)
+    @MainActor
+    func updateBattlegroundsGuidesPreLobbyVisibility() {
+        guard let guidesTabs = windowManager.rootOverlay?.viewModel.battlegroundsGuidesTabs else {
+            return
+        }
+
+        guidesTabs.isInQueue = queueEvents.isInQueue
+
+        let show = isRunning && isBaconSceneOrTransitioningToFromMatch && Settings.showBattlegroundsBrowser && Settings.showBattlegroundsGuidesPreLobby
+        if show {
+            if !guidesTabs.isPreLobby {
+                let mode = windowManager.tier7PreLobby.viewModel.battlegroundsGameMode
+                windowManager.rootOverlay?.viewModel.battlegroundsMinionsGuide.enterPreLobby(isDuos: mode == .duos)
+                guidesTabs.activeTab = nil
+                guidesTabs.isPreLobby = true
+            }
+        } else {
+            guidesTabs.isPreLobby = false
         }
     }
     

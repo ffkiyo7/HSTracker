@@ -425,6 +425,17 @@ final class BattlegroundsMinionsViewModel: ObservableObject {
         updateTavernTier7Visibility()
     }
 
+    // Entering the pre-lobby browser (Game.updateBattlegroundsGuidesPreLobbyVisibility).
+    // There is no lobby to read tier/race availability from yet, so this leaves
+    // availableRaces nil - which already means "every race", the correct default
+    // before a lobby has been chosen. Only isDuos needs to be pushed explicitly,
+    // from the pre-lobby's own game mode selection rather than a live match.
+    func enterPreLobby(isDuos: Bool) {
+        clearFilters()
+        availableRaces = nil
+        self.isDuos = isDuos
+    }
+
     func onMatchEnd() {
         clearFilters()
         availableRaces = nil

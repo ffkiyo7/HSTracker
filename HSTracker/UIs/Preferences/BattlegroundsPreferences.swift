@@ -28,6 +28,8 @@ class BattlegroundsPreferences: PreferencePaneController, PreferencePane {
     @IBOutlet var showOpponentWarband: NSButton!
     @IBOutlet var showTiers: NSButton!
     @IBOutlet var showBattlegroundsGuides: NSButton!
+    // HDT's CheckboxShowMinionBrowserBetweenGames.
+    @IBOutlet var showBattlegroundsGuidesPreLobby: NSButton!
     // HDT's CheckboxShowBattlegroundsTavernMarkers and the two it gates
     // (OverlayBattlegrounds.xaml).
     @IBOutlet var showTavernPinning: NSButton!
@@ -69,6 +71,7 @@ class BattlegroundsPreferences: PreferencePaneController, PreferencePane {
         showOpponentWarband.state = Settings.showOpponentWarband ? .on : .off
         showTiers.state = Settings.showBattlegroundsBrowser ? .on : .off
         showBattlegroundsGuides.state = Settings.showBattlegroundsGuides ? .on : .off
+        showBattlegroundsGuidesPreLobby.state = Settings.showBattlegroundsGuidesPreLobby ? .on : .off
         showTavernPinning.state = Settings.showBattlegroundsTavernMarkers ? .on : .off
         autoEnableTavernPinningRecommended.state = Settings.autoEnableTavernMarkersRecommended ? .on : .off
         // Checked only while *neither* half has been dismissed, matching HDT's
@@ -114,6 +117,11 @@ class BattlegroundsPreferences: PreferencePaneController, PreferencePane {
         } else if sender == showBattlegroundsGuides {
             Settings.showBattlegroundsGuides = showBattlegroundsGuides.state == .on
             updateEnablement()
+        } else if sender == showBattlegroundsGuidesPreLobby {
+            Settings.showBattlegroundsGuidesPreLobby = showBattlegroundsGuidesPreLobby.state == .on
+            if #available(macOS 10.15, *) {
+                game.updateBattlegroundsGuidesPreLobbyVisibility()
+            }
         } else if sender == showTavernPinning {
             Settings.showBattlegroundsTavernMarkers = sender.state == .on
             updateEnablement()
@@ -245,6 +253,7 @@ class BattlegroundsPreferences: PreferencePaneController, PreferencePane {
         showQuestPicking.isEnabled = enabled
         alwaysShowTavernTier7.isEnabled = showTiers.state == .on
         showBattlegroundsGuides.isEnabled = showTiers.state == .on
+        showBattlegroundsGuidesPreLobby.isEnabled = showTiers.state == .on
 
         // IsEnabled="{Binding IsChecked, ElementName=CheckboxShowBattlegroundsTavernMarkers}"
         // on both of the pinning sub-options.
