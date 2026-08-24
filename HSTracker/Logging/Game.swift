@@ -215,7 +215,6 @@ class Game: NSObject, PowerEventHandler {
         self.updateBoardStateTrackers()
         self.updateSecretTracker()
         self.updateBattlegroundsOverlay()
-        self.updateBattlegroundsTierOverlay(reset: guiUpdateResets)
         self.updateBobsBuddyOverlay()
         self.updateTurnCounterOverlay()
         self.updateToaster()
@@ -421,17 +420,18 @@ class Game: NSObject, PowerEventHandler {
             guard let self else {
                 return
             }
-            self.windowManager.turnCounter.setTurnNumber(turn: turn)
-
-            let isBG = self.isBattlegroundsMatch() && !self.gameEnded
-
-            if isBG && Settings.showTurnCounter && ((Settings.hideAllWhenGameInBackground && self.hearthstoneRunState.isActive) || !Settings.hideAllWhenGameInBackground) {
-                let rect = SizeHelper.turnCounterFrame()
-                self.windowManager.show(controller: self.windowManager.turnCounter, show: true, frame: rect, title: nil, overlay: self.hearthstoneRunState.isActive)
-            } else {
-                self.windowManager.show(controller: self.windowManager.turnCounter, show: false)
+            if #available(macOS 10.15, *) {
+                self.windowManager.rootOverlay?.viewModel.battlegroundsTurnCounter
+                    .update(turn: turn, isShown: self.isTurnCounterVisible)
             }
         }
+    }
+
+    // The counter lives in RootOverlay now, so it no longer needs the
+    // hideAllWhenGameInBackground check the AppKit window carried -
+    // updateRootOverlay already hides the whole overlay in that case.
+    private var isTurnCounterVisible: Bool {
+        isBattlegroundsMatch() && !gameEnded && Settings.showTurnCounter && !hideBattlegroundsTurn
     }
 
     func updateTurnTimer() {
@@ -741,6 +741,21 @@ class Game: NSObject, PowerEventHandler {
         DispatchQueue.main.async {
             let isBG = self.isBattlegroundsMatch() && !self.gameEnded
 
+            // HDT refreshes the minion browser's lobby state from ShowBgsTopBar,
+            // which this is the analogue of. The available races are not readable
+            // from the mirror yet at gameStart, so they have to be picked up here.
+            if #available(macOS 10.15, *), isBG {
+                self.windowManager.rootOverlay?.viewModel.battlegroundsMinionsGuide.updateLobby()
+                // OverlayWindow.Update re-evaluates ShouldShowBgsMinionPinning()
+                // and re-pushes AvailableRaces on the same tick, for the same
+                // reason: neither the mulligan state nor the lobby's races are
+                // settled at match start.
+                if let pinning = self.windowManager.rootOverlay?.viewModel.battlegroundsMinionPinning {
+                    pinning.updateLobby()
+                    pinning.updateVisibility()
+                }
+            }
+
             if isBG && ((Settings.hideAllWhenGameInBackground && self.hearthstoneRunState.isActive)
                     || !Settings.hideAllWhenGameInBackground) {
                 
@@ -765,20 +780,10 @@ class Game: NSObject, PowerEventHandler {
     }
     
     func updateTurnCounterOverlay() {
-        let rect = SizeHelper.turnCounterFrame()
-        
         DispatchQueue.main.async {
-            let isBG = self.isBattlegroundsMatch() && !self.gameEnded
-            if isBG && Settings.showTurnCounter &&
-                ((Settings.hideAllWhenGameInBackground && self.hearthstoneRunState.isActive)
-                 || !Settings.hideAllWhenGameInBackground) && !self.hideBattlegroundsTurn {
-                let turn = self.turnNumber()
-                if turn > 0 {
-                    self.windowManager.turnCounter.setTurnNumber(turn: turn)
-                }
-                self.windowManager.show(controller: self.windowManager.turnCounter, show: true, frame: rect, title: nil, overlay: true)
-            } else {
-                self.windowManager.show(controller: self.windowManager.turnCounter, show: false)
+            if #available(macOS 10.15, *) {
+                self.windowManager.rootOverlay?.viewModel.battlegroundsTurnCounter
+                    .update(turn: self.turnNumber(), isShown: self.isTurnCounterVisible)
             }
         }
     }
@@ -794,28 +799,6 @@ class Game: NSObject, PowerEventHandler {
                 self.windowManager.show(controller: self.windowManager.bobsBuddyPanel, show: true, frame: rect, title: nil, overlay: true)
             } else {
                 self.windowManager.show(controller: self.windowManager.bobsBuddyPanel, show: false)
-            }
-        }
-    }
-    
-    func updateBattlegroundsTierOverlay(reset: Bool) {
-        let rect = SizeHelper.battlegroundsTierOverlayFrame()
-                
-        DispatchQueue.main.async {
-            let isBG = self.isBattlegroundsMatch() && !self.gameEnded
-
-            let controller = self.windowManager.battlegroundsTierOverlay
-
-            if isBG && Settings.showTiers && ((Settings.hideAllWhenGameInBackground && self.hearthstoneRunState.isActive)
-                                              || !Settings.hideAllWhenGameInBackground) && !self.hideBattlegroundsTier {
-                self.windowManager.show(controller: controller, show: true, frame: rect, title: nil, overlay: true)
-                controller.tierOverlay?.unhideTier()
-                if reset {
-                    controller.tierOverlay?.displayTier(tier: controller.tierOverlay.currentTier, force: true)
-                }
-            } else {
-                self.windowManager.show(controller: controller, show: false)
-                controller.tierOverlay?.hideTier()
             }
         }
     }
@@ -1263,7 +1246,6 @@ class Game: NSObject, PowerEventHandler {
     var adventureOpponentId: String?
     
     var hideBobsBuddy = false
-    var hideBattlegroundsTier = false
     var hideBattlegroundsTurn = false
     
     var availableRaces: [Race]? {
@@ -1667,7 +1649,6 @@ class Game: NSObject, PowerEventHandler {
         updateTurnCounter(turn: 1)
         
         hideBobsBuddy = false
-        hideBattlegroundsTier = false
         hideBattlegroundsTurn = false
         
         adventureOpponentId = nil
@@ -1962,10 +1943,32 @@ class Game: NSObject, PowerEventHandler {
                 Task.detached {
                     await self.windowManager.battlegroundsSession.updateCompositionStatsVisibility()
                 }
+                Task.detached {
+                    await self.windowManager.rootOverlay?.viewModel.battlegroundsCompsGuides.onMatchStart()
+                }
+                Task.detached {
+                    await self.windowManager.rootOverlay?.viewModel.battlegroundsHeroGuides.update()
+                }
+                Task.detached {
+                    await self.windowManager.rootOverlay?.viewModel.battlegroundsTrinketGuides.update()
+                }
+                Task.detached {
+                    await self.windowManager.rootOverlay?.viewModel.battlegroundsAnomalyGuides.update()
+                }
+                Task.detached {
+                    await self.windowManager.rootOverlay?.viewModel.battlegroundsQuestGuides.update()
+                }
+                DispatchQueue.main.async {
+                    self.windowManager.rootOverlay?.viewModel.battlegroundsMinionsGuide.onMatchStart()
+                    // GameEventHandler's HandleGameStart calls
+                    // BattlegroundsMinionPinningViewModel.Reset(), which re-arms
+                    // the key-piece recommendations from the auto-enable setting.
+                    self.windowManager.rootOverlay?.viewModel.battlegroundsMinionPinning.reset()
+                }
             }
         }
     }
-    
+
     private var _lastReconnectStartTimestamp: Date = Date.distantPast
     func handleGameReconnect(timestamp: Date) {
         DispatchQueue.global().async {
@@ -2242,14 +2245,33 @@ class Game: NSObject, PowerEventHandler {
         if isBattlegroundsMatch() {
             BobsBuddyInvoker.instance(gameId: gameId, turn: turnNumber())?.startShopping(isGameOver: true)
             OpponentDeadForTracker.reset()
-            DispatchQueue.main.async {
-                self.windowManager.battlegroundsTierOverlay.tierOverlay.reset()
-            }
             updatePostGameBattlegroundsRating(gameStats: currentGameStats)
             captureBattlegroundsGame(stats: currentGameStats)
             windowManager.battlegroundsHeroPicking.viewModel.reset()
             windowManager.battlegroundsQuestPicking.viewModel.reset()
             windowManager.battlegroundsTrinketPicking.viewModel.reset()
+            if #available(macOS 10.15, *) {
+                // GameEventHandler's IsBattlegroundsMatch branch clears the trial
+                // once the match it was activated for is over, so the next game
+                // has to spend a trial of its own rather than riding this token.
+                Tier7Trial.clear()
+                // These mutate @Published properties on ObservableObjects
+                // (unlike the legacy KVO-based ViewModel.reset() calls
+                // above), which Combine requires happen on the main thread.
+                DispatchQueue.main.async {
+                    self.windowManager.rootOverlay?.viewModel.battlegroundsCompsGuides.onMatchEnd()
+                    self.windowManager.rootOverlay?.viewModel.battlegroundsHeroGuides.onMatchEnd()
+                    self.windowManager.rootOverlay?.viewModel.battlegroundsQuestGuides.onMatchEnd()
+                    self.windowManager.rootOverlay?.viewModel.battlegroundsMinionsGuide.onMatchEnd()
+                    // HideBgsTopBar resets the Inspiration panel alongside the
+                    // rest of the top bar, so it never carries a lineup - or its
+                    // open state - into the next match.
+                    self.windowManager.rootOverlay?.viewModel.battlegroundsInspiration.reset()
+                    // HideBgsMinionPinning: pins never survive a match, and the
+                    // panel goes with them.
+                    self.windowManager.rootOverlay?.viewModel.battlegroundsMinionPinning.onMatchEnd()
+                }
+            }
             hideBattlegroundsHeroPanel()
             hideBattlegroundsTimewarpPanel()
         }
@@ -2554,14 +2576,36 @@ class Game: NSObject, PowerEventHandler {
                     self.isBattlegroundsCombatPhase = true
                     OpponentDeadForTracker.shoppingStarted(game: self)
                     BobsBuddyInvoker.instance(gameId: self.gameId, turn: self.turnNumber() - 1)?.startShopping()
-                    windowManager.battlegroundsTierOverlay.tierOverlay.onHeroPowers(heroPowers: self.player.board.filter { x in x.isHeroPower }.compactMap { x in x.cardId })
-                    windowManager.battlegroundsTierOverlay.tierOverlay.onTrinkets(trinkets: self.player.trinkets.compactMap({ x in x.cardId }))
+                    let heroPowerIds = self.player.board.filter { x in x.isHeroPower }.compactMap { x in x.cardId }
+                    let trinketIds = self.player.trinkets.compactMap({ x in x.cardId })
+                    self.battlegroundsMinionsOnHeroPowers(heroPowerIds)
+                    self.battlegroundsMinionsOnTrinkets(trinketIds)
+                    if #available(macOS 10.15, *) {
+                        // From here until combat, the board the Inspiration panel
+                        // sends alongside a key minion is the live one.
+                        self.windowManager.rootOverlay?.viewModel.battlegroundsInspiration.onShoppingStart()
+                        // OnBattlegroundsShoppingStart also reveals the Tavern
+                        // Pinning shop markers; both combat-setup transitions
+                        // hide them again (see TagChangeActions).
+                        self.windowManager.rootOverlay?.viewModel.battlegroundsMinionPinning.setShopVisible(true)
+                    }
                 }
             }
 
             NotificationManager.showNotification(type: .turnStart)
         }
         
+        // GameEventHandler's opponent-turn branch: shopping is over, so the
+        // Inspiration panel freezes the board it will keep sending for the rest
+        // of this turn. Solo only, as in HDT - a duos board changes hands.
+        if player == .opponent && !isInMenu && isBattlegroundsSoloMatch() {
+            if #available(macOS 10.15, *) {
+                DispatchQueue.main.async {
+                    self.windowManager.rootOverlay?.viewModel.battlegroundsInspiration.onShoppingEnd()
+                }
+            }
+        }
+
         updateTurnCounter(turn: turnNumber())
         
         updateTrackers()
@@ -2686,6 +2730,18 @@ class Game: NSObject, PowerEventHandler {
         return currentGameType == .gt_ranked || currentGameType == .gt_casual || currentGameType == .gt_vs_friend || currentGameType == .gt_vs_ai 
     }
     
+    // Mirrors HDT's GameV2.IsBattlegroundsHeroPickingDone: the player's own
+    // mulligan (which in Battlegrounds is the hero pick) has resolved. Unlike
+    // isMulliganDone below it deliberately ignores the opponent, who in
+    // Battlegrounds is Bob.
+    var isBattlegroundsHeroPickingDone: Bool {
+        guard isBattlegroundsMatch() else { return false }
+        guard let player = entities.map({ $0.1 })
+            .filter({ $0.isPlayer(eventHandler: self) })
+            .sorted(by: { $0.id < $1.id }).first else { return false }
+        return player[.mulligan_state] == Mulligan.done.rawValue
+    }
+
     func isMulliganDone() -> Bool {
         if isBattlegroundsMatch() {
                 return true
@@ -3126,8 +3182,9 @@ class Game: NSObject, PowerEventHandler {
     func snapshotBattlegroundsOfferedHeroes(_ heroes: [Entity]) {
         _ = battlegroundsHeroPickState.snapshotOfferedHeroes(heroes)
     }
-    func snapshotBattlegroundsHeroPick() {
-        _ = battlegroundsHeroPickState.snapshotPickedHero()
+    @discardableResult
+    func snapshotBattlegroundsHeroPick() -> Int? {
+        return battlegroundsHeroPickState.snapshotPickedHero()
     }
     
     @MainActor
@@ -3161,6 +3218,11 @@ class Game: NSObject, PowerEventHandler {
         Watchers.battlegroundsLeaderboardWatcher.run()
         Watchers.battlegroundsLobbyInfoWatcher.run()
         OpponentDeadForTracker.reset()
+        if #available(macOS 10.15, *) {
+            await MainActor.run {
+                self.windowManager.rootOverlay?.viewModel.battlegroundsInspiration.reset()
+            }
+        }
         var heroes = [Entity]()
         for _ in 0 ..< 10 {
             await Task.sleep(milliseconds: 500)
@@ -3758,7 +3820,8 @@ class Game: NSObject, PowerEventHandler {
     @available(macOS 10.15.0, *) @MainActor
     func handlePlayerMulliganDone() async {
         if isBattlegroundsMatch() {
-            snapshotBattlegroundsHeroPick()
+            let pickedHeroDbfId = snapshotBattlegroundsHeroPick()
+            windowManager.rootOverlay?.viewModel.battlegroundsHeroGuides.selectHero(dbfId: pickedHeroDbfId)
             hideBattlegroundsHeroPanel()
             hideBattlegroundsTimewarpPanel()
             windowManager.battlegroundsHeroPicking.viewModel.reset()
@@ -3866,7 +3929,8 @@ class Game: NSObject, PowerEventHandler {
                 }
             } else if offeredEntities.all({ x in x.isHeroPower }) { // hero power choice
                 let offered = offeredEntities.filter { x in x.isHeroPower }
-                windowManager.battlegroundsTierOverlay.tierOverlay.onHeroPowers(heroPowers: (player.board.filter({ x in x.isHeroPower }) + offered).compactMap({ x in x.card.id }))
+                let heroPowerIds = (player.board.filter({ x in x.isHeroPower }) + offered).compactMap({ x in x.card.id })
+                battlegroundsMinionsOnHeroPowers(heroPowerIds)
             }
         }
         player.offeredEntityIds = choice.offeredEntityIds ?? [Int]()
@@ -3875,13 +3939,51 @@ class Game: NSObject, PowerEventHandler {
         }
     }
     
+    // MARK: - Battlegrounds tier 7 sources
+    //
+    // The Minions tab tracks tier 7 itself (BattlegroundsMinionsViewModel's
+    // onHeroPowers / onTrinkets / onQuests), so every site that tells the AppKit
+    // tier overlay about a hero power, trinket or quest reward tells the view
+    // model too - matching HDT, whose GameEventHandler calls
+    // BattlegroundsMinionsVM.On* at these exact same points.
+    //
+    // Deliberately not forwarded from inside the tier overlay's own methods:
+    // `tierOverlay` is an @IBOutlet that stays nil until its nib is first
+    // loaded, which would silently drop these for the Minions tab.
+    //
+    // Always hops to main - these mutate @Published state and several callers
+    // run on the log-parsing thread rather than main.
+    func battlegroundsMinionsOnHeroPowers(_ heroPowers: [String]) {
+        if #available(macOS 10.15, *) {
+            DispatchQueue.main.async {
+                self.windowManager.rootOverlay?.viewModel.battlegroundsMinionsGuide.onHeroPowers(heroPowers)
+            }
+        }
+    }
+
+    func battlegroundsMinionsOnTrinkets(_ trinkets: [String]) {
+        if #available(macOS 10.15, *) {
+            DispatchQueue.main.async {
+                self.windowManager.rootOverlay?.viewModel.battlegroundsMinionsGuide.onTrinkets(trinkets)
+            }
+        }
+    }
+
+    func battlegroundsMinionsOnQuests(_ quests: [String]) {
+        if #available(macOS 10.15, *) {
+            DispatchQueue.main.async {
+                self.windowManager.rootOverlay?.viewModel.battlegroundsMinionsGuide.onQuests(quests)
+            }
+        }
+    }
+
     @available(macOS 10.15.0, *) @MainActor
     func handleBattlegroundsTrinketChoice(choice: IHsChoice) async {
         let offeredEntities = choice.offeredEntityIds?.compactMap { id in entities[id] } ?? [Entity]()
 
         let offered = offeredEntities.filter { x in x.isBattlegroundsTrinket }
         let trinkets = (player.trinkets + offered).compactMap({ x in x.card.id })
-        windowManager.battlegroundsTierOverlay.tierOverlay.onTrinkets(trinkets: trinkets)
+        battlegroundsMinionsOnTrinkets(trinkets)
         
         let result = await getTrinketPickStats(choice: choice)
         if let result, !isTrinketChoiceComplete(choiceId: choice.id) {
@@ -3996,7 +4098,26 @@ class Game: NSObject, PowerEventHandler {
         } else {
             hideBattlegroundsTimewarpPanel()
         }
-        // TODO: when minion pining gets added
+
+        // HDT calls OnShopChange from here as well as from OnPlayZoneChange, so
+        // the Tavern Pinning markers follow the Timewarp "compare cards" shop
+        // (ChoiceCardMgr's m_shopChoice zone) while it is up, not just Bob's own
+        // tavern. When that zone is empty this hands over an empty list, which
+        // clears the markers until the next play-zone tick refills them - the
+        // same brief handover HDT has.
+        handleShopBoardState(boardCards: boardCards, mousedOverSlot: args.mousedOverSlot)
+    }
+
+    // The single entry point both shop feeds share: PlayZoneWatcher's opposing
+    // zone (Bob's shop, HDT's Watchers.OnPlayZoneChange) and the special-shop
+    // watcher above. Mirrors HDT's BattlegroundsMinionPinningViewModel.OnShopChange
+    // call sites.
+    func handleShopBoardState(boardCards: [MirrorBoardCard], mousedOverSlot: Int) {
+        guard #available(macOS 10.15, *) else { return }
+        DispatchQueue.main.async {
+            self.windowManager.rootOverlay?.viewModel.battlegroundsMinionPinning
+                .onShopChange(boardCards: boardCards, mousedOverSlot: mousedOverSlot)
+        }
     }
 
     func handleOpponentEntitiesChosen(choice: IHsCompletedChoice) {
@@ -4023,7 +4144,7 @@ class Game: NSObject, PowerEventHandler {
                     if additionalHeroPowerId > 0, let additionalHeroPower =  entities[additionalHeroPowerId] {
                         heroPowers.append(additionalHeroPower.card.id)
                     }
-                    windowManager.battlegroundsTierOverlay.tierOverlay?.onHeroPowers(heroPowers: heroPowers)
+                    battlegroundsMinionsOnHeroPowers(heroPowers)
                 } else {
                     logger.error("Could not reliably determine Battlegrounds hero power. \(chosen.count) hero(es) chosen.")
                 }
@@ -4038,17 +4159,27 @@ class Game: NSObject, PowerEventHandler {
                 windowManager.battlegroundsQuestPicking.viewModel.reset()
                 windowManager.battlegroundsTrinketPicking.viewModel.reset()
                 if source?[.bacon_is_magic_item_discover] ?? 0 > 0 {
-                    windowManager.battlegroundsTierOverlay.tierOverlay?.onTrinkets(trinkets: (self.player.trinkets + chosen).compactMap({ x in x.cardId }))
+                    let chosenTrinketIds = (self.player.trinkets + chosen).compactMap({ x in x.cardId })
+                    battlegroundsMinionsOnTrinkets(chosenTrinketIds)
                 }
                 // the entity of a chosen hero power is only created after the choice completes, concat the chosen one
-                windowManager.battlegroundsTierOverlay.tierOverlay?.onHeroPowers(heroPowers: player.board.filter({ x in x.isHeroPower }).compactMap({ x in x.card.id }) + chosen.filter({ x in x.isHeroPower }).compactMap({ x in x.card.id }))
+                let chosenHeroPowerIds = player.board.filter({ x in x.isHeroPower }).compactMap({ x in x.card.id }) + chosen.filter({ x in x.isHeroPower }).compactMap({ x in x.card.id })
+                battlegroundsMinionsOnHeroPowers(chosenHeroPowerIds)
                 
                 // quest choice
                 if let chosenEntity = chosen.first {
                     let questRewardDbfId = chosenEntity[.quest_reward_database_id]
                     if questRewardDbfId > 0 {
                         if let questReward = Cards.by(dbfId: questRewardDbfId, collectible: false) {
-                            windowManager.battlegroundsTierOverlay.tierOverlay?.onQuests(quests: [questReward.id])
+                            battlegroundsMinionsOnQuests([questReward.id])
+                            if #available(macOS 10.15, *) {
+                                // Mutates an @Published property - this
+                                // handler runs off the log-parsing thread
+                                // (ChoicesHandler), not guaranteed main.
+                                DispatchQueue.main.async {
+                                    self.windowManager.rootOverlay?.viewModel.battlegroundsQuestGuides.selectQuest(card: questReward)
+                                }
+                            }
                         }
                     }
                 }
@@ -4695,10 +4826,18 @@ class Game: NSObject, PowerEventHandler {
         DispatchQueue.main.async {
             if self.isTraditionalHearthstoneMatch {
                 let isFriendlyCard = state.side == PlayerSide.friendly.rawValue
-                
+
                 self.windowManager.playerTracker.highlightPlayerDeckCards(highlightSourceCardId: isFriendlyCard ? state.cardId : nil)
             }
             self.updateTooltips()
+            // Mirrors HDT's SetAnomalyGuidesTrigger(string cardId), called
+            // from the same memory-read big-card-hover callback as
+            // SetRelatedCardsTrigger - shows the anomaly guide tooltip
+            // whenever the currently-hovered card (per the mirror) is the
+            // battleground anomaly badge.
+            if #available(macOS 10.15, *) {
+                self.windowManager.rootOverlay?.viewModel.battlegroundsAnomalyGuides.updateHoveredCard(cardId: state.cardId)
+            }
         }
     }
     

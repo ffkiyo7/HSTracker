@@ -276,6 +276,23 @@ final class Settings {
     static var showOpponentWarband: Bool
     @UserDefault(key: Settings.show_tiers, defaultValue: true)
     static var showTiers: Bool
+
+    // HDT's ShowBattlegroundsBrowser ("Show Minions and Guides Browser") and
+    // ShowBattlegroundsGuides ("Show Hero and Comp Guides"). Between them they
+    // pick one of three top-bar states: nothing, the minions browser on its own,
+    // or the browser inside the guides tabs.
+    //
+    // The browser flag reuses the legacy show_tiers key rather than taking a new
+    // one. That setting gated the AppKit tier overlay, whose tier strip the
+    // browser's own strip replaced when that overlay was removed - so an
+    // existing "off" still means what the user chose: no tier strip.
+    static var showBattlegroundsBrowser: Bool {
+        get { showTiers }
+        set { showTiers = newValue }
+    }
+
+    @UserDefault(key: Settings.show_battlegrounds_guides, defaultValue: true)
+    static var showBattlegroundsGuides: Bool
     @UserDefault(key: Settings.show_battlecry_deathrattle_on_tiers, defaultValue: true)
     static var showBattlecryDeathrattleOnTiers: Bool
     @UserDefault(key: Settings.show_tavern_spells, defaultValue: true)
@@ -314,6 +331,23 @@ final class Settings {
     static var alwaysShowTier7
     @UserDefault(key: Settings.auto_show_battlegrounds_trinket_picking, defaultValue: true)
     static var autoShowBattlegroundsTrinketPicking: Bool
+
+    // Tavern Pinning (HDT's ShowBattlegroundsTavernMarkers,
+    // AutoEnableTavernMarkersRecommended, TavernMarkersPanelExpanded, and the
+    // three "dismissed" flags its ConfigWrapper exposes). Defaults match
+    // HDT's Config.cs exactly.
+    @UserDefault(key: Settings.show_battlegrounds_tavern_markers, defaultValue: true)
+    static var showBattlegroundsTavernMarkers: Bool
+    @UserDefault(key: Settings.auto_enable_tavern_markers_recommended, defaultValue: false)
+    static var autoEnableTavernMarkersRecommended: Bool
+    @UserDefault(key: Settings.tavern_markers_panel_expanded, defaultValue: true)
+    static var tavernMarkersPanelExpanded: Bool
+    @UserDefault(key: Settings.dismissed_tavern_marker_quick_guide, defaultValue: false)
+    static var dismissedTavernMarkerQuickGuide: Bool
+    @UserDefault(key: Settings.dismissed_comp_guides_marker_quick_guide, defaultValue: false)
+    static var dismissedCompGuidesMarkerQuickGuide: Bool
+    @UserDefault(key: Settings.dismissed_auto_enable_popup, defaultValue: false)
+    static var dismissedAutoEnablePopup: Bool
 
     @UserDefault(key: Settings.player_draw_chance, defaultValue: true)
     static var showPlayerDrawChance: Bool
@@ -606,6 +640,7 @@ extension Settings {
     static let show_average_damage = "show_average_damage"
     static let show_opponent_warband = "show_opponent_warband"
     static let show_tiers = "show_tiers"
+    static let show_battlegrounds_guides = "show_battlegrounds_guides"
     static let show_battlecry_deathrattle_on_tiers = "show_battlecry_deathrattle_on_tiers"
     static let show_tavern_spells = "show_tavern_spells"
     static let show_tavern_triples = "show_tavern_triples"
@@ -625,7 +660,13 @@ extension Settings {
     static let show_battlegrounds_tier7_session_comp_stats = "show_battlegrounds_tier7_session_comp_stats"
     static let always_show_tier_7 = "always_show_tier_7"
     static let auto_show_battlegrounds_trinket_picking = "auto_show_battlegrounds_trinket_picking"
-    
+    static let show_battlegrounds_tavern_markers = "show_battlegrounds_tavern_markers"
+    static let auto_enable_tavern_markers_recommended = "auto_enable_tavern_markers_recommended"
+    static let tavern_markers_panel_expanded = "tavern_markers_panel_expanded"
+    static let dismissed_tavern_marker_quick_guide = "dismissed_tavern_marker_quick_guide"
+    static let dismissed_comp_guides_marker_quick_guide = "dismissed_comp_guides_marker_quick_guide"
+    static let dismissed_auto_enable_popup = "dismissed_auto_enable_popup"
+
     static let player_draw_chance = "player_draw_chance"
     static let player_card_count = "player_card_count"
     static let opponent_card_count = "opponent_card_count"
