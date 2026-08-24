@@ -127,6 +127,18 @@
         }
       }
     },
+    "bgl-ui-002.title" : {
+      "comment" : "Class = \"NSButtonCell\"; title = \"Show minions and guides browser in pre-lobby\"; ObjectID = \"bgl-ui-002\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Show minions and guides browser in pre-lobby"
+          }
+        }
+      }
+    },
     "c2t-Sg-vNs.title" : {
       "comment" : "Class = \"NSButtonCell\"; title = \"Show turn counter\"; ObjectID = \"c2t-Sg-vNs\";",
       "extractionState" : "extracted_with_value",

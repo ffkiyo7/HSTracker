@@ -85,10 +85,9 @@ struct GuideTooltipCardView: View {
             Spacer()
             HStack(spacing: 8) {
                 ForEach(favorableTribes, id: \.self) { race in
-                    Image("tribe_\(race.rawValue)")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 24, height: 24)
+                    // TrinketGuideTooltip.xaml/AnomalyGuideTooltip.xaml both wrap
+                    // session:BattlegroundsTribe in a LayoutTransform ScaleX/Y="0.9".
+                    BattlegroundsTribeIconView(race: race, scale: 0.9)
                 }
             }
         }

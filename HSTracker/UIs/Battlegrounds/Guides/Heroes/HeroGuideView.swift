@@ -95,10 +95,9 @@ struct HeroGuideView: View {
                     .foregroundColor(.white)
                 HStack(spacing: 12) {
                     ForEach(hero.favorableTribes, id: \.self) { race in
-                        Image("tribe_\(race.rawValue)")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 28, height: 28)
+                        // HeroGuide.xaml wraps each session:BattlegroundsTribe
+                        // in a LayoutTransform ScaleX/Y="0.9".
+                        BattlegroundsTribeIconView(race: race, scale: 0.9)
                     }
                 }
             }

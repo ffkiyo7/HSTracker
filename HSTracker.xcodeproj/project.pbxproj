@@ -1286,6 +1286,7 @@
 		B0851A7EBF69EF1AE8A2F095 /* QuestGuideView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13CCF4F69403ADE417089F99 /* QuestGuideView.swift */; };
 		7DDF2942C3426ACCB245C6C6 /* BattlegroundsTrinketGuidesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 234DB86891D3FE29C5EAFAC0 /* BattlegroundsTrinketGuidesViewModel.swift */; };
 		53BA4A2A2559A966D13B4DB5 /* GuideTooltipCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6ED7CA29BE55BC91172EEEA /* GuideTooltipCardView.swift */; };
+		B28D563F42ECAC13B5EC030B /* BattlegroundsTribeIconView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57B5D26BFC38CE7071BAC4D8 /* BattlegroundsTribeIconView.swift */; };
 		9808BA7D3F3D644A6BADC982 /* BattlegroundsCompsGuidesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DAADD87B18DD06AB779BD8A /* BattlegroundsCompsGuidesViewModel.swift */; };
 		BFCAC7ABAB9C2D4919639D77 /* BattlegroundsCompGuideViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17BB40A2FEFC305C41EFAAE8 /* BattlegroundsCompGuideViewModel.swift */; };
 		180FA8537D14E1A282EDB6D3 /* CompGuideListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79AD60B6F8922221AEE4E60B /* CompGuideListView.swift */; };
@@ -2621,6 +2622,7 @@
 		13CCF4F69403ADE417089F99 /* QuestGuideView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestGuideView.swift; sourceTree = "<group>"; };
 		234DB86891D3FE29C5EAFAC0 /* BattlegroundsTrinketGuidesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlegroundsTrinketGuidesViewModel.swift; sourceTree = "<group>"; };
 		A6ED7CA29BE55BC91172EEEA /* GuideTooltipCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuideTooltipCardView.swift; sourceTree = "<group>"; };
+		57B5D26BFC38CE7071BAC4D8 /* BattlegroundsTribeIconView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlegroundsTribeIconView.swift; sourceTree = "<group>"; };
 		9DAADD87B18DD06AB779BD8A /* BattlegroundsCompsGuidesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlegroundsCompsGuidesViewModel.swift; sourceTree = "<group>"; };
 		17BB40A2FEFC305C41EFAAE8 /* BattlegroundsCompGuideViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlegroundsCompGuideViewModel.swift; sourceTree = "<group>"; };
 		79AD60B6F8922221AEE4E60B /* CompGuideListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompGuideListView.swift; sourceTree = "<group>"; };
@@ -3571,6 +3573,7 @@
 				2B54C3648CCDFE74F16426CF /* BattlegroundsGuidesTabsViewModel.swift */,
 				1D52FE31E0E35DBE0A18FC1F /* GuidesTabsView.swift */,
 				A6ED7CA29BE55BC91172EEEA /* GuideTooltipCardView.swift */,
+				57B5D26BFC38CE7071BAC4D8 /* BattlegroundsTribeIconView.swift */,
 				DC3023F67A002FF55103D7D4 /* Comps */,
 				4A4D3CAF96DA482322117F24 /* Heroes */,
 				6F7D0BC13671DCA39E9F2C96 /* Trinkets */,
@@ -6141,6 +6144,7 @@
 				B0851A7EBF69EF1AE8A2F095 /* QuestGuideView.swift in Sources */,
 				7DDF2942C3426ACCB245C6C6 /* BattlegroundsTrinketGuidesViewModel.swift in Sources */,
 				53BA4A2A2559A966D13B4DB5 /* GuideTooltipCardView.swift in Sources */,
+				B28D563F42ECAC13B5EC030B /* BattlegroundsTribeIconView.swift in Sources */,
 				9808BA7D3F3D644A6BADC982 /* BattlegroundsCompsGuidesViewModel.swift in Sources */,
 				BFCAC7ABAB9C2D4919639D77 /* BattlegroundsCompGuideViewModel.swift in Sources */,
 				180FA8537D14E1A282EDB6D3 /* CompGuideListView.swift in Sources */,

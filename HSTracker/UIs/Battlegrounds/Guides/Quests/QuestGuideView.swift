@@ -64,21 +64,21 @@ struct QuestGuideView: View {
             }
 
             if !quest.favorableTribes.isEmpty {
-                HStack {
+                // QuestGuide.xaml stacks the title above a left-aligned row of
+                // session:BattlegroundsTribe (LayoutTransform ScaleX/Y="0.9"),
+                // not a single title-left/icons-right row.
+                VStack(alignment: .leading, spacing: 7) {
                     Text("Favorable Minions")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(.white)
-                    Spacer()
-                    HStack(spacing: 8) {
+                    HStack(spacing: 12) {
                         ForEach(quest.favorableTribes, id: \.self) { race in
-                            Image("tribe_\(race.rawValue)")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 24, height: 24)
+                            BattlegroundsTribeIconView(race: race, scale: 0.9)
                         }
                     }
                 }
                 .padding(9)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color(hex: "#1c1f22"))
                 .overlay(Rectangle().frame(height: 1).foregroundColor(Color(hex: "#4A5256")), alignment: .top)
             }
