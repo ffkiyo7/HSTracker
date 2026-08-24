@@ -433,6 +433,10 @@ struct TagChangeActions {
                 }
             }
         }
+
+        if Mulligan.done.rawValue == value, let game = eventHandler as? Game, game.isMulliganDone() {
+            revealPendingStartOfGameEntities(eventHandler: eventHandler)
+        }
     }
     
     private func whizbangDeckIdChange(eventHandler: PowerEventHandler, id: Int, value: Int) {
@@ -741,16 +745,37 @@ struct TagChangeActions {
         let isCultivatingSpriteBulb = powerGameStateParser?.currentBlock?.cardId == CardIds.Collectible.Neutral.CultivatingSprite && entity.cardId == CardIds.NonCollectible.Neutral.CultivatingSprite_BloomingBulbToken
 
         entity.info.hidden = !isCultivatingSpriteBulb && (hideEntity || (isStartOfTheGameEffect && entity.isControlled(by: eventHandler.opponent.id)))
-                
+
         if isStartOfTheGameEffect {
-            entity.info.guessedCardState = .revealed
-            
-            predictFabled(entity)
-            
+            // Revealing a start-of-game effect (e.g. Azalina Soulsever) on the opponent's side before
+            // the mulligan is over would leak deck information through the tracker while the player can
+            // still see it; defer the reveal until the mulligan is done and catch up in mulliganStateChange.
+            if entity.isControlled(by: eventHandler.opponent.id), let game = eventHandler as? Game, !game.isMulliganDone() {
+                entity.info.pendingStartOfGameReveal = true
+            } else {
+                revealStartOfGameEntity(entity)
+            }
+
             AppDelegate.instance().coreManager.game.updateTrackers()
         }
     }
-    
+
+    private func revealStartOfGameEntity(_ entity: Entity) {
+        entity.info.pendingStartOfGameReveal = false
+        entity.info.guessedCardState = .revealed
+
+        predictFabled(entity)
+    }
+
+    private func revealPendingStartOfGameEntities(eventHandler: PowerEventHandler) {
+        let pending = eventHandler.entities.values.filter { $0.info.pendingStartOfGameReveal }
+        guard !pending.isEmpty else { return }
+        for entity in pending {
+            revealStartOfGameEntity(entity)
+        }
+        AppDelegate.instance().coreManager.game.updateTrackers()
+    }
+
     private func predictFabled(_ entity: Entity) {
         guard !entity.info.created, entity.hasCardId, let cardIds = CardIds.fabledDict[entity.cardId] else {
             return
