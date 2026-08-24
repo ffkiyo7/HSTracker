@@ -121,6 +121,11 @@ final class Player {
     fileprivate(set) var entitiesDiscardedFromHand = [Entity]()
     var isPlayingWhizbang = false
     var hasDeathKnightTourist = false
+    // True when this player's deck was built half out of their enemy's cards (Azalina Soulsever).
+    // Resolved from `id` on read rather than stored: the copies are created during CREATE_GAME, and
+    // player/opponent ids only arrive once the async MatchInfo poll completes, so at write time we do
+    // not yet know which side is which.
+    var deckCopiedFromEnemy: Bool { id > 0 && game.controllersWithDeckCopiedFromEnemy.contains(id) }
     fileprivate(set) var deathrattlesPlayedCount = 0
     private let game: Game
     var lastDrawnCardId: String?

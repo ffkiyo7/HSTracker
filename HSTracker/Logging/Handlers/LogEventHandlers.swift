@@ -283,6 +283,7 @@ protocol PowerEventHandler: AnyObject {
     
     var isBattlegroundsCombatPhase: Bool { get set }
     var gameEntityTurnAtShoppingStart: Int { get set }
+    var controllersWithDeckCopiedFromEnemy: Set<Int> { get set }
 
     func handlePlayerMaxHealthChange(_ value: Int)
     func handleOpponentMaxHealthChange(_ value: Int)

@@ -137,6 +137,9 @@ class Game: NSObject, PowerEventHandler {
     var isBattlegroundsCombatPhase = false
     // The GameEntity TURN tag the most recent shopping phase started on.
     var gameEntityTurnAtShoppingStart = -1
+    // Raw controller tag (not player/opponent side, which aren't resolved yet during CREATE_GAME) of
+    // any side whose deck was half-copied from their enemy's (Azalina Soulsever).
+    var controllersWithDeckCopiedFromEnemy = Set<Int>()
     var accountId: MirrorAccountId?
     var battlegroundsDetails: UploadMetaData.BattlegroundsLobbyDetails?
 	
@@ -1599,6 +1602,7 @@ class Game: NSObject, PowerEventHandler {
         entities.removeAll()
         isBattlegroundsCombatPhase = false
         gameEntityTurnAtShoppingStart = -1
+        controllersWithDeckCopiedFromEnemy.removeAll()
         knownCardIds.removeAll()
         joustReveals = 0
         lastPlagueDrawn.clear()

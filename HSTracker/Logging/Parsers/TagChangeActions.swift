@@ -56,7 +56,10 @@ struct TagChangeActions {
                 self.stateChange(eventHandler: eventHandler, value: value)
             case .transformed_from_card:
                 self.transformedFromCardChange(eventHandler: eventHandler, id: id, value: value)
-            case .creator, .displayed_creator:
+            case .creator:
+                self.creatorChanged(eventHandler: eventHandler, id: id, value: value)
+            case .displayed_creator:
+                self.azalinaCopyCreated(eventHandler: eventHandler, id: id, value: value)
                 self.creatorChanged(eventHandler: eventHandler, id: id, value: value)
             case .whizbang_deck_id:
                 self.whizbangDeckIdChange(eventHandler: eventHandler, id: id, value: value)
@@ -459,6 +462,22 @@ struct TagChangeActions {
         }
     }
     
+    private func azalinaCopyCreated(eventHandler: PowerEventHandler, id: Int, value: Int) {
+        guard let creator = eventHandler.entities[value], creator.cardId == CardIds.Collectible.Priest.AzalinaSoulsever else {
+            return
+        }
+        guard let copy = eventHandler.entities[id] else {
+            return
+        }
+
+        // Record the raw controller, not the side. This runs during CREATE_GAME, where player.id and
+        // opponent.id are still unset because the async MatchInfo poll has not resolved them yet.
+        let controller = copy[.controller]
+        if controller > 0 {
+            eventHandler.controllersWithDeckCopiedFromEnemy.insert(controller)
+        }
+    }
+
     private func creatorChanged(eventHandler: PowerEventHandler, id: Int, value: Int) {
         if value == 0 {
             return
