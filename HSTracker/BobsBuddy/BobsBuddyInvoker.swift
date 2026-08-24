@@ -1944,7 +1944,38 @@ class BobsBuddyInvoker {
 
         tryRerun()
     }
-    
+
+    func updateTrinketEnchantment(_ enchantmentEntity: Entity, _ trinketEntityId: Int, _ isPlayerTrinket: Bool) {
+        guard let input, updateRevealedEntityValidStates else {
+            return
+        }
+
+        let opaque = mono_thread_attach(MonoHelper._monoInstance)
+
+        defer {
+            mono_thread_detach(opaque)
+        }
+
+        let targetPlayer = isPlayerTrinket ? input.player : input.opponent
+        guard let trinket: TrinketProxy = listFirst(targetPlayer.trinkets, { (t: TrinketProxy) in t.game_id == trinketEntityId }),
+            !trinket.trinketUpdatedDuringCombat else {
+            return
+        }
+
+        // Attach enchant to the trinket
+        if enchantmentEntity.card.type == CardType.enchantment && !enchantmentEntity.cardId.isEmpty {
+            let enchantment = SimulatorProxy().enchantmentFactory.create(cardId: enchantmentEntity.cardId, controlledByPlayer: trinket.controlledByPlayer)
+            if enchantment.get() != nil {
+                enchantment.scriptDataNum1 = Int32(enchantmentEntity[GameTag.tag_script_data_num_1])
+                enchantment.scriptDataNum2 = Int32(enchantmentEntity[GameTag.tag_script_data_num_2])
+                trinket.attachEnchantment(enchantment: enchantment)
+                trinket.trinketUpdatedDuringCombat = true
+            }
+        }
+
+        tryRerun()
+    }
+
     static let timewarpedMagnanimooseEnchantment = "BACON_FAKE_Magnanimoose_Enchantment"
     
     func updateDrBoomsMonsterReborn(_ sourceEntityId: Int, _ rebornMaxHealth: Int, _ isPlayerMinion: Bool) {

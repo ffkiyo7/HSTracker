@@ -1503,6 +1503,14 @@ class PowerGameStateParser: LogEventParser {
                             e[GameTag.attached] == sourceEntity.id &&
                             e[GameTag.creator] == sourceEntity.id }) {
                             BobsBuddyInvoker.instance(gameId: eventHandler.gameId, turn: eventHandler.turnNumber())?.updateMinionEnchantment(enchantment, sourceEntity.id, false)
+                        } else {
+                            // A trinket source (Dramaloc Sticker) attaches one enchantment per friendly minion with CREATOR = the
+                            // trinket; the simulator reads the value from the trinket itself, so attach one to the captured trinket.
+                            if let trinketEnchantment = eventHandler.entities.values
+                            .first(where: { e in e.cardId == enchantmentCardId &&
+                                e[GameTag.creator] == sourceEntity.id }) {
+                                BobsBuddyInvoker.instance(gameId: eventHandler.gameId, turn: eventHandler.turnNumber())?.updateTrinketEnchantment(trinketEnchantment, sourceEntity.id, false)
+                            }
                         }
                     }
                 }
