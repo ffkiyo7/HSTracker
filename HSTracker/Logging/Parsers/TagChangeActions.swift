@@ -696,12 +696,14 @@ struct TagChangeActions {
             return
         }
         
-        if entity.isControlled(by: eventHandler.opponent.id) {
-            let corpsesSpent = entity[.corpses_spent_this_game]
+        let corpsesSpent = entity[.corpses_spent_this_game]
+        if entity.isControlled(by: eventHandler.player.id) {
+            eventHandler.handlePlayerCorpsesLeftChange(value - corpsesSpent)
+        } else if entity.isControlled(by: eventHandler.opponent.id) {
             eventHandler.handleOpponentCorpsesLeftChange(value - corpsesSpent)
         }
     }
-    
+
     private func corpsesSpentThisGameChange(eventHandler: PowerEventHandler, id: Int, value: Int, previous prevValue: Int) {
         if value <= 0 {
             return
@@ -715,8 +717,10 @@ struct TagChangeActions {
             return
         }
 
-        if entity.isControlled(by: eventHandler.opponent.id) {
-            let corpses = entity[.corpses]
+        let corpses = entity[.corpses]
+        if entity.isControlled(by: eventHandler.player.id) {
+            eventHandler.handlePlayerCorpsesLeftChange(corpses - value)
+        } else if entity.isControlled(by: eventHandler.opponent.id) {
             eventHandler.handleOpponentCorpsesLeftChange(corpses - value)
         }
     }

@@ -383,6 +383,10 @@ final class Settings {
     static var showOpponentGraveyardDetails: Bool
     @UserDefault(key: Settings.opponent_counters, defaultValue: true)
     static var showOpponentCounters: Bool
+    // Kept on by default: preserves the pre-existing behavior of showing the opponent's corpses count
+    // whenever they are known to have a Death Knight tourist.
+    @UserDefault(key: Settings.opponent_corpses_counter, defaultValue: true)
+    static var showOpponentCorpsesCounter: Bool
     @UserDefault(key: Settings.remove_cards_from_deck, defaultValue: false)
     static var removeCardsFromDeck: Bool
     @UserDefault(key: Settings.highlight_last_drawn, defaultValue: true)
@@ -411,6 +415,10 @@ final class Settings {
     static var showOpponentRelatedCards
     @UserDefault(key: Settings.player_max_resources, defaultValue: true)
     static var showPlayerMaxResources: Bool
+    // Unlike the opponent, there is no way to detect the player has a corpses payoff worth showing
+    // this for automatically - they already know their own deck - so this defaults off.
+    @UserDefault(key: Settings.player_corpses_counter, defaultValue: false)
+    static var showPlayerCorpsesCounter: Bool
     @UserDefault(key: Settings.opponent_max_resources, defaultValue: true)
     static var showOpponentMaxResources: Bool
 
@@ -681,10 +689,12 @@ extension Settings {
     static let player_related_cards = "player_related_cards"
     static let player_highlight_synergies = "player_highlight_synergies"
     static let player_max_resources = "player_max_resources"
+    static let player_corpses_counter = "player_corpses_counter"
     static let opponent_deathrattle_frame = "opponent_deathrattle_frame"
     static let opponent_graveyard_frame = "opponent_graveyard_frame"
     static let opponent_graveyard_details_frame = "opponent_graveyard_details_frame"
     static let opponent_counters = "opponent_counters"
+    static let opponent_corpses_counter = "opponent_corpses_counter"
     static let interacted_with_link_opponentDeck = "interacted_with_link_opponentDeck"
     static let enable_link_opponent_deck = "enable_link_opponent_deck"
     static let opponent_related_cards = "opponent_related_cards"

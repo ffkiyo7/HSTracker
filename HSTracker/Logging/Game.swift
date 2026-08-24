@@ -4965,26 +4965,30 @@ class Game: NSObject, PowerEventHandler {
         updateOpponentResourcesWidget()
     }
 
+    func handlePlayerCorpsesLeftChange(_ value: Int) {
+        player.corpsesLeft = value
+        updatePlayerResourcesWidget()
+    }
+
     func handleOpponentCorpsesLeftChange(_ value: Int) {
         opponent.corpsesLeft = value
-        if opponent.hasDeathKnightTourist {
-            updateOpponentResourcesWidget()
-        }
+        updateOpponentResourcesWidget()
     }
-    
+
     func resetPlayerResourcesWidgets() {
         resetPlayerResourcesWidgets(player.maxHealth, player.maxMana, player.maxHandSize)
     }
-    
+
     func updatePlayerResourcesWidget() {
-        updatePlayerResourcesWidget(player.maxHealth, player.maxMana, player.maxHandSize)
+        let shouldShowCorpsesLeft = Settings.showPlayerCorpsesCounter
+        updatePlayerResourcesWidget(player.maxHealth, player.maxMana, player.maxHandSize, shouldShowCorpsesLeft ? player.corpsesLeft : nil)
     }
-    
+
     func updateOpponentResourcesWidget() {
-        let shouldShowCorpsesLeft = opponent.hasDeathKnightTourist
+        let shouldShowCorpsesLeft = Settings.showOpponentCorpsesCounter && opponent.hasDeathKnightTourist
         updateOpponentResourcesWidget(opponent.maxHealth, opponent.maxMana, opponent.maxHandSize, shouldShowCorpsesLeft ? opponent.corpsesLeft : nil)
     }
-    
+
     func resetPlayerResourcesWidgets(_ maxHealth: Int, _ maxMana: Int, _ maxHandSize: Int) {
         if #available(macOS 10.15, *) {
             DispatchQueue.main.async {
@@ -4993,11 +4997,11 @@ class Game: NSObject, PowerEventHandler {
             }
         }
     }
-    
-    func updatePlayerResourcesWidget(_ maxHealth: Int, _ maxMana: Int, _ maxHandSize: Int) {
+
+    func updatePlayerResourcesWidget(_ maxHealth: Int, _ maxMana: Int, _ maxHandSize: Int, _ corpsesLeft: Int? = nil) {
         if #available(macOS 10.15, *) {
             DispatchQueue.main.async {
-                self.windowManager.playerPlayerResourcesOverlay?.viewModel.updatePlayerResourcesWidget(maxHealth, maxMana, maxHandSize)
+                self.windowManager.playerPlayerResourcesOverlay?.viewModel.updatePlayerResourcesWidget(maxHealth, maxMana, maxHandSize, corpsesLeft)
             }
         }
     }
