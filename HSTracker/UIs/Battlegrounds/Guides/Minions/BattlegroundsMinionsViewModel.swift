@@ -154,7 +154,13 @@ final class BattlegroundsMinionsViewModel: ObservableObject {
     // GuidesTabsView.body; five of the ten types leaves the rest unavailable,
     // so the "unavailable" footer and the faded tier badges show up too.
     // private var availableRaces: [Race]? = [.murloc, .beast, .dragon, .undead, .quilboar]
-    private var availableRaces: [Race]?
+    private var availableRaces: [Race]? {
+        didSet {
+            if let keyword = activeKeyword, !keywords.contains(keyword) {
+                activeKeyword = nil
+            }
+        }
+    }
     private var isDuos = false
     private var anomaly: String?
     private var settingsCancellable: AnyCancellable?
@@ -279,7 +285,7 @@ final class BattlegroundsMinionsViewModel: ObservableObject {
     }
 
     var keywords: [BattlegroundsKeyword] {
-        BattlegroundsUtils.getAvailableKeywords()
+        BattlegroundsUtils.getAvailableKeywords(availableRaces: availableRaces)
     }
 
     // Mirrors HDT's TierButton: every tier 1-6 (plus 7 when shown) always gets a

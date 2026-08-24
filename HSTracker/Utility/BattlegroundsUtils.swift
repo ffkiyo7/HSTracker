@@ -83,11 +83,17 @@ class BattlegroundsUtils {
         BattlegroundsKeyword(locKey: "GameTag_Modular", englishName: "Magnetic", mechanic: "MODULAR"),
         BattlegroundsKeyword(locKey: "GameTag_Venomous", englishName: "Venomous", mechanic: "VENOMOUS"),
         BattlegroundsKeyword(locKey: "GameTag_BGActivate", englishName: "Activate", mechanic: "BACON_ACTIVATE_TOOLTIP"),
-        BattlegroundsKeyword(locKey: "Battlegrounds_Browser_Filter_Lockbox", englishName: "Lockbox", mechanic: nil)
+        BattlegroundsKeyword(locKey: "Battlegrounds_Browser_Filter_Lockbox", englishName: "Lockbox", mechanic: nil, requiredRace: .pirate)
     ]
 
-    static func getAvailableKeywords() -> [BattlegroundsKeyword] {
-        return availableKeywords
+    static func getAvailableKeywords(availableRaces: [Race]?) -> [BattlegroundsKeyword] {
+        guard let availableRaces else {
+            return availableKeywords
+        }
+        return availableKeywords.filter { keyword in
+            guard let required = keyword.requiredRace else { return true }
+            return availableRaces.contains(required)
+        }
     }
 
     static let tavernSpellRaceMapping: [String: Race] = [

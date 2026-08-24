@@ -34,6 +34,10 @@ struct BattlegroundsKeyword: Hashable, Identifiable {
     /// client doesn't tag it (HDT's MentionedKeyword).
     let mechanic: String?
 
+    /// Minion type the keyword only ever appears on, hiding the filter when it
+    /// is not in the lobby. Mirrors HDT's BattlegroundsKeyword.RequiredRace.
+    var requiredRace: Race? = nil
+
     var id: String { locKey }
 
     /// Displayed name, localized. Falls back to the English name rather than
