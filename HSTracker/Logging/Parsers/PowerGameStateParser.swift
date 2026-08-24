@@ -1488,8 +1488,10 @@ class PowerGameStateParser: LogEventParser {
                 // Handle hand related minions that trigger enchantments on opponent's board
                 let enchantmentMapping = [
                     CardIds.NonCollectible.Neutral.ChoralMrrrglr: CardIds.NonCollectible.Neutral.ChoralMrrrglr_ChorusEnchantment,
+                    CardIds.NonCollectible.Neutral.ChoralMrrrglr_ChoralMrrrglr: CardIds.NonCollectible.Neutral.ChoralMrrrglr_ChorusEnchantment,
                     CardIds.NonCollectible.Neutral.TimewarpedMrrrglr: CardIds.NonCollectible.Neutral.ChoralMrrrglr_ChorusEnchantment,
                     CardIds.NonCollectible.Neutral.CostumeEnthusiast: CardIds.NonCollectible.Neutral.CostumeEnthusiast_EnthusiasticEnchantment,
+                    CardIds.NonCollectible.Neutral.CostumeEnthusiast_CostumeEnthusiast: CardIds.NonCollectible.Neutral.CostumeEnthusiast_EnthusiasticEnchantment,
                     CardIds.NonCollectible.Neutral.Dramaloc: CardIds.NonCollectible.Neutral.Dramaloc_DramaticEnchantment,
                     CardIds.NonCollectible.Neutral.DramalocSticker: CardIds.NonCollectible.Neutral.DramalocSticker_DramaticEnchantment
                         ]
