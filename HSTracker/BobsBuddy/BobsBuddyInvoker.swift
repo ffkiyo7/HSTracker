@@ -2278,7 +2278,14 @@ class BobsBuddyInvoker {
         if MonoHelper.isInstance(obj: minion, klass: ICopiesDeathrattlesProxy._class!) {
             return false
         }
-        
+
+        // Sneed's New Shredder's innate Deathrattle summons a copy of a hand minion; when that hand
+        // minion is an Ancestral Automaton the observation is indistinguishable from a hidden
+        // magnetized Auto Assembler — do not attribute its summons to a module.
+        if MonoHelper.isInstance(obj: minion, klass: SneedsNewShredderProxy._class!) {
+            return false
+        }
+
         // Extra deathrattles (e.g., Titus Rivendare) resolve as full repeats of the whole deathrattle list —
         // so the first (observed / triggerMultiplier) summons are the distinct deathrattles in their real order.
         var automatons = summonedByIsPremium.take(summonedByIsPremium.count / triggerMultiplier)
