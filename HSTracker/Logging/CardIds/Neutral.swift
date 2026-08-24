@@ -907,6 +907,7 @@ extension CardIds.NonCollectible {
         static let HoggyBank_GemInTheBankEnchantment = "BG30_MagicItem_411e"
         static let JarredFrostling_FrostyGlobeEnchantment = "BG30_MagicItem_952e"
         static let TorethsBlessing = "BG36_MidGameEffect_000t15e"
+        static let JawsOfDeath = "BG36_MidGameEffect_000t16e"
         static let ColdFeet_ColdFeetEnchantment1 = "JAM_006e"
         static let DiscipleofEonar_SymbioticEnchantment = "TTN_503e"
         static let PopularPixie_GladesGuidanceEnchantment = "JAM_026e"

@@ -900,6 +900,7 @@ class BobsBuddyInvoker {
             // Not just mech here, because Technical Element can magnetize to Elementals
             checkForSurfnSurfFromMagnetizedModules(minion, entity, allEntities)
             checkForRepeatedMagnetizedAutoAssemblers(minion, attachedEntities)
+            checkForDarkGiftsOnMagnetizedModules(sim, minion, entity, attachedEntities, allEntities)
         }
         
         minion.gameId = Int32(entity.id)
@@ -985,6 +986,32 @@ class BobsBuddyInvoker {
                     minion.addDeathrattle(deathrattle: GenericDeathrattles.crab())
                 case CardIds.NonCollectible.Neutral.SurfnSurf_CrabRiding:
                     minion.addDeathrattle(deathrattle: GenericDeathrattles.crabGolden())
+                default:
+                    break
+                }
+            }
+        }
+    }
+
+    // A specific Dark Gift (Jaws of Death) offered on a magnetic minion can be obtained from Ominous Stone.
+    // However, the enchantment is not directly visible on the attached minion at combat setup.
+    private static func checkForDarkGiftsOnMagnetizedModules(_ sim: SimulatorProxy, _ minion: MinionProxy, _ host: Entity, _ attachedEntities: [Entity], _ allEntities: SynchronizedDictionary<Int, Entity>?) {
+        guard let allEntities else {
+            return
+        }
+
+        for magneticId in attachedEntities.filter({ e in e.has(tag: .modular) }).compactMap({ e in e[GameTag.creator] }).filter({ id in id > 0 && id != host.id }).unique() {
+            let gifts = allEntities.values
+                .filter({ x in x.isAttachedTo(entityId: magneticId) })
+                .sorted(by: { $0.id < $1.id })
+
+            for gift in gifts {
+                switch gift.cardId {
+                case CardIds.NonCollectible.Neutral.JawsOfDeath:
+                    let enchantment = sim.enchantmentFactory.create(cardId: CardIds.NonCollectible.Neutral.JawsOfDeath, controlledByPlayer: minion.controlledByPlayer)
+                    if enchantment.get() != nil {
+                        minion.attachEnchantment(enchantment: enchantment)
+                    }
                 default:
                     break
                 }
