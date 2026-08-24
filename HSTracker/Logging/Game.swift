@@ -135,6 +135,8 @@ class Game: NSObject, PowerEventHandler {
     let counterManager: CounterManager
     let relatedCardsManager: RelatedCardsManager
     var isBattlegroundsCombatPhase = false
+    // The GameEntity TURN tag the most recent shopping phase started on.
+    var gameEntityTurnAtShoppingStart = -1
     var accountId: MirrorAccountId?
     var battlegroundsDetails: UploadMetaData.BattlegroundsLobbyDetails?
 	
@@ -1592,6 +1594,7 @@ class Game: NSObject, PowerEventHandler {
 
         entities.removeAll()
         isBattlegroundsCombatPhase = false
+        gameEntityTurnAtShoppingStart = -1
         knownCardIds.removeAll()
         joustReveals = 0
         lastPlagueDrawn.clear()

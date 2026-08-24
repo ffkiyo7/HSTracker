@@ -282,6 +282,7 @@ protocol PowerEventHandler: AnyObject {
     func handlePlayerHandToDeck(entity: Entity, cardId: String?)
     
     var isBattlegroundsCombatPhase: Bool { get set }
+    var gameEntityTurnAtShoppingStart: Int { get set }
 
     func handlePlayerMaxHealthChange(_ value: Int)
     func handleOpponentMaxHealthChange(_ value: Int)
