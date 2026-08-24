@@ -80,6 +80,7 @@ class SecretsManager {
         opponentTookDamageDuringTurns.removeAll()
         entititesInHandOnMinionsPlayed.removeAll()
         secrets.removeAll()
+        _triggeredSecrets.removeAll()
     }
     
     @discardableResult
@@ -540,8 +541,9 @@ class SecretsManager {
         guard handleAction else { return }
 
         var exclude: [MultiIdCard] = []
-        
+
         _lastPlayedMinionId = entity.id
+        _triggeredSecrets.removeAll()
 
         if !entity.has(tag: .dormant) {
             saveSecret(secret: CardIds.Secrets.Hunter.BargainBin)
@@ -648,15 +650,19 @@ class SecretsManager {
     }
     
     func handlePlayerMinionDeath(entity: Entity) {
-        if entity.id == _lastPlayedMinionId && savedSecrets.count > 0 {
-            savedSecrets.forEach { savedSecret in
-                secrets.forEach { secret in
-                    secret.include(cardId: savedSecret)
-                }
+        guard entity.id == _lastPlayedMinionId && savedSecrets.count > 0 else { return }
+        // Only one secret triggers per event, so the exclusions made when the minion was played
+        // are only invalid if one of those secrets actually triggered on it. Anything else
+        // killing the minion later in the turn (combat, board clears, end of turn effects)
+        // leaves them valid.
+        guard _triggeredSecrets.any({ x in CardIds.Secrets.minionPlayed.any({ s in s == x.cardId }) }) else { return }
+        savedSecrets.forEach { savedSecret in
+            secrets.forEach { secret in
+                secret.include(cardId: savedSecret)
             }
-            
-            onChanged?(getSecretList())
         }
+
+        onChanged?(getSecretList())
     }
 
     func handleAvengeAsync(deathRattleCount: Int) {
