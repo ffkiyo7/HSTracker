@@ -895,11 +895,11 @@ class BobsBuddyInvoker {
         
         if attachedEntities.any({ e in e.has(tag: GameTag.modular)}) {
             if minion.isMech() {
-                checkForMagnetizedDeathrattles(minion, attachedEntities, allEntities)
+                checkForMagnetizedDeathrattles(minion, entity, attachedEntities, allEntities)
             }
             // Not just mech here, because Technical Element can magnetize to Elementals
             checkForSurfnSurfFromMagnetizedModules(minion, entity, allEntities)
-            checkForRepeatedMagnetizedAutoAssemblers(minion, attachedEntities)
+            checkForRepeatedMagnetizedAutoAssemblers(minion, entity, attachedEntities, allEntities)
             checkForDarkGiftsOnMagnetizedModules(sim, minion, entity, attachedEntities, allEntities)
         }
         
@@ -910,7 +910,7 @@ class BobsBuddyInvoker {
     
     // Magnetized deathrattles (e.g., Auto Assembler) can be *hiding* if initially attached
     // to a magnetic minion that was then tripled and magnetized to another mech.
-    private static func checkForMagnetizedDeathrattles(_ minion: MinionProxy, _ attachedEntities: [Entity], _ allEntities: SynchronizedDictionary<Int, Entity>?) {
+    private static func checkForMagnetizedDeathrattles(_ minion: MinionProxy, _ host: Entity, _ attachedEntities: [Entity], _ allEntities: SynchronizedDictionary<Int, Entity>?) {
         // Required to resolve the chain of magnetized
         guard let allEntities else {
             return
@@ -918,7 +918,10 @@ class BobsBuddyInvoker {
 
         // Specific handling for: Auto Assembler
         // Each attached enchantment's CREATOR is the magnetic card that produced it; take each distinct id once.
-        for magneticId in attachedEntities.filter({ e in e.has(tag: .modular) }).compactMap({ e in e[GameTag.creator] }).filter({ id in id > 0 }).unique() {
+        // Exclude the HOST: an enchantment the host created on itself is already turned into an
+        // AutoAssemblerEnchantment by the attachedEntities above (only magnetized modules are hidden).
+        // Only MAGNETIC enchantments are followed
+        for magneticId in attachedEntities.filter({ e in e.has(tag: .modular) }).compactMap({ e in e[GameTag.creator] }).filter({ id in id > 0 && id != host.id }).unique() {
             guard allEntities[magneticId] != nil else {
                 continue
             }
@@ -937,28 +940,60 @@ class BobsBuddyInvoker {
         // Future magnetic deathrattles can be added/handled here.
     }
 
-    // Every magnetization of the same module onto a host accumulates into ONE enchantment on that
-    // host, whose TAG_SCRIPT_DATA_NUM_1 holds the module's Attack once per module. An extra
-    // magnetization granted by another card (Drone Duplicator, Polarizing Beatboxer) writes that
-    // card's own enchantment instead of the module's, so the module is read from CREATOR_DBID.
-    private static func checkForRepeatedMagnetizedAutoAssemblers(_ minion: MinionProxy, _ attachedEntities: [Entity]) {
+    // Count the Auto Assembler modules fused into this host. TAG_SCRIPT_DATA_NUM_1 on the
+    // enchantment cannot give the count: repeated magnetizations accumulate into ONE enchantment
+    // and that tag holds the stats each module carried when it fused.
+    // Each module stays in the entity tree as its own REMOVEDFROMGAME minion instead,
+    // and two cases find them:
+    //   - a magnetic enchantment on the host names its module in CREATOR
+    //   - a module records its host in TAG_SCRIPT_DATA_NUM_1 when it magnetizes
+    private static func checkForRepeatedMagnetizedAutoAssemblers(_ minion: MinionProxy, _ host: Entity, _ attachedEntities: [Entity], _ allEntities: SynchronizedDictionary<Int, Entity>?) {
+        guard let allEntities else {
+            return
+        }
+
+        var modules = [Int: Bool]()  // module entity id -> is golden
+
         for attached in attachedEntities {
             guard attached.has(tag: .modular) else { continue }
 
-            guard let module = Cards.by(dbfId: attached[.creator_dbid], collectible: false), module.attack > 0 else { continue }
+            guard let module = Cards.by(dbfId: attached[.creator_dbid], collectible: false) else { continue }
 
-            let golden = module.id == CardIds.NonCollectible.Neutral.AutoAssembler_AutoAssembler1
-            guard golden || module.id == CardIds.NonCollectible.Neutral.AutoAssembler else { continue }
+            guard module.id == CardIds.NonCollectible.Neutral.AutoAssembler || module.id == CardIds.NonCollectible.Neutral.AutoAssembler_AutoAssembler1 else { continue }
 
-            let modules = attached[.tag_script_data_num_1] / module.attack
+            let isGolden = module.id == CardIds.NonCollectible.Neutral.AutoAssembler_AutoAssembler1
 
-            // The module's own enchantment already carries one of them.
-            let carriesOne = attached.cardId == CardIds.NonCollectible.Neutral.AutoAssembler_AutoAssemblerEnchantment
-                || attached.cardId == CardIds.NonCollectible.Neutral.AutoAssembler_AutoAssembler2
-
-            for _ in (carriesOne ? 1 : 0) ..< modules {
-                minion.addDeathrattle(deathrattle: golden ? AutoAssemblerProxy.goldenDeathrattle() : AutoAssemblerProxy.deathrattle())
+            let moduleId = attached[.creator]
+            if moduleId > 0 {
+                modules[moduleId] = isGolden  // one entry per magnetic enchantment's CREATOR
             }
+        }
+
+        for entity in allEntities.values {
+            // The played module is left in the entity tree as a REMOVEDFROMGAME minion whose CREATOR
+            // is the card that initiated the magnetization.
+            // Only a module's own record of where it fused (TAG_SCRIPT_DATA_NUM_1) identifies this host.
+            guard entity[.tag_script_data_num_1] == host.id else { continue }
+
+            guard entity[.zone] == Zone.removedfromgame.rawValue else { continue }
+
+            guard entity.cardId == CardIds.NonCollectible.Neutral.AutoAssembler || entity.cardId == CardIds.NonCollectible.Neutral.AutoAssembler_AutoAssembler1 else { continue }
+
+            let isGolden = entity.cardId == CardIds.NonCollectible.Neutral.AutoAssembler_AutoAssembler1
+
+            modules[entity.id] = isGolden
+        }
+
+        guard !modules.isEmpty else { return }
+
+        // Exclude one counted module per BG32_172e the host carries, because EnchantmentFactory
+        // resolves that card id to an AutoAssemblerEnchantment which already summons one Automaton.
+        // A host can carry more than one instance (a golden formed by tripling brings each copy's).
+        let carried = attachedEntities.count { e in e.cardId == CardIds.NonCollectible.Neutral.AutoAssembler_AutoAssemblerEnchantment
+            || e.cardId == CardIds.NonCollectible.Neutral.AutoAssembler_AutoAssembler2 }
+
+        for module in modules.sorted(by: { $0.key < $1.key }).dropFirst(carried) {
+            minion.addDeathrattle(deathrattle: module.value ? AutoAssemblerProxy.goldenDeathrattle() : AutoAssemblerProxy.deathrattle())
         }
     }
 
