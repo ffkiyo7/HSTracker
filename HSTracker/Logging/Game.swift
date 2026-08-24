@@ -792,9 +792,13 @@ class Game: NSObject, PowerEventHandler {
 
     func updateBobsBuddyOverlay() {
         let rect = SizeHelper.bobsPanelOverlayFrame()
-        
+
         DispatchQueue.main.async {
-            let isBG = self.isBattlegroundsMatch() && !self.gameEnded
+            // The game type outlives the match, and the two signals for leaving it (the scene and the
+            // log) do not arrive in a fixed order, so the match is over as soon as either one says so.
+            // A scene we cannot read is not one of them, or a stalled watcher would keep the panel down.
+            let leftViaScene = SceneHandler.scene != nil && SceneHandler.scene != .gameplay
+            let isBG = self.isBattlegroundsMatch() && !self.isInMenu && !leftViaScene && !self.gameEnded
             if isBG && Settings.showBobsBuddy &&
                 ((Settings.hideAllWhenGameInBackground && self.hearthstoneRunState.isActive)
                     || !Settings.hideAllWhenGameInBackground) && !self.hideBobsBuddy {
