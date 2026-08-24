@@ -48,7 +48,7 @@ class BattlegroundsDb {
             if tag == .tech_level {
                 return card.techLevel
             } else if tag == .is_bacon_pool_minion {
-                return card.isBaconPoolMinion ? 1 : 0
+                return card.isBaconPoolMinion
             } else if tag == .is_bacon_duos_exclusive {
                 return card.isBaconDuosExclusive
             } else if tag == .is_bacon_pool_spell {
@@ -61,7 +61,8 @@ class BattlegroundsDb {
             return 0
         }
         
-        let baconCards = Cards.cards.filter({ x in getTag(x, .tech_level) > 0 && getTag(x, .is_bacon_pool_minion) > 0})
+        // explicitly check for == 1, as Rot Hide Gnoll has 2 but is not in the pool
+        let baconCards = Cards.cards.filter({ x in getTag(x, .tech_level) > 0 && getTag(x, .is_bacon_pool_minion) == 1})
         
         races.removeAll()
         // should we iterate over a card's races instead?

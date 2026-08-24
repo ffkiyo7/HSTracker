@@ -167,7 +167,7 @@ class Database {
             if !Database.battlegroundsExclusions.contains(currentCard?.id ?? "") {
                 currentCard?.battlegroundsPoolMinion = intValue > 0
             }
-            currentCard?.isBaconPoolMinion = intValue > 0
+            currentCard?.isBaconPoolMinion = intValue
         case GameTag.is_bacon_duos_exclusive.rawValue:
             currentCard?.isBaconDuosExclusive = intValue
         case GameTag.bacon_skin_parent_id.rawValue:

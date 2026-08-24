@@ -43,7 +43,8 @@ final class Card {
     var multiClassGroup: MultiClassGroup = .invalid
     var multipleClasses = 0
     var techLevel = 0
-    var isBaconPoolMinion = false
+    // raw IS_BACON_POOL_MINION tag value, not a bool: Rot Hide Gnoll has 2 but is not in the pool
+    var isBaconPoolMinion = 0
     var jsonRepresentation: [String: Any] = [:]
     var hideStats = false
     var mercenariesAbilityCooldown = 0
