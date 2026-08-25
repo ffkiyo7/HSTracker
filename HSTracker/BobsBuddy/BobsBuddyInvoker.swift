@@ -1028,8 +1028,8 @@ class BobsBuddyInvoker {
         }
     }
 
-    // A specific Dark Gift (Jaws of Death) offered on a magnetic minion can be obtained from Ominous Stone.
-    // However, the enchantment is not directly visible on the attached minion at combat setup.
+    // Only specific Dark Gifts (Jaws of Death, Offensive Sacrifice) offered on a magnetic minion can be obtained
+    // from Ominous Stone. The enchantment might be attached to magnetized minion.
     private static func checkForDarkGiftsOnMagnetizedModules(_ sim: SimulatorProxy, _ minion: MinionProxy, _ host: Entity, _ attachedEntities: [Entity], _ allEntities: SynchronizedDictionary<Int, Entity>?) {
         guard let allEntities else {
             return
@@ -1043,9 +1043,18 @@ class BobsBuddyInvoker {
             for gift in gifts {
                 switch gift.cardId {
                 case CardIds.NonCollectible.Neutral.JawsOfDeath:
+                    // Do not attach if START_OF_COMBAT tag was cleared
+                    if host[GameTag.start_of_combat] == 0 {
+                        break
+                    }
                     let enchantment = sim.enchantmentFactory.create(cardId: CardIds.NonCollectible.Neutral.JawsOfDeath, controlledByPlayer: minion.controlledByPlayer)
                     if enchantment.get() != nil {
                         minion.attachEnchantment(enchantment: enchantment)
+                    }
+                case CardIds.NonCollectible.Neutral.OffensiveSacrifice:
+                    let offensiveSacrifice = sim.enchantmentFactory.create(cardId: CardIds.NonCollectible.Neutral.OffensiveSacrifice, controlledByPlayer: minion.controlledByPlayer)
+                    if offensiveSacrifice.get() != nil {
+                        minion.attachEnchantment(enchantment: offensiveSacrifice)
                     }
                 default:
                     break
