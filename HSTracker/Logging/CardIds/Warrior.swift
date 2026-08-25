@@ -180,6 +180,10 @@ extension CardIds.Collectible {
         static let ScorchingRavager = "CATA_160"
         static let RagnarosTheGreatFire = "CATA_150"
         static let ForgeOfSoulsCorePlaceholder = "CORE_ICC_281"
+        static let LandHo = "CAP_102"
+        static let HandCannon = "CAP_103"
+        static let CaptainCrowley = "CAP_106"
+        static let Cannonmaster = "CAP_107"
     }
 }
 
@@ -275,6 +279,7 @@ extension CardIds.NonCollectible {
         static let SlowMotion_SlowedDownEnchantment = "TIME_716e3"
         static let GladiatorialCombat_ColiseumTigerToken = "TIME_870t"
         static let UnleashtheCrocolisks_ColiseumCrocoliskToken = "TIME_873t"
+        static let Cannonmaster_CannoneerToken = "CAP_107t"
     }
 }
 

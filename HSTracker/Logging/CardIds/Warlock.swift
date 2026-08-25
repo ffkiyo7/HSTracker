@@ -224,6 +224,9 @@ extension CardIds.Collectible {
         static let ChogallMastermind = "CATA_726"
         static let Moragg = "JAIL_906"
         static let ImpGangStooge = "JAIL_399"
+        static let GodfatherKazakus = "CAP_405"
+        static let KabalMastermind = "CAP_406"
+        static let Voidlord = "LOOT_368"
     }
 }
 
@@ -319,6 +322,16 @@ extension CardIds.NonCollectible {
         static let TimethiefRafaam_MrgleermMrgloslgyToken = "TIME_005t8e"
         static let TwilightTimehopper_ShredOfTimeToken = "TIME_025t"
         static let ImpGangStooge_GrandmotherImpToken = "JAIL_399t1"
+        static let GodfatherKazakus_TonicOfTyrannyToken = "CAP_405t9"
+        static let GodfatherKazakus_ConvictedForConspiracyToken = "CAP_405t2"
+        static let GodfatherKazakus_SentencedForSmugglingToken = "CAP_405t3"
+        static let GodfatherKazakus_CrateOfContrabandToken = "CAP_405t4"
+        static let GodfatherKazakus_SpuriousShivToken = "CAP_405t5"
+        static let GodfatherKazakus_CriminalContractToken = "CAP_405t6"
+        static let GodfatherKazakus_PotionOfPerjuryToken = "CAP_405t7"
+        static let GodfatherKazakus_SwillOfSuggestibilityToken = "CAP_405t8"
+        static let GodfatherKazakus_DetainedForDestructionToken = "CAP_405t1"
+        static let KabalMastermind_ImpRovedImpFormantsEnchantment = "CAP_406e"
     }
 }
 

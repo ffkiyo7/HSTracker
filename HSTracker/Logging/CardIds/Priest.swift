@@ -208,6 +208,9 @@ extension CardIds.Collectible {
         static let UndeathSentence = "JAIL_940"
         static let AzalinaSoulsever = "JAIL_430"
         static let ShatteredReflections = "DEEP_025"
+        static let FollowTheGhosts = "CAP_802"
+        static let RaithVanGeist = "CAP_806"
+        static let SlimeEm = "CAP_805"
     }
 }
 
@@ -283,6 +286,8 @@ extension CardIds.NonCollectible {
         static let PastConflux_FutureConfluxToken = "TIME_436t2"
         static let Reminisce = "TOT_343"
         static let CleansingCleric_FreeFromCorruptionEnchantment = "CATA_216e"
+        static let FollowtheGhosts_SpookyGhostToken = "CAP_802t"
+        static let Slimeem_EctoplasmToken = "CAP_805t"
     }
 }
 
