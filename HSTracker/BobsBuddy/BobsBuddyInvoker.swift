@@ -2246,11 +2246,25 @@ class BobsBuddyInvoker {
     // Minions whose death firings summoned Ancestral Automatons, awaiting reconciliation:
     // source entity id -> (trigger multiplier, summoned Automatons in creation order)
     private var _pendingAutoAssemblerDeathrattleSources = [Int: (triggerMultiplier: Int, summonedIsPremium: [Bool])]()
-    
+
+    // All Auto Assembler deathrattle FIRINGS observed per host minion.
+    private var _observedAutoAssemblerFirings = [Int: Int]()
+
+    func observeAutoAssemblerDeathrattleFiring(_ sourceEntityId: Int) {
+        guard _pendingAutoAssemblerDeathrattleSources[sourceEntityId] != nil else {
+            return
+        }
+        _observedAutoAssemblerFirings[sourceEntityId] = (_observedAutoAssemblerFirings[sourceEntityId] ?? 0) + 1
+    }
+
     func observeMagnetizedAutoAssemblerDeathrattles(_ sourceEntityId: Int, _ extraDeathrattles: Int, _ isGolden: Bool) {
         if _pendingAutoAssemblerDeathrattleSources[sourceEntityId] == nil {
             let observation = (1 + extraDeathrattles, [Bool]())
             _pendingAutoAssemblerDeathrattleSources[sourceEntityId] = observation
+            // The registration above happens mid-block, so at this block's BLOCK_START the source was not in
+            // the dictionary yet and the firing counter returned without counting it.
+            // Count it here; every later firing of this source is counted at its own BLOCK_START.
+            _observedAutoAssemblerFirings[sourceEntityId] = 1
         }
         var observation = _pendingAutoAssemblerDeathrattleSources[sourceEntityId]
         observation?.summonedIsPremium.append(isGolden)
@@ -2316,25 +2330,48 @@ class BobsBuddyInvoker {
             return false
         }
 
-        // Extra deathrattles (e.g., Titus Rivendare) resolve as full repeats of the whole deathrattle list —
-        // so the first (observed / triggerMultiplier) summons are the distinct deathrattles in their real order.
-        var automatons = summonedByIsPremium.take(summonedByIsPremium.count / triggerMultiplier)
-        
-        // A minion's own innate deathrattles and deathrattles from attached enchantments resolve before these
-        // AdditionalDeathrattles, and appear as the leading elements; drop them so automatons map to AdditionalDeathrattles only.
-        let leadingCaptured = (MonoHelper.isInstance(obj: minion, klass: AutoAssemblerProxy._class!) ? 1 : 0)
-        + MonoHelper.listItems(obj: minion.enchantments).filter { MonoHelper.isInstance(obj: $0, klass: AutoAssemblerEnchantmentProxy._class!) || MonoHelper.isInstance(obj: $0, klass: AutoAssemblerEnchantmentGoldenProxy._class!) }.count
-            
-        if leadingCaptured > 0 {
-            automatons = Array(automatons.dropFirst(leadingCaptured))
-        }
-
         let getAction = { (m: MonoHandle) -> UnsafeMutablePointer<MonoObject>? in
             return mono_property_get_value(mono_class_get_property_from_name(mono_object_get_class(m.get()), "Method"), m.get(), nil, nil)
         }
         let autoAssemblerAction = getAction(AutoAssemblerProxy.deathrattle())
         let autoAssemblerGoldenAction = getAction(AutoAssemblerProxy.goldenDeathrattle())
-        
+
+        // Extra deathrattles (e.g., Titus Rivendare) resolve as full repeats of the whole deathrattle list —
+        // so the first (observed / triggerMultiplier) are the distinct deathrattles in their real order.
+        let isAutoAssembler = MonoHelper.isInstance(obj: minion, klass: AutoAssemblerProxy._class!)
+        let otherEnchantmentDeathrattles = MonoHelper.listItems(obj: minion.enchantments).filter { e in
+            MonoHelper.isInstance(obj: e, klass: IDeathrattleProxy._class!)
+                && !MonoHelper.isInstance(obj: e, klass: AutoAssemblerEnchantmentProxy._class!)
+                && !MonoHelper.isInstance(obj: e, klass: AutoAssemblerEnchantmentGoldenProxy._class!)
+        }.count
+        let otherAdditionalDeathrattles = (0 ..< MonoHelper.listCount(obj: minion.additionalDeathrattles)).filter { i in
+            let action = getAction(MonoHelper.listItem(obj: minion.additionalDeathrattles, index: i))
+            return action != autoAssemblerAction && action != autoAssemblerGoldenAction
+        }.count
+        let otherDeathrattles = (MonoHelper.isInstance(obj: minion, klass: IDeathrattleProxy._class!) && !isAutoAssembler ? 1 : 0)
+            + otherEnchantmentDeathrattles
+            + otherAdditionalDeathrattles
+
+        let observedFirings = _observedAutoAssemblerFirings[sourceEntityId] ?? 0
+        let firedDeathrattles = max(observedFirings / triggerMultiplier - otherDeathrattles, 0)
+        let summonedDeathrattles = summonedByIsPremium.count / triggerMultiplier
+        var automatons = summonedByIsPremium.take(max(summonedDeathrattles, firedDeathrattles))
+
+        // A firing the board had no space for leaves no summon to read the premium flag from; repeat the last
+        // observed one, because every module fused into one host grants the same Automaton.
+        while automatons.count < firedDeathrattles && !summonedByIsPremium.isEmpty {
+            automatons.append(summonedByIsPremium[summonedByIsPremium.count - 1])
+        }
+
+        // A minion's own innate deathrattles and deathrattles from attached enchantments resolve before these
+        // AdditionalDeathrattles, and appear as the leading elements; drop them so automatons map to AdditionalDeathrattles only.
+        let leadingCaptured = (isAutoAssembler ? 1 : 0)
+        + MonoHelper.listItems(obj: minion.enchantments).filter { MonoHelper.isInstance(obj: $0, klass: AutoAssemblerEnchantmentProxy._class!) || MonoHelper.isInstance(obj: $0, klass: AutoAssemblerEnchantmentGoldenProxy._class!) }.count
+
+        if leadingCaptured > 0 {
+            automatons = Array(automatons.dropFirst(leadingCaptured))
+        }
+
         // Get any existing AutoAssembler deathrattles already tracked on AdditionalDeathrattles
         var currentIndices = [Int]()
         for i in 0 ..< MonoHelper.listCount(obj: minion.additionalDeathrattles) {

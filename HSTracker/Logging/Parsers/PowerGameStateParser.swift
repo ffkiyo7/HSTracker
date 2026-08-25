@@ -674,6 +674,18 @@ class PowerGameStateParser: LogEventParser {
                 }
                 currentBlock?.sourceEntityId = actionStartingEntityId
 
+                // Count the Auto Assembler Deathrattle FIRINGS (not just those that summoned onto the board).
+                if blockType == "TRIGGER" && triggerKeyword == "DEATHRATTLE" && eventHandler.currentGameMode == GameMode.battlegrounds,
+                   let firingMinion = eventHandler.entities[actionStartingEntityId],
+                   firingMinion.isMinion,
+                   firingMinion[GameTag.zone] == Zone.graveyard.rawValue {
+                    let firingRace = firingMinion[GameTag.cardrace]
+                    if firingRace == Race.lookup(Race.mechanical) || firingRace == Race.lookup(Race.all) {
+                        BobsBuddyInvoker.instance(gameId: eventHandler.gameId, turn: eventHandler.turnNumber())?
+                            .observeAutoAssemblerDeathrattleFiring(actionStartingEntityId)
+                    }
+                }
+
                 var actionStartingCardId: String? = matches[3].value
                 var actionStartingEntity: Entity?
 
