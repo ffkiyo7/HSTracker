@@ -72,6 +72,7 @@ class BobsBuddyInvoker {
     private var currentOpponentMinions: [Int: MinionProxy] = [:]
     
     private var opponentHand: [Entity] = []
+    private var opponentTeammateHand: [Entity] = []
     private var opponentHandMap: [Entity: Entity] = [:]
     private var opponentSecrets: [Entity] = []
         
@@ -196,8 +197,13 @@ class BobsBuddyInvoker {
     }
 
     func startCombat() {
-        opponentHand = [Entity]()
-        opponentSecrets = [Entity]()
+        // A duos teammate pass re-enters startCombat after the primary snapshot. Clearing here would drop
+        // the opponent's own hand entities, which updateCardOpponentHand still rebuilds its hand from.
+        if input == nil || !game.isBattlegroundsDuosMatch() {
+            opponentHand = [Entity]()
+            opponentTeammateHand = [Entity]()
+            opponentSecrets = [Entity]()
+        }
 
         if !shouldRun() {
             return
@@ -1259,12 +1265,16 @@ class BobsBuddyInvoker {
             }
             inputPlayer.setSecrets(secrets: secretsToAdd)
             
-            self.opponentHand = BobsBuddyInvoker.getOrderedHandEntities(gamePlayer.hand)
+            let opponentHandEntities = BobsBuddyInvoker.getOrderedHandEntities(gamePlayer.hand)
+            if isDuosTeammate {
+                self.opponentTeammateHand = opponentHandEntities
+            } else {
+                self.opponentHand = opponentHandEntities
+            }
             let opponentHand = inputPlayer.hand
             MonoHelper.listClear(obj: opponentHand)
-            
-            let opponentHandEntities = getOpponentHandEntities(simulator: simulator)
-            for e in opponentHandEntities {
+
+            for e in getOpponentHandEntities(handEntities: opponentHandEntities, simulator: simulator) {
                 MonoHelper.addToList(list: opponentHand, element: e)
             }
         }
@@ -1533,22 +1543,33 @@ class BobsBuddyInvoker {
         }
         
         opponentHandMap[entity] = copy
-        
+
         // Wait for attached entities to be logged. This should happen at the exact same timestamp.
         //await _game.GameTime.WaitForDuration(1);
         let simulator = SimulatorProxy()
-        let entities = getOpponentHandEntities(simulator: simulator)
-        if let _class = MinionCardEntityProxy._class, entities.filter({ x in MonoHelper.isInstance(obj: x, klass: _class) }).count <= MonoHelper.listItems(obj: input.opponent.hand).filter({ x in MonoHelper.isInstance(obj: x, klass: _class) }).count {
+
+        // In duos both opponent-side players are set up from game.opponent, so a revealed card is
+        // attributed by the list it was captured in. Rebuilding the other one would write the
+        // opponent teammate's cards into the hand of the opponent fighting first.
+        var handEntities = opponentHand
+        var handOwner = input.opponent
+        if input.opponentTeammate.get() != nil && !opponentHand.contains(entity) && opponentTeammateHand.contains(entity) {
+            handEntities = opponentTeammateHand
+            handOwner = input.opponentTeammate
+        }
+
+        let entities = getOpponentHandEntities(handEntities: handEntities, simulator: simulator)
+        if let _class = MinionCardEntityProxy._class, entities.filter({ x in MonoHelper.isInstance(obj: x, klass: _class) }).count <= MonoHelper.listItems(obj: handOwner.hand).filter({ x in MonoHelper.isInstance(obj: x, klass: _class) }).count {
             return
         }
 
-        let cls = mono_object_get_class(input.opponent.hand.get())
+        let cls = mono_object_get_class(handOwner.hand.get())
         let newHand = MonoHandle(obj: MonoHelper.objectNew(clazz: cls))
         for ent in entities {
             MonoHelper.addToList(list: newHand, element: ent)
         }
-        input.opponent.hand = newHand
-        
+        handOwner.hand = newHand
+
         tryRerun()
     }
     
@@ -2463,9 +2484,9 @@ class BobsBuddyInvoker {
         return true
     }
 
-    private func getOpponentHandEntities(simulator: SimulatorProxy) -> [MonoHandle] {
+    private func getOpponentHandEntities(handEntities: [Entity], simulator: SimulatorProxy) -> [MonoHandle] {
         var result = [MonoHandle]()
-        for _e in opponentHand {
+        for _e in handEntities {
             let e = opponentHandMap[_e] ?? _e
             if e.isMinion {
                 let attached = getAttachedEntities(entityId: e.id)
