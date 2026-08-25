@@ -174,7 +174,7 @@ struct GuidesTabsView: View {
                     .padding(.vertical, 7)
                     .background(
                         RoundedRectangle(cornerRadius: 3)
-                            .fill(Color(hex: "#7636A8"))
+                            .fill(Color(hex: "#724B8F"))
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 3)
