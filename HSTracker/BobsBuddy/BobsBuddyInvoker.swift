@@ -2018,10 +2018,10 @@ class BobsBuddyInvoker {
                 break
             }
         }
-        guard let minion else {
+        guard let minion, !minion.minionUpdatedDuringCombat else {
             return
         }
-        
+
         // Attach enchant to the minion
         if enchantmentEntity.card.type == CardType.enchantment && !enchantmentEntity.cardId.isEmpty {
             let enchantment = SimulatorProxy().enchantmentFactory.create(cardId: enchantmentEntity.cardId, controlledByPlayer: minion.controlledByPlayer)
