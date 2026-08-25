@@ -1298,12 +1298,12 @@ class BobsBuddyInvoker {
             logger.info("pBeastAttack=\(inputPlayer.beastAttackBonus), pBeastHealth=\(inputPlayer.beastHealthBonus), friendly=\(friendly)")
         }
 
-        // Fang Anklet's permanently improved amount. The trinket's own script data holds
-        // the separate this-combat grant, which Fang Anklet applies at start of combat.
-        if let pFangAnklet = playerAttached.first(where: { x in x.cardId == CardIds.NonCollectible.Neutral.FangAnklet_FangAnkletPlayerEnchantDnt }) {
-            inputPlayer.beastAttackBonus += Int32(pFangAnklet[.tag_script_data_num_1]) // attached
-            inputPlayer.beastHealthBonus += Int32(pFangAnklet[.tag_script_data_num_2]) // attached
-            logger.info("pFangAnkletBeastAttack=\(inputPlayer.beastAttackBonus), pFangAnkletBeastHealth=\(inputPlayer.beastHealthBonus), friendly=\(friendly)")
+        // Fang Anklet: a ghost board appears to accumulate the Fangs Out enchantment from the prior player.
+        if !friendly && inputPlayer.heroIsKelThuzad {
+            if let pFangAnklet = playerAttached.first(where: { x in x.cardId == CardIds.NonCollectible.Neutral.FangAnklet_FangAnkletPlayerEnchantDnt }) {
+                inputPlayer.beastAttackBonus += Int32(pFangAnklet[.tag_script_data_num_1]) // attached
+                inputPlayer.beastHealthBonus += Int32(pFangAnklet[.tag_script_data_num_2]) // attached
+            }
         }
 
         if let pAncestralAutomaton = playerAttached.first(where: { x in x.cardId == CardIds.Invalid.AncestralAutomaton_AncestralAutomatonPlayerEnchantDnt }) {
