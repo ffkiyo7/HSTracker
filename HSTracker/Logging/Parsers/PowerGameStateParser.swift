@@ -1317,6 +1317,9 @@ class PowerGameStateParser: LogEventParser {
                                     addKnownCardId(eventHandler: eventHandler, cardId: card)
                                 }
                             }
+                        case CardIds.Collectible.Priest.SlimeEm:
+                            eventHandler.player.slimedMinions = eventHandler.player.board.filter { $0.isMinion }
+                            eventHandler.opponent.slimedMinions = eventHandler.opponent.board.filter { $0.isMinion }
                         case CardIds.NonCollectible.Priest.Repackage_RepackagedBoxToken:
                             for card in actionStartingEntity?.info.storedCardIds ?? [String]() {
                                 addKnownCardId(eventHandler: eventHandler, cardId: card)

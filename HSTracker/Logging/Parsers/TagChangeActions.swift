@@ -61,6 +61,7 @@ struct TagChangeActions {
             case .displayed_creator:
                 self.azalinaCopyCreated(eventHandler: eventHandler, id: id, value: value)
                 self.creatorChanged(eventHandler: eventHandler, id: id, value: value)
+                self.ectoplasmCreated(eventHandler: eventHandler, id: id, value: value)
             case .whizbang_deck_id:
                 self.whizbangDeckIdChange(eventHandler: eventHandler, id: id, value: value)
             case .mulligan_state:
@@ -476,6 +477,26 @@ struct TagChangeActions {
         if controller > 0 {
             eventHandler.controllersWithDeckCopiedFromEnemy.insert(controller)
         }
+    }
+
+    // The copy going to the enemy is created hidden and in SETASIDE, so the usual KnownCardIds
+    // guess (which skips SETASIDE) never claims it. Its DISPLAYED_CREATOR points back at
+    // Slime 'em! though, which is enough to name it while it is still on its way to hand.
+    // Only DISPLAYED_CREATOR is used, not CREATOR: the same block also creates hidden SETASIDE
+    // copies of the enemy's slimed minions, and those never carry a DISPLAYED_CREATOR.
+    private func ectoplasmCreated(eventHandler: PowerEventHandler, id: Int, value: Int) {
+        if value == 0 {
+            return
+        }
+        guard let entity = eventHandler.entities[id], entity.cardId.isEmpty else {
+            return
+        }
+        guard let creator = eventHandler.entities[value], creator.cardId == CardIds.Collectible.Priest.SlimeEm else {
+            return
+        }
+
+        entity.cardId = CardIds.NonCollectible.Priest.Slimeem_EctoplasmToken
+        entity.info.guessedCardState = .guessed
     }
 
     private func creatorChanged(eventHandler: PowerEventHandler, id: Int, value: Int) {

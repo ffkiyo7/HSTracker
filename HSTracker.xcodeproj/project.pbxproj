@@ -475,6 +475,7 @@
 		E37074DCC8B10D28908723AE /* FollowTheGhosts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CED04CBAC755F05ABEAA2DD /* FollowTheGhosts.swift */; };
 		AB39F5F5C0EC4B5A9EA2C0BF /* RaithVanGeist.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90236A89DD90147B95F7856E /* RaithVanGeist.swift */; };
 		4DB3387B6FC24B7AB57C5B51 /* SlimeEm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27FC3508F59927DE9C19984F /* SlimeEm.swift */; };
+		2F3AB26C914169F4BA0A6779 /* Ectoplasm.swift in Sources */ = {isa = PBXBuildFile; fileRef = F93EE8749D2A85AF1B695353 /* Ectoplasm.swift */; };
 		B81B3D8F2D409B0A00DC9EB0 /* JoymancerJepetto.swift in Sources */ = {isa = PBXBuildFile; fileRef = B81B3D8E2D409B0A00DC9EB0 /* JoymancerJepetto.swift */; };
 		B81B3D912D409C2C00DC9EB0 /* Mixtape.swift in Sources */ = {isa = PBXBuildFile; fileRef = B81B3D902D409C2C00DC9EB0 /* Mixtape.swift */; };
 		B81B3D932D409CE900DC9EB0 /* FateSplitter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B81B3D922D409CE900DC9EB0 /* FateSplitter.swift */; };
@@ -1894,6 +1895,7 @@
 		0CED04CBAC755F05ABEAA2DD /* FollowTheGhosts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FollowTheGhosts.swift; sourceTree = "<group>"; };
 		90236A89DD90147B95F7856E /* RaithVanGeist.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RaithVanGeist.swift; sourceTree = "<group>"; };
 		27FC3508F59927DE9C19984F /* SlimeEm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlimeEm.swift; sourceTree = "<group>"; };
+		F93EE8749D2A85AF1B695353 /* Ectoplasm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Ectoplasm.swift; sourceTree = "<group>"; };
 		B81B3D8E2D409B0A00DC9EB0 /* JoymancerJepetto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoymancerJepetto.swift; sourceTree = "<group>"; };
 		B81B3D902D409C2C00DC9EB0 /* Mixtape.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mixtape.swift; sourceTree = "<group>"; };
 		B81B3D922D409CE900DC9EB0 /* FateSplitter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FateSplitter.swift; sourceTree = "<group>"; };
@@ -4629,6 +4631,7 @@
 				0CED04CBAC755F05ABEAA2DD /* FollowTheGhosts.swift */,
 				90236A89DD90147B95F7856E /* RaithVanGeist.swift */,
 				27FC3508F59927DE9C19984F /* SlimeEm.swift */,
+				F93EE8749D2A85AF1B695353 /* Ectoplasm.swift */,
 				B837D7D52EAC28D50070DB4B /* TwilightDeceptor.swift */,
 				B837D7DD2EAEA6860070DB4B /* TwilightMender.swift */,
 				B8E1E5F72D0CA0E300383975 /* TwilightsCall.swift */,
@@ -5526,6 +5529,7 @@
 				E37074DCC8B10D28908723AE /* FollowTheGhosts.swift in Sources */,
 				AB39F5F5C0EC4B5A9EA2C0BF /* RaithVanGeist.swift in Sources */,
 				4DB3387B6FC24B7AB57C5B51 /* SlimeEm.swift in Sources */,
+				2F3AB26C914169F4BA0A6779 /* Ectoplasm.swift in Sources */,
 				4361D8341DC8A21800D831CF /* BnetGameType.swift in Sources */,
 				B8DB12B32EBAE740004268FA /* MuradinHighKing.swift in Sources */,
 				B852D8022DBA8BDE00884B26 /* PlayerResourcesViewModel.swift in Sources */,
