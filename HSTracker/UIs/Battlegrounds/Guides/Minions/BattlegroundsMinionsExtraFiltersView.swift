@@ -69,7 +69,12 @@ struct BattlegroundsMinionsExtraFiltersView: View {
         let rows = stride(from: 0, to: buttons.count, by: Self.columns).map { start in
             Array(buttons[start ..< min(start + Self.columns, buttons.count)])
         }
-        return VStack(spacing: 0) {
+        // Rows stay left-aligned *to each other* (VStack alignment: .leading) so
+        // a short final row's icons stay in column with the row above rather
+        // than centring on their own - only then is the whole block, as a unit,
+        // centred within the panel below, mirroring the XAML's WrapPanel
+        // HorizontalAlignment="Center" inside a full-width ItemsControl.
+        let grid = VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
                 HStack(spacing: 0) {
                     ForEach(row) { button in
@@ -79,16 +84,13 @@ struct BattlegroundsMinionsExtraFiltersView: View {
                         .frame(width: Self.cellWidth, height: Self.cellHeight)
                     }
                 }
-                // Items flow from the left within the WrapPanel, so a short final
-                // row is left-aligned - only the panel itself is centred by its
-                // HorizontalAlignment="Center". Centring the row instead left the
-                // second row's icons out of line with the first's.
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .padding(.horizontal, 4)
-        .padding(.top, 4)
-        .padding(.bottom, 8)
+        return grid
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 4)
+            .padding(.top, 4)
+            .padding(.bottom, 8)
     }
 
     // MARK: - Mechanics
@@ -218,9 +220,17 @@ struct BattlegroundsMinionTypeButton: View {
         .onHover { hovering in isHovering = hovering }
     }
 
+    // The button XAML wraps the icon in its own RenderTransform
+    // ScaleX="0.85" ScaleY="0.85" (RenderTransformOrigin 0.5,0.5) - shrinking
+    // it to 85% of the button box, distinct from the icon's own internal 1.1
+    // zoom on the art itself. 0.85 lands the icon's edge right where the ring's
+    // gradient band starts (offset 0.85), so the ring frames it snugly; without
+    // this the icon fills the full box and overruns the ring, reading as an
+    // undersized border around an oversized circle.
     private var portrait: some View {
         BattlegroundsMinionTypeIcon(minionType: button.minionType)
             .frame(width: Self.size, height: Self.size)
+            .scaleEffect(0.85)
             .opacity(iconOpacity)
     }
 

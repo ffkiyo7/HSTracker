@@ -332,15 +332,24 @@ struct BattlegroundsMinionPinningView: View {
     // MARK: - Minion type pins
 
     // Border Background="#2E3235" CornerRadius="3" Padding="4" Margin="0,0,0,4"
-    // over a WrapPanel with ItemWidth="42" ItemHeight="40". The panel's 231pt of
-    // inner width leaves room for exactly five 42pt cells.
+    // over an ItemsControl HorizontalAlignment="Center" holding a WrapPanel
+    // ItemWidth="42" ItemHeight="40" HorizontalAlignment="Left". The panel's
+    // 231pt of inner width leaves room for exactly five 42pt cells with some
+    // left over (210 used of 223 after this Border's own padding), so the
+    // ItemsControl's centring is load-bearing, not a no-op - the whole grid
+    // sits centred in that leftover space rather than flush against either edge.
     private var minionTypesBox: some View {
         let buttons = viewModel.minionTypeButtons
         let columns = 5
         let rows = stride(from: 0, to: buttons.count, by: columns).map { start in
             Array(buttons[start ..< min(start + columns, buttons.count)])
         }
-        return VStack(spacing: 0) {
+        // Rows stay left-aligned *to each other* (VStack alignment: .leading) so
+        // a short final row's icons stay in column with the row above rather
+        // than centring on their own - only then is the whole block, as a unit,
+        // centred within the box below, matching the WrapPanel-inside-a-centred-
+        // ItemsControl structure above.
+        let grid = VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
                 HStack(spacing: 0) {
                     ForEach(row) { button in
@@ -350,13 +359,14 @@ struct BattlegroundsMinionPinningView: View {
                         .frame(width: 42, height: 40)
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .padding(4)
-        .background(Color(hex: "#2E3235"))
-        .cornerRadius(3)
-        .padding(.bottom, 4)
+        return grid
+            .frame(maxWidth: .infinity)
+            .padding(4)
+            .background(Color(hex: "#2E3235"))
+            .cornerRadius(3)
+            .padding(.bottom, 4)
     }
 
     // MARK: - Pinned cards
