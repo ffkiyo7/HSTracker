@@ -1,3 +1,31 @@
+# 3.6.6
+## Hearthstone
+- Fixed the secret tracker incorrectly un-excluding secrets when the played minion died later in the turn from something other than a "minion played" secret.
+- Fixed start-of-game effects such as Azalina Soulsever revealing opponent deck information before the mulligan was over.
+- The opponent's counters now account for Azalina Soulsever copying half of your deck into theirs.
+- Corpses can now be tracked and shown for you too, not just the opponent, with a checkbox for each at Options > Player/Opponent.
+- Fixed the secret tracker revealing which secret The Origin Stone cast from a Discover, which is not public information.
+## Battlegrounds
+- Composition, Hero, Quest, Trinket guides are now available.
+- Tavern minion and filtering is now available.
+- Fixed the spell counter for Naga cards (Thaumaturgist and friends) counting in groups of 4 instead of 3.
+- Fixed Rot Hide Gnoll incorrectly appearing in the minion pool.
+- Fixed the Lockbox filter appearing in the Minions browser in lobbies without Pirates.
+## Bob's Buddy
+- Fixed golden Choral Mrrrglr and Costume Enthusiast enchantments not being captured.
+- Fixed Dramaloc Sticker's enchantment not being captured on the opponent's trinket.
+- Fixed Toreth's Blessing not capturing its minion's remaining Divine Shield hits.
+- Fixed Fang Anklet's permanent Beast attack/health bonus not being captured.
+- Fixed Elementals' bonus attack/health from other Elementals not being captured.
+- Fixed a Dark Gift attached to a magnetized minion not being captured.
+- Fixed miscounted magnetized Auto Assembler modules in some cases.
+- Fixed Sneed's New Shredder's Deathrattle summons occasionally being misattributed to a hidden magnetized Auto Assembler module.
+- Fixed a rare false-positive combat prediction triggered during the shopping phase.
+- Fixed the Bob's Buddy panel sometimes staying visible after a Battlegrounds match ended.
+- Fixed Fang Anklet's permanent Beast bonus being incorrectly captured on a non-ghost opponent board.
+- Fixed miscounted Auto Assembler Deathrattles when the board had no space left for the summon.
+- Fixed opponent hand tracking in Duos sometimes mixing up the two opponents' hands.
+
 # 3.6.5
 **Updated for Hearthstone 36.2.2**
 ## Battlegrounds
