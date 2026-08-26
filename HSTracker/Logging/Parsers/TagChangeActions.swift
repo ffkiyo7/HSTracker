@@ -145,16 +145,6 @@ struct TagChangeActions {
             eventHandler.isBattlegroundsCombatPhase = true
             hideMinionPinningShop(eventHandler)
             if eventHandler.isBattlegroundsSoloMatch() {
-                // A "real" combat should always start on the GameEntity TURN after a shopping phase (GameEntity
-                // TURN should appear as ODD for shopping phases and EVEN for combat).
-                let gameEntityTurn = eventHandler.gameEntity?[.turn] ?? 0
-                // In order to prevent false positive BobsBuddy terminals from being reported, skip rare cases
-                // where we've observed an extra combat appearing at the end of a shopping phase, while still
-                // in the same shopping phase turn.
-                if gameEntityTurn <= eventHandler.gameEntityTurnAtShoppingStart {
-                    logger.warning("Not starting Bob's Buddy: combat opened on GameEntity TURN \(gameEntityTurn), which is a shopping phase TURN \(eventHandler.gameEntityTurnAtShoppingStart).")
-                    return
-                }
                 BobsBuddyInvoker.instance(gameId: eventHandler.gameId, turn: eventHandler.turnNumber())?.startCombat()
             }
         }
@@ -167,7 +157,6 @@ struct TagChangeActions {
 
         if prevValue == 1 && value == 0 {
             eventHandler.isBattlegroundsCombatPhase = false
-            eventHandler.gameEntityTurnAtShoppingStart = eventHandler.gameEntity?[.turn] ?? -1
             hideMinionPinningShop(eventHandler)
             if !eventHandler.isBattlegroundsDuosMatch() || eventHandler.duosWasOpponentHeroModified {
                 eventHandler.snapshotBattlegroundsBoardState()
