@@ -406,6 +406,7 @@ enum GameTag: Int, CaseIterable, Codable {
     dredge = 2332,
     bacon_player_num_hero_buddies_gained = 2346,
     gametag_2358 = 2358,
+    was_discover_option = 2509,
     bacon_buddy_enabled = 2518,
     immolatestage = 2600,
     corpses_spent_this_game = 2639,

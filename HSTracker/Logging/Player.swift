@@ -1066,21 +1066,11 @@ final class Player {
                 if let last = options.last {
                     creator.info.storedCardIds.append(last)
                 }
-            } else if creator.cardId == CardIds.NonCollectible.Mage.TheForbiddenSequence_TheOriginStoneToken {
-                // The Origin Stone reveals a copy of each unchosen discover option immediately
-                // before casting it, so the secret it puts into play is public information.
-                if let revealedCast = game.entities.values
-                    .filter({ e in e.id < entity.id && e.isSecret && e.hasCardId
-                    && e.isControlled(by: entity[GameTag.controller])
-                    && e[GameTag.copied_from_entity_id] > 0
-                    && e.isInZone(zone: Zone.setaside) })
-                    .sorted(by: { $0.id > $1.id })
-                    .first {
-                    if !revealedCast.cardId.isEmpty {
-                        entity.info.storedCardIds.append(revealedCast.cardId)
-                    }
-                }
             }
+            // The Origin Stone deliberately gets no handling here. It casts copies of the
+            // unchosen discover options, and the log reveals those options - but the secret
+            // copy it puts into play stays hidden until it triggers, exactly as it does in
+            // game. Naming it from the revealed options would leak private information.
         }
         
         if Settings.fullGameLog {
