@@ -1139,6 +1139,46 @@ class HSReplayAPI {
         }
     }
 
+    // Ports HSReplay-API-Client's two GetDiscoverPoolKeywords overloads: the premium path goes
+    // through OAuth (OAuthClient.DataQueries), the trial path sends an X-Trial-Token header
+    // (HsReplayClient). Both return the same keyword -> card-ids map.
+    @available(macOS 10.15.0, *)
+    static func getDiscoverPoolKeywords() async -> [String: [String]]? {
+        return await withCheckedContinuation { continuation in
+            startAuthorizedRequest(HSReplay.discoverPoolKeywordsUrl, method: .GET, parameters: [:], completionHandler: { result in
+                switch result {
+                case .success(let response):
+                    let keywords: [String: [String]]? = parseResponse(data: response.data, defaultValue: nil)
+                    continuation.resume(returning: keywords)
+                case .failure(let error):
+                    logger.error(error)
+                    continuation.resume(returning: nil)
+                }
+            })
+        }
+    }
+
+    @available(macOS 10.15.0, *)
+    static func getDiscoverPoolKeywords(token: String?) async -> [String: [String]]? {
+        guard let token = token else {
+            return nil
+        }
+        return await withCheckedContinuation { continuation in
+            let http = Http(url: HSReplay.discoverPoolKeywordsUrl)
+            _ = http.getPromise(method: .get, headers: ["X-Trial-Token": token]).done { data in
+                guard let data = data else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                let keywords: [String: [String]]? = parseResponse(data: data, defaultValue: nil)
+                continuation.resume(returning: keywords)
+            }.catch { error in
+                logger.error(error)
+                continuation.resume(returning: nil)
+            }
+        }
+    }
+
     @available(macOS 10.15.0, *)
     static func getHeroGuides(gameLanguage: String) async -> BattlegroundsHeroGuidesData? {
         return await withCheckedContinuation { continuation in

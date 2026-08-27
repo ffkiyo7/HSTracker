@@ -1,3 +1,10 @@
+# 3.6.7
+## Hearthstone
+- Added The OutFinder, our Discover assistant for Constructed and Arena!\
+  *Hover any card that Discovers or generates cards to see its full pool, along with the cost, attack and health distributions. Keyword breakdowns and pool filters are available to HSReplay.net Premium subscribers, and through your Mulligan Guide and Arenasmith trials.*
+- Expanded pool coverage to over 700 Discover and card generation effects across every class.
+- Right-click a card with a large pool to open the full pool browser, with cost and keyword filters.
+
 # 3.6.6
 ## Hearthstone
 - Fixed the secret tracker incorrectly un-excluding secrets when the played minion died later in the turn from something other than a "minion played" secret.

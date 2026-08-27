@@ -28,6 +28,13 @@ final class Card {
     var health = 0
     var attack = 0
     var overload = 0
+    // Death Knight triple-rune costs (GameTag.COST_BLOOD/FROST/UNHOLY) - a card
+    // needing 3 of one rune can't be generated into a deck that isn't already
+    // running that rune spec, which RelatedCardsSystem/Cards/Pools' generation
+    // filter checks for.
+    var costBlood = 0
+    var costFrost = 0
+    var costUnholy = 0
     var name = "unknown"
     var enName = ""
     var playerClass: CardClass = .neutral
@@ -406,6 +413,9 @@ extension Card: NSCopying {
         copy.health = self.health
         copy.attack = self.attack
         copy.overload = self.overload
+        copy.costBlood = self.costBlood
+        copy.costFrost = self.costFrost
+        copy.costUnholy = self.costUnholy
         copy.name = self.name
         copy.enName = self.enName
         copy.playerClass = self.playerClass

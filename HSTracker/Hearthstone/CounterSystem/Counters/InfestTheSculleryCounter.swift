@@ -35,8 +35,12 @@ class InfestTheSculleryCounter: NumericCounter {
         return relatedCards
     }
 
+    var summonCost: Int {
+        return min(baseCost + counter, 10)
+    }
+
     override func valueToShow() -> String {
-        return String(min(baseCost + counter, 10))
+        return String(summonCost)
     }
 
     override func handleTagChange(tag: GameTag, entity: Entity, value: Int, prevValue: Int) {

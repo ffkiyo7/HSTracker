@@ -244,9 +244,10 @@ class WindowManager {
         return $0
     }(CardHudContainer(windowNibName: "CardHudContainer"))
     
-    var tooltipGridCards: GridCardImages = {
-        return $0
-    }(GridCardImages(windowNibName: "GridCardImages"))
+    @available(macOS 10.15, *)
+    var tooltipGridCards: RelatedCardsTooltipPanel {
+        RelatedCardsTooltipPanel.shared
+    }
 
     private var lastCardsUpdateRequest = Date.distantPast.timeIntervalSince1970
 
@@ -292,7 +293,10 @@ class WindowManager {
             self?.flavorText.window?.orderOut(nil)
             self?.playerActiveEffectsOverlay.window?.orderOut(nil)
             self?.opponentActiveEffectsOverlay.window?.orderOut(nil)
-            self?.tooltipGridCards.window?.orderOut(nil)
+            if #available(macOS 10.15, *) {
+                self?.tooltipGridCards.hide()
+                RelatedCardsBrowserPanel.shared.hide()
+            }
         }
     }
 
@@ -396,7 +400,9 @@ class WindowManager {
             self.floatingCard3.window?.orderOut(self)
             self.closeRequestTimer?.invalidate()
             self.closeRequestTimer = nil
-            self.tooltipGridCards.window?.orderOut(self)
+            if #available(macOS 10.15, *) {
+                self.tooltipGridCards.hide()
+            }
         }
     }
 

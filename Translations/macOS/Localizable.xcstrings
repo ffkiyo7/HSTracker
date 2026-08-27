@@ -4449,6 +4449,17 @@
         }
       }
     },
+    "Counter_PlayedMinionTypes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Played Minion Types"
+          }
+        }
+      }
+    },
     "Counter_PlayedSpells" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -15712,6 +15723,402 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "探寻沉没之城"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_adjacent_buff" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buff Adjacent"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_aoe" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AoE"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_armor_gain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Armor Gain"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_card_draw" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Card Draw"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_charge" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charge"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_deal_face_damage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Face Damage"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_discover" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discover"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_divine_shield" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Divine Shield"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_excavate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Excavate"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_freeze" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Freeze"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_heal" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Heal"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_herald" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Herald"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_imbue" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Imbue"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_invoke_galakrond" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invoke"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_lifesteal" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lifesteal"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_magnetic" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Magnetic"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_outcast" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Outcast"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_overload" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overload"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_poisonous" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poisonous"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_reborn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reborn"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_rush" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rush"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_secret" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Secret"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_silence" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Silence"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_single_target_removal" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Single Target Removal"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_spellpower" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spell Damage +"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_starship_piece" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starship Piece"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_stealth" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stealth"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Keyword_taunt" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Taunt"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Label_Attack" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attack"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Label_Cost" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cost"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Label_Filters" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filters"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Label_Health" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Health"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Label_Median" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "median"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Label_PoolHeader" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ Pool: %d cards"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Label_PoolOfCards" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pool of %d cards"
+          }
+        }
+      }
+    },
+    "TheOutfinder_Label_RightClickHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Right-click to see all options"
           }
         }
       }

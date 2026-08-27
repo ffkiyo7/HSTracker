@@ -51,7 +51,25 @@ class Database {
         GameTag.bacon_rally.rawValue: "BACON_RALLY",
         GameTag.start_of_combat.rawValue: "START_OF_COMBAT",
         GameTag.end_of_turn_trigger.rawValue: "END_OF_TURN_TRIGGER",
-        GameTag.bacon_activate_tooltip.rawValue: "BACON_ACTIVATE_TOOLTIP"
+        GameTag.bacon_activate_tooltip.rawValue: "BACON_ACTIVATE_TOOLTIP",
+        // RelatedCardsSystem/Cards/Pools generation-pool filters (ports of HDT's
+        // CardListExtensions.FilterGenerationPool, and RewindCardPool below): these
+        // gate whether a card can appear in a Discover/generation pool at all, or
+        // only when the deck has a matching mechanic.
+        GameTag.rewind.rawValue: "REWIND",
+        GameTag.quest.rawValue: "QUEST",
+        GameTag.questline.rawValue: "QUESTLINE",
+        GameTag.titan.rawValue: "TITAN",
+        GameTag.colossal.rawValue: "COLOSSAL",
+        GameTag.excavate.rawValue: "EXCAVATE",
+        GameTag.sideboard_type.rawValue: "SIDEBOARD_TYPE",
+        GameTag.galakrond.rawValue: "GALAKROND",
+        GameTag.imbue.rawValue: "IMBUE",
+        GameTag.fabled.rawValue: "FABLED",
+        GameTag.fabled_plus.rawValue: "FABLED_PLUS",
+        GameTag.herald.rawValue: "HERALD",
+        // RelatedCardsSystem Discover-pool leaf-card filters (Rogue's StickUp).
+        GameTag.quickdraw.rawValue: "QUICKDRAW"
     ]
     
     static let currentSeason: Int = {
@@ -209,10 +227,17 @@ class Database {
             }
         case GameTag.is_bacon_pool_spell.rawValue:
             currentCard?.isBaconPoolSpell = intValue != 0
-        case GameTag.windfury.rawValue, GameTag.taunt.rawValue, GameTag.stealth.rawValue, GameTag.spellpower.rawValue, GameTag.divine_shield.rawValue, GameTag.charge.rawValue, GameTag.freeze.rawValue, GameTag.enraged.rawValue, GameTag.deathrattle.rawValue, GameTag.battlecry.rawValue, GameTag.secret.rawValue, GameTag.combo.rawValue, GameTag.silence.rawValue, GameTag.immunetospellpower.rawValue, GameTag.poisonous.rawValue, GameTag.lifesteal.rawValue, GameTag.outcast.rawValue, GameTag.rush.rawValue, GameTag.overkill.rawValue, GameTag.trigger_visual.rawValue, GameTag.honorable_kill.rawValue, GameTag.immune.rawValue, GameTag.dormant.rawValue, GameTag.discover.rawValue, GameTag.venomous.rawValue, GameTag.choose_one.rawValue, GameTag.paladin_aura.rawValue, GameTag.imp.rawValue, GameTag.kindred.rawValue, GameTag.elite.rawValue, GameTag.reborn.rawValue, GameTag.modular.rawValue, GameTag.avenge.rawValue, GameTag.bacon_rally.rawValue, GameTag.start_of_combat.rawValue, GameTag.end_of_turn_trigger.rawValue, GameTag.bacon_activate_tooltip.rawValue:
+        case GameTag.windfury.rawValue, GameTag.taunt.rawValue, GameTag.stealth.rawValue, GameTag.spellpower.rawValue, GameTag.divine_shield.rawValue, GameTag.charge.rawValue, GameTag.freeze.rawValue, GameTag.enraged.rawValue, GameTag.deathrattle.rawValue, GameTag.battlecry.rawValue, GameTag.secret.rawValue, GameTag.combo.rawValue, GameTag.silence.rawValue, GameTag.immunetospellpower.rawValue, GameTag.poisonous.rawValue, GameTag.lifesteal.rawValue, GameTag.outcast.rawValue, GameTag.rush.rawValue, GameTag.overkill.rawValue, GameTag.trigger_visual.rawValue, GameTag.honorable_kill.rawValue, GameTag.immune.rawValue, GameTag.dormant.rawValue, GameTag.discover.rawValue, GameTag.venomous.rawValue, GameTag.choose_one.rawValue, GameTag.paladin_aura.rawValue, GameTag.imp.rawValue, GameTag.kindred.rawValue, GameTag.elite.rawValue, GameTag.reborn.rawValue, GameTag.modular.rawValue, GameTag.avenge.rawValue, GameTag.bacon_rally.rawValue, GameTag.start_of_combat.rawValue, GameTag.end_of_turn_trigger.rawValue, GameTag.bacon_activate_tooltip.rawValue,
+             GameTag.quest.rawValue, GameTag.questline.rawValue, GameTag.titan.rawValue, GameTag.colossal.rawValue, GameTag.excavate.rawValue, GameTag.sideboard_type.rawValue, GameTag.galakrond.rawValue, GameTag.imbue.rawValue, GameTag.fabled.rawValue, GameTag.fabled_plus.rawValue, GameTag.herald.rawValue, GameTag.rewind.rawValue, GameTag.quickdraw.rawValue:
             if let mechanic = Database.mechanics[id] {
                 currentCard?.mechanics.append(mechanic)
             }
+        case GameTag.cost_blood.rawValue:
+            currentCard?.costBlood = intValue
+        case GameTag.cost_frost.rawValue:
+            currentCard?.costFrost = intValue
+        case GameTag.cost_unholy.rawValue:
+            currentCard?.costUnholy = intValue
         case GameTag.multiple_classes.rawValue:
             currentCard?.multipleClasses = intValue
         case GameTag.bacon_triple_upgrade_minion_id.rawValue:

@@ -1957,8 +1957,11 @@ class Game: NSObject, PowerEventHandler {
         
         if isTraditionalHearthstoneMatch {
             CardLegalityChecker.loadCardsByFormat(gameType: currentGameType, format: currentFormatType)
+            if #available(macOS 10.15, *) {
+                RelatedCardsManager.loadRelatedCardsSummaryKeywords()
+            }
         }
-		
+
 		// update spectator information
         if spectator || currentGameMode == .mercenaries { // no deck for mercenaries
             set(activeDeckId: nil, autoDetected: false)
@@ -2052,6 +2055,9 @@ class Game: NSObject, PowerEventHandler {
             
             if self.isTraditionalHearthstoneMatch {
                 CardLegalityChecker.loadCardsByFormat(gameType: self.currentGameType, format: self.currentFormatType)
+                if #available(macOS 10.15, *) {
+                    RelatedCardsManager.loadRelatedCardsSummaryKeywords()
+                }
             }
             
             if self.isBattlegroundsMatch() {
@@ -2091,6 +2097,9 @@ class Game: NSObject, PowerEventHandler {
 
         isReconnect = false
         secretsManager?.reset()
+        // Mirrors HDT clearing RelatedCardsSummaryKeywords at the end of a match, so entitlement
+        // is re-checked next game rather than carrying stale keyword data forward.
+        RelatedCardsManager.clearRelatedCardsSummaryKeywords()
         windowManager.hideGameTrackers()
         turnTimer.stop()
         updateTrackers(reset: true)
@@ -4744,17 +4753,35 @@ class Game: NSObject, PowerEventHandler {
         duosWasOpponentHeroModified = false
     }
     
-    func getRelatedCards(player: Player, cardId: String, inHand: Bool = false, handPosition: Int? = nil) -> [Card?] {
-        var relatedCards = relatedCardsManager.getCardWithRelatedCards(cardId)?.getRelatedCards(player: player) ?? [Card?]()
+    // objectiveEntity identifies a hovered secret/objective-zone entity (e.g. an active
+    // Bamboozle on the board) - it stands in for both the hand-hover hoveredEntity (so
+    // dynamic pools see the right per-copy state) and the entity fallback (so a card with
+    // no pool registered still falls back to its own storedCardIds instead of the deck's).
+    func getRelatedCards(player: Player, cardId: String, inHand: Bool = false, handPosition: Int? = nil, objectiveEntity: Entity? = nil) -> [Card?] {
+        var relatedCards: [Card?]
+        // Dynamic pools (evolve/devolve-style effects) take the hovered entity so per-copy
+        // state (upgrade tags, discounted costs) picks the right pool when multiple copies
+        // are in hand.
+        if let dynamicCard = relatedCardsManager.getCardWithDynamicRelatedCardsSummary(cardId) {
+            let hoveredEntity = objectiveEntity ?? (inHand
+                ? (handPosition != nil ? player.hand.first { $0.zonePosition == handPosition } : player.hand.first { $0.cardId == cardId })
+                : nil)
+            let pool = dynamicCard.getPool(player: player, hoveredEntity: hoveredEntity)
+            relatedCards = dynamicCard.getRelatedCards(player: player, hoveredEntity: hoveredEntity, pool: pool)
+        } else {
+            relatedCards = relatedCardsManager.getCardWithRelatedCards(cardId)?.getRelatedCards(player: player) ?? [Card?]()
+        }
         // Get related cards from Entity
         if relatedCards.count == 0 {
             var entities = [Entity]()
-            if inHand {
+            if let objectiveEntity {
+                entities = [objectiveEntity]
+            } else if inHand {
                 entities = handPosition != nil ? player.hand.filter { e in e.zonePosition == handPosition } : player.hand.filter { e in e.cardId == cardId }
             } else {
                 entities = player.deck.filter { e in e.cardId == cardId }
             }
-            
+
             for entity in entities {
                 relatedCards.append(contentsOf: entity.info.storedCardIds.compactMap { id in Cards.by(cardId: id) })
             }
@@ -4769,17 +4796,20 @@ class Game: NSObject, PowerEventHandler {
     
     @MainActor
     private func updateTooltips() {
+        guard #available(macOS 10.15, *) else { return }
         delayedTooltip?.cancel()
         if hoveredCard != nil {
             delayedTooltip = DelayedTooltip(handler: tooltipDisplay, 0.400, nil)
         } else {
             delayedTooltip = nil
-            windowManager.show(controller: windowManager.tooltipGridCards, show: false)
+            windowManager.tooltipGridCards.hide()
+            RelatedCardsRightClickMonitor.shared.clearHoveredLargePool()
         }
     }
-    
-    @MainActor 
+
+    @MainActor
     private func tooltipDisplay(_ userInfo: Any?) {
+        guard #available(macOS 10.15, *) else { return }
         if let hoveredCard {
             // player hand
             if hoveredCard.isHand && isTraditionalHearthstoneMatch {
@@ -4788,9 +4818,12 @@ class Game: NSObject, PowerEventHandler {
                     let nonNullableRelatedCards = relatedCards.compactMap { x in x }
                     
                     let tooltipGridCards = windowManager.tooltipGridCards
-                    tooltipGridCards.title = String.localizedString("Related_Cards", comment: "")
+                    tooltipGridCards.setTitle(String.localizedString("Related_Cards", comment: ""))
                     tooltipGridCards.setCardIdsFromCards(nonNullableRelatedCards, 470)
-                    
+                    let hoveredEntity = player.hand.first { $0.zonePosition == hoveredCard.zonePosition }
+                    let (statistics, summary, hasLargePool) = relatedCardsManager.getPoolStatistics(cardId: hoveredCard.cardId, relatedCards: relatedCards, player: player, hoveredEntity: hoveredEntity)
+                    tooltipGridCards.setPoolStatistics(statistics, relatedCardsSummary: summary, hasLargePool: hasLargePool)
+
                     let frame = SizeHelper.hearthstoneWindow.frame
                     let y = frame.maxY - 480
                     // find the left of the card
@@ -4807,24 +4840,35 @@ class Game: NSObject, PowerEventHandler {
                     let cardHeightInPixels = cardHeight * frame.height
                     let cardWidth = cardHeightInPixels * 34 / (cardHeight * 100)
                     let x = correctedOffsetX + cardWidth / 2 - Double(tooltipGridCards.gridWidth) / 2.0
-                    windowManager.show(controller: tooltipGridCards, show: true, frame: NSRect(x: Int(x), y: Int(y), width: tooltipGridCards.gridWidth, height: tooltipGridCards.gridHeight))
+                    let tooltipFrame = NSRect(x: Int(x), y: Int(y), width: tooltipGridCards.gridWidth, height: tooltipGridCards.gridHeight)
+                    tooltipGridCards.show(frame: tooltipFrame)
+                    RelatedCardsRightClickMonitor.shared.setHoveredLargePool(
+                        card: hasLargePool ? Cards.by(cardId: hoveredCard.cardId) : nil,
+                        pool: hasLargePool ? nonNullableRelatedCards : [],
+                        anchorFrame: tooltipFrame)
                 } else {
-                    windowManager.show(controller: windowManager.tooltipGridCards, show: false)
+                    windowManager.tooltipGridCards.hide()
+                    RelatedCardsRightClickMonitor.shared.clearHoveredLargePool()
                 }
                 // player secrets/objective zone
             } else if hoveredCard.zonePosition > 0 && hoveredCard.isHand == false && hoveredCard.side == PlayerSide.friendly.rawValue {
-                var relatedCards = [Card]()
+                var relatedCards: [Card?] = []
+                var hoveredEntity: Entity?
                 if let entity = hoveredCard.zonePosition >= 0 && hoveredCard.zonePosition - 1 < player.objectives.count ? player.objectives[hoveredCard.zonePosition - 1] : nil, entity.cardId == hoveredCard.cardId {
-                    relatedCards.append(contentsOf: entity.info.storedCardIds.compactMap { cardId in Cards.by(cardId: cardId) })
+                    hoveredEntity = entity
+                    relatedCards = getRelatedCards(player: player, cardId: hoveredCard.cardId, objectiveEntity: entity)
                 }
                 if relatedCards.count > 0 && Settings.showPlayerRelatedCards {
+                    let nonNullableRelatedCards = relatedCards.compactMap { $0 }
                     let tooltipGridCards = windowManager.tooltipGridCards
-                    tooltipGridCards.title = String.localizedString("Related_Cards", comment: "")
-                    tooltipGridCards.setCardIdsFromCards(relatedCards, 470)
-                    
+                    tooltipGridCards.setTitle(String.localizedString("Related_Cards", comment: ""))
+                    tooltipGridCards.setCardIdsFromCards(nonNullableRelatedCards, 470)
+                    let (statistics, summary, hasLargePool) = relatedCardsManager.getPoolStatistics(cardId: hoveredCard.cardId, relatedCards: relatedCards, player: player, hoveredEntity: hoveredEntity)
+                    tooltipGridCards.setPoolStatistics(statistics, relatedCardsSummary: summary, hasLargePool: hasLargePool)
+
                     let frame = SizeHelper.hearthstoneWindow.frame
                     let y = frame.maxY - 480
-                    
+
                     // find the left of the card
                     let baseOffsetX = 0.57
                     let leftOffsetXByLayer =  [ 0.0, 0.037, 0.062 ]
@@ -4834,26 +4878,36 @@ class Game: NSObject, PowerEventHandler {
                     let layer = Int(ceil(Double(relativePosition) / 2.0))
                     let offsetX = isLeftSide ? baseOffsetX - leftOffsetXByLayer[layer] : baseOffsetX + rightOffsetXByLayer[layer]
                     let correctedOffsetX = SizeHelper.getScaledXPos(offsetX, width: frame.width, ratio: SizeHelper.screenRatio)
-                    
+
                     // find the center of the card
                     let cardHeight = 0.43
                     let cardHeightInPixels = cardHeight * frame.height
                     let cardWidth = cardHeightInPixels * 31 / (cardHeight * 100)
-                    
+
                     let x = correctedOffsetX + cardWidth / 2 - Double(tooltipGridCards.gridWidth) / 2.0
-                    windowManager.show(controller: tooltipGridCards, show: true, frame: NSRect(x: Int(x), y: Int(y), width: tooltipGridCards.gridWidth, height: tooltipGridCards.gridHeight))
+                    let tooltipFrame = NSRect(x: Int(x), y: Int(y), width: tooltipGridCards.gridWidth, height: tooltipGridCards.gridHeight)
+                    tooltipGridCards.show(frame: tooltipFrame)
+                    RelatedCardsRightClickMonitor.shared.setHoveredLargePool(
+                        card: hasLargePool ? Cards.by(cardId: hoveredCard.cardId) : nil,
+                        pool: hasLargePool ? nonNullableRelatedCards : [],
+                        anchorFrame: tooltipFrame)
                 }
                 // opponent secrets/objective zone
             } else if hoveredCard.zonePosition > 0 && hoveredCard.isHand == false && hoveredCard.side != PlayerSide.friendly.rawValue {
-                var relatedCards = [Card]()
+                var relatedCards: [Card?] = []
+                var hoveredEntity: Entity?
                 if let entity = hoveredCard.zonePosition >= 0 && hoveredCard.zonePosition - 1 < opponent.objectives.count ? opponent.objectives[hoveredCard.zonePosition - 1] : nil, entity.cardId == hoveredCard.cardId {
-                    relatedCards.append(contentsOf: entity.info.storedCardIds.compactMap { cardId in Cards.by(cardId: cardId) })
+                    hoveredEntity = entity
+                    relatedCards = getRelatedCards(player: opponent, cardId: hoveredCard.cardId, objectiveEntity: entity)
                 }
                 if relatedCards.count > 0 && Settings.showPlayerRelatedCards {
+                    let nonNullableRelatedCards = relatedCards.compactMap { $0 }
                     let tooltipGridCards = windowManager.tooltipGridCards
-                    tooltipGridCards.title = String.localizedString("Related_Cards", comment: "")
-                    tooltipGridCards.setCardIdsFromCards(relatedCards, 470)
-                    
+                    tooltipGridCards.setTitle(String.localizedString("Related_Cards", comment: ""))
+                    tooltipGridCards.setCardIdsFromCards(nonNullableRelatedCards, 470)
+                    let (statistics, summary, hasLargePool) = relatedCardsManager.getPoolStatistics(cardId: hoveredCard.cardId, relatedCards: relatedCards, player: opponent, hoveredEntity: hoveredEntity)
+                    tooltipGridCards.setPoolStatistics(statistics, relatedCardsSummary: summary, hasLargePool: hasLargePool)
+
                     let frame = SizeHelper.hearthstoneWindow.frame
                     let y = frame.maxY - 480
                     
@@ -4873,13 +4927,20 @@ class Game: NSObject, PowerEventHandler {
                     let cardWidth = cardHeightInPixels * 31 / (cardHeight * 100)
                     
                     let x = correctedOffsetX + cardWidth / 2 - Double(tooltipGridCards.gridWidth) / 2.0
-                    windowManager.show(controller: tooltipGridCards, show: true, frame: NSRect(x: Int(x), y: Int(y), width: tooltipGridCards.gridWidth, height: tooltipGridCards.gridHeight))
+                    let tooltipFrame = NSRect(x: Int(x), y: Int(y), width: tooltipGridCards.gridWidth, height: tooltipGridCards.gridHeight)
+                    tooltipGridCards.show(frame: tooltipFrame)
+                    RelatedCardsRightClickMonitor.shared.setHoveredLargePool(
+                        card: hasLargePool ? Cards.by(cardId: hoveredCard.cardId) : nil,
+                        pool: hasLargePool ? nonNullableRelatedCards : [],
+                        anchorFrame: tooltipFrame)
                 }
             } else {
-                windowManager.show(controller: windowManager.tooltipGridCards, show: false)
+                windowManager.tooltipGridCards.hide()
+                RelatedCardsRightClickMonitor.shared.clearHoveredLargePool()
             }
         } else {
-            windowManager.show(controller: windowManager.tooltipGridCards, show: false)
+            windowManager.tooltipGridCards.hide()
+            RelatedCardsRightClickMonitor.shared.clearHoveredLargePool()
         }
         delayedTooltip = nil
     }
@@ -4907,25 +4968,28 @@ class Game: NSObject, PowerEventHandler {
     func setRelatedCardsTrigger(_ state: DiscoverStateArgs) {
         // Note: To debug behavior here and/or implement new triggers set a translucent
         // Background (e.g. #40FF0000) on the RelatedCardsTrigger Grid in Overlay.xaml.
+        guard #available(macOS 10.15, *) else { return }
 
         let vm = windowManager.tooltipGridCards
         if state.cardId == "" {
             if vm.cards.count > 0 {
                 DispatchQueue.main.async {
-                    self.windowManager.show(controller: vm, show: false)
+                    vm.hide()
                 }
             }
+            RelatedCardsRightClickMonitor.shared.clearHoveredLargePool()
             return
         }
 
         // Not ideal. Maybe we re-position the tooltip on size change and canvas.top/left change?
 
         if Settings.showPlayerRelatedCards {
-            guard let relatedCards = relatedCardsManager.getCardWithRelatedCards(state.cardId)?.getRelatedCards(player: player), relatedCards.count > 0  else {
+            let relatedCards = getRelatedCards(player: player, cardId: state.cardId)
+            guard relatedCards.count > 0 else {
                 return
             }
             
-            vm.title = String.localizedString("Related_Cards", comment: "")
+            vm.setTitle(String.localizedString("Related_Cards", comment: ""))
             
             let frame = SizeHelper.hearthstoneWindow.frame
             
@@ -4982,7 +5046,14 @@ class Game: NSObject, PowerEventHandler {
 
             DispatchQueue.main.async {
                 vm.setCardIdsFromCards(relatedCards.compactMap({ $0 }))
-                self.windowManager.show(controller: self.windowManager.tooltipGridCards, show: true, frame: NSRect(x: left, y: frame.height - top - CGFloat(vm.gridHeight), width: CGFloat(vm.gridWidth), height: CGFloat(vm.gridHeight)))
+                let (statistics, summary, hasLargePool) = self.relatedCardsManager.getPoolStatistics(cardId: state.cardId, relatedCards: relatedCards, player: self.player)
+                vm.setPoolStatistics(statistics, relatedCardsSummary: summary, hasLargePool: hasLargePool)
+                let tooltipFrame = NSRect(x: left, y: frame.height - top - CGFloat(vm.gridHeight), width: CGFloat(vm.gridWidth), height: CGFloat(vm.gridHeight))
+                vm.show(frame: tooltipFrame)
+                RelatedCardsRightClickMonitor.shared.setHoveredLargePool(
+                    card: hasLargePool ? Cards.by(cardId: state.cardId) : nil,
+                    pool: hasLargePool ? relatedCards.compactMap({ $0 }) : [],
+                    anchorFrame: tooltipFrame)
             }
         }
     }
