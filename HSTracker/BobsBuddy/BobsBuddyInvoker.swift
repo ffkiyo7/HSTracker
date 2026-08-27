@@ -1656,7 +1656,7 @@ class BobsBuddyInvoker {
         for (heroPowers, sideFriendly) in sides where heroPowers.get() != nil {
             if let match = listFirst(heroPowers, { (hp: HeroPowerDataProxy) in
                 hp.cardId
-                == CardIds.NonCollectible.Neutral.TavishStormpike_LockAndLoad && hp.attachedMinion.game_id == creatorId }) {
+                == CardIds.NonCollectible.Neutral.TavishStormpike_LockAndLoad && hp.attachedMinion.get() != nil && hp.attachedMinion.game_id == creatorId }) {
                 tavishLockAndLoad = match
                 friendly = sideFriendly
                 break

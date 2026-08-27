@@ -4,6 +4,8 @@
   *Hover any card that Discovers or generates cards to see its full pool, along with the cost, attack and health distributions. Keyword breakdowns and pool filters are available to HSReplay.net Premium subscribers, and through your Mulligan Guide and Arenasmith trials.*
 - Expanded pool coverage to over 700 Discover and card generation effects across every class.
 - Right-click a card with a large pool to open the full pool browser, with cost and keyword filters.
+## Bob's Buddy
+- Fixed a crash in Battlegrounds Duos matches when Scoutmaster Tavish's Lock and Load hero power fired. (#1432)
 
 # 3.6.6
 ## Hearthstone
