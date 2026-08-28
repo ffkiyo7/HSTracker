@@ -1077,12 +1077,16 @@ class BobsBuddyInvoker {
     static func getObjectiveFromEntity(factory: ObjectiveFactoryProxy, player: Bool, entity: Entity) -> ObjectiveProxy {
         let objective = factory.create(cardId: entity.cardId, controlledByPlayer: player)
         let scriptDataNum1 = entity[.tag_script_data_num_1]
-        let scriptDataNum2 = objective.scriptDataNum2
+        let scriptDataNum2 = entity[.tag_script_data_num_2]
+        let scriptDataNum3 = entity[.tag_script_data_num_3]
         if scriptDataNum1 > 0 {
             objective.scriptDataNum1 = Int32(scriptDataNum1)
         }
-        if scriptDataNum1 > 0 {
+        if scriptDataNum2 > 0 {
             objective.scriptDataNum2 = Int32(scriptDataNum2)
+        }
+        if scriptDataNum3 > 0 {
+            objective.scriptDataNum3 = Int32(scriptDataNum3)
         }
         return objective
     }
