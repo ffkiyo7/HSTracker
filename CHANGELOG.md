@@ -1,5 +1,6 @@
 # 3.6.8
 ## Bob's Buddy
+- Fixed Auto Assembler Deathrattles not being detected on dual-race Mechs.
 - Fixed Objectives not capturing their second and third script data values.
 - Fixed an Auto Assembler on the board having its own innate Deathrattle counted twice.
 - Fixed the Eternal Legion counter not being read, including Eternal Portrait's accumulated bonus.
