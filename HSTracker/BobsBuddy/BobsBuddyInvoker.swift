@@ -2273,23 +2273,17 @@ class BobsBuddyInvoker {
     private var _observedAutoAssemblerFirings = [Int: Int]()
 
     func observeAutoAssemblerDeathrattleFiring(_ sourceEntityId: Int) {
-        guard _pendingAutoAssemblerDeathrattleSources[sourceEntityId] != nil else {
-            return
-        }
+        // Counted unconditionally: DEATHRATTLE blocks that resolve before the first observed Automaton
+        // summon (the minion's innate deathrattle) must be in the count that
+        // reconcileAutoAssemblerDeathrattles subtracts otherDeathrattles from.
         _observedAutoAssemblerFirings[sourceEntityId] = (_observedAutoAssemblerFirings[sourceEntityId] ?? 0) + 1
     }
 
     func observeMagnetizedAutoAssemblerDeathrattles(_ sourceEntityId: Int, _ extraDeathrattles: Int, _ isGolden: Bool) {
         if _pendingAutoAssemblerDeathrattleSources[sourceEntityId] == nil {
-            let observation = (1 + extraDeathrattles, [Bool]())
-            _pendingAutoAssemblerDeathrattleSources[sourceEntityId] = observation
-            // The registration above happens mid-block, so at this block's BLOCK_START the source was not in
-            // the dictionary yet and the firing counter returned without counting it.
-            // Count it here; every later firing of this source is counted at its own BLOCK_START.
-            _observedAutoAssemblerFirings[sourceEntityId] = 1
+            _pendingAutoAssemblerDeathrattleSources[sourceEntityId] = (1 + extraDeathrattles, [Bool]())
         }
-        var observation = _pendingAutoAssemblerDeathrattleSources[sourceEntityId]
-        observation?.summonedIsPremium.append(isGolden)
+        _pendingAutoAssemblerDeathrattleSources[sourceEntityId]?.summonedIsPremium.append(isGolden)
         BobsBuddyInvoker.currentCombatHasPendingAutoAssemblerObservations = true
     }
 

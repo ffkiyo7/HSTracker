@@ -1,5 +1,6 @@
 # 3.6.8
 ## Bob's Buddy
+- Fixed magnetized Auto Assembler Deathrattle observations never being applied to the simulation.
 - Fixed Auto Assembler Deathrattles not being detected on dual-race Mechs.
 - Fixed Objectives not capturing their second and third script data values.
 - Fixed an Auto Assembler on the board having its own innate Deathrattle counted twice.
