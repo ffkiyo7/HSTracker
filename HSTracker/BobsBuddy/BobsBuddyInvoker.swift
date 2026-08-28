@@ -1297,6 +1297,18 @@ class BobsBuddyInvoker {
             inputPlayer.eternalKnightCounter = Int32(pEternalLegion[.tag_script_data_num_1]) // attached
             inputPlayer.eternalLegionCounter = Int32(pEternalLegion[.tag_script_data_num_3]) // attached
         }
+
+        // Eternal Portrait trinket's accumulated grant is also on a per-Knight enchantment.
+        // If it's missing from the attached player, read it here from an Eternal Knight.
+        if inputPlayer.eternalLegionCounter == 0 {
+            for boardEntity in gamePlayer.board {
+                let legion = getAttachedEntities(entityId: boardEntity.id).first { x in x.cardId == CardIds.NonCollectible.Neutral.EternalPortrait_GreaterEternalLegionEnchantment }
+                if let legion, legion[.tag_script_data_num_1] > 0 {
+                    inputPlayer.eternalLegionCounter = Int32(legion[.tag_script_data_num_1] / 4)
+                    break
+                }
+            }
+        }
         let pUndeadBonus = playerAttached.first { x in x.cardId == CardIds.NonCollectible.Neutral.NerubianDeathswarmer_UndeadBonusAttackPlayerEnchantDnt }
         if let pUndeadBonus {
             inputPlayer.undeadAttackBonus = Int32(pUndeadBonus[.tag_script_data_num_1]) // attached

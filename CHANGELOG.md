@@ -1,3 +1,7 @@
+# 3.6.8
+## Bob's Buddy
+- Fixed the Eternal Legion counter not being read, including Eternal Portrait's accumulated bonus.
+
 # 3.6.7
 ## Fixes
 - Fixed incorrect card database causing missing overlays and other issues
