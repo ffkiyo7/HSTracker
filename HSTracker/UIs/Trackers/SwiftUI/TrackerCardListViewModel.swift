@@ -70,6 +70,7 @@ final class TrackerCardListViewModel: ObservableObject {
     @Published var cardSize: CardSize = Settings.cardSize
     @Published var showRarityColors: Bool = Settings.showRarityColors
     @Published var playerType: PlayerType = .player
+    @Published var sectionHeaderHeight: CGFloat = 40
 
     var onHover: ((Card, NSView) -> Void)?
     var onExit: ((Card) -> Void)?

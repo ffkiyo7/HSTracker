@@ -93,7 +93,7 @@ final class TrackerCardListHost: NSView {
     }
 }
 
-private final class TrackerTransparentHostingView<Content: View>: NSHostingView<Content> {
+final class TrackerTransparentHostingView<Content: View>: NSHostingView<Content> {
     override var isOpaque: Bool { false }
 
     required init(rootView: Content) {

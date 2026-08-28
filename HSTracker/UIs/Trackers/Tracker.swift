@@ -30,6 +30,10 @@ class Tracker: OverWindowController, CardCellHover {
     private var heroCard: Card?
     private var swiftUICards: TrackerCardListHost?
     private var swiftUIListActive = false
+    private var swiftUIPlayerTop: TrackerSectionHost?
+    private var swiftUIPlayerBottom: TrackerSectionHost?
+    private var swiftUIOpponentRelatedCards: TrackerSectionHost?
+    private var swiftUISectionsActive = false
     private var playerSideboardsData: [Sideboard] = []
     
     var bottomY = CGFloat(0.0)
@@ -142,10 +146,41 @@ class Tracker: OverWindowController, CardCellHover {
                 swiftUICards?.isHidden = true
             }
         }
-        playerBottom.update(cards: bottom, reset: reset)
-        playerTop.update(cards: top, reset: reset)
-        playerSideboardsData = sideboards
-        opponentRelatedCards.update(cards: relatedCards, reset: reset)
+        if Settings.useSwiftUITracker {
+            let sections = ensureSwiftUISections()
+            if let playerType {
+                sections.top.viewModel.playerType = playerType
+                sections.bottom.viewModel.playerType = playerType
+                sections.related.viewModel.playerType = playerType
+            }
+            sections.top.viewModel.update(cards: top)
+            sections.bottom.viewModel.update(cards: bottom)
+            playerSideboardsData = sideboards
+            sections.related.viewModel.update(cards: relatedCards)
+            sections.top.isHidden = false
+            sections.bottom.isHidden = false
+            sections.related.isHidden = false
+            playerTop.isHidden = true
+            playerBottom.isHidden = true
+            opponentRelatedCards.isHidden = true
+            swiftUISectionsActive = true
+        } else {
+            let sectionReset = swiftUISectionsActive
+            swiftUISectionsActive = false
+            playerBottom.update(cards: bottom, reset: reset || sectionReset)
+            playerTop.update(cards: top, reset: reset || sectionReset)
+            playerSideboardsData = sideboards
+            opponentRelatedCards.update(cards: relatedCards, reset: reset || sectionReset)
+            if let swiftUIPlayerTop {
+                swiftUIPlayerTop.isHidden = true
+            }
+            if let swiftUIPlayerBottom {
+                swiftUIPlayerBottom.isHidden = true
+            }
+            if let swiftUIOpponentRelatedCards {
+                swiftUIOpponentRelatedCards.isHidden = true
+            }
+        }
     }
 
     private func ensureSwiftUICards() -> TrackerCardListHost {
@@ -169,11 +204,89 @@ class Tracker: OverWindowController, CardCellHover {
         return host
     }
 
+    private func ensureSwiftUISections() -> (top: TrackerSectionHost,
+                                             bottom: TrackerSectionHost,
+                                             related: TrackerSectionHost) {
+        if swiftUIPlayerTop == nil {
+            let host = TrackerSectionHost(
+                frame: .zero,
+                title: String.localizedString("On Top", comment: "")
+            )
+            host.onHover = { [weak self] card, view in
+                self?.hover(card: card, frameView: view, component: .playerTop)
+            }
+            host.onExit = { [weak self] card in
+                self?.out(card: card)
+            }
+            if let playerType {
+                host.viewModel.playerType = playerType
+            }
+            window?.contentView?.addSubview(host)
+            swiftUIPlayerTop = host
+        }
+        if swiftUIPlayerBottom == nil {
+            let host = TrackerSectionHost(
+                frame: .zero,
+                title: String.localizedString("On Bottom", comment: "")
+            )
+            host.onHover = { [weak self] card, view in
+                self?.hover(card: card, frameView: view, component: .playerBottom)
+            }
+            host.onExit = { [weak self] card in
+                self?.out(card: card)
+            }
+            if let playerType {
+                host.viewModel.playerType = playerType
+            }
+            window?.contentView?.addSubview(host)
+            swiftUIPlayerBottom = host
+        }
+        if swiftUIOpponentRelatedCards == nil {
+            let host = TrackerSectionHost(
+                frame: .zero,
+                title: String.localizedString("Related_Cards", comment: "")
+            )
+            host.onHover = { [weak self] card, view in
+                self?.hover(card: card, frameView: view, component: .opponentRelatedCards)
+            }
+            host.onExit = { [weak self] card in
+                self?.out(card: card)
+            }
+            if let playerType {
+                host.viewModel.playerType = playerType
+            }
+            window?.contentView?.addSubview(host)
+            swiftUIOpponentRelatedCards = host
+        }
+        return (swiftUIPlayerTop!, swiftUIPlayerBottom!, swiftUIOpponentRelatedCards!)
+    }
+
     private var mainListCount: Int {
         if Settings.useSwiftUITracker {
             return swiftUICards?.count ?? 0
         }
         return cardsView.count
+    }
+
+    private var playerTopCount: Int {
+        if Settings.useSwiftUITracker {
+            return swiftUIPlayerTop?.count ?? 0
+        }
+        return playerTop.count
+    }
+
+    private var playerBottomCount: Int {
+        if Settings.useSwiftUITracker {
+            return swiftUIPlayerBottom?.count ?? 0
+        }
+        return playerBottom.count
+    }
+
+    private var opponentRelatedCardsCount: Int {
+        if Settings.useSwiftUITracker {
+            return swiftUIOpponentRelatedCards?.count ?? 0
+        }
+        return opponentRelatedCards.count
     }
     
     override func updateFrames() {
@@ -322,17 +435,17 @@ class Tracker: OverWindowController, CardCellHover {
 
         var totalCards = mainListCount
 
-        if playerBottom.count > 0 && Settings.showPlayerCardsBottom {
+        if playerBottomCount > 0 && Settings.showPlayerCardsBottom {
             offsetFrames += smallFrameHeight
-            totalCards += playerBottom.count
+            totalCards += playerBottomCount
         }
-        if playerTop.count > 0 && Settings.showPlayerCardsTop {
+        if playerTopCount > 0 && Settings.showPlayerCardsTop {
             offsetFrames += smallFrameHeight
-            totalCards += playerTop.count
+            totalCards += playerTopCount
         }
-        if opponentRelatedCards.count > 0 && Settings.showOpponentRelatedCards {
+        if opponentRelatedCardsCount > 0 && Settings.showOpponentRelatedCards {
             offsetFrames += smallFrameHeight
-            totalCards += opponentRelatedCards.count
+            totalCards += opponentRelatedCardsCount
         }
 
         var cardHeight: CGFloat
@@ -350,16 +463,41 @@ class Tracker: OverWindowController, CardCellHover {
         let cardViewHeight = CGFloat(mainListCount) * cardHeight
         var y: CGFloat = windowHeight - startHeight
 
-        if playerTop.count > 0 && Settings.showPlayerCardsTop {
-            let playerTopHeight = CGFloat(playerTop.count) * cardHeight + smallFrameHeight + 5
+        if playerTopCount > 0 && Settings.showPlayerCardsTop {
+            let playerTopHeight = CGFloat(playerTopCount) * cardHeight + smallFrameHeight + 5
             y -= playerTopHeight
-            playerTop.frame = NSRect(x: 0, y: y, width: windowWidth, height: playerTopHeight)
-            playerTop.updateFrames(frameHeight: smallFrameHeight)
-            playerTop.isHidden = false
+            if Settings.useSwiftUITracker {
+                let host = ensureSwiftUISections().top
+                host.cardHeight = cardHeight
+                host.headerHeight = smallFrameHeight
+                host.viewModel.syncAppearance()
+                host.frame = NSRect(x: 0, y: y, width: windowWidth, height: playerTopHeight)
+                host.isHidden = false
+                playerTop.frame = .zero
+                playerTop.isHidden = true
+            } else {
+                playerTop.frame = NSRect(x: 0, y: y, width: windowWidth, height: playerTopHeight)
+                playerTop.updateFrames(frameHeight: smallFrameHeight)
+                playerTop.isHidden = false
+                if let host = swiftUIPlayerTop {
+                    host.frame = .zero
+                    host.isHidden = true
+                }
+            }
         } else {
             playerTop.frame = NSRect.zero
-            playerTop.updateFrames(frameHeight: smallFrameHeight)
             playerTop.isHidden = true
+            if Settings.useSwiftUITracker {
+                let host = ensureSwiftUISections().top
+                host.frame = .zero
+                host.isHidden = true
+            } else {
+                playerTop.updateFrames(frameHeight: smallFrameHeight)
+                if let host = swiftUIPlayerTop {
+                    host.frame = .zero
+                    host.isHidden = true
+                }
+            }
         }
 
         y -= cardViewHeight
@@ -388,16 +526,41 @@ class Tracker: OverWindowController, CardCellHover {
             }
         }
                 
-        if playerBottom.count > 0 && Settings.showPlayerCardsBottom {
-            let playerBottomHeight = CGFloat(playerBottom.count) * cardHeight + smallFrameHeight + 5
+        if playerBottomCount > 0 && Settings.showPlayerCardsBottom {
+            let playerBottomHeight = CGFloat(playerBottomCount) * cardHeight + smallFrameHeight + 5
             y -= playerBottomHeight
-            playerBottom.frame = NSRect(x: 0, y: y, width: windowWidth, height: playerBottomHeight)
-            playerBottom.updateFrames(frameHeight: smallFrameHeight)
-            playerBottom.isHidden = false
+            if Settings.useSwiftUITracker {
+                let host = ensureSwiftUISections().bottom
+                host.cardHeight = cardHeight
+                host.headerHeight = smallFrameHeight
+                host.viewModel.syncAppearance()
+                host.frame = NSRect(x: 0, y: y, width: windowWidth, height: playerBottomHeight)
+                host.isHidden = false
+                playerBottom.frame = .zero
+                playerBottom.isHidden = true
+            } else {
+                playerBottom.frame = NSRect(x: 0, y: y, width: windowWidth, height: playerBottomHeight)
+                playerBottom.updateFrames(frameHeight: smallFrameHeight)
+                playerBottom.isHidden = false
+                if let host = swiftUIPlayerBottom {
+                    host.frame = .zero
+                    host.isHidden = true
+                }
+            }
         } else {
             playerBottom.frame = NSRect.zero
-            playerBottom.updateFrames(frameHeight: smallFrameHeight)
             playerBottom.isHidden = true
+            if Settings.useSwiftUITracker {
+                let host = ensureSwiftUISections().bottom
+                host.frame = .zero
+                host.isHidden = true
+            } else {
+                playerBottom.updateFrames(frameHeight: smallFrameHeight)
+                if let host = swiftUIPlayerBottom {
+                    host.frame = .zero
+                    host.isHidden = true
+                }
+            }
         }
         playerSideboards.frame = NSRect.zero
         playerSideboards.updateFrames(frameHeight: smallFrameHeight, cardHeight: cardHeight)
@@ -420,16 +583,41 @@ class Tracker: OverWindowController, CardCellHover {
                                             width: windowWidth,
                                             height: smallFrameHeight)
         }
-        if opponentRelatedCards.count > 0 && Settings.showOpponentRelatedCards {
-            let opponentRelatedCardsHeight = CGFloat(opponentRelatedCards.count) * cardHeight + smallFrameHeight + 5
+        if opponentRelatedCardsCount > 0 && Settings.showOpponentRelatedCards {
+            let opponentRelatedCardsHeight = CGFloat(opponentRelatedCardsCount) * cardHeight + smallFrameHeight + 5
             y -= opponentRelatedCardsHeight
-            opponentRelatedCards.frame = NSRect(x: 0, y: y, width: windowWidth, height: opponentRelatedCardsHeight)
-            opponentRelatedCards.updateFrames(frameHeight: smallFrameHeight)
-            opponentRelatedCards.isHidden = false
+            if Settings.useSwiftUITracker {
+                let host = ensureSwiftUISections().related
+                host.cardHeight = cardHeight
+                host.headerHeight = smallFrameHeight
+                host.viewModel.syncAppearance()
+                host.frame = NSRect(x: 0, y: y, width: windowWidth, height: opponentRelatedCardsHeight)
+                host.isHidden = false
+                opponentRelatedCards.frame = .zero
+                opponentRelatedCards.isHidden = true
+            } else {
+                opponentRelatedCards.frame = NSRect(x: 0, y: y, width: windowWidth, height: opponentRelatedCardsHeight)
+                opponentRelatedCards.updateFrames(frameHeight: smallFrameHeight)
+                opponentRelatedCards.isHidden = false
+                if let host = swiftUIOpponentRelatedCards {
+                    host.frame = .zero
+                    host.isHidden = true
+                }
+            }
         } else {
             opponentRelatedCards.frame = NSRect.zero
-            opponentRelatedCards.updateFrames(frameHeight: smallFrameHeight)
             opponentRelatedCards.isHidden = true
+            if Settings.useSwiftUITracker {
+                let host = ensureSwiftUISections().related
+                host.frame = .zero
+                host.isHidden = true
+            } else {
+                opponentRelatedCards.updateFrames(frameHeight: smallFrameHeight)
+                if let host = swiftUIOpponentRelatedCards {
+                    host.frame = .zero
+                    host.isHidden = true
+                }
+            }
         }
         if !graveyardCounter.isHidden {
             y -= smallFrameHeight
