@@ -744,6 +744,14 @@ class Game: NSObject, PowerEventHandler {
         DispatchQueue.main.async {
             let isBG = self.isBattlegroundsMatch() && !self.gameEnded
 
+            // GuidesTabsView gates on this rather than calling isBattlegroundsMatch()
+            // from its body, which gave SwiftUI nothing to invalidate on - see
+            // BattlegroundsGuidesTabsViewModel.isInMatch. Pushed outside the isBG
+            // branch below precisely so the false edge lands too.
+            if #available(macOS 10.15, *) {
+                self.windowManager.rootOverlay?.viewModel.battlegroundsGuidesTabs.setInMatch(isBG)
+            }
+
             // HDT refreshes the minion browser's lobby state from ShowBgsTopBar,
             // which this is the analogue of. The available races are not readable
             // from the mirror yet at gameStart, so they have to be picked up here.
@@ -2331,6 +2339,10 @@ class Game: NSObject, PowerEventHandler {
                 // (unlike the legacy KVO-based ViewModel.reset() calls
                 // above), which Combine requires happen on the main thread.
                 DispatchQueue.main.async {
+                    // Drops the top bar itself, not just its contents: without this
+                    // the guides panel survived the game-over screen and followed
+                    // the player back to the main menu.
+                    self.windowManager.rootOverlay?.viewModel.battlegroundsGuidesTabs.onMatchEnd()
                     self.windowManager.rootOverlay?.viewModel.battlegroundsCompsGuides.onMatchEnd()
                     self.windowManager.rootOverlay?.viewModel.battlegroundsHeroGuides.onMatchEnd()
                     self.windowManager.rootOverlay?.viewModel.battlegroundsQuestGuides.onMatchEnd()
