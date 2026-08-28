@@ -1295,6 +1295,7 @@ class BobsBuddyInvoker {
         let pEternalLegion = playerAttached.first { x in x.cardId == CardIds.NonCollectible.Neutral.EternalKnight_EternalKnightPlayerEnchant }
         if let pEternalLegion {
             inputPlayer.eternalKnightCounter = Int32(pEternalLegion[.tag_script_data_num_1]) // attached
+            inputPlayer.eternalLegionCounter = Int32(pEternalLegion[.tag_script_data_num_3]) // attached
         }
         let pUndeadBonus = playerAttached.first { x in x.cardId == CardIds.NonCollectible.Neutral.NerubianDeathswarmer_UndeadBonusAttackPlayerEnchantDnt }
         if let pUndeadBonus {
@@ -1337,7 +1338,7 @@ class BobsBuddyInvoker {
         inputPlayer.elementalsGiveExtraAttack = Int32(game.playerEntity?[.bacon_elemental_buffatkvalue] ?? 0) // direct
         inputPlayer.elementalsGiveExtraHealth = Int32(game.playerEntity?[.bacon_elemental_buffhealthvalue] ?? 0) // direct
 
-        logger.info("pEternal=\(inputPlayer.eternalKnightCounter), pUndead=\(inputPlayer.undeadAttackBonus), pElemental=\(inputPlayer.elementalPlayCounter), pElementalExtraAtk=\(inputPlayer.elementalsGiveExtraAttack), pElementalExtraHealth=\(inputPlayer.elementalsGiveExtraHealth), friendly=\(friendly)")
+        logger.info("pEternal=\(inputPlayer.eternalKnightCounter), pEternalLegion=\(inputPlayer.eternalLegionCounter), pUndead=\(inputPlayer.undeadAttackBonus), pElemental=\(inputPlayer.elementalPlayCounter), pElementalExtraAtk=\(inputPlayer.elementalsGiveExtraAttack), pElementalExtraHealth=\(inputPlayer.elementalsGiveExtraHealth), friendly=\(friendly)")
         
         inputPlayer.piratesSummonCounter = Int32(game.playerEntity?[.gametag_2358] ?? 0) // direct
         
