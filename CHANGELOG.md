@@ -1,4 +1,6 @@
 # 3.6.7
+## Fixes
+- Fixed incorrect card database causing missing overlays and other issues
 ## Hearthstone
 - Added The OutFinder, our Discover assistant for Constructed and Arena!\
   *Hover any card that Discovers or generates cards to see its full pool, along with the cost, attack and health distributions. Keyword breakdowns and pool filters are available to HSReplay.net Premium subscribers, and through your Mulligan Guide and Arenasmith trials.*
