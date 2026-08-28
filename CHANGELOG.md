@@ -1,5 +1,6 @@
 # 3.6.8
 ## Bob's Buddy
+- Fixed an Auto Assembler on the board having its own innate Deathrattle counted twice.
 - Fixed the Eternal Legion counter not being read, including Eternal Portrait's accumulated bonus.
 
 # 3.6.7

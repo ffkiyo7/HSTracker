@@ -995,8 +995,13 @@ class BobsBuddyInvoker {
         // Exclude one counted module per BG32_172e the host carries, because EnchantmentFactory
         // resolves that card id to an AutoAssemblerEnchantment which already summons one Automaton.
         // A host can carry more than one instance (a golden formed by tripling brings each copy's).
-        let carried = attachedEntities.count { e in e.cardId == CardIds.NonCollectible.Neutral.AutoAssembler_AutoAssemblerEnchantment
+        var carried = attachedEntities.count { e in e.cardId == CardIds.NonCollectible.Neutral.AutoAssembler_AutoAssemblerEnchantment
             || e.cardId == CardIds.NonCollectible.Neutral.AutoAssembler_AutoAssembler2 }
+
+        // An Auto Assembler minion directly on the board also has an innate deathrattle.
+        if host.cardId == CardIds.NonCollectible.Neutral.AutoAssembler || host.cardId == CardIds.NonCollectible.Neutral.AutoAssembler_AutoAssembler1 {
+            carried += 1
+        }
 
         for module in modules.sorted(by: { $0.key < $1.key }).dropFirst(carried) {
             minion.addDeathrattle(deathrattle: module.value ? AutoAssemblerProxy.goldenDeathrattle() : AutoAssemblerProxy.deathrattle())
