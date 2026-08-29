@@ -178,9 +178,9 @@
 > **原来的 T9（删开关、删旧路径）已挪到 Phase 2 之后**，见文末「收尾」一节。
 > 理由：Phase 2 的分区还要靠 `useSwiftUITracker` 做对照，删早了就没有退路了。
 
-### 执行卡点（交给本机 grok 时按这个分批）
+### 执行卡点（交给 Codex 时按这个分批）
 
-**grok 的调用粒度不变：一次一本任务书，跑完 review diff 再放下一本。**
+**调用粒度不变：一次一本任务书，跑完 review diff 再放下一本。**
 任务书按新规矩只给约束不给实现，越长越容易漂移；而 T3 的教训恰恰是「组合型回归单看任一任务
 发现不了」，那要求人在中间 review。**能合并的是实测卡点，不是 review 轮次** ——
 连着跑几本、逐本 review，然后一次 `clean build` 交给人打一局。
@@ -391,6 +391,40 @@ T7 提前做还有额外好处：后面三个卡点都能享受到异步卡图�
 5. 重测 `clean build` 是否仍是交包的硬要求，据此更新 `docs/PROGRESS.md` 的「环境备注」第 6 条
 6. Phase 3 补课：上游新增约 2900 行 MainMenu 字符串，**99.2% 的覆盖率会掉下来**，
    重跑统计、补新 key（不阻塞主线，可以排在卡点 ① 之后）
+
+### 合并之后的后续任务：把 T3 接进 `ICardWithRelatedCards`
+
+**先说清楚不冲突**：OutFinder 的相关牌注册表里**没有 ETC / 深邃之王**
+（`HSTracker/Hearthstone/RelatedCardsSystem/` 全目录 grep `sideboard` / 这两个卡 ID 均零命中）。
+它管的是 Discover / 生成类效果的卡池，备牌不是卡池 —— 合完之后悬停 ETC 仍然只有 T3 那条路径
+在响应，不存在两个 tooltip 抢同一扇窗。上游 `CardUtils` 里唯一碰 sideboard 的地方是
+`handleZilliax3000`，与展示无关。
+
+**但它的框架值得复用。** 上游的形状是：实现一个 `ICardWithRelatedCards`，
+`getRelatedCards(player:)` 返回要显示的卡，`ReflectionHelper.getRelatedClases()` 自动注册
+（不用改注册表），定位 / 显示 / 隐藏全走 `setRelatedCardsTooltip` 这一条公共路径。
+备牌完全能套进去 —— `getRelatedCards(player:)` 直接读 `player.playerSideboardsDict`
+按 `ownerCardId` 匹配，和 T3 现在做的事一样，只是换了挂载点。
+
+收益：**T3 那份 25 行的 `showTooltipGridCards` 副本可以整个删掉**（它正是合并时会编译不过的
+那一段），`sideboardCards(for:)` 和 `tooltipDisplay` 里「备牌优先」的分支也一起没了。
+等于用上游的框架把我们的补丁消化掉。
+
+四个要注意的：
+
+- `Settings.hidePlayerSideboards` 的短路要挪进新实现（返回空数组即可）
+- **标题会从 `card.name` 退回「相关牌」** —— T3 当初特意用卡名，这是小退步。
+  要么接受，要么在 tooltip 侧留一个标题覆盖
+- `shouldShowForOpponent` 必须返回 `false`，否则 ETC 会跑进对手记牌器的「相关牌」段
+- **基里亚斯那个坑还在**：注册表按 cardId 索引，而 `resolveZilliax3000` 把卡换成了外观组件的
+  副本、id 匹配不上。T3 用 `card.deckbuildingCard.id` 解决过一次，接进新框架要在查表点重做
+
+统计面板不会误弹：`getPoolStatistics` 只对实现了 `ICardWithRelatedCardsSummary` 的卡返回数据，
+不实现就是 `(nil, nil, false)`；三张备牌也远低于 `largePoolThreshold = 20`，右键池浏览器不触发。
+
+**排期：不要挤进 Phase U。** Phase U 里只做最小改动让 T3 编译过（约 10 行）。
+理由是卡点 ① 那一局已经要同时验三片 + 上游合并，再叠一次架构重构就没法定位了；
+而且改成框架实现之后**标题和优先级语义都变了**，那是要重新验的东西。
 
 ---
 
