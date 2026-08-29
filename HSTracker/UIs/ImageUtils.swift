@@ -33,10 +33,11 @@ struct ImageUtils {
         return "https://art.hearthstonejson.com/v1/256x/\(cardId).jpg"
     }
 
-    private static var cache =  SynchronizedDictionary<String, NSImage>()
-    private static var cacheArt =  SynchronizedDictionary<String, NSImage>()
-    private static var cacheCardArt =  SynchronizedDictionary<String, NSImage>()
-    private static var cacheCardArtBG =  SynchronizedDictionary<String, NSImage>()
+    private static let cacheCapacity = 256
+    private static var cache = SynchronizedLRUCache<String, NSImage>(capacity: cacheCapacity)
+    private static var cacheArt = SynchronizedLRUCache<String, NSImage>(capacity: cacheCapacity)
+    private static var cacheCardArt = SynchronizedLRUCache<String, NSImage>(capacity: cacheCapacity)
+    private static var cacheCardArtBG = SynchronizedLRUCache<String, NSImage>(capacity: cacheCapacity)
     
     static func clearCache() {
         cache.removeAll()
@@ -66,13 +67,17 @@ struct ImageUtils {
     static func cachedTile(cardId: String) -> NSImage? {
         return cache[cardId]
     }
+
+    // Completion handlers are always delivered on the main queue. Cache hits
+    // requested on the main thread may complete synchronously; cache misses
+    // always load in the background.
     
     static func tile(for cardId: String,
                      completion: @escaping ((NSImage?) -> Void)) {
         let image = cache[cardId]
         
         if let image = image {
-            completion(image)
+            completeOnMain(image, completion: completion)
             return
         }
 		
@@ -83,7 +88,7 @@ struct ImageUtils {
         let image = cacheArt[cardId]
         
         if let image = image {
-            completion(image)
+            completeOnMain(image, completion: completion)
             return
         }
         loadImage(type: .art, cardId: cardId, completion: completion)
@@ -93,7 +98,7 @@ struct ImageUtils {
         let image = cacheCardArt[cardId]
         
         if let image = image {
-            completion(image)
+            completeOnMain(image, completion: completion)
             return
         }
         loadImage(type: .cardArt, cardId: cardId, completion: completion)
@@ -104,7 +109,7 @@ struct ImageUtils {
         let image = cacheCardArtBG[finalCardId]
         
         if let image = image {
-            completion(image)
+            completeOnMain(image, completion: completion)
             return
         }
         loadImage(type: .cardArtBG, cardId: finalCardId, completion: completion)
@@ -129,45 +134,45 @@ struct ImageUtils {
         case .cardArtBG:
             path = Paths.cardsBG.appendingPathComponent("\(cardId).jpg")
         }
-        if let image = NSImage(contentsOf: path) {
+        DispatchQueue.global().async {
+            if let image = NSImage(contentsOf: path) {
+                switch type {
+                case .tile:
+                    cache[cardId] = image
+                case .art:
+                    cacheArt[cardId] = image
+                case .cardArt:
+                    cacheCardArt[cardId] = image
+                case .cardArtBG:
+                    cacheCardArtBG[cardId] = image
+                }
+
+                completeOnMain(image, completion: completion)
+                return
+            }
+
+            // Download image
+            let url: String
             switch type {
             case .tile:
-                cache[cardId] = image
+                url = tileUrl(cardId: cardId)
             case .art:
-                cacheArt[cardId] = image
+                url = artUrl256(cardId: cardId)
             case .cardArt:
-                cacheCardArt[cardId] = image
+                url = artUrl(cardId: cardId, lang: Settings.hearthstoneLanguage?.rawValue ?? "enUS")
             case .cardArtBG:
-                cacheCardArtBG[cardId] = image
+                url = artUrlBG(cardId: cardId, lang: Settings.hearthstoneLanguage?.rawValue ?? "enUS")
             }
-            
-            completion(image)
-            return
-        }
+            guard let url = URL(string: url) else {
+                completeOnMain(nil, completion: completion)
+                return
+            }
+            logger.verbose("downloading \(type) \(url) to \(path)")
 
-        // Download image
-        let url: String
-        switch type {
-        case .tile:
-            url = tileUrl(cardId: cardId)
-        case .art:
-            url = artUrl256(cardId: cardId)
-        case .cardArt:
-            url = artUrl(cardId: cardId, lang: Settings.hearthstoneLanguage?.rawValue ?? "enUS")
-        case .cardArtBG:
-            url = artUrlBG(cardId: cardId, lang: Settings.hearthstoneLanguage?.rawValue ?? "enUS")
-        }
-        guard let url = URL(string: url) else {
-            completion(nil)
-            return
-        }
-        logger.verbose("downloading \(type) \(url) to \(path)")
-
-        DispatchQueue.global().async {
             URLSession.shared.dataTask(with: url) { data, _, error in
                 if let error = error {
                     logger.error("download error \(error)")
-                    completion(nil)
+                    completeOnMain(nil, completion: completion)
                 } else if let data = data,
                     let image = NSImage(data: data) {
                     try? data.write(to: path, options: [.atomic])
@@ -183,9 +188,19 @@ struct ImageUtils {
                         cacheCardArtBG[cardId] = image
                     }
                     
-                    completion(image)
+                    completeOnMain(image, completion: completion)
                 }
                 }.resume()
+        }
+    }
+
+    private static func completeOnMain(_ image: NSImage?, completion: @escaping ((NSImage?) -> Void)) {
+        if Thread.isMainThread {
+            completion(image)
+        } else {
+            DispatchQueue.main.async {
+                completion(image)
+            }
         }
     }
 }

@@ -1512,6 +1512,7 @@
 		C4D801A12FC0000100010009 /* TrackerCardListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010008 /* TrackerCardListViewModel.swift */; };
 		C4D801A12FC000010001000B /* TrackerCardListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC000010001000A /* TrackerCardListView.swift */; };
 		C4D801A12FC000010001000D /* TrackerSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC000010001000C /* TrackerSectionView.swift */; };
+		C4D801A12FC000010001000E /* SynchronizedLRUCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC000010001000F /* SynchronizedLRUCache.swift */; };
 		E30590BB21174FC900679D66 /* UploadCollectionData.swift in Sources */ = {isa = PBXBuildFile; fileRef = E30590BA21174FC900679D66 /* UploadCollectionData.swift */; };
 		EF3B5194CD86CE62EAA0D5E7 /* ConstructedMulliganV2SingleCardHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 172D1024C17902D2BE62ABF7 /* ConstructedMulliganV2SingleCardHeaderView.swift */; };
 		F719B88A200ACAE3004F5E36 /* DefaultDecks.swift in Sources */ = {isa = PBXBuildFile; fileRef = F719B889200ACAE3004F5E36 /* DefaultDecks.swift */; };
@@ -2765,6 +2766,7 @@
 		C4D801A12FC0000100010008 /* TrackerCardListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerCardListViewModel.swift; sourceTree = "<group>"; };
 		C4D801A12FC000010001000A /* TrackerCardListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerCardListView.swift; sourceTree = "<group>"; };
 		C4D801A12FC000010001000C /* TrackerSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerSectionView.swift; sourceTree = "<group>"; };
+		C4D801A12FC000010001000F /* SynchronizedLRUCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynchronizedLRUCache.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -3252,6 +3254,7 @@
 				B82029562CD4658100C19A8C /* GridCardImages.swift */,
 				B82029502CD4548C00C19A8C /* GridCardImages.xib */,
 				439C7ECF1C777FA900D29859 /* ImageUtils.swift */,
+				C4D801A12FC000010001000F /* SynchronizedLRUCache.swift */,
 				B8C1F1BD295553F7001E078C /* MainMenu.xib */,
 				436032991C7B4C34005F1893 /* Preferences */,
 				C99C0C961D0A6062000DD6FB /* StatsManager */,
@@ -6278,6 +6281,7 @@
 				C4D801A12FC0000100010009 /* TrackerCardListViewModel.swift in Sources */,
 				C4D801A12FC000010001000B /* TrackerCardListView.swift in Sources */,
 				C4D801A12FC000010001000D /* TrackerSectionView.swift in Sources */,
+				C4D801A12FC000010001000E /* SynchronizedLRUCache.swift in Sources */,
 				947577168CC05BE7DC23659A /* RootOverlayWindow.swift in Sources */,
 				4C8E201F195AC2873021D4F9 /* MulliganV2StatusParams.swift in Sources */,
 				3DEAC63A9D588D131162ABF7 /* MulliganV2StatusData.swift in Sources */,
