@@ -3,11 +3,11 @@
 | | |
 |---|---|
 | 最后更新 | 2026-08-29 |
-| 分支 | `phase0+3`（基于 `master` = upstream `77a85be2` / **3.6.5**） |
-| 构建 | Debug `BUILD SUCCEEDED`、0 warning |
+| 分支 | `phase0+3`（已合入 upstream `534ee2d8` / **3.6.7**，review 通过并提交；`master` 同步快进到 3.6.7） |
+| 构建 | 受限环境 Debug clean + 增量均 `BUILD SUCCEEDED`；现有 warning 来自上游旧 API / 资源名 / `-ld_classic` / always-run phase 与未安装 SwiftLint |
 | 阻塞 | 无 |
-| **下一步** | **Phase U — 合并上游 3.6.7**（37 个 commit，冲突 3 个文件）。评估和执行清单见 `docs/PLAN.md` 的「Phase U」一节 |
-| **下一次要你亲自看** | 先 🖥️：T4 段头用比对窗静态看 + Phase U 合完静态过一遍。然后 🎮 **卡点 ①**（T3+T4+T7+Phase U 一起验），要带 ETC / 深邃之王的牌 + 开探针。全程清单见 `docs/PLAN.md` 的「🎮 需要人亲自看的卡点」 |
+| **下一步** | 先做 Phase U 的 🖥️ 静态检查，再进入 🎮📊 卡点 ①；通过前不继续 T5 |
+| **下一次要你亲自看** | 🖥️：app 能起、卡条存在、设置无裸 key，顺带看 T4 段头。然后 🎮 **卡点 ①**（T3+T4+T7+Phase U），带 ETC / 深邃之王的牌并开探针；**战棋那一局要数一下两个新计数器**（亡灵骑士 / 先祖自动机，上游从没编译过它们） |
 
 > 本文件只回答三件事：**做到哪了 / 下一步是什么 / 哪些结论还作数**。
 >
@@ -36,33 +36,38 @@
 |---|---|---|
 | T1 | `CardRowView` + `ThemeImageCache` + 并排比对窗 | ✅ 合入 grok 版（模型 A/B 的产物，codex 版留在 `ab/t1-codex`） |
 | T2 | 主牌表接进 `Tracker` + `Settings.useSwiftUITracker` 开关 | ✅ 实战验过一局，**开关默认关** |
-| T3 | ETC / 深邃之王 改悬停浮出 | ✅ 完成并 review，**未实战**·🔴 **Phase U 会让它编译不过** |
+| T3 | ETC / 深邃之王 改悬停浮出 | ✅ 已适配 3.6.7 的 SwiftUI tooltip，**未实战** |
 | T4 | 其余三段卡表 → `TrackerSectionView` | ✅ 完成并 review，**未实战**（Codex 写，review 改了两处视觉） |
 | T5 | 顶部信息区重做（Firestone 三行头） | ⬜ |
 | T6 | 根视图 + 布局收口 | ⬜ |
-| T7 | 卡图异步加载 + LRU | ✅ 完成并 review，**未实战**（Codex 写，留了两条跟进） |
+| T7 | 卡图异步加载 + LRU | ✅ 跟进也完成：4 路限宽 + ImageIO 后台预解码，**未实战** |
 | T8 | 动效 | ⬜ |
 
 **实测卡点**：**① T3+T4+T7 + Phase U** → ② T5 → ③ T6 → ④ T8。
 分批理由见 PLAN 的「执行卡点」一节。原来的 T9（删开关、删旧路径）**已挪到 Phase 2 之后**。
 
-**卡点 ① 的三片都已落地，但要先做 Phase U 再交包** —— T3 的 `showTooltipGridCards`
-会因为上游换掉 `tooltipGridCards` 的类而编译不过，且延迟基线要合完再取才作数。
+**卡点 ① 的代码和 Phase U 都已落地。** 当前只差用户的静态检查与实战；延迟 before 基线要在
+这次实战重取，T6 开始前没有第二次机会。
 
 ### 其余阶段
 
 | | 内容 | 状态 |
 |---|---|---|
-| **Phase U** | **合并上游 3.6.7** | ⬜ **下一步** · 🖥️ 静态验，真正验收并进卡点 ① |
+| **Phase U** | **合并上游 3.6.7** | ✅ 42 commits / 4 个冲突文件 · 构建与产物已验，待 🖥️ / 卡点 ① |
 | Phase 2 | 记牌器分区（牌库 / 手牌 / 已打出） | ⬜ 依赖 Phase 1 的 T4 / T6 · 🎮 ×4 |
 | 收尾 | 删 A/B 开关、删旧路径 | ⬜ 排在 Phase 2 之后 · 🎮 |
-| Phase 3 | 补全简体中文 | ✅ 未译 410 → 7（51.5% → **99.2%**）·**Phase U 后要补课，99.2% 会掉** |
+| Phase 3 | 补全简体中文 | ✅ Phase U 补课后 **945 / 945（100%）** |
 | Phase 4 | 设置 UI + Dock 菜单 | ⬜ 三项都不依赖任何东西，随时可开始 · 🎮 + 🖥️ |
-| Phase 5 | 计数器 overlay 可拖动 | ⬜ 🎮 · 🔴 **落点被上游改掉了，Phase U 后要重新调研** |
+| Phase 5 | 计数器 overlay 可拖动 | ⬜ 🎮 · 3.6.7 落点已重查，根因仍在窗口层 |
 | Phase 6 | 排队时就显示牌组 | ⬜ 2026-08-22 新增；与 4.1 同根因，**改动很小，随时可插队** · 🎮 |
 
 > 🎮 = 这一阶段有需要**你亲自开炉石看**的卡点，🖥️ = 只需静态看（比对窗 / 设置窗口）。
 > 每个卡点具体验什么、要备什么料，见 `docs/PLAN.md` 的「🎮 需要人亲自看的卡点」。
+
+**自动化测试边界**：尝试只跑现有 `DatabaseTests`，但测试 target 在编译测试模块前就失败：
+`ReplayUploadTests.swift` 仍 import 已不在依赖图里的 `Wrap`，测试 target 的 Header Search Paths
+仍指向旧 Mono include 路径。两项在 3.6.5 基线和 3.6.7 上游都存在；修复前者涉及恢复或替换依赖，
+按范围规则本轮不动。主 app 的 clean / 增量构建与实际 CardDefs.bin 产物检查均已通过。
 
 ---
 
@@ -117,10 +122,15 @@
 |---|---|---|
 | 卡牌从右侧消失时"卡顿" | `CardBar.fadeOut(highlight:)`（`:285`）函数体只有 `if highlight`，count==0 的卡淡出根本不播，但 `asyncAfter` 仍死等满 **600ms** 才删行 | Phase 1 / T8 |
 | 数量变化（4→3）一帧跳变 | 插新 bar + 立即删旧 bar，`fadeOut: false`；全局没有任何布局动画 | Phase 1 / T8 |
-| 两个战棋计数器没被编译 | `EternalKnightCounter.swift` / `AncestralAutomatonCounter.swift` 没登记进 pbxproj。**2026-08-29 复查：上游 3.6.7 仍然没登记**，这条还是我们的 | 随时可修 |
-| `BobsBuddy-version.txt` 是装饰品 | 实际永远拉最新版 | 随时可修 |
-| T7：卡图解码可能仍在主线程 | `NSImage(contentsOf:)` 是惰性的 —— T7 把**文件读取**挪到了后台队列，但 JPEG 解码要到第一次绘制时才发生，那是主线程。**卡点 ① 如果还看得到首次加载顿挫，根因在这里**，修法是在后台强制解码 | Phase 1 / T7 跟进 |
-| T7：后台加载并发无上限 | `loadImage` 用的是 `DispatchQueue.global()`。一次刷新有 30 张未命中就是 30 个并发块，GCD 会开一堆线程。改用一个专用队列（串行或限宽）即可 | Phase 1 / T7 跟进 |
+| Discover 开着时悬停记牌器，OutFinder 的池会消失 | 备牌浮窗和 OutFinder 共用 `RelatedCardsTooltipPanel.shared`；鼠标移开触发 `hide()`，而 `DiscoverStateWatcher` 只在状态**变化**时回调（`:63` `if curr == _prev { continue }`），要等玩家真的选牌才回来 | 合并上游相关牌框架时一并解决（PLAN 的 Phase U 后续任务） |
+
+> 合并前评估说过「不存在两个 tooltip 抢同一扇窗」—— 那个结论只覆盖了**注册表**层面
+> （`RelatedCardsSystem/` 里没有 ETC / 深邃之王），**窗口层是共用的**，review 时才补上。
+> 不崩、能自愈、触发条件窄，卡点 ① 顺手试一次即可。
+
+本轮已关闭的四项不再留在“已知问题”里：两个战棋计数器已各完成 pbxproj 四处登记并在二进制中检出；
+`BobsBuddy-version.txt` 已更新到 1.69.0 且构建会核对程序集版本；T7 的磁盘/网络图片都通过
+ImageIO 在后台强制解码，后台工作由最多 4 路的专用队列承载。
 
 ### macOS 14 部署目标带来的两处 deprecated（都没修）
 
@@ -178,11 +188,9 @@ defaults write net.hearthsim.hstracker use_swiftui_tracker -bool true
 **没条件验证、不是没通过的三项**（不值得再打一局，改设置或用比对窗静态看即可）：
 协同高亮边框、行高压缩、frost / minimal 的传说卡位移。
 
-🔴 **Phase U 会让这一片编译不过。** 上游把 `tooltipGridCards` 从 `GridCardImages`
-（xib + `OverWindowController`）换成了 `RelatedCardsTooltipPanel`（`NSPanel` + SwiftUI）。
-我们的 `showTooltipGridCards`（`Tracker.swift:763`）里 `tooltipGridCards.title =` 要改成
-`setTitle()`，`windowManager.show(controller:)` 收的是 `OverWindowController`、新类不是，
-要换成 `panel.show(frame:)` / `.hide()`。约 10 行，合并时一并改。
+Phase U 已把这一片接到 `RelatedCardsTooltipPanel`：标题改走 `setTitle()`，显示/隐藏改走
+panel 自身 API；备牌 tooltip 会显式清空 OutFinder 的池统计与右键大池状态，避免复用窗口时残留
+上一张相关牌的数据。编译已过，备牌悬停语义仍要在卡点 ① 实战确认。
 
 ## T4 的当前状态（2026-08-28 完成，未实战）
 
@@ -206,9 +214,10 @@ SwiftUI 路径 `rows` 同步更新、`updateFrames()` 本就由 `WindowManager.s
 
 ## T7 的当前状态（2026-08-29 完成，未实战）
 
-`ImageUtils` 四个缓存换成 `SynchronizedLRUCache`（各 256 项），`loadImage` 整体移进
-`DispatchQueue.global()`，completion 统一回主队列。17 个调用点核对过，没有依赖
-「completion 同步返回」的写法。**两条跟进见「已知问题」** —— 惰性解码和并发无上限。
+`ImageUtils` 五个缓存（含 3.6.7 新增的 hero 图）统一用 `SynchronizedLRUCache`（各 256 项）。
+缓存未命中交给最多 4 路的专用 `OperationQueue`；磁盘文件和下载数据都经 ImageIO 的
+`kCGImageSourceShouldCacheImmediately` 在后台强制解码，首次绘制不再承担 JPEG / PNG 解码。
+completion 继续统一回主队列，当前 28 个调用点均符合该契约。构建已过，顿挫改善待卡点 ① 肉眼确认。
 
 ---
 
@@ -218,7 +227,7 @@ SwiftUI 路径 `rows` 同步更新、`updateFrames()` 本就由 `WindowManager.s
 
 ```
 env HSTRACKER_CARD_ROW_COMPARE=1 \
-  ~/Library/Developer/Xcode/DerivedData/HSTracker-ajzeuoosmscserctkdytyfltkokj/Build/Products/Debug/HSTracker.app/Contents/MacOS/HSTracker
+  ~/Library/Developer/Xcode/DerivedData/HSTracker-cgfkydaatbcvlygsoujdqwiezsjx/Build/Products/Debug/HSTracker.app/Contents/MacOS/HSTracker
 ```
 
 （这是合入的 grok 版。codex 版在另一个 DerivedData 下、环境变量叫 `HSTRACKER_CARD_ROW_COMPARISON`，
@@ -254,19 +263,15 @@ A 段包含炉石自己的 flush 延迟，是不可优化的地板。`LatencyPro
 1. `brew install wget` —— 两个 build phase 依赖它（下载 HearthMirror 和 Mono）。**不装必然构建失败。**
 2. `Config.xcconfig` 已改为本地签名（`CODE_SIGN_IDENTITY = -`）并 `git update-index --skip-worktree`，
    `git status` 里看不到它。换机器要重做这一步。
-3. `project.pbxproj` 的 `NET_VERSION` 已由 `net7.0` 修为 `net8.0`（`1ff31cb1`）—— 修的是 upstream 真实 bug。
+3. `project.pbxproj` 的 `NET_VERSION` 必须保持 `net8.0`；3.6.7 上游仍是错误的 `net7.0`。
 4. SwiftLint **故意没装**：build phase 里未安装只告警不阻塞，装了反而会给执行模型的验收构建引入无关失败。
 5. git 身份是 repo-local 配置的（`ffkiyo7 / ffkiyo7@gmail.com`），没有写进 global。
-6. **交给人实测的包必须 `clean build`** —— `Download cards XML` 声明了 outputs 会被跳过，
-   增量包里 `Contents/Resources/Resources/Cards/` 整个不在，记牌器会一根卡条都没有。
-   机制写在 `AGENTS.md` 的「构建」一节。
-   🔴 **2026-08-29：这一条 Phase U 之后作废，要重测。** 上游换了整条卡牌数据库管线 ——
-   `Download enUS cards` 删除，`Download cards XML` 改为下到 `BUILT_PRODUCTS_DIR`（app 外面），
-   新增 `Compile CardDefs` 阶段产出 `CardDefs.bin`。`Resources/Resources/Cards/` 这个路径
-   合完就不存在了。上游同时把 Mono 装配从 `Resources/Resources/Managed` 挪到
-   `Resources/Managed`，注释里写明了根因：`HSTracker/Resources` 是 folder reference，
-   Copy Bundle Resources 会整目录替换，把 build phase 写进去的东西静默抹掉 ——
-   **和我们这条是同一类机制**。
+6. **增量包可以直接交测。** 3.6.7 的卡库是 `Contents/Resources/CardDefs.bin`，Mono / BobsBuddy
+   在 `Contents/Resources/Managed`，都不再位于 folder reference 会覆盖的 `Resources/Resources`。
+   实测强制重跑 Resources 阶段后产物仍完整。只有 `HearthMirror-version.txt` 刚变化、旧 PCH 报
+   framework header 被修改时，需要执行一次 `clean build`。
+7. `BobsBuddy-version.txt` 当前是 `1.69.0`。官方地址只提供 latest，因此脚本会在解压临时目录后
+   读取程序集信息版本；不匹配就失败且不会覆盖已缓存 DLL。更新该文件前先核对服务器实际版本。
 
 ---
 

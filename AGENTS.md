@@ -82,35 +82,46 @@ env -u http_proxy -u https_proxy -u all_proxy -u HTTP_PROXY -u HTTPS_PROXY -u AL
   -configuration Debug -destination 'platform=macOS' clean build
 ```
 
-### bundle 里的双写入者（**Phase U 合完要重写本节**）
+### bundle 装配（3.6.7）
 
-`Contents/Resources/Resources/` 有两个写入者：`Resources` build phase 把 `HSTracker/Resources/`
-这个 folder reference **整目录**拷过去，而 `Download cards XML` 和 `Embed Mono` 往同一个目录里写
-`Cards/` 和 `Managed/<arch>/`。**任何 build phase 都不许改写 `HSTracker/Resources/`** ——
-一改就重新触发那个整目录拷贝，它可能落在脚本阶段之后，把先写进去的东西冲掉。
-下载产物一律放 `downloaded-frameworks/`，再由 `Embed Mono`（排在 `Resources` 之后）拷进 bundle。
+`Resources` build phase 仍会把 `HSTracker/Resources/` 这个 folder reference 整目录拷到
+`Contents/Resources/Resources/`，所以 **build phase 仍然不许改写源码目录 `HSTracker/Resources/`**。
+但 3.6.7 已把两个运行时产物移出这个会被整目录替换的位置：
 
-**不需要有人改写也会踩到 —— 增量 `build` 里那个整目录拷贝自己重跑就够了。**
-两个脚本阶段的自愈能力不对称：`Embed Mono` 没声明 outputs，每次都跑，`Managed/` 总能补回来；
-`Download cards XML` 声明了 outputs，被判为最新就跳过，`Cards/` **不会**补回来。
-2026-08-22 踩过一次：包里没有 `Cards/CardDefs.xml` → `Database.swift:252` 读不到卡库 →
-`Cards.by(cardId:)` 全返回 nil → **记牌器只剩计数 / 抽牌概率 / 胜率几个框，一根卡条都没有**
-（那几个框走 entity 计数和 Realm，不依赖卡库）。症状像渲染层 bug，实际是构建产物残缺。
+- 三份卡库 XML 按 `cards-version.txt` 缓存在 `downloaded-frameworks/cards/<version>/`，构建时只暂存到
+  `BUILT_PRODUCTS_DIR`；`Compile CardDefs` 把它们编译为 `Contents/Resources/CardDefs.bin`。
+- Mono BCL、BobsBuddy 和 HearthDb 统一装到 `Contents/Resources/Managed/`；源码 folder reference
+  不再碰这个目录。
 
-所以 **要交给人做实测的包必须 `clean build`**，或构建完自查
-`ls .../HSTracker.app/Contents/Resources/Resources/Cards/CardDefs.xml`。
+2026-08-29 实测：`clean build` 后强制更新 `HSTracker/Resources/` 目录时间，再跑增量 `build`，
+`CardDefs.bin`、两架构各 168 个 BCL DLL 和根目录的 BobsBuddy / HearthDb 都仍在。
+因此 **交包不再要求每次 `clean build`**；增量包不会再因 Resources 阶段重跑而丢卡库。
 
-> 🔴 上游 3.6.7 换掉了整条卡牌数据库管线，`Resources/Resources/Cards/` 这个路径合完就不存在了；
-> Mono 装配也挪到了 `Resources/Managed`。**Phase U 合完必须重测并重写本节**，见 `docs/PLAN.md`。
+另一个独立情况仍要 clean：`HearthMirror-version.txt` 变化时，下载阶段会在同一次增量构建中替换
+framework，已有预编译头可能报 “modified since the precompiled header was built”。这是明确的缓存失效，
+执行一次 `clean build` 即可，不要误判成源码编译错误。
+
+**改 build phase 时先想清楚 inputs / outputs 是否覆盖了它真正读写的东西。** 声明了 outputs 就等于
+放弃「每次都跑」的自愈性，此后**只有 inputs 变化才会重跑**。3.6.7 给 `Embed Mono` 加了 6 个 outputs，
+而它的 inputs 原本只有 `mono-version.txt` —— 但这个阶段同时负责把 `downloaded-frameworks/managed/`
+的 BobsBuddy / HearthDb 拷进 bundle。于是只改 `BobsBuddy-version.txt` 跑增量时，下载阶段重跑、
+`Embed Mono` 被判最新跳过，**包里留着旧的 BobsBuddy.dll**。修法是把那三个 DLL 补进 `Embed Mono`
+的 inputPaths —— 它们正是下载阶段声明的 outputs，这样两个阶段之间才有一条真实的依赖边。
+
+这类问题的共同症状是**看起来像代码 bug，实际是构建产物残缺**。2026-08-22 就踩过一次同构的：
+包里缺 `CardDefs.xml` → `Cards.by(cardId:)` 全返回 nil → 记牌器只剩几个计数框、一根卡条都没有
+（那几个框走 entity 计数和 Realm，不依赖卡库）。**排查渲染层之前先确认包是完整的。**
 
 ### 其余
 
-- `Embed Mono` 拷 `net8.0` **整个目录**而非白名单：BobsBuddy 永远拉最新版，它每新增一个 BCL 依赖，
-  手写清单就会静默漏掉一个、且只在运行时报错。全量 17MB/arch。
+- `Embed Mono` 拷 `net8.0` **整个目录**而非白名单：BobsBuddy 独立发布时可能新增 BCL 依赖，
+  手写清单会静默漏项、且只在运行时报错。当前全量 168 个 DLL / arch。
+- `BobsBuddy-version.txt` 现在是强校验：服务器仍只提供 latest 包，但下载后会读取程序集信息版本，
+  与文件不一致就立即让构建失败；不再静默把“最新版”冒充成声明版本。
 - 只有 **github.com 需要走代理**（直连超时），nuget / libs.hearthsim.net / api.hearthstonejson.com 直连均可。
   `CardDefs.xml` 约 100MB，按版本缓存在 `downloaded-frameworks/cards/`，`cards-version.txt` 变了才重下。
-- `Embed Mono` 的 `NET_VERSION` 是 `net8.0`（上游 `d70efe05` 升 mono 到 8.0.29 时漏改，我们在
-  `2a050460` 修了，**上游至今仍是 net7.0**）。**除非任务明确要求，不要动 `project.pbxproj`。**
+- `Embed Mono` 的 `NET_VERSION` 是 `net8.0`（上游 3.6.7 仍是 `net7.0`）。
+  **除非任务明确要求，不要动 `project.pbxproj`。**
 
 ### 新加 `.swift` 必须手工登记进 `project.pbxproj`
 
