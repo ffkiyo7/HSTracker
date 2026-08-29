@@ -154,6 +154,12 @@
             "state" : "new",
             "value" : "Show minions and guides browser in pre-lobby"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在赛前大厅显示随从和攻略浏览器"
+          }
         }
       }
     },

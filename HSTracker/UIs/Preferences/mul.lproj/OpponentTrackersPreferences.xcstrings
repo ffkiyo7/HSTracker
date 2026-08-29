@@ -370,6 +370,12 @@
             "state" : "new",
             "value" : "Show corpses counter"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示尸体计数器"
+          }
         }
       }
     },
