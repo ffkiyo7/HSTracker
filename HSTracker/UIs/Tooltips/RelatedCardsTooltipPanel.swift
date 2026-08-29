@@ -181,6 +181,7 @@ struct RelatedCardsGridView: View {
                                 let index = row * layout.columns + column
                                 if index < cards.count {
                                     RelatedCardImageView(card: cards[index], width: CGFloat(layout.cardWidth), height: CGFloat(layout.cardHeight))
+                                        .id("\(index):\(cards[index].id)")
                                 }
                             }
                         }
