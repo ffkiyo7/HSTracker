@@ -274,7 +274,7 @@ Phase 1 是本计划工作量最大的一块，正好拿它的第一个切片做
 |---|---|---|
 | T1 | `CardRowView` + `ThemeImageCache` + 并排比对窗 | ✅ 2026-08-22 |
 | T2 | 主牌表接进 `Tracker`，`Settings.useSwiftUITracker` 开关 | ✅ 2026-08-22 |
-| T3 | ETC / 深邃之王 改悬停浮出，备牌段整体消失（见 2.5，**从 Phase 2 提前**） | ⬜ |
+| T3 | ETC / 下水道之王 改悬停浮出，备牌段整体消失（见 2.5，**从 Phase 2 提前**） | ⬜ |
 | T4 | 其余三段卡表 → `TrackerSectionView`：置顶 / 置底 / 相关牌（`DeckLens` ×3） | ⬜ |
 | T5 | 顶部信息区重做：拿掉旧面板，上 Firestone 三行头（见 2.4，**从 Phase 2 提前**） | ⬜ |
 | T6 | 根视图 `TrackerView` + `TrackerViewModel`，布局收口（见 1.4） | ⬜ |
@@ -439,7 +439,7 @@ Phase 1 是本计划工作量最大的一块，正好拿它的第一个切片做
 改为：**ETC 本体只显示一条卡条**，光标移上去时才浮出它所携带的三张卡（形态参照现有的「相关牌」衍生物提示）。实现落点 `DeckSideboards.swift`。
 
 > **执行时机：Phase 1 的 T3，排在移植分段之前。** 否则会先把备牌段搬成 SwiftUI、再把它删掉。
-> **「深邃之王」同样处理** —— `DeckSideboards` 里装的是两段（`cards` 和
+> **「下水道之王」同样处理** —— `DeckSideboards` 里装的是两段（`cards` 和
 > `kingOfTheUnderbellyCardList`），是同一种备牌机制，本节原来只点了 ETC。
 > 浮出的载体用现成的 `windowManager.tooltipGridCards`（`Tracker.setRelatedCardsTooltip` 在用），
 > 所以这一片**不依赖 SwiftUI 迁移**，在旧路径上就能做完。

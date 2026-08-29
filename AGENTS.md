@@ -36,6 +36,8 @@ git checkout <工作分支> && git merge master
 ## 分工：任务书交给执行模型
 
 代码由 **Codex** 按 `docs/tasks/*.md` 里的任务书写成，人工 review 后提交。
+`docs/tasks/` 只放**在做和待验**的书，验收通过就挪进 `docs/archive/tasks/`（那边有索引）——
+所以打开这个目录看到的永远是「现在该看哪几本」。
 任务书必须复述以下硬性规则（现有的写在 `docs/tasks/_common*.md`）：
 
 1. **只改任务书明确指定的文件。** 发现别处也有问题，写进报告，不要顺手改。
@@ -118,6 +120,10 @@ framework，已有预编译头可能报 “modified since the precompiled header
   手写清单会静默漏项、且只在运行时报错。当前全量 168 个 DLL / arch。
 - `BobsBuddy-version.txt` 现在是强校验：服务器仍只提供 latest 包，但下载后会读取程序集信息版本，
   与文件不一致就立即让构建失败；不再静默把“最新版”冒充成声明版本。
+  **代价是这个 pin 会自己过期** —— HearthSim 一发新版，下一次构建就红。
+  2026-08-30 就撞了一次（`expects 1.69.0, but the server published 1.69.1`，当天早些时候还是好的）。
+  **正确反应是把版本文件改成服务器上的那个数，不是放宽校验。** 失败发生在下载阶段、
+  一行 Swift 都没编译，所以看到这条报错不用怀疑代码；已缓存的旧 DLL 也不会被覆盖。
 - 只有 **github.com 需要走代理**（直连超时），nuget / libs.hearthsim.net / api.hearthstonejson.com 直连均可。
   `CardDefs.xml` 约 100MB，按版本缓存在 `downloaded-frameworks/cards/`，`cards-version.txt` 变了才重下。
 - `Embed Mono` 的 `NET_VERSION` 是 `net8.0`（上游 3.6.7 仍是 `net7.0`）。
