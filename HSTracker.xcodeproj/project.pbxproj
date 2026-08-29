@@ -7183,6 +7183,9 @@
 			);
 			inputPaths = (
 				"$(SRCROOT)/HSTracker/mono-version.txt",
+				"$(SRCROOT)/downloaded-frameworks/managed/BobsBuddy.dll",
+				"$(SRCROOT)/downloaded-frameworks/managed/BobsBuddy.Common.dll",
+				"$(SRCROOT)/downloaded-frameworks/managed/HearthDb.dll",
 			);
 			name = "Embed Mono";
 			outputFileListPaths = (
