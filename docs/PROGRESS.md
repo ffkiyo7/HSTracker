@@ -255,7 +255,7 @@ A 段包含炉石自己的 flush 延迟，是不可优化的地板。`LatencyPro
 2. `Config.xcconfig` 已改为本地签名（`CODE_SIGN_IDENTITY = -`）并 `git update-index --skip-worktree`，
    `git status` 里看不到它。换机器要重做这一步。
 3. `project.pbxproj` 的 `NET_VERSION` 已由 `net7.0` 修为 `net8.0`（`1ff31cb1`）—— 修的是 upstream 真实 bug。
-4. SwiftLint **故意没装**：build phase 里未安装只告警不阻塞，装了反而会给 grok 的验收构建引入无关失败。
+4. SwiftLint **故意没装**：build phase 里未安装只告警不阻塞，装了反而会给执行模型的验收构建引入无关失败。
 5. git 身份是 repo-local 配置的（`ffkiyo7 / ffkiyo7@gmail.com`），没有写进 global。
 6. **交给人实测的包必须 `clean build`** —— `Download cards XML` 声明了 outputs 会被跳过，
    增量包里 `Contents/Resources/Resources/Cards/` 整个不在，记牌器会一根卡条都没有。

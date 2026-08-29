@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-本项目的通用约定在 **`AGENTS.md`**（工具中立，grok / Codex / Claude Code 共用）。
+本项目的通用约定在 **`AGENTS.md`**（工具中立，Codex / Claude Code 共用）。
 本文件只放 **Claude Code 特有**的规则。
 
 ## 写文件一律用 Write / Edit，禁止用 Bash
