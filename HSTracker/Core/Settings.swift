@@ -232,7 +232,10 @@ final class Settings {
     static var autoDeckDetection: Bool
     @UserDefault(key: Settings.show_experience_counter, defaultValue: true)
     static var showExperienceCounter: Bool
-    @UserDefault(key: Settings.show_mulligan_toast, defaultValue: true)
+    // Fork default: off. Upstream ships this on, but the toast is an HSReplay
+    // referral prompt ("What should I keep?") that covers the bottom-right of
+    // the board every mulligan. The mulligan guide itself is unaffected.
+    @UserDefault(key: Settings.show_mulligan_toast, defaultValue: false)
     static var showMulliganToast: Bool
     @UserDefault(key: Settings.show_flavor_text, defaultValue: true)
     static var showFlavorText: Bool
