@@ -39,13 +39,17 @@ class QueueEvents {
             // _game.metadata.enqueueTime = Date.now()
             
             logger.info("Now in queue")
+            _game.reset()
             if let deck = AppDelegate.instance().coreManager.autoDetectDeck(mode: _game.currentMode ?? .invalid) {
                 _game.set(activeDeck: deck, autoDetected: true)
             } else if Settings.autoDeckDetection {
                 _game.set(activeDeckId: nil, autoDetected: true)
+            } else {
+                _game.updateTrackers(reset: true)
             }
         } else {
             logger.info("No longer in queue")
+            _game.updateTrackers(reset: true)
         }
     }
 

@@ -251,6 +251,11 @@ class Game: NSObject, PowerEventHandler {
         return ((Settings.hideAllTrackersWhenNotInGame && !self.gameEnded) || (!Settings.hideAllTrackersWhenNotInGame) || self.selfAppActive ) && ((Settings.hideAllWhenGameInBackground && self.hearthstoneRunState.isActive) || !Settings.hideAllWhenGameInBackground || self.selfAppActive)
     }
 
+    private var isDeckTrackerQueue: Bool {
+        guard queueEvents.isInQueue, currentDeck != nil, let currentMode else { return false }
+        return QueueEvents.modes.contains(currentMode) && currentMode != .bacon
+    }
+
     func updateTrackers(reset: Bool = false) {
         let latencyRequest = LatencyProbe.shared.captureUpdateRequest()
         _queue.async {
@@ -377,7 +382,8 @@ class Game: NSObject, PowerEventHandler {
             let tracker = self.windowManager.playerTracker
             if Settings.showPlayerTracker &&
                 !(Settings.dontTrackWhileSpectating && self.spectator) &&
-                (!self.isBattlegroundsMatch() && !self.isMercenariesMatch() && self.currentGameType != .gt_unknown) &&
+                ((!self.isBattlegroundsMatch() && !self.isMercenariesMatch() && self.currentGameType != .gt_unknown)
+                    || self.isDeckTrackerQueue) &&
                 ( (Settings.hideAllTrackersWhenNotInGame && !self.gameEnded)
                     || (!Settings.hideAllTrackersWhenNotInGame) || self.selfAppActive ) &&
                 ((Settings.hideAllWhenGameInBackground &&
