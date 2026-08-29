@@ -2,12 +2,12 @@
 
 | | |
 |---|---|
-| 最后更新 | 2026-08-22 |
+| 最后更新 | 2026-08-29 |
 | 分支 | `phase0+3`（基于 `master` = upstream `77a85be2` / **3.6.5**） |
-| 构建 | Debug / Release 均 `BUILD SUCCEEDED`，受限环境（剥掉 PATH 和代理）下 clean + 增量都验过 |
+| 构建 | Debug `BUILD SUCCEEDED`、0 warning |
 | 阻塞 | 无 |
-| **下一步** | **Phase 1 的 T4 切片**（三段 DeckLens → `TrackerSectionView`），任务书已写好 |
-| **下一次要你亲自看** | T4 段头做完先用比对窗静态看（🖥️）；三片齐了走**卡点 ①**（🎮，要带 ETC / 深邃之王的牌 + 开探针）。全程清单见 `docs/PLAN.md` 的「🎮 需要人亲自看的卡点」 |
+| **下一步** | **Phase U — 合并上游 3.6.7**（37 个 commit，冲突 3 个文件）。评估和执行清单见 `docs/PLAN.md` 的「Phase U」一节 |
+| **下一次要你亲自看** | 先 🖥️：T4 段头用比对窗静态看 + Phase U 合完静态过一遍。然后 🎮 **卡点 ①**（T3+T4+T7+Phase U 一起验），要带 ETC / 深邃之王的牌 + 开探针。全程清单见 `docs/PLAN.md` 的「🎮 需要人亲自看的卡点」 |
 
 > 本文件只回答三件事：**做到哪了 / 下一步是什么 / 哪些结论还作数**。
 >
@@ -30,31 +30,35 @@
 | T4 | 部署目标 → macOS 14.0 | ✅ |
 | T5 | GUI 刷新改防抖 | ✅ 代码已合，但**实测收益未兑现**，见下节 |
 
-### Phase 1 — SwiftUI 记牌器渲染（🟡 2 / 9）
+### Phase 1 — SwiftUI 记牌器渲染（🟡 5 / 8）
 
 | 片 | 内容 | 状态 |
 |---|---|---|
 | T1 | `CardRowView` + `ThemeImageCache` + 并排比对窗 | ✅ 合入 grok 版（模型 A/B 的产物，codex 版留在 `ab/t1-codex`） |
 | T2 | 主牌表接进 `Tracker` + `Settings.useSwiftUITracker` 开关 | ✅ 实战验过一局，**开关默认关** |
-| T3 | ETC / 深邃之王 改悬停浮出 | ✅ 完成并 review，**未实战**（等卡点 ①） |
-| T4 | 其余三段卡表 → `TrackerSectionView` | ⬜ |
+| T3 | ETC / 深邃之王 改悬停浮出 | ✅ 完成并 review，**未实战**·🔴 **Phase U 会让它编译不过** |
+| T4 | 其余三段卡表 → `TrackerSectionView` | ✅ 完成并 review，**未实战**（Codex 写，review 改了两处视觉） |
 | T5 | 顶部信息区重做（Firestone 三行头） | ⬜ |
 | T6 | 根视图 + 布局收口 | ⬜ |
-| T7 | 卡图异步加载 + LRU | ⬜ |
+| T7 | 卡图异步加载 + LRU | ✅ 完成并 review，**未实战**（Codex 写，留了两条跟进） |
 | T8 | 动效 | ⬜ |
 
-**实测卡点**：① T3+T4+T7 → ② T5 → ③ T6 → ④ T8。分批理由见 PLAN 的「执行卡点」一节。
-原来的 T9（删开关、删旧路径）**已挪到 Phase 2 之后**。
+**实测卡点**：**① T3+T4+T7 + Phase U** → ② T5 → ③ T6 → ④ T8。
+分批理由见 PLAN 的「执行卡点」一节。原来的 T9（删开关、删旧路径）**已挪到 Phase 2 之后**。
+
+**卡点 ① 的三片都已落地，但要先做 Phase U 再交包** —— T3 的 `showTooltipGridCards`
+会因为上游换掉 `tooltipGridCards` 的类而编译不过，且延迟基线要合完再取才作数。
 
 ### 其余阶段
 
 | | 内容 | 状态 |
 |---|---|---|
+| **Phase U** | **合并上游 3.6.7** | ⬜ **下一步** · 🖥️ 静态验，真正验收并进卡点 ① |
 | Phase 2 | 记牌器分区（牌库 / 手牌 / 已打出） | ⬜ 依赖 Phase 1 的 T4 / T6 · 🎮 ×4 |
 | 收尾 | 删 A/B 开关、删旧路径 | ⬜ 排在 Phase 2 之后 · 🎮 |
-| Phase 3 | 补全简体中文 | ✅ 未译 410 → 7（51.5% → **99.2%**） |
+| Phase 3 | 补全简体中文 | ✅ 未译 410 → 7（51.5% → **99.2%**）·**Phase U 后要补课，99.2% 会掉** |
 | Phase 4 | 设置 UI + Dock 菜单 | ⬜ 三项都不依赖任何东西，随时可开始 · 🎮 + 🖥️ |
-| Phase 5 | 计数器 overlay 可拖动 | ⬜ 🎮 |
+| Phase 5 | 计数器 overlay 可拖动 | ⬜ 🎮 · 🔴 **落点被上游改掉了，Phase U 后要重新调研** |
 | Phase 6 | 排队时就显示牌组 | ⬜ 2026-08-22 新增；与 4.1 同根因，**改动很小，随时可插队** · 🎮 |
 
 > 🎮 = 这一阶段有需要**你亲自开炉石看**的卡点，🖥️ = 只需静态看（比对窗 / 设置窗口）。
@@ -76,6 +80,10 @@
 
 ### 仍然作数的结论
 
+- 🔴 **这三轮数据在 Phase U 之后都只能当参考。** 上游 3.6.7 往同一个主线程 tick 里加了不少
+  东西（counters 改 SwiftUI、战棋指南、OutFinder 的卡池计算），基座变了。
+  **卡点 ① 那一局要在合完上游之后重取 before 基线** —— 那也是最后一次机会，T6 一动
+  「旧布局 + Phase 0 全部优化」就拿不回来了。
 - **Debug 数据不算数。** D 段那 180ms 里约 160ms 是 `-Onone` 的锅。
   任何性能结论在 Release 对照做完之前都不成立 —— 这条踩过两次。
 - **T5 预期的 ~100ms 没有兑现**，C 段只从 107 动到 114。
@@ -109,8 +117,10 @@
 |---|---|---|
 | 卡牌从右侧消失时"卡顿" | `CardBar.fadeOut(highlight:)`（`:285`）函数体只有 `if highlight`，count==0 的卡淡出根本不播，但 `asyncAfter` 仍死等满 **600ms** 才删行 | Phase 1 / T8 |
 | 数量变化（4→3）一帧跳变 | 插新 bar + 立即删旧 bar，`fadeOut: false`；全局没有任何布局动画 | Phase 1 / T8 |
-| 两个战棋计数器没被编译 | 上游 3.6.5 的 `EternalKnightCounter.swift` / `AncestralAutomatonCounter.swift` 没登记进 pbxproj（上游发布版同样缺） | 随时可修 |
+| 两个战棋计数器没被编译 | `EternalKnightCounter.swift` / `AncestralAutomatonCounter.swift` 没登记进 pbxproj。**2026-08-29 复查：上游 3.6.7 仍然没登记**，这条还是我们的 | 随时可修 |
 | `BobsBuddy-version.txt` 是装饰品 | 实际永远拉最新版 | 随时可修 |
+| T7：卡图解码可能仍在主线程 | `NSImage(contentsOf:)` 是惰性的 —— T7 把**文件读取**挪到了后台队列，但 JPEG 解码要到第一次绘制时才发生，那是主线程。**卡点 ① 如果还看得到首次加载顿挫，根因在这里**，修法是在后台强制解码 | Phase 1 / T7 跟进 |
+| T7：后台加载并发无上限 | `loadImage` 用的是 `DispatchQueue.global()`。一次刷新有 30 张未命中就是 30 个并发块，GCD 会开一堆线程。改用一个专用队列（串行或限宽）即可 | Phase 1 / T7 跟进 |
 
 ### macOS 14 部署目标带来的两处 deprecated（都没修）
 
@@ -168,6 +178,38 @@ defaults write net.hearthsim.hstracker use_swiftui_tracker -bool true
 **没条件验证、不是没通过的三项**（不值得再打一局，改设置或用比对窗静态看即可）：
 协同高亮边框、行高压缩、frost / minimal 的传说卡位移。
 
+🔴 **Phase U 会让这一片编译不过。** 上游把 `tooltipGridCards` 从 `GridCardImages`
+（xib + `OverWindowController`）换成了 `RelatedCardsTooltipPanel`（`NSPanel` + SwiftUI）。
+我们的 `showTooltipGridCards`（`Tracker.swift:763`）里 `tooltipGridCards.title =` 要改成
+`setTitle()`，`windowManager.show(controller:)` 收的是 `OverWindowController`、新类不是，
+要换成 `panel.show(frame:)` / `.hide()`。约 10 行，合并时一并改。
+
+## T4 的当前状态（2026-08-28 完成，未实战）
+
+置顶 / 置底 / 相关牌三段在开关打开时改由 `TrackerSectionView` 渲染，卡条复用 T1 的
+`CardRowView`、列表复用 T2 的 `TrackerCardListViewModel`。三个 `TrackerSectionHost` 是
+`contentView` 的兄弟视图，与 `DeckLens` 按开关互相让位（`.xib` 里 outlet 类型写死，不许改）。
+
+- `updateFrames()` 的行数账走 `playerTopCount` / `playerBottomCount` / `opponentRelatedCardsCount`
+- 悬停的分段身份构造时传参，不走 `getHoverComponent()` 的 superview 遍历（该函数保留，旧路径还在用）
+- 三段都不接 `setHighlight`，与 `DeckLens` 没有协同高亮一致
+
+**review 改了两处视觉**，都是「按任务书字面实现反而与现状不符」：段头原本多画了一圈
+1px `#141617` 边框（`DeckLens` 的 `NSBox` 是 `.noBorder` + `borderWidth = 0`，那行
+`borderColor` 永远不生效）；`#23272A` 原本只涂段头，而 `DeckLens` 的 `box.frame` 是
+`(0,0,w,h)`、铺满整个段（段头 + 卡条区 + 底部 5pt），已改为涂在整个 `VStack` 上。
+
+**没移植的一处行为**：`DeckLens.update()` 在有卡被移除时会回调
+`updatePlayerTracker(reset: false)`。那是给 `AnimatedCardList` 600ms 延迟删除兜底的，
+SwiftUI 路径 `rows` 同步更新、`updateFrames()` 本就由 `WindowManager.swift:448` 按 tick 驱动，
+不依赖它。
+
+## T7 的当前状态（2026-08-29 完成，未实战）
+
+`ImageUtils` 四个缓存换成 `SynchronizedLRUCache`（各 256 项），`loadImage` 整体移进
+`DispatchQueue.global()`，completion 统一回主队列。17 个调用点核对过，没有依赖
+「completion 同步返回」的写法。**两条跟进见「已知问题」** —— 惰性解码和并发无上限。
+
 ---
 
 ## 操作备忘
@@ -218,6 +260,13 @@ A 段包含炉石自己的 flush 延迟，是不可优化的地板。`LatencyPro
 6. **交给人实测的包必须 `clean build`** —— `Download cards XML` 声明了 outputs 会被跳过，
    增量包里 `Contents/Resources/Resources/Cards/` 整个不在，记牌器会一根卡条都没有。
    机制写在 `AGENTS.md` 的「构建」一节。
+   🔴 **2026-08-29：这一条 Phase U 之后作废，要重测。** 上游换了整条卡牌数据库管线 ——
+   `Download enUS cards` 删除，`Download cards XML` 改为下到 `BUILT_PRODUCTS_DIR`（app 外面），
+   新增 `Compile CardDefs` 阶段产出 `CardDefs.bin`。`Resources/Resources/Cards/` 这个路径
+   合完就不存在了。上游同时把 Mono 装配从 `Resources/Resources/Managed` 挪到
+   `Resources/Managed`，注释里写明了根因：`HSTracker/Resources` 是 folder reference，
+   Copy Bundle Resources 会整目录替换，把 build phase 写进去的东西静默抹掉 ——
+   **和我们这条是同一类机制**。
 
 ---
 

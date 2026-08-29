@@ -25,16 +25,21 @@
 | 阶段 | 内容 | 状态 |
 |---|---|---|
 | **Phase 0** | 地基：驱动循环与窗口层 | ✅ 完成（T0–T5） |
-| **Phase 1** | SwiftUI 记牌器渲染 | 🟡 T1 / T2 完成，T3–T8 待做 |
+| **Phase 1** | SwiftUI 记牌器渲染 | 🟡 T1–T4 / T7 完成，T5 / T6 / T8 待做 |
+| **Phase U** | **合并上游 3.6.7** | ⬜ **插在 Phase 1 卡点 ① 之前**（2026-08-29 新增） |
 | **Phase 2** | 记牌器分区（牌库 / 手牌 / 已打出） | ⬜ 依赖 Phase 1 的 T4 / T6 |
 | **收尾** | 删 A/B 开关、删旧路径（原 Phase 1 的 T9） | ⬜ **排在 Phase 2 之后** |
-| **Phase 3** | 补全简体中文 | ✅ 完成（99.2%） |
+| **Phase 3** | 补全简体中文 | ✅ 完成（99.2%）· **Phase U 之后要补课** |
 | **Phase 4** | 设置界面 + Dock 菜单 | ⬜ 前置已解除，随时可开始 |
-| **Phase 5** | 计数器 overlay 可自由拖动 | ⬜ |
+| **Phase 5** | 计数器 overlay 可自由拖动 | ⬜ **落点被上游改掉了**，Phase U 后要重新调研 |
 | **Phase 6** | 排队时就显示牌组 | ⬜ 新增（2026-08-22），与 4.1 同根因，改动很小 |
 
 **顺序约束**：Phase 0 必须先于 Phase 1（否则新渲染层仍被节流和主线程 AX 阻塞卡住，
 会得出「SwiftUI 也没变快」的错误结论）；Phase 2 依赖 Phase 1；Phase 3 / 4 与 0–2 完全独立。
+
+**2026-08-29 的重排**：新增 `Phase U`（合并上游 3.6.7），插到 Phase 1 的卡点 ① 之前。
+一句话理由是 **T3 用的 tooltip 类被上游换掉了、合完编译不过**，而延迟基线的 before / after
+必须站在同一个上游基座上才有可比性。完整评估见下面 Phase U 一节。
 
 ---
 
@@ -52,7 +57,8 @@
 | 到哪一步 | 标记 | 这一次要亲自看什么 | 备料 |
 |---|---|---|---|
 | Phase 1 / T4 段头做完 | 🖥️ | 段头的底色、边框、图标、字体、行距，与 `DeckLens` 逐像素比 | `HSTRACKER_CARD_ROW_COMPARE=1` |
-| **Phase 1 卡点 ①**（T3+T4+T7） | 🎮📊 | 备牌悬停浮出；三个段头 + 空段折叠；卡图不再有首次加载的顿挫 | **一副带 ETC 或深邃之王的牌**；`HSTRACKER_LATENCY_PROBE=1` —— **最后一次能拿 before 基线的机会**（T6 一动就没了） |
+| **Phase U 合完上游** | 🖥️ | app 能起、记牌器有卡条、设置窗口不出现裸 key —— 静态过一遍就够，真正的验收并进卡点 ① | 先确认 `clean build` 到底还必不必要（上游换了打包管线） |
+| **Phase 1 卡点 ①**（T3+T4+T7 **+ Phase U**） | 🎮📊 | 备牌悬停浮出；三个段头 + 空段折叠；卡图不再有首次加载的顿挫；**上游的 OutFinder / 战棋指南没把记牌器搞坏** | **一副带 ETC 或深邃之王的牌**；`HSTRACKER_LATENCY_PROBE=1` —— **合完上游之后重取 before 基线**，这是最后一次机会（T6 一动就没了） |
 | **Phase 1 卡点 ②**（T5） | 🎮 | 三行头的数字对不对：手牌数 / 牌库数 / 总胜率 / 对阵职业胜率 | 开局前第 3 行应是占位或整行隐藏 |
 | **Phase 1 卡点 ③**（T6） | 🎮 | **整个布局** —— 必须独占一局，混着别的改动根本没法定位 | 各段都有内容的一局最好 |
 | **Phase 1 卡点 ④**（T8） | 🎮 | 动效 —— 要**录像逐帧看**，不是当场看手感 | OBS 同规格录屏 |
@@ -162,11 +168,11 @@
 |---|---|---|
 | T1 | `CardRowView` + `ThemeImageCache` + 并排比对窗 | ✅ |
 | T2 | 主牌表接进 `Tracker`，`Settings.useSwiftUITracker` 开关 | ✅ |
-| T3 | ETC / 深邃之王 改悬停浮出，备牌段整体消失（见 2.5，**从 Phase 2 提前**） | ✅ 未实战 |
-| T4 | 其余三段卡表 → `TrackerSectionView`：置顶 / 置底 / 相关牌（`DeckLens` ×3） | ⬜ |
+| T3 | ETC / 深邃之王 改悬停浮出，备牌段整体消失（见 2.5，**从 Phase 2 提前**） | ✅ 未实战 · **Phase U 会让它编译不过，要改** |
+| T4 | 其余三段卡表 → `TrackerSectionView`：置顶 / 置底 / 相关牌（`DeckLens` ×3） | ✅ 未实战 |
 | T5 | 顶部信息区重做：拿掉旧面板，上 Firestone 三行头（见 2.4，**从 Phase 2 提前**） | ⬜ |
 | T6 | 根视图 `TrackerView` + `TrackerViewModel`，布局收口（见 1.4） | ⬜ |
-| T7 | 卡图异步加载 + `ImageUtils` 缓存加 LRU（见 1.2） | ⬜ |
+| T7 | 卡图异步加载 + `ImageUtils` 缓存加 LRU（见 1.2） | ✅ 未实战 |
 | T8 | 动效：淡入淡出、抽卡闪光、布局动画（验收标准第 3 条） | ⬜ |
 
 > **原来的 T9（删开关、删旧路径）已挪到 Phase 2 之后**，见文末「收尾」一节。
@@ -184,7 +190,7 @@
 
 | 卡点 | 批次 | 这一局验什么 | 风险 |
 |---|---|---|---|
-| ① 🎮 | **T3 + T4 + T7** | 备牌悬停展开；三个段头 + 空段折叠；卡图不再有首次加载的顿挫 | 中 |
+| ① 🎮 | **T3 + T4 + T7 + Phase U** | 备牌悬停展开；三个段头 + 空段折叠；卡图不再有首次加载的顿挫；上游合并没搞坏记牌器 | 中 |
 | ② 🎮 | **T5** | 三行头的数据对不对（手牌数 / 牌库数 / 胜率 / 对阵职业） | 中 |
 | ③ 🎮 | **T6** | 整个布局 | **高** |
 | ④ 🎮 | **T8** | 动效 —— 要录像逐帧看 | 中 |
@@ -202,6 +208,8 @@ T7 提前做还有额外好处：后面三个卡点都能享受到异步卡图�
 
 三条排期上的提醒：
 
+0. **卡点 ① 之前先做 Phase U（合并上游 3.6.7）** —— T3 用的 `tooltipGridCards` 被上游换了类，
+   不改编译不过；而且延迟基线要和 T6 的 after 站在同一个上游基座上才有可比性。见 Phase U 一节。
 1. **卡点 ① 要提前准备一副带 ETC 或深邃之王的牌**，否则 T3 那部分验不了。
 2. **置顶 / 置底靠特定卡效果触发，约不出来** —— 卡点 ① 大概率会留下「没条件验证」的项，
    像 T2 那次一样。用比对窗或改设置静态看即可，不值得为它专门打局。
@@ -278,6 +286,10 @@ T7 提前做还有额外好处：后面三个卡点都能享受到异步卡图�
 
 > 同样模式还存在于 `CountersOverlay.swift:46-61` 和 `ActiveEffectsOverlay.swift:55-68`。
 > **本轮不动这两个**，但它们是同一 tick 里的邻居，会一起拖慢主线程。
+>
+> **2026-08-29 更新**：`CountersOverlay` 那一条**上游已经做掉了** —— 3.6.6 把它 port 成
+> SwiftUI（`CounterChipView` + `CountersOverlayContentView`），`CountersView` 那个每帧
+> 重排的 `layout()` 不存在了。Phase U 合完之后只剩 `ActiveEffectsOverlay` 一处。
 
 ### 1.4 布局（T6）
 
@@ -292,6 +304,93 @@ T7 提前做还有额外好处：后面三个卡点都能享受到异步卡图�
 `CardCellHover` 协议（`CardBar.swift:12-15`）+ `Tracker.getHoverComponent()`（`Tracker.swift:474-495`，
 靠向上遍历 superview 猜自己属于哪一段）→ 换成 `.onHover`，**分段身份直接作为参数传入**，
 那段脆弱的 superview 遍历直接删掉。悬停出卡图仍走现有的 `windowManager` floating card 路径。
+
+---
+
+## Phase U — 合并上游 3.6.7（**执行位置：Phase 1 的 T7 之后、卡点 ① 之前**）
+
+2026-08-29 评估。`upstream/master` 比我们的基座（`77a85be2` / 3.6.5）多 **37 个 commit、
+1036 个文件、+35406 / −26089**。**3.6.6 已发布**，master 已在 3.6.7 路上，头条是
+**The OutFinder**（Discover 助手：悬停任何生成/发现卡看完整卡池 + 费用/攻血分布，
+右键开池浏览器，覆盖 700+ 效果）。另有战棋的阵容 / 英雄 / 任务指南、酒馆钉选、
+一批 Bob's Buddy 修复，以及两个信息泄露修复（Azalina、始源之石）。
+
+### 冲突只有 3 个文件
+
+| 文件 | 冲突块 | 冲突行 | 性质 |
+|---|---|---|---|
+| `HSTracker.xcodeproj/project.pbxproj` | 7 | 556 | 双方各自加文件 —— **但块里压着我们两处 fork 关键设置**，见下 |
+| `HSTracker/UIs/Trackers/Tracker.swift` | 2 | 52 | 正好落在 T3 改过的区域 |
+| `HSTracker/UIs/mul.lproj/MainMenu.xcstrings` | 61 | 2545 | 形状全一样，可脚本化 |
+
+其余全部自动合并。
+
+### 会真的咬到我们的四件事
+
+**① T3 编译不过。** `tooltipGridCards` 换了类：`GridCardImages`（xib + `OverWindowController`）
+→ `RelatedCardsTooltipPanel`（`NSPanel` + SwiftUI）。我们 T3 的 `showTooltipGridCards`
+（`Tracker.swift:763`）是照抄旧 `setRelatedCardsTooltip` 的，两处失效 ——
+`tooltipGridCards.title =` 要改成 `setTitle()`；`windowManager.show(controller:)` 收的是
+`OverWindowController`，新类不是，要换成 `panel.show(frame:)` / `.hide()`。
+改动约 10 行，**但备牌悬停必须重验**。
+
+**② 卡牌数据库管线整个换了。** `Download enUS cards` 阶段删除；`Download cards XML` 改为
+下载到 `BUILT_PRODUCTS_DIR`（app **外面**）；新增 `Compile CardDefs` 阶段编译出
+`CardDefs.bin`，配套新增 `CardDefsBinary.swift` 和 `Tools/CardDefsCompiler`，
+`Database.swift` 重写。→ **`docs/PROGRESS.md` 里「增量包缺 `Contents/Resources/Resources/Cards/`」
+那条备注作废**，`clean build` 到底还必不必要要重测。
+
+**③ Mono 装配路径也改了**（`Resources/Resources/Managed` → `Resources/Managed`）。上游把根因
+写进了注释：`HSTracker/Resources` 是 folder reference，Copy Bundle Resources 会整目录替换，
+把这个 build phase 写进去的东西抹掉，而且构建系统看不见这次抹除。
+**和我们 Cards 那条是同一类机制** —— 上游等于顺手解释了我们踩的坑。
+
+**④ pbxproj 的冲突块里压着我们两处 fork 关键设置**：`NET_VERSION = net8.0`（上游仍是 `net7.0`）
+和 `MACOSX_DEPLOYMENT_TARGET = 14.0`（上游仍是 `10.14`）。
+**解冲突时必须手工保住 —— 丢了是静默回退，构建照样过。**
+
+### 要改计划的两处
+
+- **Phase 5 的落点没了。** 上游把 `CountersOverlay` port 成了 SwiftUI ——
+  `CountersView` / `CounterView.xib` 删掉，换成 `CounterChipView` + `CountersOverlayContentView`。
+  「照抄 `TimerHud` 的拖动范式」大概还成立，但落点要重查。见 Phase 5 一节。
+- **2.6（关联卡牌高亮）的上下文变了。** OutFinder 把相关牌扩到 700+ 效果、加了池统计和
+  右键池浏览器，可能已经做掉了一部分。见 2.6。
+
+### 不受影响的（好消息）
+
+- **`CardBar.swift` / `AnimatedCardList.swift` / `DeckLens.swift` / `CardSize.swift` 上游一行没动** ——
+  Phase 1 的核心地基安全
+- `Game.swift` 在我们 Phase 0 动过的区域只删了一行 `updateBattlegroundsTierOverlay`
+- `SizeHelper.swift` 只删了两个战棋 frame 函数（`turnCounterFrame` / `battlegroundsTierOverlayFrame`），
+  `trackerFrame()` 和 T2 的 AX 那块没碰
+- `ImageUtils.swift` 只 +29 / −1 → T7 基本不受影响
+- 战棋侧上游动作巨大，但与我们的路线完全不重叠，纯白拿
+- 两个没登记进 pbxproj 的战棋计数器上游**还是没登记**，那条已知问题仍然成立
+
+### 为什么排在卡点 ① 之前
+
+1. **T3 的 tooltip 本来就得改**，合完一起验，省一局
+2. **卡点 ① 是最后一次拿 before 基线的机会** —— 但基线要和 T6 的 after 站在同一个上游基座上
+   才有可比性。先合再取，基线才作数
+3. 上游这轮往主线程 tick 里加了不少东西（counters SwiftUI 化、guides、OutFinder 的池计算），
+   **现有基线数据本来也要重取**
+
+代价是卡点 ① 那一局会同时验「我们三片 + 上游合并」，违反了「坏了能定位」。
+缓解：上游那 37 个 commit 是它自己验过的，我们真正的风险面只有 3 个冲突文件的解法 ——
+而 `Tracker.swift` 那 52 行正好落在 T3 区域，本来就要一起看。
+
+### 执行清单
+
+1. 开一个 checkpoint 分支再合（`backup/phase0+3-before-upstream-367`）
+2. `project.pbxproj`：解冲突后**立刻 grep 回 `net8.0` 和 `MACOSX_DEPLOYMENT_TARGET = 14.0`**
+3. `Tracker.swift`：按新 `RelatedCardsTooltipPanel` API 改写 T3 的 `showTooltipGridCards`
+4. `MainMenu.xcstrings`：61 个块形状一样（我们插 `zh-Hans`，上游往同一个 localizations 块插
+   es / fr / it / ja / ko / …），脚本化解完过
+   `python3 docs/tasks/tools/check_xcstrings.py --baseline <ref>`
+5. 重测 `clean build` 是否仍是交包的硬要求，据此更新 `docs/PROGRESS.md` 的「环境备注」第 6 条
+6. Phase 3 补课：上游新增约 2900 行 MainMenu 字符串，**99.2% 的覆盖率会掉下来**，
+   重跑统计、补新 key（不阻塞主线，可以排在卡点 ① 之后）
 
 ---
 
@@ -393,6 +492,11 @@ T7 提前做还有额外好处：后面三个卡点都能享受到异步卡图�
 
 **建议加一个 100~150ms 淡入** —— Firestone 是硬切换，而我们的问题是高亮太弱，
 淡入能强化存在感且不像位移动画那样干扰读牌。
+
+> **2026-08-29：Phase U 之后要重新看这一条。** 上游 3.6.7 的 The OutFinder 把相关牌系统
+> 扩到 700+ 效果，加了卡池统计面板和右键池浏览器，`tooltipGridCards` 也换成了
+> `RelatedCardsTooltipPanel`。本节讲的是**牌库里已有卡条的高亮强度**，和它不是一回事，
+> 但上游可能已经顺手改善了一部分感知 —— 合完先实际看一眼再决定还要不要做。
 
 ### 2.7 已打出段的卡条形态
 
@@ -514,6 +618,11 @@ zh-Hans 覆盖率 **436/846 (51.5%) → 841/848 (99.2%)**，剩 7 个是标点/�
 
 **后续动 `.xcstrings` 必须过校验器**：`python3 docs/tasks/tools/check_xcstrings.py --baseline <ref>`。
 
+> **2026-08-29：Phase U 之后要补课。** 上游 3.6.6 / 3.6.7 往 `MainMenu.xcstrings` 加了约
+> 2900 行、往 `Translations/macOS/Localizable.xcstrings` 加了约 1200 行（战棋指南、酒馆钉选、
+> OutFinder 的界面文案）。**99.2% 这个数字合完就不作数了**，要重跑统计再补新 key。
+> 不阻塞主线，可以排在卡点 ① 之后。
+
 ---
 
 ## Phase 4 — 设置界面 + Dock 菜单
@@ -563,6 +672,13 @@ zh-Hans 覆盖率 **436/846 (51.5%) → 841/848 (99.2%)**，剩 7 个是标点/�
 ---
 
 ## Phase 5 — 计数器 overlay 可自由拖动
+
+> 🔴 **2026-08-29：本节的代码落点被上游改掉了，Phase U 合完必须重新调研再动手。**
+> 3.6.6 把 `CountersOverlay` port 成了 SwiftUI —— `CountersView` 和 `CounterView.xib` 删除，
+> 换成 `CounterChipView` + `CountersOverlayContentView`，`SizeHelper` 里两个战棋 frame 函数
+> 也一并删了。下面「位置写死在 `SizeHelper.playerCountersFrame()`」的诊断**要重新核对**；
+> 「照抄 `TimerHud` 的拖动范式」和 HDT 那三个设计点（存百分比、横向折算画面比例、
+> 玩家锚上边对手锚下边）与渲染层无关，大概率仍然成立。
 
 场攻 / 无界空宇 / 大范等计数器（`CountersOverlay.swift`）**位置写死**。现在的位置由
 `SizeHelper.playerCountersFrame()`（`:609`）/ `opponentCountersFrame()`（`:602`）按炉石窗口算出，
