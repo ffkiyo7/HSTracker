@@ -250,10 +250,11 @@ class Game: NSObject, PowerEventHandler {
     var shouldShowTracker: Bool {
         return ((Settings.hideAllTrackersWhenNotInGame && !self.gameEnded) || (!Settings.hideAllTrackersWhenNotInGame) || self.selfAppActive ) && ((Settings.hideAllWhenGameInBackground && self.hearthstoneRunState.isActive) || !Settings.hideAllWhenGameInBackground || self.selfAppActive)
     }
-    
+
     func updateTrackers(reset: Bool = false) {
+        let latencyRequest = LatencyProbe.shared.captureUpdateRequest()
         _queue.async {
-            LatencyProbe.shared.updateRequested()
+            LatencyProbe.shared.updateRequested(request: latencyRequest)
             self.guiNeedsUpdate = true
             self.guiUpdateResets = reset || self.guiUpdateResets
             self.scheduleGuiUpdate()
@@ -278,13 +279,16 @@ class Game: NSObject, PowerEventHandler {
         LatencyProbe.shared.updateStarted()
         updateAllTrackers()
         guiUpdateResets = false
-        // updateAllTrackers() only enqueues its ~20 blocks on the main queue, and that
-        // queue is FIFO - so a block queued behind them runs once the refresh is really done.
+        // Some tracker blocks enqueue one more main-queue update while they run. The
+        // second marker lands behind those nested blocks, once the refresh is done.
         DispatchQueue.main.async {
-            self._queue.async {
-                self.guiUpdateInFlight = false
-                if self.guiNeedsUpdate {
-                    self.scheduleGuiUpdate()
+            DispatchQueue.main.async {
+                LatencyProbe.shared.updateCommitted()
+                self._queue.async {
+                    self.guiUpdateInFlight = false
+                    if self.guiNeedsUpdate {
+                        self.scheduleGuiUpdate()
+                    }
                 }
             }
         }
@@ -452,7 +456,6 @@ class Game: NSObject, PowerEventHandler {
             } else {
                 self.windowManager.show(controller: tracker, show: false)
             }
-            LatencyProbe.shared.updateCommitted()
         }
     }
     

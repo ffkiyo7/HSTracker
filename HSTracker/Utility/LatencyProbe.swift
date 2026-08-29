@@ -27,6 +27,7 @@ final class LatencyProbe {
     private let lock = UnfairLock()
 
     private var flush = [Double]()      // A: log line timestamp -> we parsed it
+    private var parsing = [Double]()    // B: processLine started -> update requested
     private var tick = [Double]()       // C: update requested -> tick consumed it
     private var render = [Double]()     // D: update started -> main thread committed
     private var endToEnd = [Double]()   // A+B+C+D as the user experiences it
@@ -34,10 +35,16 @@ final class LatencyProbe {
     private var droppedOutliers = 0
     private static let maxSamples = 4000
 
-    private var lastLineClock: TimeInterval?
     private var pendingLineClock: TimeInterval?
     private var pendingRequestClock: TimeInterval?
+    private var updateLineClock: TimeInterval?
     private var updateStartClock: TimeInterval?
+    private var processingLines = [ObjectIdentifier: UpdateRequest]()
+
+    struct UpdateRequest {
+        let processingStartClock: TimeInterval
+        let lineClock: TimeInterval?
+    }
 
     private static let dumpInterval: TimeInterval = 30.0
 
@@ -63,29 +70,54 @@ final class LatencyProbe {
 
     // MARK: - Stage hooks
 
-    /// LogReaderManager, as each line comes out of the queue.
-    func logLineSeen(time: LogDate) {
+    /// LogReaderManager, as each line starts processing.
+    func logLineStarted(time: LogDate) {
         guard LatencyProbe.enabled else { return }
+        let processingStartClock = LatencyProbe.now()
         let lineClock = time.date.timeIntervalSince1970 + Double(time.subseconds) / 10_000_000.0
-        let age = LatencyProbe.now() - lineClock
+        let age = processingStartClock - lineClock
+        let thread = ObjectIdentifier(Thread.current)
 
         lock.lock()
         if age >= 0 && age <= LatencyProbe.outlierCutoff {
             record(&flush, age)
-            lastLineClock = lineClock
+            processingLines[thread] = UpdateRequest(processingStartClock: processingStartClock, lineClock: lineClock)
         } else {
             droppedOutliers += 1
+            processingLines[thread] = UpdateRequest(processingStartClock: processingStartClock, lineClock: nil)
         }
         lock.unlock()
     }
 
-    /// Game.updateTrackers, where a parser flags that the UI is now stale.
-    func updateRequested() {
+    func logLineFinished() {
         guard LatencyProbe.enabled else { return }
         lock.lock()
+        processingLines.removeValue(forKey: ObjectIdentifier(Thread.current))
+        lock.unlock()
+    }
+
+    /// Captures whether this request was made synchronously by a log parser.
+    func captureUpdateRequest() -> UpdateRequest? {
+        guard LatencyProbe.enabled else { return nil }
+        lock.lock()
+        let request = processingLines[ObjectIdentifier(Thread.current)]
+        lock.unlock()
+        return request
+    }
+
+    /// Game.updateTrackers, where a parser flags that the UI is now stale.
+    func updateRequested(request: UpdateRequest?) {
+        guard LatencyProbe.enabled else { return }
+        let t = LatencyProbe.now()
+        lock.lock()
+        if let request {
+            record(&parsing, t - request.processingStartClock)
+        }
         if pendingRequestClock == nil {
-            pendingRequestClock = LatencyProbe.now()
-            pendingLineClock = lastLineClock
+            pendingRequestClock = t
+        }
+        if pendingLineClock == nil {
+            pendingLineClock = request?.lineClock
         }
         lock.unlock()
     }
@@ -99,11 +131,13 @@ final class LatencyProbe {
             record(&tick, t - requested)
             pendingRequestClock = nil
         }
+        updateLineClock = pendingLineClock
+        pendingLineClock = nil
         updateStartClock = t
         lock.unlock()
     }
 
-    /// End of the main-thread block in Game.updatePlayerTracker.
+    /// Main-thread marker queued after all tracker update blocks.
     func updateCommitted() {
         guard LatencyProbe.enabled else { return }
         let t = LatencyProbe.now()
@@ -112,12 +146,12 @@ final class LatencyProbe {
             record(&render, t - started)
             updateStartClock = nil
         }
-        if let lineClock = pendingLineClock {
+        if let lineClock = updateLineClock {
             let total = t - lineClock
             if total >= 0 && total <= LatencyProbe.outlierCutoff {
                 record(&endToEnd, total)
             }
-            pendingLineClock = nil
+            updateLineClock = nil
         }
         lock.unlock()
     }
@@ -138,13 +172,14 @@ final class LatencyProbe {
     func dump() {
         guard LatencyProbe.enabled else { return }
         lock.lock()
-        let f = percentiles(flush), t = percentiles(tick)
+        let f = percentiles(flush), p = percentiles(parsing), t = percentiles(tick)
         let r = percentiles(render), e = percentiles(endToEnd)
         let dropped = droppedOutliers
         lock.unlock()
 
         logger.info("[latency] all values in ms, dropped \(dropped) outliers (>\(Int(LatencyProbe.outlierCutoff))s)")
         logger.info("[latency] A log line -> parsed   \(f)   <- includes Hearthstone's own flush delay, the floor")
+        logger.info("[latency] B parsing -> requested \(p)   <- parser and request queue")
         logger.info("[latency] C requested -> tick    \(t)   <- debounce")
         logger.info("[latency] D tick -> UI committed \(r)   <- render cost")
         logger.info("[latency] E2E line -> UI         \(e)")
