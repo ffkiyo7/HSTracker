@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| 最后更新 | 2026-08-30 |
+| 最后更新 | 2026-08-31 |
 | 分支 | `phase0+3`（已合入 upstream `534ee2d8` / **3.6.7**，review 通过并提交；`master` 同步快进到 3.6.7） |
-| 构建 | 删除 `[trackervis]` 临时诊断后，受限环境 Debug `BUILD SUCCEEDED`；现有 warning 来自上游旧 API / 资源名 / `-ld_classic` / always-run phase 与未安装 SwiftLint |
+| 构建 | T6b 第 1 步 spike 受限环境 Debug `BUILD SUCCEEDED`，探针烟雾输出覆盖率 100%；Build T2 已让测试 target 实际执行 49 项（25 过 / 24 个旧预期失败） |
 | 阻塞 | 无。Bug T1 / T2 / T3 三本均已实战验收并提交 |
-| **在做** | **两本并行，互不碰对方的文件**：`phase0-t6b-shrink-refresh-cost.md`（压一轮刷新的成本，先 spike 后优化）· `build-t2-fix-test-target.md`（救活测试 target，只动测试侧和 pbxproj 的测试配置） |
+| **在做** | T6b spike 已完成，等待一局 Release 分布后才能优化；Build T2 已完成，未动运行时代码 |
 | **下一次要你亲自看** | 🎮 T6b 的 spike 做完后要**跑一局 Release 探针取数**（Debug 的 `-Onone` 会让 D 段数据作废，这条踩过）。Build T2 不需要你 |
 | **不作为验收手段** | **战棋** —— 用户不玩（2026-08-30 确认）。战棋代码该对还是要对，但验证只能静态做，不排"打一局战棋"这种项 |
 
@@ -30,7 +30,7 @@
 | T3 | 提高 tick 频率 + 跟窗 | ✅ review 时改了设计，见 PLAN |
 | T4 | 部署目标 → macOS 14.0 | ✅ |
 | T5 | GUI 刷新改防抖 | ✅ 代码已合，但**实测收益未兑现**，见下节 |
-| **T6** | **修埋点量程（D 段 + B 段 + E2E 归因）→ 取 Release 基线 → 打 p50** | 🟡 第 1 步 ✅、第 2 步（取基线）✅ 2026-08-30；第 3 步打 p50 未开始 |
+| **T6** | **修埋点量程（D 段 + B 段 + E2E 归因）→ 取 Release 基线 → 打 p50** | 🟡 T6b 第 1 步分块 spike ✅；等待 Release 一局确认分布，第 3 步优化未开始 |
 
 ### Phase 1 — SwiftUI 记牌器渲染（🟡 5 / 8）
 
@@ -176,10 +176,20 @@ review 七条逐项结论见任务书。
 成立，但前者只覆盖 RelatedCards 子系统；另一个旧结论“`knownOpponentDeck` 每局开始清”不成立，
 实际是传统模式结束时条件清。本次完整证据、逐项复核和临时日志处置见 Bug T3 任务书。
 
-**自动化测试边界**：尝试只跑现有 `DatabaseTests`，但测试 target 在编译测试模块前就失败：
-`ReplayUploadTests.swift` 仍 import 已不在依赖图里的 `Wrap`，测试 target 的 Header Search Paths
-仍指向旧 Mono include 路径。两项在 3.6.5 基线和 3.6.7 上游都存在；修复前者涉及恢复或替换依赖，
-按范围规则本轮不动。主 app 的 clean / 增量构建与实际 CardDefs.bin 产物检查均已通过。
+**自动化测试边界已解除**：Build T2 已去掉失效的 `Wrap` / 系统 Mono 依赖，测试 target 改为宿主
+`HSTracker.app` 并只编译 9 个测试文件，不再复制编译 302 个 app 源文件。受限环境实际执行 49 项：
+25 过、24 个断言失败；失败全部来自卡库事实、秘密池或秘密处理规则已变化，以及数据库测试与宿主语言
+状态耦合，没有发现运行时代码真 bug。没有测试需要炉石进程；`PowerParserTests` 目前是空测试，不能算
+解析器覆盖。逐项分类及 pbxproj 对账见 `docs/tasks/build-t2-fix-test-target.md`。
+
+> ⚠️ **但现在还不能拿它当红绿灯。** 24 个已知失败挂着，就没法说"测试绿了 = 没问题"。
+> 要变成真正的门禁，得先把那 23 条旧预期更新到当前规则（卡面文案、`CARD_SET`、
+> Bargain Bin / Mystic Misdirection 的排除、上游 `c0fd1210` 改过的秘密撤销规则），
+> 再把 `PowerParserTests.testCreateGameEntity` 那个空测试补上或删掉 —— 空方法被 XCTest
+> 记成通过，是假绿。**在此之前，测试只能用来看"我这次改动有没有把原本过的 25 项弄挂"。**
+> review 侧抽查过 Bargain Bin 和 Mystic Misdirection：两张卡在 `SecretsManager`
+> （`:563` / `:564` / `:839` / `:873` 和 `:473`）都确有排除逻辑，是旧测试少列了它们 ——
+> 方向在安全的那一侧，不是回归。
 
 ---
 
@@ -252,6 +262,9 @@ C **max = 2021.2**。
   延迟重试仍计 C / D，但不再冒充某一行日志的 E2E。
 - ✅ **B 段已埋点**：`processLine` 入口 → `updateTrackers()` 在 GUI 串行队列里置位。
   新探针已实际启动并打印 A / B / C / D / E2E 五行。
+- ✅ **T6b 已把 D 拆成可加总分布**：18 个一级刷新 block、4 个条件二级 block、首次主队列等待和
+  未归因间隙逐轮结算；累计 `componentTotal / D total` 是覆盖率。Debug 烟雾样本为 100%，只证明
+  口径闭合，不作性能判断。Release 一局的命令与读法见 T6b 任务书；拿到数据前不优化。
 - **掉帧不是 HSTracker 造成的**（在这套录屏方法的精度内）：对照组
   （HSTracker 完全没启动、只有静态主菜单）横跨了同样的范围。头号嫌疑是采集管线
   （4K 165Hz 面板压成 1080p120）。要排除它得换一个不经过 OBS 的测量手段，再录一段没用。
