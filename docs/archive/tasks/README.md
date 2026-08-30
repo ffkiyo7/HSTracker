@@ -9,13 +9,30 @@
 
 ## 归档时间
 
-**2026-08-30** —— 卡点 ① 实战通过之后一次性整理。
+### 第一批：2026-08-30（卡点 ① 实战通过之后一次性整理）
 
 | 归档的 | 完成于 | 状态依据 |
 |---|---|---|
 | `phase0-t1` … `phase0-t5` | 2026-08-20 ~ 08-21 | Phase 0 T1–T5 全部 ✅ |
 | `phase1-t1` / `t2` / `t3` / `t4` / `t7` | 2026-08-20 ~ 08-29 | 五片均已实战（T3 / T4 / T7 在 08-30 的卡点 ① 过） |
 | `phase3-t1` … `phase3-t6` + `_common-phase3.md` | 2026-08-22 | zh-Hans 945 / 945（Phase U 补课后） |
+
+### 第二批：2026-08-30 晚（卡点 ① 那一局产出的五条反馈全部结案）
+
+| 归档的 | 完成于 | 状态依据 |
+|---|---|---|
+| `phaseU-t1-outfinder-stale-tile` | 08-30 | 卡池浮窗串卡，实战确认「串卡没了」 |
+| `phase6-t1-queue-residue` | 08-30 | 排队时显示完整牌组，实战确认 30 张全在 |
+| `build-t1-vendor-managed-deps` | 08-30 | BobsBuddy / HearthDb 制品固定进仓库（`756e08a5`） |
+| `bug-t1-viewmodel-offmain-writes` | 08-30 | 790s 主线程死锁，hang report 定位 + 实战验收（`ac116be0`） |
+| `bug-t2-tier7-prelobby-in-constructed` | 08-30 | 构筑局弹战棋浮窗，T1 的时序回归（`eb52832e`） |
+| `bug-t3-opponent-tracker-shows-player-cards` | 08-30 | 我方奇闻被算进对手牌库预测（`999f2eee`） |
+
+> **这三本 bug 书值得回看的地方是「怎么下的约束」，不是结论。** T2 / T3 两本是刻意
+> **留白写的** —— 只给症状、证据和 review 侧的待验说法，明确写「review 可能读错，
+> 独立复核后直说哪条不成立」。两次都生效了：T2 里 Codex 推翻了 review 的「最终仍会隐藏」
+> （review 漏看了 `propertyChanged` 闭包里的一层 `main.async`），T3 里 Codex 证伪了
+> 任务书给的 A / B 两条线索、查出了第三条路径。**交叉检验要留出被推翻的余地才有价值。**
 
 `phase3-t1-diff-report.md` 不是任务书，是 T1 产出的「gaenyong 与我们译法不同的 77 条」对照表，
 一起放这儿。

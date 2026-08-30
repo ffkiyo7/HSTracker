@@ -41,8 +41,8 @@
 | # | 反馈 | 结论 | 归属 |
 |---|---|---|---|
 | ① | 抽到手上的牌还留在牌库段，延迟一两回合甚至一直不消 | **不是延迟**（E2E p50 171ms）。是 `highlightCardsInHand` 的既定行为 | Phase 2 / 2.1 分区时消化 |
-| ② | 卡池浮窗串卡（「误炸」窜进好几张卡的相关牌） | **上游 3.6.7 的回归**：`RelatedCardImageView` 的 `@State` 按行列下标复用 | `docs/tasks/phaseU-t1-outfinder-stale-tile.md` |
-| ③ | 排队时显示的是上一局残局 | `game.reset()` 只在对局开始时跑 | `docs/tasks/phase6-t1-queue-residue.md` |
+| ② | 卡池浮窗串卡（「误炸」窜进好几张卡的相关牌） | **上游 3.6.7 的回归**：`RelatedCardImageView` 的 `@State` 按行列下标复用 | `docs/archive/tasks/phaseU-t1-outfinder-stale-tile.md` |
+| ③ | 排队时显示的是上一局残局 | `game.reset()` 只在对局开始时跑 | `docs/archive/tasks/phase6-t1-queue-residue.md` |
 | ④ | 卡条尺寸一局之内会变大 | **上游一直如此**（行高按行数压缩），用户暂不改 | 记在 2.8，待用户决定 |
 | ⑤ | 留牌时右下角的 HSReplay 引流浮窗 | 有开关，已改为**本 fork 默认关闭** | ✅ 已落地 |
 
@@ -835,7 +835,7 @@ Firestone 在排队阶段就把牌表铺出来了。
 把上面那个 `currentGameType != .gt_unknown` 的条件绕过去了。
 
 > **推论：清干净残留，记牌器在排队时就会消失。** 清残留和放宽显示条件**必须一次做完**，
-> 只做前者是净退步。任务书 `docs/tasks/phase6-t1-queue-residue.md`。
+> 只做前者是净退步。任务书 `docs/archive/tasks/phase6-t1-queue-residue.md`。
 
 **所以这一项不再是"只放宽那个条件"** —— 是「在正确的时机清状态」+「放宽条件」两件事。
 

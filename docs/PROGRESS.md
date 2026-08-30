@@ -126,7 +126,7 @@ watcher 200ms 才轮询一次，只要模式那行日志抢在轮询前面，
 对局到排队页、到主菜单、一直叠到终端窗口上。同批症状还有：悬停协同高亮消失、相关牌浮窗
 消失、对手卡牌标记和回合计时器一直挂着。
 
-🔴 **根因见 `docs/tasks/bug-t1-viewmodel-offmain-writes.md`**：`Watchers.swift:133` 的
+🔴 **根因见 `docs/archive/tasks/bug-t1-viewmodel-offmain-writes.md`**：`Watchers.swift:133` 的
 `onDiscoverStateChange` 在 `DiscoverStateWatcher` 自己的队列上（16ms 一次）直接调
 `highlightPlayerDeckCards` → `TrackerCardListViewModel.setHighlight` 写 `@Published rows`，
 与主线程的 `Tracker.update` → `playerType.setter` 抢同一个 Combine publisher 锁。
