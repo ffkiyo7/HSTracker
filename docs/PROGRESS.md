@@ -4,10 +4,10 @@
 |---|---|
 | 最后更新 | 2026-08-30 |
 | 分支 | `phase0+3`（已合入 upstream `534ee2d8` / **3.6.7**，review 通过并提交；`master` 同步快进到 3.6.7） |
-| 构建 | watcher 后台写 view model 的静态修复后，受限环境 Debug `BUILD SUCCEEDED`；现有 warning 来自上游旧 API / 资源名 / `-ld_classic` / always-run phase 与未安装 SwiftLint |
-| 阻塞 | 🟡 **主线程死锁待实战验收**（`docs/tasks/bug-t1-viewmodel-offmain-writes.md`）—— 16 个 watcher 已全扫，7 条后台 UI 写路径已回主线程且构建通过；还欠一局标准模式确认没有新 hang |
-| **下一步** | 先跑 Bug T1 的一局标准模式验收与 `[trackervis]` 日志核对；通过后再做 Phase 0 / T6 第 3 步，目标是 D 段（C 段会跟着掉，见下节） |
-| **下一次要你亲自看** | 🎮 **Bug T1**：标准模式一局，反复悬停协同牌，确认相关牌 / 发现提示和退回菜单后的 overlay 正常，且没有新 hang；同局顺带验卡池浮窗不串卡 |
+| 构建 | Bug T2 的 Tier7 旁路删除后，受限环境 Debug `BUILD SUCCEEDED`；现有 warning 来自上游旧 API / 资源名 / `-ld_classic` / always-run phase 与未安装 SwiftLint |
+| 阻塞 | 无硬阻塞。Bug T1 / T2 均已实战验收并提交 |
+| **下一步** | Bug T3（对手记牌器混进我方卡牌，已确认是**上游行为**）；之后 Phase 0 / T6 第 3 步，按新基线打 p50，目标 D 段 |
+| **下一次要你亲自看** | 🎮 **Bug T2 修完后**：标准模式一局，全程不该出现左上角那个 `Tier7 Battlegrounds Overlay` 浮窗。另：**对手记牌器混进我方卡牌**这条还缺证据 —— 下次撞见请记「哪几张卡 + 大概第几回合冒出来」（一开局就有 = 牌组/初始实体归属；中途才有 = 某张卡效果触发的归属错误） |
 | **不作为验收手段** | **战棋** —— 用户不玩（2026-08-30 确认）。战棋代码该对还是要对，但验证只能静态做，不排"打一局战棋"这种项 |
 
 > 本文件只回答三件事：**做到哪了 / 下一步是什么 / 哪些结论还作数**。
@@ -146,6 +146,34 @@ tracker 自己的 hover / exit 仍同步执行。受限环境 Debug 已 `BUILD S
 
 > ⚠️ 上面那条"`isDeckTrackerQueue` 没有 `isInMenu` 门"的隐患**仍未被证伪**，只是这次没轮到它 ——
 > 本次 5 局每个 `Now in queue` 都有配对的 `No longer in queue`，`isInQueue` 没卡住。留着。
+
+#### Bug T1 已验收提交（`ac116be0`），同局带回两条新反馈
+
+2026-08-30 18:31 那一局：**无新的 `.hang`**，`[trackervis]` 从 18:31 到 18:39 全程正常翻转
+（死锁那一轮是一行都不打的），协同高亮每次都出，卡池浮窗不再串卡。三项验收全过。
+
+新反馈两条：
+
+**(a) 构筑对局中弹出 `Tier7 Battlegrounds Overlay` 浮窗**，停在 `Loading...` 压住对手记牌器。
+✅ **已于 2026-08-30 21:11–21:35 实战验收通过**（三局标准模式，浮窗全程不再出现，无新 hang，
+`[trackervis]` 正常翻转）。Codex 独立复核确认这是 `ac116be0` 的时序回归：线程修复后的同一个 main
+block 先由规范路径隐藏窗口，`isModalOpen` 派出的延迟 property 回调随后又绕过 `.bacon` 场景门，
+把 controller 的 `isVisible` 改回 true，最后由 `updateBattlegroundsOverlays()` 显示。已删除这条
+重复的旁路，保留 `updateTier7PreLobbyVisibility()` 作为唯一正常显示决定；完整 FIFO 推演和
+review 七条逐项结论见任务书。
+
+**(b) 对手记牌器混进我方卡牌。** 日志坐实了那一局是 `DEMONHUNTER` vs `WARRIOR`
+（`HSReplayAPI.getConstructedMulliganV2` 那两行），用户点名 DH 的牌出现在战士对手的记牌器里。
+**跟本次改动无关** —— diff 没有一行碰实体归属或对手卡表。已排除三条系统性原因：
+> - **不是相关卡牌推测**：`Cards/` 下所有 `shouldShowForOpponent` 里能返回 true 的**全部**调了
+>   `CardUtils.mayCardBeRelevant(..., playerClass: opponent.originalClass)` 做职业门（唯一没调的
+>   是张 Neutral 卡，中立不需要）；且它列的是 `getRelatedCards(player: opponent)`，对手自己打出的牌。
+> - **不是 `knownOpponentDeck`**：只有手动关联对手牌组和 Whizbang 会设，每局开始清（`Game.swift:2456`）。
+> - **不是 `revealedEntities` 越界**：它按控制者收口（`Player.swift:174`）。
+>
+> 落点在**实体归属**，需要那一局的原始 Power.log，HSTracker 自己的日志没留够。
+> **暂不开任务书** —— 现在只能写「去查」，给不出有效约束。下次复现请记：
+> **哪几张卡** + **第几回合冒出来**（开局就有 = 牌组/初始归属；中途才有 = 某张卡效果触发）。
 
 **自动化测试边界**：尝试只跑现有 `DatabaseTests`，但测试 target 在编译测试模块前就失败：
 `ReplayUploadTests.swift` 仍 import 已不在依赖图里的 `Wrap`，测试 target 的 Header Search Paths

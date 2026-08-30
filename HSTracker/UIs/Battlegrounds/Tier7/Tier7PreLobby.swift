@@ -110,12 +110,6 @@ class Tier7PreLobby: OverWindowController {
         if property == "refreshAccountEnabled" || all {
             refreshButton.isEnabled = viewModel.refreshAccountEnabled
         }
-        
-        if property == "visibility" {
-            isVisible = viewModel.visibility
-            
-            AppDelegate.instance().coreManager.game.updateBattlegroundsOverlays()
-        }
     }
     
     @IBAction func signCommand(_ sender: AnyObject) {
