@@ -47,6 +47,9 @@ D 段量程是 T6 第 1 步刚修正过的，覆盖的是**一整轮 UI 提交**
   关闭时开销必须可忽略。
 - **取数必须用 Release 包。** Debug 的 `-Onone` 会让 D 段数据完全不可用 —— 这条踩过。
 - 不要 `git add` 或 commit，不要动 `.xib`，不要动 `HSTracker.xcodeproj/project.pbxproj`。
+- ⚠️ **`docs/tasks/build-t2-fix-test-target.md` 正在并行进行。** 那本只动测试 target 和
+  `project.pbxproj` 的测试配置，不碰 `HSTracker/` 下的运行时代码 —— **本任务也不要去碰
+  测试 target**，两边各守各的，避免互相污染和冲突。
 
 ## 验收（第 1 步）
 

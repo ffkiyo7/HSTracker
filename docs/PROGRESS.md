@@ -6,8 +6,8 @@
 | 分支 | `phase0+3`（已合入 upstream `534ee2d8` / **3.6.7**，review 通过并提交；`master` 同步快进到 3.6.7） |
 | 构建 | 删除 `[trackervis]` 临时诊断后，受限环境 Debug `BUILD SUCCEEDED`；现有 warning 来自上游旧 API / 资源名 / `-ld_classic` / always-run phase 与未安装 SwiftLint |
 | 阻塞 | 无。Bug T1 / T2 / T3 三本均已实战验收并提交 |
-| **下一步** | Phase 0 / T6 第 3 步：按新基线打 p50，目标 D 段（C 段会跟着掉，见「新基线读出来的三件事」） |
-| **下一次要你亲自看** | 暂无待验项。Phase 1 的 T5 / T6 开工后会重新出现 🎮 卡点 |
+| **在做** | **两本并行，互不碰对方的文件**：`phase0-t6b-shrink-refresh-cost.md`（压一轮刷新的成本，先 spike 后优化）· `build-t2-fix-test-target.md`（救活测试 target，只动测试侧和 pbxproj 的测试配置） |
+| **下一次要你亲自看** | 🎮 T6b 的 spike 做完后要**跑一局 Release 探针取数**（Debug 的 `-Onone` 会让 D 段数据作废，这条踩过）。Build T2 不需要你 |
 | **不作为验收手段** | **战棋** —— 用户不玩（2026-08-30 确认）。战棋代码该对还是要对，但验证只能静态做，不排"打一局战棋"这种项 |
 
 > 本文件只回答三件事：**做到哪了 / 下一步是什么 / 哪些结论还作数**。
