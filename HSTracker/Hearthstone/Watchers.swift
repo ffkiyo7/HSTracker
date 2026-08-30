@@ -104,7 +104,9 @@ class Watchers {
     }
     
     private static func onBattlegroundsTeammateBoardStateChange(_ sender: BattlegroundsTeammateBoardStateWatcher, _ args: BattlegroundsTeammateBoardStateArgs) {
-        AppDelegate.instance().coreManager.game.windowManager.battlegroundsHeroPicking.viewModel.isViewingTeammate = args.isViewingTeammate
+        DispatchQueue.main.async {
+            AppDelegate.instance().coreManager.game.windowManager.battlegroundsHeroPicking.viewModel.isViewingTeammate = args.isViewingTeammate
+        }
         // rest is not used
     }
     
@@ -129,8 +131,10 @@ class Watchers {
     private static func onDiscoverStateChange(_ sender: DiscoverStateWatcher, _ args: DiscoverStateArgs) {
         let game = AppDelegate.instance().coreManager.game
         game.setRelatedCardsTrigger(args)
-        if game.isTraditionalHearthstoneMatch {
-            game.windowManager.playerTracker.highlightPlayerDeckCards(highlightSourceCardId: args.cardId)
+        DispatchQueue.main.async {
+            if game.isTraditionalHearthstoneMatch {
+                game.windowManager.playerTracker.highlightPlayerDeckCards(highlightSourceCardId: args.cardId)
+            }
         }
     }
     

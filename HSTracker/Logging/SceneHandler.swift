@@ -111,7 +111,9 @@ class SceneHandler {
         }
         
         if from == .bacon {
-            game.windowManager.tier7PreLobby.viewModel.invalidateUserState()
+            DispatchQueue.main.async {
+                game.windowManager.tier7PreLobby.viewModel.invalidateUserState()
+            }
         }
     }
 }

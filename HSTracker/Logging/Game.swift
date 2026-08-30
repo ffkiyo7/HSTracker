@@ -256,6 +256,31 @@ class Game: NSObject, PowerEventHandler {
         return QueueEvents.modes.contains(currentMode) && currentMode != .bacon
     }
 
+    // TEMPORARY DIAGNOSTICS - 2026-08-30, for the "opponent tracker lingers while queueing"
+    // report. The visibility conditions read a dozen pieces of state and none of it is logged,
+    // so a screenshot cannot tell us which term is wrong. Delete this and the two call sites
+    // once that report is resolved.
+    private var lastPlayerTrackerVisible: Bool?
+    private var lastOpponentTrackerVisible: Bool?
+
+    /// Must be called on the main thread, from the tracker update blocks. Only logs when the
+    /// decision flips, so a whole game is a handful of lines rather than one per refresh.
+    private func logTrackerVisibility(_ name: String, _ shouldShow: Bool, isPlayer: Bool) {
+        if isPlayer {
+            guard lastPlayerTrackerVisible != shouldShow else { return }
+            lastPlayerTrackerVisible = shouldShow
+        } else {
+            guard lastOpponentTrackerVisible != shouldShow else { return }
+            lastOpponentTrackerVisible = shouldShow
+        }
+        logger.info("[trackervis] \(name) show=\(shouldShow)"
+            + " gameType=\(currentGameType) bg=\(isBattlegroundsMatch()) merc=\(isMercenariesMatch())"
+            + " inQueue=\(queueEvents.isInQueue) deckTrackerQueue=\(isDeckTrackerQueue)"
+            + " mode=\(currentMode.map { "\($0)" } ?? "nil") deck=\(currentDeck?.name ?? "nil")"
+            + " gameEnded=\(gameEnded) isInMenu=\(isInMenu) spectator=\(spectator)"
+            + " hideNotInGame=\(Settings.hideAllTrackersWhenNotInGame) selfAppActive=\(selfAppActive)")
+    }
+
     func updateTrackers(reset: Bool = false) {
         let latencyRequest = LatencyProbe.shared.captureUpdateRequest()
         _queue.async {
@@ -306,14 +331,16 @@ class Game: NSObject, PowerEventHandler {
             }
 			
             let tracker = self.windowManager.opponentTracker
-            if Settings.showOpponentTracker &&
+            let shouldShow = Settings.showOpponentTracker &&
                 (!self.isBattlegroundsMatch() && !self.isMercenariesMatch() && self.currentGameType != .gt_unknown) &&
             !(Settings.dontTrackWhileSpectating && self.spectator) &&
                 ((Settings.hideAllTrackersWhenNotInGame && !self.gameEnded)
                     || (!Settings.hideAllTrackersWhenNotInGame) || self.selfAppActive ) &&
                 ((Settings.hideAllWhenGameInBackground &&
-                    self.hearthstoneRunState.isActive) || !Settings.hideAllWhenGameInBackground || self.selfAppActive) {
-                
+                    self.hearthstoneRunState.isActive) || !Settings.hideAllWhenGameInBackground || self.selfAppActive)
+            self.logTrackerVisibility("opponent", shouldShow, isPlayer: false)
+            if shouldShow {
+
                 // update cards
                 if self.gameEnded && Settings.clearTrackersOnGameEnd {
                     tracker.update(cards: [], top: [], bottom: [], sideboards: [], relatedCards: [], reset: reset)
@@ -380,15 +407,17 @@ class Game: NSObject, PowerEventHandler {
                 return
             }
             let tracker = self.windowManager.playerTracker
-            if Settings.showPlayerTracker &&
+            let shouldShow = Settings.showPlayerTracker &&
                 !(Settings.dontTrackWhileSpectating && self.spectator) &&
                 ((!self.isBattlegroundsMatch() && !self.isMercenariesMatch() && self.currentGameType != .gt_unknown)
                     || self.isDeckTrackerQueue) &&
                 ( (Settings.hideAllTrackersWhenNotInGame && !self.gameEnded)
                     || (!Settings.hideAllTrackersWhenNotInGame) || self.selfAppActive ) &&
                 ((Settings.hideAllWhenGameInBackground &&
-                    self.hearthstoneRunState.isActive) || !Settings.hideAllWhenGameInBackground || self.selfAppActive) {
-                
+                    self.hearthstoneRunState.isActive) || !Settings.hideAllWhenGameInBackground || self.selfAppActive)
+            self.logTrackerVisibility("player", shouldShow, isPlayer: true)
+            if shouldShow {
+
                 // update cards
                 let dredged = player.deck.filter { x in x.info.deckIndex != 0 }.sorted(by: { x, y in x.info.deckIndex > y.info.deckIndex })
                 let top = dredged.filter { x in x.info.deckIndex > 0 }.compactMap { (x) -> Card in
@@ -1043,11 +1072,12 @@ class Game: NSObject, PowerEventHandler {
     }
         
     func setBaconState(_ mode: SelectedBattlegroundsGameMode, _ isAnyOpen: Bool) {
-        windowManager.tier7PreLobby.viewModel.battlegroundsGameMode = mode
-        windowManager.tier7PreLobby.viewModel.isModalOpen = !queueEvents.isInQueue && isAnyOpen
-        windowManager.battlegroundsSession.battlegroundsGameMode = mode
-        if #available(macOS 10.15, *) {
-            DispatchQueue.main.async {
+        let isModalOpen = !queueEvents.isInQueue && isAnyOpen
+        DispatchQueue.main.async {
+            self.windowManager.tier7PreLobby.viewModel.battlegroundsGameMode = mode
+            self.windowManager.tier7PreLobby.viewModel.isModalOpen = isModalOpen
+            self.windowManager.battlegroundsSession.battlegroundsGameMode = mode
+            if #available(macOS 10.15, *) {
                 self.updateTier7PreLobbyVisibility()
                 self.updateBattlegroundsGuidesPreLobbyVisibility()
             }
@@ -1805,6 +1835,8 @@ class Game: NSObject, PowerEventHandler {
         if let currentGameType = MirrorHelper.getGameType(), currentGameType != GameType.gt_unknown.rawValue {
             if !_gameTypeDuosCorrectionCheckCompleted { // Do not let a late mirror overwrite a bg game type already corrected by TryCorrectMisreadSoloGameType.
                 _currentGameType = GameType(rawValue: currentGameType) ?? .gt_unknown
+                // TEMPORARY DIAGNOSTICS - 2026-08-30, see logTrackerVisibility.
+                logger.info("[trackervis] cacheGameType wrote \(_currentGameType)")
             }
         } else {
             DispatchQueue.global().asyncAfter(deadline: .now() + 1.0) {
@@ -4209,7 +4241,9 @@ class Game: NSObject, PowerEventHandler {
     }
     
     func setChoicesVisible(_ choicesVisible: Bool) {
-        windowManager.battlegroundsTrinketPicking.viewModel.choicesVisible = choicesVisible
+        DispatchQueue.main.async {
+            self.windowManager.battlegroundsTrinketPicking.viewModel.choicesVisible = choicesVisible
+        }
     }
     
     func handleSpecialShop(_ args: SpecialShopChoicesArgs) {
@@ -4725,23 +4759,27 @@ class Game: NSObject, PowerEventHandler {
     }
 
     func setDeckPickerState(_ vft: VisualsFormatType, _ decksList: [CollectionDeckBoxVisual?], _ isModalOpen: Bool) {
-        let vm = windowManager.constructedMulliganGuidePreLobby.viewModel
-        if vm.decksOnPage == nil || decksList != vm.decksOnPage {
-            vm.decksOnPage = decksList
-        }
-        vm.visualsFormatType = vft
-        vm.isModalOpen = isModalOpen
+        DispatchQueue.main.async {
+            let vm = self.windowManager.constructedMulliganGuidePreLobby.viewModel
+            if vm.decksOnPage == nil || decksList != vm.decksOnPage {
+                vm.decksOnPage = decksList
+            }
+            vm.visualsFormatType = vft
+            vm.isModalOpen = isModalOpen
 
-        if #available(macOS 10.15, *), let widgetVm = windowManager.rootOverlay?.viewModel.constructedMulliganPreLobbyWidget {
-            widgetVm.isModalOpen = isModalOpen
-            widgetVm.visualsFormatType = vft
+            if #available(macOS 10.15, *), let widgetVm = self.windowManager.rootOverlay?.viewModel.constructedMulliganPreLobbyWidget {
+                widgetVm.isModalOpen = isModalOpen
+                widgetVm.visualsFormatType = vft
+            }
         }
     }
 
     func setConstructedQueue(_ inQueue: Bool) {
-        windowManager.constructedMulliganGuidePreLobby.viewModel.isInQueue = inQueue
-        if #available(macOS 10.15, *), let widgetVm = windowManager.rootOverlay?.viewModel.constructedMulliganPreLobbyWidget {
-            widgetVm.isInQueue = inQueue
+        DispatchQueue.main.async {
+            self.windowManager.constructedMulliganGuidePreLobby.viewModel.isInQueue = inQueue
+            if #available(macOS 10.15, *), let widgetVm = self.windowManager.rootOverlay?.viewModel.constructedMulliganPreLobbyWidget {
+                widgetVm.isInQueue = inQueue
+            }
         }
     }
     

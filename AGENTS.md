@@ -65,6 +65,16 @@ git checkout <工作分支> && git merge master
 而 `DeckLens` 的 `NSBox` 是 `.noBorder` + `borderWidth = 0`，那行 `borderColor` 根本不生效 ——
 照做就多画了一条现状没有的线。列属性不如指路径：**写「照哪个函数的 frame 账复刻」**。
 
+### watcher 回调与 UI 线程
+
+`HearthWatcher/` 下的 watcher 回调都在各自的 `DispatchQueue` 上运行。任何从这些回调直接或间接
+写 SwiftUI view model（`@Published` / `ObservableObject` / `objectWillChange`）的路径，都必须先
+异步回到主线程；同一份状态要在同一个 main block 内提交，禁止用 `DispatchQueue.main.sync`。
+原因是 Combine publisher 的内部锁会与主线程渲染争用：2026-08-30 的
+`/Library/Logs/DiagnosticReports/HSTracker_2026-08-30-173357_wadomarkm4.hang` 已实证
+`DiscoverStateWatcher → TrackerCardListViewModel.setHighlight` 与主线程
+`Tracker.update → playerType.setter` 互锁。
+
 ## 构建
 
 ```

@@ -4,10 +4,10 @@
 |---|---|
 | 最后更新 | 2026-08-30 |
 | 分支 | `phase0+3`（已合入 upstream `534ee2d8` / **3.6.7**，review 通过并提交；`master` 同步快进到 3.6.7） |
-| 构建 | 本轮代码修复及 BobsBuddy / HearthDb 固定制品后，受限环境 Debug 首次安装与二次增量均 `BUILD SUCCEEDED`；现有 warning 来自上游旧 API / 资源名 / `-ld_classic` / always-run phase 与未安装 SwiftLint |
-| 阻塞 | 无。Release 基线已取到（2026-08-30，5 局标准模式），Phase 0 / T6 第 2 步可以开工 |
-| **下一步** | Phase 0 / T6 第 2 步：按新基线打 p50，目标是 D 段（C 段会跟着掉，见下节） |
-| **下一次要你亲自看** | ~~③ 延迟口径 / Release 基线~~ ✅。~~② 排队 30 张全在~~ ✅。① 🎮 **串卡修完**：连着悬停两张相关牌数量相同的卡，不能带出上一张的图 —— 这条还欠一句结论。另有 ③ 的两条余留待你分辨，见「③ 的两条余留」 |
+| 构建 | watcher 后台写 view model 的静态修复后，受限环境 Debug `BUILD SUCCEEDED`；现有 warning 来自上游旧 API / 资源名 / `-ld_classic` / always-run phase 与未安装 SwiftLint |
+| 阻塞 | 🟡 **主线程死锁待实战验收**（`docs/tasks/bug-t1-viewmodel-offmain-writes.md`）—— 16 个 watcher 已全扫，7 条后台 UI 写路径已回主线程且构建通过；还欠一局标准模式确认没有新 hang |
+| **下一步** | 先跑 Bug T1 的一局标准模式验收与 `[trackervis]` 日志核对；通过后再做 Phase 0 / T6 第 3 步，目标是 D 段（C 段会跟着掉，见下节） |
+| **下一次要你亲自看** | 🎮 **Bug T1**：标准模式一局，反复悬停协同牌，确认相关牌 / 发现提示和退回菜单后的 overlay 正常，且没有新 hang；同局顺带验卡池浮窗不串卡 |
 | **不作为验收手段** | **战棋** —— 用户不玩（2026-08-30 确认）。战棋代码该对还是要对，但验证只能静态做，不排"打一局战棋"这种项 |
 
 > 本文件只回答三件事：**做到哪了 / 下一步是什么 / 哪些结论还作数**。
@@ -106,32 +106,46 @@ watcher 200ms 才轮询一次，只要模式那行日志抢在轮询前面，
 > 目前只靠 `QueueEvents.modes` 白名单 + `currentDeck != nil` 兜着 —— 菜单模式 `.hub`
 > 不在白名单里，所以要 `currentMode` 也一起陈旧才会露出来。**这条还没被证伪，见下。**
 
-#### ③ 的两条余留（2026-08-30 实战反馈，未修）
+#### ③ 的余留已查明：不是显示条件，是主线程死锁（代码已修，待实战）
 
 用户原话：「现在的确是显示完全的卡组了，但是对手的也会残留下来，正确的行为应该是只显示
 我方的卡组，而且退出排队回到炉石主菜单的时候，还继续显示，这也是错误的。」
 
-**(a) 排队时对手记牌器也在，显示上一局的残留。** 期望行为：排队时只出我方。
-**静态查不出来** —— 按代码它应该已经消失了，三处都对得上：
-`reset()` 把 `_currentGameType` 打回 `.gt_unknown`（`Game.swift:1703`）→
-`updateOpponentTracker` 第一个条件（`:310`）为假 →
-`updateAllTrackers()` 每轮都调它（`:220`）→ else 分支是无条件
-`window.orderOut(nil)`（`WindowManager.swift:492`），没有去抖能吞掉这次 hide。
-`set(activeDeck:)` 结尾也确实 `updateTrackers(reset: true)`（`:1872`）。
-本次 5 局的日志里 `matchInfo` 那条 side effect（`Game.swift:1427` 会重填 `_currentGameType`）
-**只在 `gameStart` 之后打印过，排队期间一次都没有**，所以也不是它。
+第一轮静态分析查不出来 —— 按代码对手记牌器应该已经消失（`reset()` 打回 `.gt_unknown`
+→ `updateOpponentTracker` 条件为假 → `updateAllTrackers()` 每轮都调 → 无条件
+`window.orderOut(nil)`）。加了 `[trackervis]` 临时诊断后第二次复现，**答案是代码没错，
+是主线程死了**：
 
-**(b) 退出排队回主菜单后记牌器还在。** 这条有一个不需要新 bug 就成立的解释：
-`hide_all_trackers_when_not_in_game` **默认 `false`**（`Settings.swift:215`），用户
-`defaults` 里也没写过这个键。这个开关关着时，**一局打完回到主菜单，两个记牌器本来就会
-继续挂着显示那一局的终局** —— 上游行为，跟排队改动无关。
+```
+17:17:38 player show=true gameType=gt_unknown inQueue=true deckTrackerQueue=true mode=tournament
+```
 
-> 🎯 **下一步需要用户一句话分辨**：看到"对手残留"的时刻，是**排在队列里那段时间**，
-> 还是**一局打完刚回到菜单**？
-> - 如果是后者 → (a)(b) 是同一件事，根因就是那个开关，改设置即可验证，不需要动代码。
-> - 如果是前者 → 是真 bug，且静态分析已经走到头，下一轮必须**开着日志复现**：
->   进队列时对手记牌器可见的那一刻，抓 `currentGameType` / `queueEvents.isInQueue` /
->   `currentMode` 三个值。当前日志没有任何一条记录记牌器可见性，是这次查不下去的直接原因。
+排队时我方判定 `true` ✅，同一时刻对手**没有翻转行**，说明它一直是 `false` ✅ —— 两个判定
+都正确。用户看到的"残留"是 **overlay 冻在最后一帧、没人执行 `orderOut`**，所以跟着他从
+对局到排队页、到主菜单、一直叠到终端窗口上。同批症状还有：悬停协同高亮消失、相关牌浮窗
+消失、对手卡牌标记和回合计时器一直挂着。
+
+🔴 **根因见 `docs/tasks/bug-t1-viewmodel-offmain-writes.md`**：`Watchers.swift:133` 的
+`onDiscoverStateChange` 在 `DiscoverStateWatcher` 自己的队列上（16ms 一次）直接调
+`highlightPlayerDeckCards` → `TrackerCardListViewModel.setHighlight` 写 `@Published rows`，
+与主线程的 `Tracker.update` → `playerType.setter` 抢同一个 Combine publisher 锁。
+证据是系统 hang report
+`/Library/Logs/DiagnosticReports/HSTracker_2026-08-30-173357_wadomarkm4.hang`
+（`Duration: 790.21s`，turnstile 明写主线程 waiting for `DiscoverStateWatcher` 线程）。
+同类的后台写入至少还有四处，一并进那本任务书。
+
+2026-08-30 已按任务书完成静态修复：从 `Watchers.initialize()` 全量反查 16 个 watcher，确认并把
+7 条后台 UI 写路径异步搬回主线程；其中 `QueueWatcher → setConstructedQueue` 和
+`SceneWatcher → invalidateUserState` 是抽查表外补出的两条。高亮只在 watcher 调用点跳主线程，
+tracker 自己的 hover / exit 仍同步执行。受限环境 Debug 已 `BUILD SUCCEEDED`，诊断代码完整保留；
+任务仍留在 `docs/tasks/`，等标准模式实战、hang report 与 `[trackervis]` 日志三项验收通过再归档。
+
+> **`hide_all_trackers_when_not_in_game` 默认 `false`**（`Settings.swift:215`，用户
+> `defaults` 里也没写过）这条仍然成立，只是不是本次的解释：即使没有死锁，一局打完回主菜单
+> 两个记牌器本来也会挂着显示终局。修完死锁后如果用户仍觉得碍事，那是**开关问题不是 bug**。
+
+> ⚠️ 上面那条"`isDeckTrackerQueue` 没有 `isInMenu` 门"的隐患**仍未被证伪**，只是这次没轮到它 ——
+> 本次 5 局每个 `Now in queue` 都有配对的 `No longer in queue`，`isInQueue` 没卡住。留着。
 
 **自动化测试边界**：尝试只跑现有 `DatabaseTests`，但测试 target 在编译测试模块前就失败：
 `ReplayUploadTests.swift` 仍 import 已不在依赖图里的 `Wrap`，测试 target 的 Header Search Paths
