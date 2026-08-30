@@ -513,9 +513,9 @@ class MonoHelper {
             if exc[0] != nil {
                 // This is a startup self-test, so an exception here must not take the
                 // app down with it: the loop below only knows two exception types, and
-                // BobsBuddy is downloaded as "latest" rather than the version this code
-                // was written against, so an unrecognised one is expected to show up
-                // eventually. Log what it actually is instead.
+                // BobsBuddy is versioned separately from this code, so an explicit
+                // dependency update can introduce an unrecognised exception. Log what
+                // it actually is instead.
                 logger.error("testSimulation threw: \(MonoHelper.toString(obj: MonoHandle(obj: exc[0])))")
                 var aggregate: AggregateExceptionProxy! = AggregateExceptionProxy(obj: exc[0])
                 while aggregate != nil {

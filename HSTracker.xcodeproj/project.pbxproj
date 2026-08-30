@@ -985,7 +985,6 @@
 		B82901F32F0ED3FE002F96FB /* RandomTavernMinionBuffCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B82901F22F0ED3FE002F96FB /* RandomTavernMinionBuffCounter.swift */; };
 		B82901F52F0ED4A0002F96FB /* VolumizerBuffCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B82901F42F0ED4A0002F96FB /* VolumizerBuffCounter.swift */; };
 		B82AE5F028ADBC55004A8FE0 /* Influx.swift in Sources */ = {isa = PBXBuildFile; fileRef = B82AE5EF28ADBC54004A8FE0 /* Influx.swift */; };
-		B82AE5FD28BE8631004A8FE0 /* BobsBuddy-version.txt in Resources */ = {isa = PBXBuildFile; fileRef = B82AE5F928BE8631004A8FE0 /* BobsBuddy-version.txt */; };
 		B82AE5FE28BE8631004A8FE0 /* cards-version.txt in Resources */ = {isa = PBXBuildFile; fileRef = B82AE5FA28BE8631004A8FE0 /* cards-version.txt */; };
 		B82AE5FF28BE8631004A8FE0 /* HearthMirror-version.txt in Resources */ = {isa = PBXBuildFile; fileRef = B82AE5FB28BE8631004A8FE0 /* HearthMirror-version.txt */; };
 		B82AE60028BE8631004A8FE0 /* mono-version.txt in Resources */ = {isa = PBXBuildFile; fileRef = B82AE5FC28BE8631004A8FE0 /* mono-version.txt */; };
@@ -3038,6 +3037,7 @@
 		B82901F42F0ED4A0002F96FB /* VolumizerBuffCounter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VolumizerBuffCounter.swift; sourceTree = "<group>"; };
 		B82AE5EF28ADBC54004A8FE0 /* Influx.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Influx.swift; sourceTree = "<group>"; };
 		B82AE5F928BE8631004A8FE0 /* BobsBuddy-version.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "BobsBuddy-version.txt"; sourceTree = "<group>"; };
+		B8A11C0D2FC000010001A004 /* HearthDb-version.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "HearthDb-version.txt"; sourceTree = "<group>"; };
 		B82AE5FA28BE8631004A8FE0 /* cards-version.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "cards-version.txt"; sourceTree = "<group>"; };
 		B82AE5FB28BE8631004A8FE0 /* HearthMirror-version.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "HearthMirror-version.txt"; sourceTree = "<group>"; };
 		B82AE5FC28BE8631004A8FE0 /* mono-version.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "mono-version.txt"; sourceTree = "<group>"; };
@@ -4412,6 +4412,7 @@
 				434106A01C9868620045655A /* Assets */,
 				B82F4EAC24E3221D00905024 /* BobsBuddy */,
 				B82AE5F928BE8631004A8FE0 /* BobsBuddy-version.txt */,
+				B8A11C0D2FC000010001A004 /* HearthDb-version.txt */,
 				B82AE5FA28BE8631004A8FE0 /* cards-version.txt */,
 				439C7E901C777EE800D29859 /* Core */,
 				439C7E7A1C777CC000D29859 /* Database */,
@@ -6863,7 +6864,7 @@
 			buildConfigurationList = 439C7E701C7772C100D29859 /* Build configuration list for PBXNativeTarget "HSTracker" */;
 			buildPhases = (
 				B849674128A57C7300D90B30 /* Download Mono */,
-				B8D8859B24F4333000F2F0F2 /* Download BobsBuddy and HearthDb */,
+				B8D8859B24F4333000F2F0F2 /* Install vendored BobsBuddy and HearthDb */,
 				4C68AF242447CE5000E52834 /* Download HearthMirror */,
 				439C7E461C7772C000D29859 /* Resources */,
 				439C7E441C7772C000D29859 /* Sources */,
@@ -7069,7 +7070,6 @@
 				B8AFA4092723306D00B3470E /* BoardOverlay.xib in Resources */,
 				B8AF0C6D2B83AAAE00B65F63 /* ConstructedMulliganSingleCardStats.xib in Resources */,
 				B83CF36F294E3DC6003C9062 /* BattlegroundsCompositionPopularityBar.xib in Resources */,
-				B82AE5FD28BE8631004A8FE0 /* BobsBuddy-version.txt in Resources */,
 				43EECB9A1C7E3F620077AC1B /* DeckCellView.xib in Resources */,
 				B85FE9C52E53CACA001865FC /* Resources in Resources */,
 				B800FCAC273318DA00AFBD51 /* MercenariesTaskListView.xib in Resources */,
@@ -7186,6 +7186,7 @@
 				"$(SRCROOT)/downloaded-frameworks/managed/BobsBuddy.dll",
 				"$(SRCROOT)/downloaded-frameworks/managed/BobsBuddy.Common.dll",
 				"$(SRCROOT)/downloaded-frameworks/managed/HearthDb.dll",
+				"$(SRCROOT)/downloaded-frameworks/managed/HearthDb.xml",
 			);
 			name = "Embed Mono";
 			outputFileListPaths = (
@@ -7197,6 +7198,10 @@
 				"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Managed/x64/System.Private.CoreLib.dll",
 				"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Managed/x64/mscorlib.dll",
 				"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Managed/x64/System.Xml.XmlSerializer.dll",
+				"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Managed/BobsBuddy.dll",
+				"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Managed/BobsBuddy.Common.dll",
+				"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Managed/HearthDb.dll",
+				"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Managed/HearthDb.xml",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -7271,7 +7276,7 @@
 			shellScript = "set -e\n\n# CardDefs.xml is pinned by cards-version.txt and never changes for a given\n# build, so it is transcoded to a binary blob here instead of being parsed on\n# every launch. See HSTracker/Database/CardDefsBinary.swift.\n#\n# The blob goes straight into Contents/Resources, not into Resources/Cards:\n# HSTracker/Resources is a folder reference, and its copy replaces that whole\n# directory, so anything a script phase writes inside it can be wiped by a\n# later build.\nSOURCES=\"$SRCROOT/HSTracker/Database/CardDefsBinary.swift $SRCROOT/Tools/CardDefsCompiler/main.swift\"\nTOOL=\"${DERIVED_FILE_DIR}/CardDefsCompiler\"\nRESOURCES=\"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"\n\nmkdir -p \"${DERIVED_FILE_DIR}\" \"${RESOURCES}\"\n\nrebuild=0\n[ -x \"$TOOL\" ] || rebuild=1\nfor src in $SOURCES; do\n    [ \"$src\" -nt \"$TOOL\" ] && rebuild=1\ndone\nif [ $rebuild -eq 1 ]; then\n    echo \"Building CardDefsCompiler\"\n    xcrun --sdk macosx swiftc -O -swift-version 5 -o \"$TOOL\" $SOURCES\nfi\n\n\"$TOOL\" \"${BUILT_PRODUCTS_DIR}/CardDefs.xml\" \"${BUILT_PRODUCTS_DIR}/CardDefs.Bacon.xml\" \"${BUILT_PRODUCTS_DIR}/CardDefs.Lettuce.xml\" \"${RESOURCES}/CardDefs.bin\"\n";
 			showEnvVarsInLog = 0;
 		};
-		B8D8859B24F4333000F2F0F2 /* Download BobsBuddy and HearthDb */ = {
+		B8D8859B24F4333000F2F0F2 /* Install vendored BobsBuddy and HearthDb */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -7280,18 +7285,22 @@
 			);
 			inputPaths = (
 				"$(SRCROOT)/HSTracker/BobsBuddy-version.txt",
+				"$(SRCROOT)/HSTracker/HearthDb-version.txt",
+				"$(SRCROOT)/Vendor/Managed/BobsBuddy.zip",
+				"$(SRCROOT)/Vendor/Managed/HearthDb.zip",
 			);
-			name = "Download BobsBuddy and HearthDb";
+			name = "Install vendored BobsBuddy and HearthDb";
 			outputFileListPaths = (
 			);
 			outputPaths = (
 				"$(SRCROOT)/downloaded-frameworks/managed/BobsBuddy.dll",
-				"$(SRCROOT)/downloaded-frameworks/managed/HearthDb.dll",
 				"$(SRCROOT)/downloaded-frameworks/managed/BobsBuddy.Common.dll",
+				"$(SRCROOT)/downloaded-frameworks/managed/HearthDb.dll",
+				"$(SRCROOT)/downloaded-frameworks/managed/HearthDb.xml",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Xcode.app runs build phases via launchd, so it has neither Homebrew on PATH\n# nor the shell proxy variables. Command-line xcodebuild inherits both.\nexport PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"\nif nc -z 127.0.0.1 7890 2>/dev/null; then\n    export http_proxy=http://127.0.0.1:7890\n    export https_proxy=$http_proxy\n    export all_proxy=socks5h://127.0.0.1:7890\nfi\n\nset -e\nEXPECTED_VERSION=$(cat \"$SRCROOT/HSTracker/BobsBuddy-version.txt\")\nDIR=\"$SRCROOT/downloaded-frameworks/managed\"\nBOBS_ZIP=\"$SRCROOT/downloaded-frameworks/BobsBuddy.zip\"\nHEARTHDB_ZIP=\"$SRCROOT/downloaded-frameworks/HearthDb.zip\"\nmkdir -p \"$DIR\"\n\nwget -N \"https://libs.hearthsim.net/hdt/HearthDb.zip\" -O \"$HEARTHDB_ZIP\"\nwget -N \"https://libs.hearthsim.net/hdt/BobsBuddy.zip\" -O \"$BOBS_ZIP\"\n\nSTAGING=$(mktemp -d \"$DIR/bobsbuddy.XXXXXX\")\ntrap 'rm -rf \"$STAGING\"' EXIT\nunzip -o \"$BOBS_ZIP\" -d \"$STAGING\"\n\nACTUAL_VERSION=$(/usr/bin/strings \"$STAGING/BobsBuddy.dll\" | /usr/bin/sed -n \"s#^/\\([0-9][0-9.]*\\)[+].*#\\1#p\" | /usr/bin/head -n 1)\nif [ \"$ACTUAL_VERSION\" != \"$EXPECTED_VERSION\" ]; then\n    echo \"error: BobsBuddy-version.txt expects $EXPECTED_VERSION, but the server published $ACTUAL_VERSION\" >&2\n    exit 1\nfi\n\nunzip -o \"$HEARTHDB_ZIP\" -d \"$DIR\"\ncp \"$STAGING/BobsBuddy.dll\" \"$DIR\"\ncp \"$STAGING/BobsBuddy.Common.dll\" \"$DIR\"\n";
+			shellScript = "set -e\n\nBOBS_EXPECTED_VERSION=$(cat \"$SRCROOT/HSTracker/BobsBuddy-version.txt\")\nHEARTHDB_EXPECTED_VERSION=$(cat \"$SRCROOT/HSTracker/HearthDb-version.txt\")\nBOBS_ARCHIVE=\"$SRCROOT/Vendor/Managed/BobsBuddy.zip\"\nHEARTHDB_ARCHIVE=\"$SRCROOT/Vendor/Managed/HearthDb.zip\"\nDESTINATION=\"$SRCROOT/downloaded-frameworks/managed\"\nmkdir -p \"$DESTINATION\" \"$DERIVED_FILE_DIR\"\n\nSTAGING=$(mktemp -d \"$DERIVED_FILE_DIR/managed-deps.XXXXXX\")\ntrap 'rm -rf \"$STAGING\"' EXIT\nmkdir -p \"$STAGING/bobsbuddy\" \"$STAGING/hearthdb\"\nunzip -q \"$BOBS_ARCHIVE\" -d \"$STAGING/bobsbuddy\"\nunzip -q \"$HEARTHDB_ARCHIVE\" -d \"$STAGING/hearthdb\"\n\nfor file in BobsBuddy.dll BobsBuddy.Common.dll; do\n    if [ ! -f \"$STAGING/bobsbuddy/$file\" ]; then\n        echo \"error: vendored BobsBuddy.zip is missing $file\" >&2\n        exit 1\n    fi\ndone\nfor file in HearthDb.dll HearthDb.xml; do\n    if [ ! -f \"$STAGING/hearthdb/$file\" ]; then\n        echo \"error: vendored HearthDb.zip is missing $file\" >&2\n        exit 1\n    fi\ndone\n\nBOBS_ACTUAL_VERSION=$(/usr/bin/strings \"$STAGING/bobsbuddy/BobsBuddy.dll\" | /usr/bin/sed -n \"s#^/\\([0-9][0-9.]*\\)[+].*#\\1#p\" | /usr/bin/head -n 1)\nif [ -z \"$BOBS_ACTUAL_VERSION\" ]; then\n    echo \"error: could not read the assembly version from vendored BobsBuddy.dll\" >&2\n    exit 1\nfi\nif [ \"$BOBS_ACTUAL_VERSION\" != \"$BOBS_EXPECTED_VERSION\" ]; then\n    echo \"error: BobsBuddy-version.txt expects $BOBS_EXPECTED_VERSION, but vendored BobsBuddy.dll is $BOBS_ACTUAL_VERSION\" >&2\n    exit 1\nfi\n\n# HearthDb has no anchored informational-version string like BobsBuddy. This\n# assumes the assembly contains exactly one standalone x.y.z string.\nHEARTHDB_VERSIONS=$(/usr/bin/strings \"$STAGING/hearthdb/HearthDb.dll\" | /usr/bin/sed -n \"/^[0-9][0-9]*\\.[0-9][0-9]*\\.[0-9][0-9]*$/p\" | /usr/bin/sort -u)\nHEARTHDB_VERSION_COUNT=$(printf \"%s\\n\" \"$HEARTHDB_VERSIONS\" | /usr/bin/sed \"/^$/d\" | /usr/bin/wc -l | /usr/bin/tr -d \" \" )\nif [ \"$HEARTHDB_VERSION_COUNT\" -ne 1 ]; then\n    echo \"error: expected one standalone x.y.z string in vendored HearthDb.dll, found $HEARTHDB_VERSION_COUNT\" >&2\n    if [ -n \"$HEARTHDB_VERSIONS\" ]; then\n        printf \"%s\\n\" \"$HEARTHDB_VERSIONS\" >&2\n    fi\n    exit 1\nfi\nHEARTHDB_ACTUAL_VERSION=$HEARTHDB_VERSIONS\nif [ \"$HEARTHDB_ACTUAL_VERSION\" != \"$HEARTHDB_EXPECTED_VERSION\" ]; then\n    echo \"error: HearthDb-version.txt expects $HEARTHDB_EXPECTED_VERSION, but vendored HearthDb.dll is $HEARTHDB_ACTUAL_VERSION\" >&2\n    exit 1\nfi\n\n# Plain cp gives every output a fresh timestamp after all inputs were validated.\ncp \"$STAGING/bobsbuddy/BobsBuddy.dll\" \"$DESTINATION\"\ncp \"$STAGING/bobsbuddy/BobsBuddy.Common.dll\" \"$DESTINATION\"\ncp \"$STAGING/hearthdb/HearthDb.dll\" \"$DESTINATION\"\ncp \"$STAGING/hearthdb/HearthDb.xml\" \"$DESTINATION\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

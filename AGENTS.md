@@ -73,7 +73,7 @@ xcodebuild -project HSTracker.xcodeproj -scheme HSTracker \
 ```
 
 **Xcode.app 由 launchd 拉起，既没有 homebrew 的 PATH，也没有 shell 里的代理变量**；命令行
-`xcodebuild` 两样都继承，所以同一份代码在命令行能过、在 Xcode 里会挂。五个联网 phase 的开头
+`xcodebuild` 两样都继承，所以同一份代码在命令行能过、在 Xcode 里会挂。三个联网 phase 的开头
 因此都注入了 PATH 和**条件代理**（`nc -z 127.0.0.1 7890` 探测到才设，没开代理时回落直连）。
 **判断「构建能不能过」必须区分这两个环境**，要验证就用受限环境跑：
 
@@ -104,11 +104,13 @@ framework，已有预编译头可能报 “modified since the precompiled header
 执行一次 `clean build` 即可，不要误判成源码编译错误。
 
 **改 build phase 时先想清楚 inputs / outputs 是否覆盖了它真正读写的东西。** 声明了 outputs 就等于
-放弃「每次都跑」的自愈性，此后**只有 inputs 变化才会重跑**。3.6.7 给 `Embed Mono` 加了 6 个 outputs，
+放弃「每次都跑」的自愈性，此后**只有 inputs 变化或 outputs 缺失才会重跑**。3.6.7 给
+`Embed Mono` 加了 6 个 outputs，
 而它的 inputs 原本只有 `mono-version.txt` —— 但这个阶段同时负责把 `downloaded-frameworks/managed/`
-的 BobsBuddy / HearthDb 拷进 bundle。于是只改 `BobsBuddy-version.txt` 跑增量时，下载阶段重跑、
+的 BobsBuddy / HearthDb 拷进 bundle。于是只改 `BobsBuddy-version.txt` 跑增量时，安装阶段重跑、
 `Embed Mono` 被判最新跳过，**包里留着旧的 BobsBuddy.dll**。修法是把那三个 DLL 补进 `Embed Mono`
-的 inputPaths —— 它们正是下载阶段声明的 outputs，这样两个阶段之间才有一条真实的依赖边。
+的 inputPaths；固定 HearthDb 后又把 `HearthDb.xml` 一并补齐。四项现在既是安装阶段的 outputs、
+`Embed Mono` 的 inputs，也是它在 bundle 里的 outputs，这样依赖边和缺件自愈都完整。
 
 这类问题的共同症状是**看起来像代码 bug，实际是构建产物残缺**。2026-08-22 就踩过一次同构的：
 包里缺 `CardDefs.xml` → `Cards.by(cardId:)` 全返回 nil → 记牌器只剩几个计数框、一根卡条都没有
@@ -118,12 +120,17 @@ framework，已有预编译头可能报 “modified since the precompiled header
 
 - `Embed Mono` 拷 `net8.0` **整个目录**而非白名单：BobsBuddy 独立发布时可能新增 BCL 依赖，
   手写清单会静默漏项、且只在运行时报错。当前全量 168 个 DLL / arch。
-- `BobsBuddy-version.txt` 现在是强校验：服务器仍只提供 latest 包，但下载后会读取程序集信息版本，
-  与文件不一致就立即让构建失败；不再静默把“最新版”冒充成声明版本。
-  **代价是这个 pin 会自己过期** —— HearthSim 一发新版，下一次构建就红。
-  2026-08-30 就撞了一次（`expects 1.69.0, but the server published 1.69.1`，当天早些时候还是好的）。
-  **正确反应是把版本文件改成服务器上的那个数，不是放宽校验。** 失败发生在下载阶段、
-  一行 Swift 都没编译，所以看到这条报错不用怀疑代码；已缓存的旧 DLL 也不会被覆盖。
+- BobsBuddy / HearthDb 的官方地址都只有会变化的 latest，因此两份 zip 已固定在
+  `Vendor/Managed/`；普通构建不再访问这两个地址。版本分别只由 `BobsBuddy-version.txt` 和
+  `HearthDb-version.txt` 声明，制品路径不重复版本号。两份 txt 都登记在 Xcode 导航器，但只是
+  构建输入、不复制进 app；上游遗留的 BobsBuddy 资源项也已删除。
+- `Install vendored BobsBuddy and HearthDb` 在 `DERIVED_FILE_DIR` staging，确认四个文件齐全并读取
+  程序集版本强校验，全部通过后才 `cp` 到 `downloaded-frameworks/managed/`。这里必须保留
+  staging → `cp`：直接 unzip 到 outputs 会继承 zip 内旧时间，令 Xcode 永远判 phase 过期。
+- 升级先运行 `scripts/update-managed-deps.sh`，它从两个官方 latest URL 下载并打印实际版本；确认后
+  执行它打印出的带 `--apply` 和两个确认版本的命令，由脚本一起替换 zip 和版本文件；如果 latest
+  在两次调用之间又变化，apply 会拒绝落盘并要求重看。之后必须跑构建，不要放宽校验或手改出
+  第二份版本真相。
 - 只有 **github.com 需要走代理**（直连超时），nuget / libs.hearthsim.net / api.hearthstonejson.com 直连均可。
   `CardDefs.xml` 约 100MB，按版本缓存在 `downloaded-frameworks/cards/`，`cards-version.txt` 变了才重下。
 - `Embed Mono` 的 `NET_VERSION` 是 `net8.0`（上游 3.6.7 仍是 `net7.0`）。
