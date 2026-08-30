@@ -810,11 +810,13 @@ struct TagChangeActions {
     }
 
     private func predictFabled(_ entity: Entity) {
-        guard !entity.info.created, entity.hasCardId, let cardIds = CardIds.fabledDict[entity.cardId] else {
+        let game = AppDelegate.instance().coreManager.game
+        guard entity.isControlled(by: game.opponent.id),
+              !entity.info.created,
+              entity.hasCardId,
+              let cardIds = CardIds.fabledDict[entity.cardId] else {
             return
         }
-        
-        let game = AppDelegate.instance().coreManager.game
         
         for cardId in cardIds {
             game.opponent.predictUniqueCardInDeck(cardId: cardId, isCreated: false)
