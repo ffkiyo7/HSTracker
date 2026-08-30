@@ -75,6 +75,26 @@ git checkout <工作分支> && git merge master
 `DiscoverStateWatcher → TrackerCardListViewModel.setHighlight` 与主线程
 `Tracker.update → playerType.setter` 互锁。
 
+### 改 overlay / view model 的时序前，把每一跳 `main.async` 数清楚
+
+**不要假设回调是同步的。** 这个代码库里大量"看起来同步"的调用自带一层派发，判断
+「这两次写谁先谁后」「后面那次会不会把前面那次纠正回来」之前，必须把从写入到最终
+`windowManager.show()` 之间的**每一次** `DispatchQueue.main.async` 列出来。已知的两处：
+
+- `Game.updateBattlegroundsOverlays()`（`Game.swift:753-754`）把整个函数体包在**无条件**的
+  `main.async` 里 —— 即使调用方已经在主线程，也要等下一轮。
+- `Tier7PreLobby.awakeFromNib()`（`:43-47`）把 `viewModel.propertyChanged` 闭包写成
+  `{ name in DispatchQueue.main.async { self.update(name) } }` —— **属性回调比 setter 晚一整轮**。
+  同一个 view model 的 setter 里看到 `onPropertyChanged(...)`，不代表回调这时候就跑了。
+
+代价是实打实的：2026-08-30 修完 watcher 线程归属（`ac116be0`）后，构筑对局里冒出了战棋的
+Tier7 pre-lobby 浮窗（`eb52832e` 修）。review 侧只读代码、把上面第二条当成同步回调，推出
+"规范路径最后会把它隐藏、能自我纠正"的**错误**结论；实际顺序是规范路径先隐藏、延迟一轮的
+属性回调再绕过场景门把它显示回来，没有更晚的操作纠正。
+
+所以：**这类时序问题读代码读不出把握时，加一行只在状态翻转时打的日志跑一局**，比继续推演快得多，
+也是 `[trackervis]` 那组临时诊断的由来。
+
 ## 构建
 
 ```
