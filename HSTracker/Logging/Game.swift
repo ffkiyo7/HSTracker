@@ -256,31 +256,6 @@ class Game: NSObject, PowerEventHandler {
         return QueueEvents.modes.contains(currentMode) && currentMode != .bacon
     }
 
-    // TEMPORARY DIAGNOSTICS - 2026-08-30, for the "opponent tracker lingers while queueing"
-    // report. The visibility conditions read a dozen pieces of state and none of it is logged,
-    // so a screenshot cannot tell us which term is wrong. Delete this and the two call sites
-    // once that report is resolved.
-    private var lastPlayerTrackerVisible: Bool?
-    private var lastOpponentTrackerVisible: Bool?
-
-    /// Must be called on the main thread, from the tracker update blocks. Only logs when the
-    /// decision flips, so a whole game is a handful of lines rather than one per refresh.
-    private func logTrackerVisibility(_ name: String, _ shouldShow: Bool, isPlayer: Bool) {
-        if isPlayer {
-            guard lastPlayerTrackerVisible != shouldShow else { return }
-            lastPlayerTrackerVisible = shouldShow
-        } else {
-            guard lastOpponentTrackerVisible != shouldShow else { return }
-            lastOpponentTrackerVisible = shouldShow
-        }
-        logger.info("[trackervis] \(name) show=\(shouldShow)"
-            + " gameType=\(currentGameType) bg=\(isBattlegroundsMatch()) merc=\(isMercenariesMatch())"
-            + " inQueue=\(queueEvents.isInQueue) deckTrackerQueue=\(isDeckTrackerQueue)"
-            + " mode=\(currentMode.map { "\($0)" } ?? "nil") deck=\(currentDeck?.name ?? "nil")"
-            + " gameEnded=\(gameEnded) isInMenu=\(isInMenu) spectator=\(spectator)"
-            + " hideNotInGame=\(Settings.hideAllTrackersWhenNotInGame) selfAppActive=\(selfAppActive)")
-    }
-
     func updateTrackers(reset: Bool = false) {
         let latencyRequest = LatencyProbe.shared.captureUpdateRequest()
         _queue.async {
@@ -338,7 +313,6 @@ class Game: NSObject, PowerEventHandler {
                     || (!Settings.hideAllTrackersWhenNotInGame) || self.selfAppActive ) &&
                 ((Settings.hideAllWhenGameInBackground &&
                     self.hearthstoneRunState.isActive) || !Settings.hideAllWhenGameInBackground || self.selfAppActive)
-            self.logTrackerVisibility("opponent", shouldShow, isPlayer: false)
             if shouldShow {
 
                 // update cards
@@ -415,7 +389,6 @@ class Game: NSObject, PowerEventHandler {
                     || (!Settings.hideAllTrackersWhenNotInGame) || self.selfAppActive ) &&
                 ((Settings.hideAllWhenGameInBackground &&
                     self.hearthstoneRunState.isActive) || !Settings.hideAllWhenGameInBackground || self.selfAppActive)
-            self.logTrackerVisibility("player", shouldShow, isPlayer: true)
             if shouldShow {
 
                 // update cards
@@ -1835,8 +1808,6 @@ class Game: NSObject, PowerEventHandler {
         if let currentGameType = MirrorHelper.getGameType(), currentGameType != GameType.gt_unknown.rawValue {
             if !_gameTypeDuosCorrectionCheckCompleted { // Do not let a late mirror overwrite a bg game type already corrected by TryCorrectMisreadSoloGameType.
                 _currentGameType = GameType(rawValue: currentGameType) ?? .gt_unknown
-                // TEMPORARY DIAGNOSTICS - 2026-08-30, see logTrackerVisibility.
-                logger.info("[trackervis] cacheGameType wrote \(_currentGameType)")
             }
         } else {
             DispatchQueue.global().asyncAfter(deadline: .now() + 1.0) {

@@ -4,9 +4,9 @@
 |---|---|
 | 最后更新 | 2026-08-30 |
 | 分支 | `phase0+3`（已合入 upstream `534ee2d8` / **3.6.7**，review 通过并提交；`master` 同步快进到 3.6.7） |
-| 构建 | Bug T3 最终代码受限环境 Debug `BUILD SUCCEEDED`；现有 warning 来自上游旧 API / 资源名 / `-ld_classic` / always-run phase 与未安装 SwiftLint |
+| 构建 | 删除 `[trackervis]` 临时诊断后，受限环境 Debug `BUILD SUCCEEDED`；现有 warning 来自上游旧 API / 资源名 / `-ld_classic` / always-run phase 与未安装 SwiftLint |
 | 阻塞 | 无。Bug T1 / T2 / T3 三本均已实战验收并提交 |
-| **下一步** | 删掉 `[trackervis]` 临时诊断（三条报告都已结案），然后 Phase 0 / T6 第 3 步：按新基线打 p50，目标 D 段（C 段会跟着掉） |
+| **下一步** | Phase 0 / T6 第 3 步：按新基线打 p50，目标 D 段（C 段会跟着掉，见「新基线读出来的三件事」） |
 | **下一次要你亲自看** | 暂无待验项。Phase 1 的 T5 / T6 开工后会重新出现 🎮 卡点 |
 | **不作为验收手段** | **战棋** —— 用户不玩（2026-08-30 确认）。战棋代码该对还是要对，但验证只能静态做，不排"打一局战棋"这种项 |
 
@@ -58,13 +58,13 @@
 
 | | 内容 | 状态 |
 |---|---|---|
-| **Phase U** | **合并上游 3.6.7** | ✅ 42 commits / 4 个冲突文件 · **卡点 ① 已实战**；串卡修复代码完成，待人工验 |
+| **Phase U** | **合并上游 3.6.7** | ✅ 42 commits / 4 个冲突文件 · **卡点 ① 已实战**；串卡修复 **2026-08-30 实战确认「串卡没了」** |
 | Phase 2 | 记牌器分区（牌库 / 手牌 / 已打出） | ⬜ 依赖 Phase 1 的 T4 / T6 · 🎮 ×4 |
 | 收尾 | 删 A/B 开关、删旧路径 | ⬜ 排在 Phase 2 之后 · 🎮 |
 | Phase 3 | 补全简体中文 | ✅ Phase U 补课后 **945 / 945（100%）** |
 | Phase 4 | 设置 UI + Dock 菜单 | ⬜ 三项都不依赖任何东西，随时可开始 · 🎮 + 🖥️ |
 | Phase 5 | 计数器 overlay 可拖动 | ⬜ 🎮 · 3.6.7 落点已重查，根因仍在窗口层 |
-| Phase 6 | 排队时就显示牌组 | 🟡 T1 代码完成并通过 Debug 构建，待标准/战棋队列人工验 · 🎮 |
+| Phase 6 | 排队时就显示牌组 | ✅ T1 **2026-08-30 标准模式实战通过**（进队列 30 张全在）。战棋队列按惯例只静态确认（`.bacon` 不在白名单） |
 
 > 🎮 = 这一阶段有需要**你亲自开炉石看**的卡点，🖥️ = 只需静态看（比对窗 / 设置窗口）。
 > 每个卡点具体验什么、要备什么料，见 `docs/PLAN.md` 的「🎮 需要人亲自看的卡点」。
@@ -76,7 +76,7 @@
 | # | 反馈 | 核对结论 | 落点 |
 |---|---|---|---|
 | ① | 抽到手上的牌还留在牌库段，延迟一两回合甚至一直不消 | **不是延迟。** 探针 E2E p50 171ms / p95 450ms，没有那个量级的样本。真因是 `Settings.highlightCardsInHand`（本机开着）—— `getHighlightedCardsInHand()`（`Player.swift:381`）**故意**把手牌里的卡塞回列表，`count = 0` + 亮绿名 | Phase 2 / 2.1 分区时消化（PLAN 已记）。用户已认可 |
-| ② | 卡池浮窗串卡（「误炸」`WW_348` 窜进好几张卡的相关牌） | **上游 3.6.7 的回归。** `RelatedCardImageView` 的 `@State image` + `ForEach(0..<rows/cols, id:\.self)`，格子身份是行列下标不是卡；`hide()` 只 `orderOut`，视图树不销毁 → 复用时留着上一张的图。`git diff 534ee2d8` 对该文件为空；3.6.5 用的是 AppKit `GridCardImages`，所以是换 SwiftUI 时引入的 | ✅ 格子身份改为位置 + card id，待人工验 |
+| ② | 卡池浮窗串卡（「误炸」`WW_348` 窜进好几张卡的相关牌） | **上游 3.6.7 的回归。** `RelatedCardImageView` 的 `@State image` + `ForEach(0..<rows/cols, id:\.self)`，格子身份是行列下标不是卡；`hide()` 只 `orderOut`，视图树不销毁 → 复用时留着上一张的图。`git diff 534ee2d8` 对该文件为空；3.6.5 用的是 AppKit `GridCardImages`，所以是换 SwiftUI 时引入的 | ✅ 格子身份改为位置 + card id，**2026-08-30 实战通过** |
 | ③ | 排队时显示的是上一局残局 | `game.reset()` 只在 `Gameplay.Start` / `CREATE_GAME` 跑，排队时 `revealedEntities` 还是满的。**且这同时解释了"排队时记牌器为什么会显示"** —— `_currentGameType` 也没被清，绕过了 `Game.swift:376` 的条件。**清残留会让记牌器消失**，必须和放宽条件一起做 | 🟡 **我方卡组已修**（2026-08-30 实战确认 30 张全在），但带出两条新反馈，见下面「③ 的两条余留」 |
 | ④ | 卡条尺寸一局之内会变大 | **上游一直如此**：`Tracker.swift:459` 的 `cardHeight = min(cardHeight, (windowHeight - offsetFrames) / totalCards)`，行高按当前行数压缩。3.6.7 的 `:298-299` 一字不差 | 记在 PLAN 2.8，**等用户决定**（(a) 固定行高 / (b) 宽度跟着缩，二选一） |
 | ⑤ | 留牌时右下角的 HSReplay 引流浮窗（`MulliganToastView`，「What should I keep?」，`SizeHelper.swift:474` 定位在右下） | 有现成开关 `Settings.showMulliganToast` | ✅ **已改为本 fork 默认关闭**，见「与上游的默认值差异」 |
@@ -84,7 +84,8 @@
 顺带确认：**E2E p99 5.0s / max 9.3s 的长尾是真的**，且 >10s 的样本被 `outlierCutoff` 直接丢进
 `dropped` 计数、不进百分位。连同两个旧的 🔴（D 段量程、B 段没埋点）一起进 Phase 0 / T6。
 
-三本任务书的代码均已完成并通过 review；Phase 0 / T6 按任务书停在第 1 步，等待 Release 取数。
+这五条对应的三本任务书均已完成、review 通过并实战验收。**Phase 0 / T6 的第 1、2 步（修口径、取
+Release 基线）已完成，第 3 步（打 p50）未开始。**
 
 **review 挡下的一条**（记着，因为它是竞态、上线后极难查）：排队那本原本给
 `updateOpponentTracker` 也加了 `!queueEvents.isInQueue`。它**多余** —— 进队列的 `reset()`
@@ -106,7 +107,7 @@ watcher 200ms 才轮询一次，只要模式那行日志抢在轮询前面，
 > 目前只靠 `QueueEvents.modes` 白名单 + `currentDeck != nil` 兜着 —— 菜单模式 `.hub`
 > 不在白名单里，所以要 `currentMode` 也一起陈旧才会露出来。**这条还没被证伪，见下。**
 
-#### ③ 的余留已查明：不是显示条件，是主线程死锁（代码已修，待实战）
+#### ③ 的余留已查明：不是显示条件，是主线程死锁（已修并实战验收）
 
 用户原话：「现在的确是显示完全的卡组了，但是对手的也会残留下来，正确的行为应该是只显示
 我方的卡组，而且退出排队回到炉石主菜单的时候，还继续显示，这也是错误的。」
@@ -137,8 +138,9 @@ watcher 200ms 才轮询一次，只要模式那行日志抢在轮询前面，
 2026-08-30 已按任务书完成静态修复：从 `Watchers.initialize()` 全量反查 16 个 watcher，确认并把
 7 条后台 UI 写路径异步搬回主线程；其中 `QueueWatcher → setConstructedQueue` 和
 `SceneWatcher → invalidateUserState` 是抽查表外补出的两条。高亮只在 watcher 调用点跳主线程，
-tracker 自己的 hover / exit 仍同步执行。受限环境 Debug 已 `BUILD SUCCEEDED`，诊断代码完整保留；
-任务仍留在 `docs/tasks/`，等标准模式实战、hang report 与 `[trackervis]` 日志三项验收通过再归档。
+tracker 自己的 hover / exit 仍同步执行。**已于 2026-08-30 实战验收通过并提交 `ac116be0`**
+（无新 hang report、`[trackervis]` 全程正常翻转、协同高亮每次都出）。
+`[trackervis]` 那组临时诊断已在三条报告全部结案后删除。
 
 > **`hide_all_trackers_when_not_in_game` 默认 `false`**（`Settings.swift:215`，用户
 > `defaults` 里也没写过）这条仍然成立，只是不是本次的解释：即使没有死锁，一局打完回主菜单
