@@ -32,6 +32,37 @@ final class LatencyProbe {
     private var render = [Double]()     // D: update started -> main thread committed
     private var endToEnd = [Double]()   // A+B+C+D as the user experiences it
 
+    enum RenderBlock: String, CaseIterable {
+        case playerTracker = "player tracker"
+        case opponentTracker = "opponent tracker"
+        case cardHud = "card HUD"
+        case turnTimer = "turn timer"
+        case boardState = "board state"
+        case secrets = "secrets"
+        case battlegrounds = "battlegrounds"
+        case bobsBuddy = "BobsBuddy"
+        case turnCounter = "turn counter"
+        case toaster = "toaster"
+        case experience = "experience"
+        case mercenariesTasks = "mercenaries tasks"
+        case boardOverlay = "board overlay"
+        case mulligan = "mulligan"
+        case activeEffects = "active effects"
+        case maxResources = "max resources"
+        case rootOverlay = "root overlay"
+        case counters = "counters"
+        case playerCountersUpdate = "player counters update"
+        case opponentCountersUpdate = "opponent counters update"
+        case mulliganGuideScaling = "mulligan guide scaling"
+        case mulliganPreLobbyScaling = "mulligan pre-lobby scaling"
+    }
+
+    struct RenderBlockToken {
+        let block: RenderBlock
+        let startClock: TimeInterval
+        let generation: UInt
+    }
+
     private var droppedOutliers = 0
     private static let maxSamples = 4000
 
@@ -40,6 +71,12 @@ final class LatencyProbe {
     private var updateLineClock: TimeInterval?
     private var updateStartClock: TimeInterval?
     private var processingLines = [ObjectIdentifier: UpdateRequest]()
+    private var renderGeneration: UInt = 0
+    private var firstRenderBlockClock: TimeInterval?
+    private var currentRenderBlocks = [RenderBlock: TimeInterval]()
+    private var renderBlocks = [RenderBlock: [Double]]()
+    private var renderInitialWait = [Double]()
+    private var renderUnattributed = [Double]()
 
     struct UpdateRequest {
         let processingStartClock: TimeInterval
@@ -66,6 +103,12 @@ final class LatencyProbe {
     private func record(_ bucket: inout [Double], _ value: TimeInterval) {
         if bucket.count >= LatencyProbe.maxSamples { bucket.removeFirst(bucket.count / 4) }
         bucket.append(value * 1000.0)
+    }
+
+    private func record(_ block: RenderBlock, _ value: TimeInterval) {
+        var bucket = renderBlocks[block] ?? []
+        record(&bucket, value)
+        renderBlocks[block] = bucket
     }
 
     // MARK: - Stage hooks
@@ -134,6 +177,36 @@ final class LatencyProbe {
         updateLineClock = pendingLineClock
         pendingLineClock = nil
         updateStartClock = t
+        renderGeneration &+= 1
+        firstRenderBlockClock = nil
+        currentRenderBlocks.removeAll(keepingCapacity: true)
+        lock.unlock()
+    }
+
+    /// One of the main-queue blocks enqueued by Game.updateAllTrackers.
+    func renderBlockStarted(_ block: RenderBlock) -> RenderBlockToken? {
+        guard LatencyProbe.enabled else { return nil }
+        let t = LatencyProbe.now()
+        lock.lock()
+        guard updateStartClock != nil else {
+            lock.unlock()
+            return nil
+        }
+        if firstRenderBlockClock == nil {
+            firstRenderBlockClock = t
+        }
+        let token = RenderBlockToken(block: block, startClock: t, generation: renderGeneration)
+        lock.unlock()
+        return token
+    }
+
+    func renderBlockFinished(_ token: RenderBlockToken?) {
+        guard let token else { return }
+        let t = LatencyProbe.now()
+        lock.lock()
+        if updateStartClock != nil && token.generation == renderGeneration {
+            currentRenderBlocks[token.block, default: 0] += max(0, t - token.startClock)
+        }
         lock.unlock()
     }
 
@@ -143,8 +216,19 @@ final class LatencyProbe {
         let t = LatencyProbe.now()
         lock.lock()
         if let started = updateStartClock {
-            record(&render, t - started)
+            let total = max(0, t - started)
+            let initialWait = max(0, (firstRenderBlockClock ?? t) - started)
+            let measuredBlocks = currentRenderBlocks.values.reduce(0, +)
+            let unattributed = max(0, total - initialWait - measuredBlocks)
+            record(&render, total)
+            record(&renderInitialWait, initialWait)
+            record(&renderUnattributed, unattributed)
+            for block in RenderBlock.allCases {
+                record(block, currentRenderBlocks[block] ?? 0)
+            }
             updateStartClock = nil
+            firstRenderBlockClock = nil
+            currentRenderBlocks.removeAll(keepingCapacity: true)
         }
         if let lineClock = updateLineClock {
             let total = t - lineClock
@@ -174,6 +258,14 @@ final class LatencyProbe {
         lock.lock()
         let f = percentiles(flush), p = percentiles(parsing), t = percentiles(tick)
         let r = percentiles(render), e = percentiles(endToEnd)
+        let renderTotal = render.reduce(0, +)
+        var renderComponents = RenderBlock.allCases.map { block in
+            (block.rawValue, renderBlocks[block] ?? [])
+        }
+        renderComponents.append(("first main-queue wait", renderInitialWait))
+        renderComponents.append(("unattributed / queue gaps", renderUnattributed))
+        renderComponents.sort { $0.1.reduce(0, +) > $1.1.reduce(0, +) }
+        let componentTotal = renderComponents.reduce(0) { $0 + $1.1.reduce(0, +) }
         let dropped = droppedOutliers
         lock.unlock()
 
@@ -183,5 +275,15 @@ final class LatencyProbe {
         logger.info("[latency] C requested -> tick    \(t)   <- debounce")
         logger.info("[latency] D tick -> UI committed \(r)   <- render cost")
         logger.info("[latency] E2E line -> UI         \(e)")
+        let coverage = renderTotal > 0 ? componentTotal / renderTotal * 100.0 : 0
+        logger.info(String(format: "[latency] D breakdown additive total=%.1f componentTotal=%.1f coverage=%.1f%%",
+                           renderTotal, componentTotal, coverage))
+        for (name, samples) in renderComponents where samples.contains(where: { $0 > 0 }) {
+            let total = samples.reduce(0, +)
+            let average = total / Double(samples.count)
+            let share = renderTotal > 0 ? total / renderTotal * 100.0 : 0
+            logger.info(String(format: "[latency] D part %-28@ %@ avg=%.1f total=%.1f share=%.1f%%",
+                               name as NSString, percentiles(samples), average, total, share))
+        }
     }
 }

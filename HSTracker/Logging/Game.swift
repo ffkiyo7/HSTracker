@@ -301,6 +301,8 @@ class Game: NSObject, PowerEventHandler {
 	
 	@objc func updateOpponentTracker(reset: Bool = false) {
         DispatchQueue.main.async { [weak self] in
+            let latencyBlock = LatencyProbe.shared.renderBlockStarted(.opponentTracker)
+            defer { LatencyProbe.shared.renderBlockFinished(latencyBlock) }
             guard let self else {
                 return
             }
@@ -377,6 +379,8 @@ class Game: NSObject, PowerEventHandler {
     
     @objc func updatePlayerTracker(reset: Bool = false) {
         DispatchQueue.main.async { [weak self] in
+            let latencyBlock = LatencyProbe.shared.renderBlockStarted(.playerTracker)
+            defer { LatencyProbe.shared.renderBlockFinished(latencyBlock) }
             guard let self else {
                 return
             }
@@ -488,6 +492,8 @@ class Game: NSObject, PowerEventHandler {
 
     func updateTurnTimer() {
         DispatchQueue.main.async { [weak self] in
+            let latencyBlock = LatencyProbe.shared.renderBlockStarted(.turnTimer)
+            defer { LatencyProbe.shared.renderBlockFinished(latencyBlock) }
             guard let self else {
                 return
             }
@@ -521,6 +527,8 @@ class Game: NSObject, PowerEventHandler {
     
     func updateSecretTracker() {
         DispatchQueue.main.async { [weak self] in
+            let latencyBlock = LatencyProbe.shared.renderBlockStarted(.secrets)
+            defer { LatencyProbe.shared.renderBlockFinished(latencyBlock) }
             guard let self else {
                 return
             }
@@ -548,6 +556,8 @@ class Game: NSObject, PowerEventHandler {
     
     func updateActiveEffects() {
         DispatchQueue.main.async { [self] in
+            let latencyBlock = LatencyProbe.shared.renderBlockStarted(.activeEffects)
+            defer { LatencyProbe.shared.renderBlockFinished(latencyBlock) }
             let hsActive = hearthstoneRunState.isActive
 
             if isInMenu || !isMulliganDone() || isBattlegroundsMatch() {
@@ -581,6 +591,8 @@ class Game: NSObject, PowerEventHandler {
     
     func updateCounters() {
         DispatchQueue.main.async { [self] in
+            let latencyBlock = LatencyProbe.shared.renderBlockStarted(.counters)
+            defer { LatencyProbe.shared.renderBlockFinished(latencyBlock) }
             let hsActive = hearthstoneRunState.isActive
 
             if isInMenu || !isMulliganDone() || !shouldShowTracker {
@@ -596,6 +608,8 @@ class Game: NSObject, PowerEventHandler {
                     windowManager.show(controller: windowManager.playerCountersOverlay, show: true, frame: SizeHelper.playerCountersFrame(), overlay: true)
                     if windowManager.playerCountersOverlay.needsUpdate() {
                         DispatchQueue.main.async {
+                            let latencyBlock = LatencyProbe.shared.renderBlockStarted(.playerCountersUpdate)
+                            defer { LatencyProbe.shared.renderBlockFinished(latencyBlock) }
                             self.windowManager.playerCountersOverlay.update()
                         }
                     }
@@ -609,6 +623,8 @@ class Game: NSObject, PowerEventHandler {
                     windowManager.show(controller: windowManager.opponentCountersOverlay, show: true, frame: SizeHelper.opponentCountersFrame(), overlay: true)
                     if windowManager.opponentCountersOverlay.needsUpdate() {
                         DispatchQueue.main.async {
+                            let latencyBlock = LatencyProbe.shared.renderBlockStarted(.opponentCountersUpdate)
+                            defer { LatencyProbe.shared.renderBlockFinished(latencyBlock) }
                             self.windowManager.opponentCountersOverlay.update()
                         }
                     }
@@ -622,12 +638,16 @@ class Game: NSObject, PowerEventHandler {
     
     func updateConstructedMulliganOverlays() {
         DispatchQueue.main.async {
+            let latencyBlock = LatencyProbe.shared.renderBlockStarted(.mulligan)
+            defer { LatencyProbe.shared.renderBlockFinished(latencyBlock) }
             let hsActive = self.hearthstoneRunState.isActive
             
             if self.windowManager.constructedMulliganGuide.viewModel.visibility {
                 if (Settings.hideAllWhenGameInBackground && hsActive) || !Settings.hideAllWhenGameInBackground {
                     self.windowManager.show(controller: self.windowManager.constructedMulliganGuide, show: true, frame: SizeHelper.hearthstoneWindow.frame, overlay: true)
                     DispatchQueue.main.async {
+                        let latencyBlock = LatencyProbe.shared.renderBlockStarted(.mulliganGuideScaling)
+                        defer { LatencyProbe.shared.renderBlockFinished(latencyBlock) }
                         self.windowManager.constructedMulliganGuide.updateScaling()
                     }
                 } else {
@@ -639,6 +659,8 @@ class Game: NSObject, PowerEventHandler {
                 if ((Settings.hideAllWhenGameInBackground && hsActive) || !Settings.hideAllWhenGameInBackground) && Settings.showMulliganGuidePreLobby {
                     self.windowManager.show(controller: self.windowManager.constructedMulliganGuidePreLobby, show: true, frame: SizeHelper.constructedMulliganGuidePreLobbyFrame(), overlay: true)
                     DispatchQueue.main.async {
+                        let latencyBlock = LatencyProbe.shared.renderBlockStarted(.mulliganPreLobbyScaling)
+                        defer { LatencyProbe.shared.renderBlockFinished(latencyBlock) }
                         self.windowManager.constructedMulliganGuidePreLobby.updateScaling()
                     }
                 } else {
@@ -653,6 +675,8 @@ class Game: NSObject, PowerEventHandler {
     @available(macOS 10.15, *)
     func updateMaxResourcesWidget() {
         DispatchQueue.main.async { [self] in
+            let latencyBlock = LatencyProbe.shared.renderBlockStarted(.maxResources)
+            defer { LatencyProbe.shared.renderBlockFinished(latencyBlock) }
             updatePlayerResorucesWidgetVisibility()
             let hsActive = hearthstoneRunState.isActive
 
@@ -692,6 +716,8 @@ class Game: NSObject, PowerEventHandler {
     @available(macOS 10.15, *)
     func updateRootOverlay() {
         DispatchQueue.main.async { [self] in
+            let latencyBlock = LatencyProbe.shared.renderBlockStarted(.rootOverlay)
+            defer { LatencyProbe.shared.renderBlockFinished(latencyBlock) }
             guard let win = windowManager.rootOverlay else { return }
             let hsActive = hearthstoneRunState.isActive
 
@@ -791,6 +817,8 @@ class Game: NSObject, PowerEventHandler {
         let rect = SizeHelper.battlegroundsOverlayFrame()
 
         DispatchQueue.main.async {
+            let latencyBlock = LatencyProbe.shared.renderBlockStarted(.battlegrounds)
+            defer { LatencyProbe.shared.renderBlockFinished(latencyBlock) }
             let isBG = self.isBattlegroundsMatch() && !self.gameEnded
 
             // GuidesTabsView gates on this rather than calling isBattlegroundsMatch()
@@ -834,6 +862,8 @@ class Game: NSObject, PowerEventHandler {
         let rect = SizeHelper.toastFrame()
 
         DispatchQueue.main.async {
+            let latencyBlock = LatencyProbe.shared.renderBlockStarted(.toaster)
+            defer { LatencyProbe.shared.renderBlockFinished(latencyBlock) }
             if self.windowManager.toastWindowController.displayed {
                 self.windowManager.show(controller: self.windowManager.toastWindowController, show: true, frame: rect, title: nil, overlay: true)
             } else {
@@ -845,6 +875,8 @@ class Game: NSObject, PowerEventHandler {
     
     func updateTurnCounterOverlay() {
         DispatchQueue.main.async {
+            let latencyBlock = LatencyProbe.shared.renderBlockStarted(.turnCounter)
+            defer { LatencyProbe.shared.renderBlockFinished(latencyBlock) }
             if #available(macOS 10.15, *) {
                 self.windowManager.rootOverlay?.viewModel.battlegroundsTurnCounter
                     .update(turn: self.turnNumber(), isShown: self.isTurnCounterVisible)
@@ -856,6 +888,8 @@ class Game: NSObject, PowerEventHandler {
         let rect = SizeHelper.bobsPanelOverlayFrame()
 
         DispatchQueue.main.async {
+            let latencyBlock = LatencyProbe.shared.renderBlockStarted(.bobsBuddy)
+            defer { LatencyProbe.shared.renderBlockFinished(latencyBlock) }
             // The game type outlives the match, and the two signals for leaving it (the scene and the
             // log) do not arrive in a fixed order, so the match is over as soon as either one says so.
             // A scene we cannot read is not one of them, or a stalled watcher would keep the panel down.
@@ -875,6 +909,8 @@ class Game: NSObject, PowerEventHandler {
         let rect = SizeHelper.experienceOverlayFrame()
         
         DispatchQueue.main.async {
+            let latencyBlock = LatencyProbe.shared.renderBlockStarted(.experience)
+            defer { LatencyProbe.shared.renderBlockFinished(latencyBlock) }
             let experiencePanel = self.windowManager.experiencePanel
             if Settings.showExperienceCounter && experiencePanel.visible && ((Settings.hideAllWhenGameInBackground && self.hearthstoneRunState.isActive) || !Settings.hideAllWhenGameInBackground) {
                 self.windowManager.show(controller: experiencePanel, show: true, frame: rect, title: nil, overlay: true)
@@ -922,6 +958,8 @@ class Game: NSObject, PowerEventHandler {
 
     func updateCardHud() {
         DispatchQueue.main.async { [weak self] in
+            let latencyBlock = LatencyProbe.shared.renderBlockStarted(.cardHud)
+            defer { LatencyProbe.shared.renderBlockFinished(latencyBlock) }
             guard let self else {
                 return
             }
@@ -942,6 +980,8 @@ class Game: NSObject, PowerEventHandler {
     
     func updateBoardStateTrackers() {
         DispatchQueue.main.async {
+            let latencyBlock = LatencyProbe.shared.renderBlockStarted(.boardState)
+            defer { LatencyProbe.shared.renderBlockFinished(latencyBlock) }
             // board damage
             let board = BoardState(game: self)
             
@@ -1015,6 +1055,8 @@ class Game: NSObject, PowerEventHandler {
 	
     func updateBoardOverlay() {
         DispatchQueue.main.async {
+            let latencyBlock = LatencyProbe.shared.renderBlockStarted(.boardOverlay)
+            defer { LatencyProbe.shared.renderBlockFinished(latencyBlock) }
             let oppTracker = self.windowManager.opponentBoardOverlay
             let playerTracker = self.windowManager.playerBoardOverlay
 
@@ -1033,6 +1075,8 @@ class Game: NSObject, PowerEventHandler {
 	
     func updateMercenariesTaskListButton() {
         DispatchQueue.main.async {
+            let latencyBlock = LatencyProbe.shared.renderBlockStarted(.mercenariesTasks)
+            defer { LatencyProbe.shared.renderBlockFinished(latencyBlock) }
           let merc = self.windowManager.mercenariesTaskListButton
             if Settings.showMercsTasks && merc.visible && ((Settings.hideAllWhenGameInBackground && self.hearthstoneRunState.isActive) || !Settings.hideAllWhenGameInBackground) {
                 let rect = SizeHelper.mercenariesTaskListButton()
