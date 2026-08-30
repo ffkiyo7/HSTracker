@@ -7,7 +7,7 @@
 | 构建 | T6b 第 1 步 spike 受限环境 Debug `BUILD SUCCEEDED`，探针烟雾输出覆盖率 100%；Build T2 已让测试 target 实际执行 49 项（25 过 / 24 个旧预期失败） |
 | 阻塞 | 无。Bug T1 / T2 / T3 三本均已实战验收并提交 |
 | **在做** | T6b spike 已完成，等待一局 Release 分布后才能优化；Build T2 已完成，未动运行时代码 |
-| **下一次要你亲自看** | 🎮 T6b 的 spike 做完后要**跑一局 Release 探针取数**（Debug 的 `-Onone` 会让 D 段数据作废，这条踩过）。Build T2 不需要你 |
+| **待办（等你）** | 🎮 **跑一局 Release 探针取数** —— spike 已就绪，命令和读法在 `docs/tasks/phase0-t6b-shrink-refresh-cost.md` 的「Release 取数命令」。**必须是 Release 包**，Debug 的 `-Onone` 会让 D 段数据作废（踩过两次）。拿到 `D part` 分布之前不进第 3 步优化 |
 | **不作为验收手段** | **战棋** —— 用户不玩（2026-08-30 确认）。战棋代码该对还是要对，但验证只能静态做，不排"打一局战棋"这种项 |
 
 > 本文件只回答三件事：**做到哪了 / 下一步是什么 / 哪些结论还作数**。
