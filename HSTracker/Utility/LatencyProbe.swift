@@ -7,6 +7,7 @@
 //  numbers instead of impressions.
 //
 
+import CoreFoundation
 import Foundation
 
 /// Off unless HSTRACKER_LATENCY_PROBE=1 is set in the environment, so the
@@ -57,8 +58,32 @@ final class LatencyProbe {
         case mulliganPreLobbyScaling = "mulligan pre-lobby scaling"
     }
 
+    enum MainQueueWork: String, CaseIterable {
+        case battlegroundsTeammate = "gap: watcher teammate state"
+        case discoverHighlight = "gap: watcher discover highlight"
+        case battlegroundsState = "gap: watcher battlegrounds state"
+        case choicesVisible = "gap: watcher choices visible"
+        case deckPicker = "gap: watcher deck picker"
+        case constructedQueue = "gap: watcher constructed queue"
+        case tier7UserState = "gap: scene Tier7 user state"
+    }
+
+    private enum RunLoopPhase: String, CaseIterable {
+        case sources = "gap: runloop source phase"
+        case timers = "gap: runloop timer/observer phase"
+        case waiting = "gap: runloop wait/outside"
+        case transitions = "gap: runloop transitions"
+        case unknown = "gap: unknown runloop phase"
+    }
+
     struct RenderBlockToken {
         let block: RenderBlock
+        let startClock: TimeInterval
+        let generation: UInt
+    }
+
+    struct MainQueueWorkToken {
+        let work: MainQueueWork
         let startClock: TimeInterval
         let generation: UInt
     }
@@ -77,6 +102,12 @@ final class LatencyProbe {
     private var renderBlocks = [RenderBlock: [Double]]()
     private var renderInitialWait = [Double]()
     private var renderUnattributed = [Double]()
+    private var currentGapPhases = [RunLoopPhase: TimeInterval]()
+    private var currentMainQueueWork = [MainQueueWork: TimeInterval]()
+    private var renderGapPhases = [RunLoopPhase: [Double]]()
+    private var renderMainQueueWork = [MainQueueWork: [Double]]()
+    private var gapAccountingClock: TimeInterval?
+    private var runLoopPhase = RunLoopPhase.unknown
 
     struct UpdateRequest {
         let processingStartClock: TimeInterval
@@ -86,6 +117,7 @@ final class LatencyProbe {
     private static let dumpInterval: TimeInterval = 30.0
 
     private var dumpTimer: DispatchSourceTimer?
+    private var runLoopObserver: CFRunLoopObserver?
 
     private init() {
         guard LatencyProbe.enabled else { return }
@@ -95,6 +127,9 @@ final class LatencyProbe {
         timer.setEventHandler { [weak self] in self?.dump() }
         timer.resume()
         dumpTimer = timer
+        DispatchQueue.main.async { [weak self] in
+            self?.installRunLoopObserver()
+        }
         logger.info("[latency] probe enabled, reporting every \(Int(LatencyProbe.dumpInterval))s")
     }
 
@@ -109,6 +144,44 @@ final class LatencyProbe {
         var bucket = renderBlocks[block] ?? []
         record(&bucket, value)
         renderBlocks[block] = bucket
+    }
+
+    private func accountGap(until clock: TimeInterval) {
+        guard let started = gapAccountingClock else { return }
+        currentGapPhases[runLoopPhase, default: 0] += max(0, clock - started)
+        gapAccountingClock = clock
+    }
+
+    private func installRunLoopObserver() {
+        let observer = CFRunLoopObserverCreateWithHandler(
+            kCFAllocatorDefault,
+            CFRunLoopActivity.allActivities.rawValue,
+            true,
+            0
+        ) { [weak self] _, activity in
+            self?.runLoopActivityChanged(activity)
+        }
+        runLoopObserver = observer
+        CFRunLoopAddObserver(CFRunLoopGetMain(), observer, .commonModes)
+    }
+
+    private func runLoopActivityChanged(_ activity: CFRunLoopActivity) {
+        let t = LatencyProbe.now()
+        lock.lock()
+        accountGap(until: t)
+        switch activity {
+        case .beforeTimers:
+            runLoopPhase = .timers
+        case .beforeSources:
+            runLoopPhase = .sources
+        case .beforeWaiting, .exit:
+            runLoopPhase = .waiting
+        case .entry, .afterWaiting:
+            runLoopPhase = .transitions
+        default:
+            runLoopPhase = .unknown
+        }
+        lock.unlock()
     }
 
     // MARK: - Stage hooks
@@ -180,6 +253,9 @@ final class LatencyProbe {
         renderGeneration &+= 1
         firstRenderBlockClock = nil
         currentRenderBlocks.removeAll(keepingCapacity: true)
+        currentGapPhases.removeAll(keepingCapacity: true)
+        currentMainQueueWork.removeAll(keepingCapacity: true)
+        gapAccountingClock = nil
         lock.unlock()
     }
 
@@ -194,7 +270,10 @@ final class LatencyProbe {
         }
         if firstRenderBlockClock == nil {
             firstRenderBlockClock = t
+        } else {
+            accountGap(until: t)
         }
+        gapAccountingClock = nil
         let token = RenderBlockToken(block: block, startClock: t, generation: renderGeneration)
         lock.unlock()
         return token
@@ -206,6 +285,35 @@ final class LatencyProbe {
         lock.lock()
         if updateStartClock != nil && token.generation == renderGeneration {
             currentRenderBlocks[token.block, default: 0] += max(0, t - token.startClock)
+            gapAccountingClock = t
+        }
+        lock.unlock()
+    }
+
+    /// App-owned work that can be interleaved with tracker refresh blocks on
+    /// the main queue. These hooks do not change how or when the work is queued.
+    func mainQueueWorkStarted(_ work: MainQueueWork) -> MainQueueWorkToken? {
+        guard LatencyProbe.enabled else { return nil }
+        let t = LatencyProbe.now()
+        lock.lock()
+        guard updateStartClock != nil, gapAccountingClock != nil else {
+            lock.unlock()
+            return nil
+        }
+        accountGap(until: t)
+        gapAccountingClock = nil
+        let token = MainQueueWorkToken(work: work, startClock: t, generation: renderGeneration)
+        lock.unlock()
+        return token
+    }
+
+    func mainQueueWorkFinished(_ token: MainQueueWorkToken?) {
+        guard let token else { return }
+        let t = LatencyProbe.now()
+        lock.lock()
+        if updateStartClock != nil && token.generation == renderGeneration {
+            currentMainQueueWork[token.work, default: 0] += max(0, t - token.startClock)
+            gapAccountingClock = t
         }
         lock.unlock()
     }
@@ -216,6 +324,7 @@ final class LatencyProbe {
         let t = LatencyProbe.now()
         lock.lock()
         if let started = updateStartClock {
+            accountGap(until: t)
             let total = max(0, t - started)
             let initialWait = max(0, (firstRenderBlockClock ?? t) - started)
             let measuredBlocks = currentRenderBlocks.values.reduce(0, +)
@@ -226,9 +335,22 @@ final class LatencyProbe {
             for block in RenderBlock.allCases {
                 record(block, currentRenderBlocks[block] ?? 0)
             }
+            for phase in RunLoopPhase.allCases {
+                var bucket = renderGapPhases[phase] ?? []
+                record(&bucket, currentGapPhases[phase] ?? 0)
+                renderGapPhases[phase] = bucket
+            }
+            for work in MainQueueWork.allCases {
+                var bucket = renderMainQueueWork[work] ?? []
+                record(&bucket, currentMainQueueWork[work] ?? 0)
+                renderMainQueueWork[work] = bucket
+            }
             updateStartClock = nil
             firstRenderBlockClock = nil
             currentRenderBlocks.removeAll(keepingCapacity: true)
+            currentGapPhases.removeAll(keepingCapacity: true)
+            currentMainQueueWork.removeAll(keepingCapacity: true)
+            gapAccountingClock = nil
         }
         if let lineClock = updateLineClock {
             let total = t - lineClock
@@ -263,9 +385,20 @@ final class LatencyProbe {
             (block.rawValue, renderBlocks[block] ?? [])
         }
         renderComponents.append(("first main-queue wait", renderInitialWait))
-        renderComponents.append(("unattributed / queue gaps", renderUnattributed))
+        renderComponents.append(contentsOf: RunLoopPhase.allCases.map { phase in
+            (phase.rawValue, renderGapPhases[phase] ?? [])
+        })
+        renderComponents.append(contentsOf: MainQueueWork.allCases.map { work in
+            (work.rawValue, renderMainQueueWork[work] ?? [])
+        })
         renderComponents.sort { $0.1.reduce(0, +) > $1.1.reduce(0, +) }
         let componentTotal = renderComponents.reduce(0) { $0 + $1.1.reduce(0, +) }
+        let gapTotal = renderUnattributed.reduce(0, +)
+        let gapComponentTotal = RunLoopPhase.allCases.reduce(0) {
+            $0 + (renderGapPhases[$1] ?? []).reduce(0, +)
+        } + MainQueueWork.allCases.reduce(0) {
+            $0 + (renderMainQueueWork[$1] ?? []).reduce(0, +)
+        }
         let dropped = droppedOutliers
         lock.unlock()
 
@@ -278,6 +411,9 @@ final class LatencyProbe {
         let coverage = renderTotal > 0 ? componentTotal / renderTotal * 100.0 : 0
         logger.info(String(format: "[latency] D breakdown additive total=%.1f componentTotal=%.1f coverage=%.1f%%",
                            renderTotal, componentTotal, coverage))
+        let gapCoverage = gapTotal > 0 ? gapComponentTotal / gapTotal * 100.0 : 0
+        logger.info(String(format: "[latency] D gaps additive total=%.1f componentTotal=%.1f coverage=%.1f%%",
+                           gapTotal, gapComponentTotal, gapCoverage))
         for (name, samples) in renderComponents where samples.contains(where: { $0 > 0 }) {
             let total = samples.reduce(0, +)
             let average = total / Double(samples.count)

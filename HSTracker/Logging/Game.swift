@@ -1091,6 +1091,8 @@ class Game: NSObject, PowerEventHandler {
     func setBaconState(_ mode: SelectedBattlegroundsGameMode, _ isAnyOpen: Bool) {
         let isModalOpen = !queueEvents.isInQueue && isAnyOpen
         DispatchQueue.main.async {
+            let latencyWork = LatencyProbe.shared.mainQueueWorkStarted(.battlegroundsState)
+            defer { LatencyProbe.shared.mainQueueWorkFinished(latencyWork) }
             self.windowManager.tier7PreLobby.viewModel.battlegroundsGameMode = mode
             self.windowManager.tier7PreLobby.viewModel.isModalOpen = isModalOpen
             self.windowManager.battlegroundsSession.battlegroundsGameMode = mode
@@ -4257,6 +4259,8 @@ class Game: NSObject, PowerEventHandler {
     
     func setChoicesVisible(_ choicesVisible: Bool) {
         DispatchQueue.main.async {
+            let latencyWork = LatencyProbe.shared.mainQueueWorkStarted(.choicesVisible)
+            defer { LatencyProbe.shared.mainQueueWorkFinished(latencyWork) }
             self.windowManager.battlegroundsTrinketPicking.viewModel.choicesVisible = choicesVisible
         }
     }
@@ -4775,6 +4779,8 @@ class Game: NSObject, PowerEventHandler {
 
     func setDeckPickerState(_ vft: VisualsFormatType, _ decksList: [CollectionDeckBoxVisual?], _ isModalOpen: Bool) {
         DispatchQueue.main.async {
+            let latencyWork = LatencyProbe.shared.mainQueueWorkStarted(.deckPicker)
+            defer { LatencyProbe.shared.mainQueueWorkFinished(latencyWork) }
             let vm = self.windowManager.constructedMulliganGuidePreLobby.viewModel
             if vm.decksOnPage == nil || decksList != vm.decksOnPage {
                 vm.decksOnPage = decksList
@@ -4791,6 +4797,8 @@ class Game: NSObject, PowerEventHandler {
 
     func setConstructedQueue(_ inQueue: Bool) {
         DispatchQueue.main.async {
+            let latencyWork = LatencyProbe.shared.mainQueueWorkStarted(.constructedQueue)
+            defer { LatencyProbe.shared.mainQueueWorkFinished(latencyWork) }
             self.windowManager.constructedMulliganGuidePreLobby.viewModel.isInQueue = inQueue
             if #available(macOS 10.15, *), let widgetVm = self.windowManager.rootOverlay?.viewModel.constructedMulliganPreLobbyWidget {
                 widgetVm.isInQueue = inQueue

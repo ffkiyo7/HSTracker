@@ -105,6 +105,8 @@ class Watchers {
     
     private static func onBattlegroundsTeammateBoardStateChange(_ sender: BattlegroundsTeammateBoardStateWatcher, _ args: BattlegroundsTeammateBoardStateArgs) {
         DispatchQueue.main.async {
+            let latencyWork = LatencyProbe.shared.mainQueueWorkStarted(.battlegroundsTeammate)
+            defer { LatencyProbe.shared.mainQueueWorkFinished(latencyWork) }
             AppDelegate.instance().coreManager.game.windowManager.battlegroundsHeroPicking.viewModel.isViewingTeammate = args.isViewingTeammate
         }
         // rest is not used
@@ -132,6 +134,8 @@ class Watchers {
         let game = AppDelegate.instance().coreManager.game
         game.setRelatedCardsTrigger(args)
         DispatchQueue.main.async {
+            let latencyWork = LatencyProbe.shared.mainQueueWorkStarted(.discoverHighlight)
+            defer { LatencyProbe.shared.mainQueueWorkFinished(latencyWork) }
             if game.isTraditionalHearthstoneMatch {
                 game.windowManager.playerTracker.highlightPlayerDeckCards(highlightSourceCardId: args.cardId)
             }
