@@ -247,12 +247,12 @@ class Game: NSObject, PowerEventHandler {
                 !((Settings.hideAllWhenGameInBackground || Settings.hideAllWhenGameInBackground) && !self.hearthstoneRunState.isActive)
     }
     
-    var shouldShowTracker: Bool {
-        return ((Settings.hideAllTrackersWhenNotInGame && !self.gameEnded) || (!Settings.hideAllTrackersWhenNotInGame) || self.selfAppActive ) && ((Settings.hideAllWhenGameInBackground && self.hearthstoneRunState.isActive) || !Settings.hideAllWhenGameInBackground || self.selfAppActive)
+    private var isTrackerGameActive: Bool {
+        return !gameEnded && !isInMenu
     }
 
     private var isDeckTrackerQueue: Bool {
-        guard queueEvents.isInQueue, currentDeck != nil, let currentMode else { return false }
+        guard isInMenu, queueEvents.isInQueue, currentDeck != nil, let currentMode else { return false }
         return QueueEvents.modes.contains(currentMode) && currentMode != .bacon
     }
 
@@ -309,24 +309,22 @@ class Game: NSObject, PowerEventHandler {
 			
             let tracker = self.windowManager.opponentTracker
             let shouldShow = Settings.showOpponentTracker &&
+                self.isTrackerGameActive &&
                 (!self.isBattlegroundsMatch() && !self.isMercenariesMatch() && self.currentGameType != .gt_unknown) &&
             !(Settings.dontTrackWhileSpectating && self.spectator) &&
-                ((Settings.hideAllTrackersWhenNotInGame && !self.gameEnded)
-                    || (!Settings.hideAllTrackersWhenNotInGame) || self.selfAppActive ) &&
                 ((Settings.hideAllWhenGameInBackground &&
                     self.hearthstoneRunState.isActive) || !Settings.hideAllWhenGameInBackground || self.selfAppActive)
+            if reset && self.gameEnded && Settings.clearTrackersOnGameEnd {
+                tracker.update(cards: [], top: [], bottom: [], sideboards: [], relatedCards: [], reset: reset)
+            }
             if shouldShow {
 
                 // update cards
-                if self.gameEnded && Settings.clearTrackersOnGameEnd {
-                    tracker.update(cards: [], top: [], bottom: [], sideboards: [], relatedCards: [], reset: reset)
-                } else {
-                    let cardWithRelatedCards = relatedCardsManager.getCardsOpponentMayHave(opponent, currentGameType, currentFormatType)
-                    cardWithRelatedCards.forEach({
-                        $0.count = 1
-                    })
-                    tracker.update(cards: self.opponent.opponentCardList, top: [], bottom: [], sideboards: [], relatedCards: cardWithRelatedCards, reset: reset)
-                }
+                let cardWithRelatedCards = relatedCardsManager.getCardsOpponentMayHave(opponent, currentGameType, currentFormatType)
+                cardWithRelatedCards.forEach({
+                    $0.count = 1
+                })
+                tracker.update(cards: self.opponent.opponentCardList, top: [], bottom: [], sideboards: [], relatedCards: cardWithRelatedCards, reset: reset)
                 
                 let gameStarted = !self.isInMenu && self.entities.count >= 67
                 tracker.updateCardCounter(deckCount: !gameStarted || !isMulliganDone() ? 30 - self.opponent.handCount : self.opponent.deckCount,
@@ -387,10 +385,9 @@ class Game: NSObject, PowerEventHandler {
             let tracker = self.windowManager.playerTracker
             let shouldShow = Settings.showPlayerTracker &&
                 !(Settings.dontTrackWhileSpectating && self.spectator) &&
-                ((!self.isBattlegroundsMatch() && !self.isMercenariesMatch() && self.currentGameType != .gt_unknown)
+                ((self.isTrackerGameActive &&
+                    !self.isBattlegroundsMatch() && !self.isMercenariesMatch() && self.currentGameType != .gt_unknown)
                     || self.isDeckTrackerQueue) &&
-                ( (Settings.hideAllTrackersWhenNotInGame && !self.gameEnded)
-                    || (!Settings.hideAllTrackersWhenNotInGame) || self.selfAppActive ) &&
                 ((Settings.hideAllWhenGameInBackground &&
                     self.hearthstoneRunState.isActive) || !Settings.hideAllWhenGameInBackground || self.selfAppActive)
             if shouldShow {
@@ -595,7 +592,7 @@ class Game: NSObject, PowerEventHandler {
             defer { LatencyProbe.shared.renderBlockFinished(latencyBlock) }
             let hsActive = hearthstoneRunState.isActive
 
-            if isInMenu || !isMulliganDone() || !shouldShowTracker {
+            if isInMenu || !isMulliganDone() || !isTrackerGameActive {
                 windowManager.playerCountersOverlay.visibility = false
                 windowManager.opponentCountersOverlay.visibility = false
             } else {
@@ -681,14 +678,14 @@ class Game: NSObject, PowerEventHandler {
             let hsActive = hearthstoneRunState.isActive
 
             if let win =  windowManager.playerPlayerResourcesOverlay {
-                if ((Settings.hideAllWhenGameInBackground && hsActive) || !Settings.hideAllWhenGameInBackground) && win.viewModel.visibility && shouldShowTracker {
+                if ((Settings.hideAllWhenGameInBackground && hsActive) || !Settings.hideAllWhenGameInBackground) && win.viewModel.visibility && isTrackerGameActive {
                     windowManager.show(controller: win, show: true, frame: SizeHelper.playerMaxResourcesFrame(), overlay: true)
                 } else {
                     windowManager.show(controller: win, show: false)
                 }
             }
             if let win =  windowManager.opponentPlayerResourcesOverlay {
-                if ((Settings.hideAllWhenGameInBackground && hsActive) || !Settings.hideAllWhenGameInBackground) && win.viewModel.visibility && shouldShowTracker {
+                if ((Settings.hideAllWhenGameInBackground && hsActive) || !Settings.hideAllWhenGameInBackground) && win.viewModel.visibility && isTrackerGameActive {
                     windowManager.show(controller: win, show: true, frame: SizeHelper.opponentMaxResourcesFrame(), overlay: true)
                 } else {
                     windowManager.show(controller: win, show: false)
