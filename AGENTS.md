@@ -132,6 +132,19 @@ env -u http_proxy -u https_proxy -u all_proxy -u HTTP_PROXY -u HTTPS_PROXY -u AL
   -configuration Debug -destination 'platform=macOS' clean build
 ```
 
+### 跑 Release 包取数：日志在文件里，不在 stdout
+
+**`ConsoleDestination` 被 `#if DEBUG` 包着**（`AppDelegate.swift:200-203`），常开的只有
+`FileDestination` → `~/Library/Logs/HSTracker/hstracker.log`（2MB × 2）。
+所以 **Release 包在终端里一行日志都不打**。任何"跑 Release 包 + `tee` 到文件 + 从该文件
+`grep`"的取数流程都必然读到空文件 —— 要读就读那个 log。（2026-08-31 实际浪费了一局。）
+
+**还有一个更像"没启动"的坑**：首次从 `Build/Products/Release` 直接启动，AppMover 会弹
+"Move to Applications folder" 模态框。它在 `applicationWillFinishLaunching` 里阻塞，
+而日志系统在之后的 `applicationDidFinishLaunching` 才配置 —— 现象是**进程在跑、
+但日志文件的 mtime 停在上次运行**。窗口常被炉石盖住，要切到 HSTracker 点 Don't Move。
+判断 app 是否真的起来了，看 `pgrep -lx HSTracker` **加上** log 的 mtime，只看一个会误判。
+
 ### bundle 装配（3.6.7）
 
 `Resources` build phase 仍会把 `HSTracker/Resources/` 这个 folder reference 整目录拷到

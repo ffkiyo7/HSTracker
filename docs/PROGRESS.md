@@ -2,12 +2,13 @@
 
 | | |
 |---|---|
-| 最后更新 | 2026-08-31 |
+| 最后更新 | 2026-09-01 |
 | 分支 | `dev`（长期主开发线，2026-08-31 由 `phase0+3` 改名；已合入 upstream `534ee2d8` / **3.6.7**，`master` 保持为上游纯镜像） |
-| 构建 | T6b 第 1 步 spike 受限环境 Debug `BUILD SUCCEEDED`，探针烟雾输出覆盖率 100%；Build T2 已让测试 target 实际执行 49 项（25 过 / 24 个旧预期失败） |
+| 构建 | T6b 第 2 步埋点 + Bug T4 显示门受限环境 Debug / Release 均 `BUILD SUCCEEDED`（review 侧独立复跑）；Build T2 测试 target 49 项（25 过 / 24 个旧预期失败） |
 | 阻塞 | 无。Bug T1 / T2 / T3 三本均已实战验收并提交 |
-| **在做** | T6b spike 已完成，等待一局 Release 分布后才能优化；Build T2 已完成，未动运行时代码 |
-| **待办（等你）** | 🎮 **跑一局 Release 探针取数** —— spike 已就绪，命令和读法在 `docs/tasks/phase0-t6b-shrink-refresh-cost.md` 的「Release 取数命令」。**必须是 Release 包**，Debug 的 `-Onone` 会让 D 段数据作废（踩过两次）。拿到 `D part` 分布之前不进第 3 步优化 |
+| **在做** | 无。Bug T5 已完成并 review 通过，等一局实战确认 |
+| **下一片** | **Phase 1 / T5（顶部信息区）→ Phase 1 / T6（布局收口）** —— T6 收口才能解锁 Phase 2，而 Phase 2 才是反馈①的真正修复 |
+| **待办（等你）** | 🎮 下一局顺带看一眼：结算瞬间两个主记牌器 + 水晶上限 + 计数器**同一轮一起消失**。**不再需要为延迟单独取数** |
 | **不作为验收手段** | **战棋** —— 用户不玩（2026-08-30 确认）。战棋代码该对还是要对，但验证只能静态做，不排"打一局战棋"这种项 |
 
 > 本文件只回答三件事：**做到哪了 / 下一步是什么 / 哪些结论还作数**。
@@ -20,7 +21,7 @@
 
 ## 状态总览
 
-### Phase 0 — 地基（🟡 T0–T5 完成，T6 本轮新增）
+### Phase 0 — 地基（✅ T0–T6 完成）
 
 | | 内容 | 状态 |
 |---|---|---|
@@ -30,7 +31,7 @@
 | T3 | 提高 tick 频率 + 跟窗 | ✅ review 时改了设计，见 PLAN |
 | T4 | 部署目标 → macOS 14.0 | ✅ |
 | T5 | GUI 刷新改防抖 | ✅ 代码已合，但**实测收益未兑现**，见下节 |
-| **T6** | **修埋点量程（D 段 + B 段 + E2E 归因）→ 取 Release 基线 → 打 p50** | 🟡 T6b 第 1 步分块 spike ✅；等待 Release 一局确认分布，第 3 步优化未开始 |
+| **T6** | **修埋点量程（D 段 + B 段 + E2E 归因）→ 取 Release 基线 → 拆 D** | ✅ **2026-08-31 收在测量阶段，不做延迟优化**（前提复查后的主动收口，理由见「延迟实测」末尾）。产出是排除法结论 + 一个可复用的探针；唯一留下的候选「合并 18 次投递」改以**帧一致性**立项，见 `docs/PLAN.md` Phase 0 一节 |
 
 ### Phase 1 — SwiftUI 记牌器渲染（🟡 5 / 8）
 
@@ -40,8 +41,8 @@
 | T2 | 主牌表接进 `Tracker` + `Settings.useSwiftUITracker` 开关 | ✅ 实战验过一局，**开关默认关**（本机 defaults 已置 1） |
 | T3 | ETC / 下水道之王 改悬停浮出 | ✅ **卡点 ① 实战通过** —— ETC 标题正确 |
 | T4 | 其余三段卡表 → `TrackerSectionView` | ✅ **卡点 ① 实战通过** —— 协同高亮描边视觉 OK |
-| T5 | 顶部信息区重做（Firestone 三行头） | ⬜ |
-| T6 | 根视图 + 布局收口 | ⬜ |
+| T5 | 顶部信息区重做（Firestone 三行头） | ⬜ **下一片** |
+| T6 | 根视图 + 布局收口 | ⬜ **Phase 2 的堵点**，也就是反馈①真正的前置。⚠️ 别和 Phase 0 / T6（延迟）搞混，引用时写全阶段号 |
 | T7 | 卡图异步加载 + LRU | ✅ **卡点 ① 实战通过** —— 卡图基本没有顿挫感 |
 | T8 | 动效 | ⬜ |
 
@@ -77,15 +78,16 @@
 |---|---|---|---|
 | ① | 抽到手上的牌还留在牌库段，延迟一两回合甚至一直不消 | **不是延迟。** 探针 E2E p50 171ms / p95 450ms，没有那个量级的样本。真因是 `Settings.highlightCardsInHand`（本机开着）—— `getHighlightedCardsInHand()`（`Player.swift:381`）**故意**把手牌里的卡塞回列表，`count = 0` + 亮绿名 | Phase 2 / 2.1 分区时消化（PLAN 已记）。用户已认可 |
 | ② | 卡池浮窗串卡（「误炸」`WW_348` 窜进好几张卡的相关牌） | **上游 3.6.7 的回归。** `RelatedCardImageView` 的 `@State image` + `ForEach(0..<rows/cols, id:\.self)`，格子身份是行列下标不是卡；`hide()` 只 `orderOut`，视图树不销毁 → 复用时留着上一张的图。`git diff 534ee2d8` 对该文件为空；3.6.5 用的是 AppKit `GridCardImages`，所以是换 SwiftUI 时引入的 | ✅ 格子身份改为位置 + card id，**2026-08-30 实战通过** |
-| ③ | 排队时显示的是上一局残局 | `game.reset()` 只在 `Gameplay.Start` / `CREATE_GAME` 跑，排队时 `revealedEntities` 还是满的。**且这同时解释了"排队时记牌器为什么会显示"** —— `_currentGameType` 也没被清，绕过了 `Game.swift:376` 的条件。**清残留会让记牌器消失**，必须和放宽条件一起做 | 🟡 **我方卡组已修**（2026-08-30 实战确认 30 张全在），但带出两条新反馈，见下面「③ 的两条余留」 |
+| ③ | 排队时显示的是上一局残局 | `game.reset()` 只在 `Gameplay.Start` / `CREATE_GAME` 跑，排队时 `revealedEntities` 还是满的。**且这同时解释了"排队时记牌器为什么会显示"** —— `_currentGameType` 也没被清，绕过了 `Game.swift:376` 的条件。**清残留会让记牌器消失**，必须和放宽条件一起做 | ✅ **Bug T4 已于 2026-08-31 实战验收通过**（排队只我方 / 对局中双方 / 打完即消失 / 主菜单都不显示）。带出的两条一致性问题转 Bug T5 |
 | ④ | 卡条尺寸一局之内会变大 | **上游一直如此**：`Tracker.swift:459` 的 `cardHeight = min(cardHeight, (windowHeight - offsetFrames) / totalCards)`，行高按当前行数压缩。3.6.7 的 `:298-299` 一字不差 | 记在 PLAN 2.8，**等用户决定**（(a) 固定行高 / (b) 宽度跟着缩，二选一） |
 | ⑤ | 留牌时右下角的 HSReplay 引流浮窗（`MulliganToastView`，「What should I keep?」，`SizeHelper.swift:474` 定位在右下） | 有现成开关 `Settings.showMulliganToast` | ✅ **已改为本 fork 默认关闭**，见「与上游的默认值差异」 |
 
 顺带确认：**E2E p99 5.0s / max 9.3s 的长尾是真的**，且 >10s 的样本被 `outlierCutoff` 直接丢进
 `dropped` 计数、不进百分位。连同两个旧的 🔴（D 段量程、B 段没埋点）一起进 Phase 0 / T6。
 
-这五条对应的三本任务书均已完成、review 通过并实战验收。**Phase 0 / T6 的第 1、2 步（修口径、取
-Release 基线）已完成，第 3 步（打 p50）未开始。**
+这五条对应的三本任务书均已完成、review 通过并实战验收。**Phase 0 / T6 已于 2026-08-31 收在测量阶段
+（修口径 + 取基线 + 拆 D 完成，"打 p50"那一步主动取消）** —— 理由见下面「延迟实测」末尾那节。
+注意①的真正修复在 Phase 2，不在 T6。
 
 **review 挡下的一条**（记着，因为它是竞态、上线后极难查）：排队那本原本给
 `updateOpponentTracker` 也加了 `!queueEvents.isInQueue`。它**多余** —— 进队列的 `reset()`
@@ -101,11 +103,8 @@ watcher 200ms 才轮询一次，只要模式那行日志抢在轮询前面，
 > 都是已被 `isInMenu` 挡住的 pre-lobby 覆盖层。那一行是**第一个把它接到对局路径上的地方**。
 > 以后谁再想读 `isInQueue`，先确认自己不在对局路径上。
 >
-> ⚠️ **但挡掉的只是两处里的一处。** 最终合进去的 `isDeckTrackerQueue`（`Game.swift:253`）
-> 自己就读 `isInQueue`，而且**没有 `isInMenu` 门**。同一个陈旧状态一旦发生，受害者换成
-> 我方记牌器：`isInQueue` 卡在 `true` 时它会被强制显示，包括对局结束回到菜单之后。
-> 目前只靠 `QueueEvents.modes` 白名单 + `currentDeck != nil` 兜着 —— 菜单模式 `.hub`
-> 不在白名单里，所以要 `currentMode` 也一起陈旧才会露出来。**这条还没被证伪，见下。**
+> Bug T4 已给 `isDeckTrackerQueue` 补上 `isInMenu` 门。即使 `isInQueue` 因 watcher stop 竞态卡在
+> `true`，一进对局排队入口也会关闭；对局入口不读它，因此不会再把陈旧排队位接到整局显示路径上。
 
 #### ③ 的余留已查明：不是显示条件，是主线程死锁（已修并实战验收）
 
@@ -143,11 +142,8 @@ tracker 自己的 hover / exit 仍同步执行。**已于 2026-08-30 实战验�
 `[trackervis]` 那组临时诊断已在三条报告全部结案后删除。
 
 > **`hide_all_trackers_when_not_in_game` 默认 `false`**（`Settings.swift:215`，用户
-> `defaults` 里也没写过）这条仍然成立，只是不是本次的解释：即使没有死锁，一局打完回主菜单
-> 两个记牌器本来也会挂着显示终局。修完死锁后如果用户仍觉得碍事，那是**开关问题不是 bug**。
-
-> ⚠️ 上面那条"`isDeckTrackerQueue` 没有 `isInMenu` 门"的隐患**仍未被证伪**，只是这次没轮到它 ——
-> 本次 5 局每个 `Now in queue` 都有配对的 `No longer in queue`，`isInQueue` 没卡住。留着。
+> `defaults` 里也没写过）仍是这次复现的直接原因。Bug T4 已不再让该开关决定两个主记牌器能否留在
+> 非对局界面；它若打开还会误伤排队显示，因此不能拿设置代替场景门。
 
 #### Bug T1 已验收提交（`ac116be0`），同局带回两条新反馈
 
@@ -190,6 +186,39 @@ review 七条逐项结论见任务书。
 > review 侧抽查过 Bargain Bin 和 Mystic Misdirection：两张卡在 `SecretsManager`
 > （`:563` / `:564` / `:839` / `:873` 和 `:473`）都确有排除逻辑，是旧测试少列了它们 ——
 > 方向在安全的那一侧，不是回归。
+
+#### 2026-08-31 复现：打完回主菜单两个记牌器仍挂着（→ Bug T4）
+
+用户第二次提这件事，截图为 22:20 的炉石主菜单，左侧对手记牌器（牧师）和右侧我方记牌器
+（牌组「地沟油」）同时可见，内容是刚结束那一局的终局状态。
+
+🟢 **已排除是 8-30 那个死锁的复发**：无新 `.hang`（最新一份仍是 8-30 17:33 那份）；
+延迟探针到 22:20:09 仍在正常产出（D 的 `n` 从 135 涨到 139），主队列是活的；
+本局 `Now in queue`(22:10:59) / `No longer in queue`(22:11:12) 正常配对，
+`isInQueue` 没卡住 —— 上面那条「`isDeckTrackerQueue` 没有 `isInMenu` 门」的隐患**这次也没轮到它**，
+继续留着。
+
+**所以这次是显示条件本身的问题。** 前面那条注（`hide_all_trackers_when_not_in_game`
+默认 `false`，即使没死锁打完回菜单也会挂着）现在从"开关问题"升级为要修的 bug ——
+因为**现有开关表达不了用户要的那张表**：排队时要显示我方牌组，主菜单时两个都不显示，
+而这两种情形都不在对局里。
+
+✅ **Bug T4 已实战验收通过（2026-08-31 23:17–23:26，Release，标准模式一局）。** 两个主记牌器现在只认
+正向场景：传统对局由 `!gameEnded && !isInMenu` 放行；我方额外保留构筑排队入口，对手没有。
+排队入口补上 `isInMenu`，因此**上面那条挂了两轮的"`isInQueue` 卡住会让我方记牌器整局强制显示"
+隐患从结构上关闭了**。默认值没改。静态真值表、状态异常边界和 review 的四条副作用见
+`docs/tasks/bug-t4-tracker-visibility-out-of-game.md`。
+
+用户确认四项行为全部一致：排队只我方 / 对局中双方 / **打完瞬间双方消失** / 同一时刻水晶上限
+overlay 单独留着。后两项是 review 预先指出的副作用，用户已分别拍板：
+
+- **「打完瞬间消失」保留**，不改回"离开牌桌才消失"。理由是 `gameEnded` 同时充当判定和触发点 ——
+  `inMenu()`（`Game.swift:2211`）只置位、不请求刷新，改条件而不补刷新会重新开出显示陈旧终局的窗口。
+- ✅ **Bug T5 已完成静态验收。** 水晶上限 overlay 和双方计数器不再读旧的
+  `hide_all_trackers_when_not_in_game` 判定，统一复用 T4 的 `!gameEnded && !isInMenu` 对局门；因此结算
+  瞬间会与两个主记牌器一起隐藏。`clearTrackersOnGameEnd` 只在带 `reset` 的结束刷新清空一次，普通刷新
+  不再反复写隐藏窗口。受限环境 Debug `BUILD SUCCEEDED`；标准模式窗口实效仍需下一局顺带确认，战棋只做
+  静态论证。完整读者清单和边界见 `docs/tasks/bug-t5-tracker-visibility-consistency.md`。
 
 ---
 
@@ -234,6 +263,96 @@ C **max = 2021.2**。
   的轮询（`LogReaderManager.swift:16`，均摊约 25ms），其余约 127ms 是炉石自己的写盘节奏。
   把轮询压到 16ms 最多省 17ms，还要按 CPU 换，优先级排在 D 后面。
 
+### D 段分解实测（2026-08-31 Release 一局）
+
+原始 dump：`~/Desktop/dev/HSTracker-ab/logs/probe-2026-08-31-release-t6b.txt`。
+本局 D `p50 = 63.8`（n=139），`coverage = 100.0%`，恒等式闭合。
+
+| D part | p50 | avg | share |
+|---|---|---|---|
+| **unattributed / queue gaps** | **44.0** | 44.2 | **61.8%** |
+| player tracker | 6.9 | 9.1 | 12.7% |
+| first main-queue wait | 0.1（p95 42.3 / p99 93.3） | 8.0 | 11.2% |
+| counters | 3.4 | 3.7 | 5.1% |
+| 其余 18 项合计 | — | ~6.6 | 9.2% |
+
+🔴 **补集是最大项，所以还不能进优化。** 这正是 T6b 第 1 步预先写下的判据：
+`coverage` 100% 只说明恒等式闭合（补集按定义永远补得齐），不说明定位成功。
+D 中位数 63.8ms 里有 44.0ms 不在任何一个命名 block 里；22 个 block 的代码加起来只有约 19.5ms。
+**单个 block 的代码不是成本所在。**
+
+补集的物理位置是确定的：`Game.updateAllTrackers()` 里 18 个 `updateXxx()` 各自
+`DispatchQueue.main.async`，一轮刷新被切成 18 个独立的主队列 turn，44ms 落在这些 turn 之间。
+成因至少两类，**优化手段完全不同，必须先分开**：runloop 自己的工作
+（AppKit layout / display、CATransaction 提交、SwiftUI 刷新 —— 用户 `use_swiftui_tracker = 1`，
+`@Published` 写完的视图更新在 turn 之间 flush，成本因此不落在写它的 block 里），
+或者别人投进主队列的 block 插队（`ac116be0` 刚把 7 条 watcher→UI 写路径搬上主队列，
+其中 `DiscoverStateWatcher` 16ms 一次）。→ **第 2 步已把这两类分开，结果见下。**
+
+### 补集已拆开（2026-08-31 第 2 步，Release 一局）
+
+原始 dump：`~/Desktop/dev/HSTracker-ab/logs/probe-2026-08-31-release-t6b-step2.txt`。
+两条 coverage 都是 **100.0%**，`unknown` 桶为 0，测量本身可靠。
+D total 7849.4（n=107，p50 66.5 / avg 73.4），补集 4779.0 = **D 的 60.9%**。
+
+| 补集分项 | 占补集 | 占 D | avg | p50 → p95 |
+|---|---|---|---|---|
+| `gap: runloop source phase` | **51.3%** | 31.2% | 22.9 | 4.2 → 51.9 |
+| `gap: runloop wait/outside` | 43.3% | 26.4% | 19.3 | 4.9 → 60.7 |
+| `gap: runloop transitions` | 5.3% | 3.2% | 2.4 | 0.3 → 7.7 |
+| **`gap: watcher ...` × 7** | **0%** | **0%** | — | — |
+
+- 🟢 **watcher 插队被干净否定。** 对局那一段（n=107）七个桶全程零样本，包括 16ms 一跳的
+  `DiscoverStateWatcher`。**"合并 turn 没用、要改 watcher 排队方式"这条路走死了，
+  以后不必再回头看。** 同时说明 `ac116be0` 的线程修复没给刷新路径引入插队成本。
+  > 后来 HSTracker 在主菜单空转了 20 分钟，累计到 n=339 时有两个桶出现了痕量值
+  > （`watcher battlegrounds state` 合计 **0.1ms / 25373ms**、`choices visible` 0.0）。
+  > 结论不变。**但这说明回归哨兵的阈值不能设成"任何非零"** —— 菜单空转本来就会蹭到几微秒。
+  > 要看的是 share 有没有到能和 `source phase` / `wait/outside` 相提并论的量级。
+- 🟡 **多 turn 确实在收费，已有实证。** observer 用 order 0 注册，先于 CA 的 order 2000000
+  翻到 `.waiting`，所以 `wait/outside` 装的是 runloop 休眠 + CoreAnimation 提交 + AppKit display。
+  **一轮刷新平均 19.3ms 花在"我们的 block 之间、系统在提交画面"上。**
+  ⚠️ 这个解读依赖 observer 的 order 关系，谁改了掩码或 order，桶的含义会静默翻转。
+- 🔴 **仍不进优化：`source phase` 是最大项（51.3%）**，按设计是混桶（没被包住的主队列 block、
+  其它 RunLoop source、libdispatch 排空开销）。一半把握不足以支撑"把 18 个投递合成 1 个"
+  这种爆炸半径的改动 —— 主队列时序在这个仓库已经咬过两次。
+  **→ 第 3 步（继续拆 `source phase`）已取消，T6 收在这里，理由见下面那节。**
+
+**两条给以后的读数纪律：**
+
+- **两个大桶都尾部重**（source p50 4.2 / p95 51.9 / max 278.5，wait p50 4.9 / p95 60.7），
+  中位数那轮刷新其实很便宜，均值被尾部拉起。**判断优化收益要盯 p95，只看 p50 会低估。**
+- **结构在两局之间高度一致**（补集 60.9% vs 61.8%，player tracker 13.2% vs 12.7%，
+  counters 5.3% vs 5.1%，首次等待 11.4% vs 11.2%）。两次独立采样吻合到这个程度，
+  说明这个结构是真的，不是单局噪声。绝对值仍不宜跨轮比 —— 第 2 步的 observer 开销落在
+  D 窗口内部，方向是抬高 D（量级 <0.1%）。
+
+> **不要和 8-30 那份五局基线（D p50 = 81.7）直接比强弱。** 本局只有一局、n=139，
+> 对局节奏也不同。**能比的是结构，不是绝对值。**
+
+> ⚠️ **取数踩到两个坑，命令已在任务书里修正。**
+> (a) **Release 包不往 stdout 打日志** —— `ConsoleDestination` 在
+> `AppDelegate.swift:200-203` 被 `#if DEBUG` 包着，只有 `FileDestination` 常开。
+> 原任务书让 `tee` stdout 再从该文件 `rg`，永远读不到 `[latency]`，浪费了一局。
+> 正确读法是 `grep '\[latency\]' ~/Library/Logs/HSTracker/hstracker.log`。
+> (b) **首次从 DerivedData 直接启动会卡在 AppMover 的 "Move to Applications folder" 模态框上** ——
+> 它在 `applicationWillFinishLaunching` 里阻塞，而日志系统在之后的
+> `applicationDidFinishLaunching` 才配置，表现为"进程在跑但一个字都不写日志"，
+> 极容易误判成没启动。窗口常被炉石盖住，要切到 HSTracker 点 Don't Move。
+
+### D 补集第 2 层埋点（2026-08-31，待 Release 取数）
+
+原补集现在被拆成两层：精确计时 `ac116be0` 新增的 7 类 watcher / scene 主队列写入；其余间隙由
+主 RunLoop observer 按 `source phase`、`timer/observer phase`、`wait/outside`、`transitions`、
+`unknown` 分桶。`D gaps additive` 检查这些子桶能否加回原补集，原 `D breakdown additive` 继续检查
+整轮 D 是否闭合；两条 coverage 都必须约等于 100%。
+
+这套口径能直接认出已包住的 watcher 插队和 RunLoop 等待，但 **`source phase` 仍是混合桶**：
+AppKit/SwiftUI、未包住的 app/framework 主队列任务、其它 source 处理都在里面。如果它最大，必须再拆，
+不能直接把它当成“渲染”开始合并 turn。取数前判据和 Release 命令已写死在 T6b 任务书。
+受限环境 Debug `BUILD SUCCEEDED`；启动期 `n=1` 烟雾样本的 D 总账与 gap 子账 coverage 都是 100%。
+Debug 数值不作性能判断。没有改变任何刷新 block、顺序、防抖或频率。
+
 ### 仍然作数的结论
 
 - ✅ **8-20 / 8-21 / 8-22 三轮已被 8-30 Release 取代。** 上游 3.6.7 往同一个主线程 tick 里加了
@@ -263,19 +382,45 @@ C **max = 2021.2**。
 - ✅ **B 段已埋点**：`processLine` 入口 → `updateTrackers()` 在 GUI 串行队列里置位。
   新探针已实际启动并打印 A / B / C / D / E2E 五行。
 - ✅ **T6b 已把 D 拆成可加总分布**：18 个一级刷新 block、4 个条件二级 block、首次主队列等待和
-  未归因间隙逐轮结算；累计 `componentTotal / D total` 是覆盖率。Debug 烟雾样本为 100%，只证明
-  口径闭合，不作性能判断。Release 一局的命令与读法见 T6b 任务书；拿到数据前不优化。
+  未归因间隙逐轮结算；累计 `componentTotal / D total` 是覆盖率。
+  **两局 Release 已取到数**，结论见上面「D 段分解实测」和「补集已拆开」——
+  补集稳定占 D 的 61%；第 2 步把它拆成 RunLoop phase + 7 类 watcher 插队，
+  **watcher 插队为 0（干净否定）**，多 turn 收费拿到实证（`wait/outside` 19.3ms/轮），
+  但 `source phase` 51% 仍是混桶。→ **第 3 步已取消，T6 收在这里**，理由见下面那节。
 - **掉帧不是 HSTracker 造成的**（在这套录屏方法的精度内）：对照组
   （HSTracker 完全没启动、只有静态主菜单）横跨了同样的范围。头号嫌疑是采集管线
   （4K 165Hz 面板压成 1080p120）。要排除它得换一个不经过 OBS 的测量手段，再录一段没用。
 
-### Phase 0 剩下的优化候选（**先修 D 段量程再动手**）
+### 🔻 T6 到此为止：为什么主动收在测量阶段（2026-08-31 决定）
 
-| 候选 | 预计收益 |
-|---|---|
-| 两个日志轮询用信号量串起来 | ~50ms（A 段里属于我们的那部分） |
-| 文件轮询换 `DispatchSource` | ~25ms，完全取决于炉石的 flush 行为 |
-| ~~优化 `updateFrames()`~~ | ~~作废~~ —— Phase 1 的理由只剩动效和分区，不再是延迟 |
+四轮测量（修口径 → Release 基线 → 拆 D 成 22 块 → 拆补集）**没有降低一毫秒**，
+决定不再继续。不是失败收场，是前提被复查之后的主动收口：
+
+1. **压延迟这个目标没有用户反馈支撑，而且是探针自己证伪的。** 唯一一条听起来像延迟的反馈
+   是①「抽到手上的牌延迟一两回合」—— 探针一测 E2E p50 171ms，根本不是延迟，是
+   `highlightCardsInHand` 的既定行为。**探针最大的贡献是证明了延迟不是痛点**，
+   而 T6b 的任务书随后把「E2E p50 = 350ms，要把它压下来」写成了"定死、别自己改目标"，
+   四轮没人回头看那句话。这是编排上的失误，记着。
+2. **天花板小。** A 段 p50 ≈ 139ms 基本是炉石自己的写盘节奏。最好情况 E2E 317 → 约 230ms，
+   实际对局中察觉不到。
+3. **机会成本具体。** ①的真正修复在 Phase 2，Phase 2 卡在 **Phase 1 的 T6（布局收口）**，
+   那一片一行没动。⚠️ **两个阶段的 T6 同名，这本身就是走偏的一部分原因** ——
+   以后引用一律写全「Phase 0 / T6」或「Phase 1 / T6」。
+
+**成本没看上去那么大**：8-30 那五局和 8-31 的两局本来就要打（验死锁、Tier7、奇闻牌、Bug T4），
+探针是搭车的。真正吃掉的是 Codex 的实现轮次和 review 轮次。
+
+**留下来的东西**：上面整节的排除法结论，加一个默认关闭、口径自洽的探针 ——
+以后任何改动都能免费打分。**唯一留下的优化候选「合并 18 次主队列投递」改以帧一致性立项**
+（一轮刷新中间至少有一次 CA 提交，各段不落在同一帧），详见 `docs/PLAN.md` Phase 0 一节。
+
+> **以后要动延迟，先拿一条用户反馈来，不要拿 p50 立项。**
+
+### ~~Phase 0 剩下的优化候选~~（已作废）
+
+~~两个日志轮询用信号量串起来 / 文件轮询换 `DispatchSource` / 优化 `updateFrames()`~~ ——
+这张表是在 D 段量程还错着的时候排的，而且前两项打的都是 A 段，
+现在已知 A 段 152ms 里只有约 25ms 属于我们。**延迟本身已不作为立项理由，整表作废。**
 
 ---
 
@@ -288,6 +433,7 @@ C **max = 2021.2**。
 | Discover 开着时悬停记牌器，OutFinder 的池会消失 | 备牌浮窗和 OutFinder 共用 `RelatedCardsTooltipPanel.shared`；鼠标移开触发 `hide()`，而 `DiscoverStateWatcher` 只在状态**变化**时回调（`:63` `if curr == _prev { continue }`），要等玩家真的选牌才回来 | 合并上游相关牌框架时一并解决（PLAN 的 Phase U 后续任务） |
 | 卡条尺寸一局之内会变大 | `Tracker.swift:459` 行高按当前行数压缩，牌打光了弹回 `card_size` 上限。**上游一直如此**，非回归 | 等用户决定，选项记在 PLAN 2.8 |
 | 抽到手上的牌仍留在牌库段（看起来像"延迟一两回合"） | `Settings.highlightCardsInHand` 的既定行为：`getHighlightedCardsInHand()`（`Player.swift:381`）把手牌里的卡以 `count = 0` 塞回列表。**不是延迟**，探针 E2E p50 171ms | Phase 2 / 2.1 分区时消化（用户已认可） |
+| 设置里「不在对局时隐藏全部记牌器」现在是个**完全没用的勾选框** | Bug T5 把最后两个读者（水晶上限、计数器）改走 T4 的对局门后，`hideAllTrackersWhenNotInGame` 只剩 `Settings` 声明和 `TrackersPreferences` 的读写，不再影响任何窗口。撤掉它要动 XIB，而任务书按 `_common.md` 禁止改 XIB，所以只能留着 | Phase 4（设置 UI）—— **那时一并撤掉控件和本地化 key** |
 
 > 合并前评估说过「不存在两个 tooltip 抢同一扇窗」—— 那个结论只覆盖了**注册表**层面
 > （`RelatedCardsSystem/` 里没有 ETC / 下水道之王），**窗口层是共用的**，review 时才补上。
