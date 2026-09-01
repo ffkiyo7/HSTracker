@@ -418,12 +418,11 @@ class BattlegroundsSession: OverWindowController {
         }
     }
     
+    @MainActor
     func hideCompStatsOnError() {
         if compStatsErrorVisibility {
             availableCompStatsSectionVisibility = false
-            DispatchQueue.main.async {
-                self.updateCompositionsVisibilities()
-            }
+            updateCompositionsVisibilities()
         }
     }
 
