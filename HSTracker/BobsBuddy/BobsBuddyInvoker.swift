@@ -1189,6 +1189,19 @@ class BobsBuddyInvoker {
                 if let attachedEntity = gamePlayer.setAside.first(where: {e in e.id == attachedEntityId }) {
                     pHpAttachedMinion = BobsBuddyInvoker.getMinionFromEntity(sim: simulator, player: friendly, entity: attachedEntity,
                                                                              attachedEntities: getAttachedEntities(entityId: attachedEntityId))
+                } else {
+                    // If Lock and Load fired before snapshot assigned input, updateLockAndLoadHeroPower does
+                    // not run if input == nil; for those cases, we can simply check here for free.
+                    let firedEntity = game.entities.values.first { e in
+                        e[GameTag.cardtype] == CardType.minion.rawValue &&
+                        e[GameTag.creator] == heroPower.id &&
+                        (e[GameTag.zone] == Zone.play.rawValue ||
+                         e[GameTag.zone] == Zone.graveyard.rawValue)
+                    }
+                    if let firedEntity {
+                        pHpAttachedMinion = BobsBuddyInvoker.getMinionFromEntity(sim: simulator, player: friendly, entity: firedEntity,
+                                                                                 attachedEntities: getAttachedEntities(entityId: firedEntity.id))
+                    }
                 }
             }
             inputPlayer.addHeroPower(heroPowerCardId: heroPower.cardId, friendly: friendly, isActivated: wasHeroPowerActivated(heroPower: heroPower), data: Int32(pHpData), data2: Int32(pHpData2), data3: Int32(pHpData3), attachedMinion: pHpAttachedMinion ?? MonoHandle(), game_id: Int32(heroPower.id))

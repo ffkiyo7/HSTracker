@@ -5,6 +5,7 @@
 - Fixed Objectives not capturing their second and third script data values.
 - Fixed an Auto Assembler on the board having its own innate Deathrattle counted twice.
 - Fixed the Eternal Legion counter not being read, including Eternal Portrait's accumulated bonus.
+- Fixed Scoutmaster Tavish's Lock and Load minion not being captured when it fired before the combat snapshot.
 
 # 3.6.7
 ## Fixes
