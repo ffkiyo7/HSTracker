@@ -1160,7 +1160,7 @@ class BobsBuddyInvoker {
         for heroPower in playerHeroPowers {
             var pHpData = heroPower[.tag_script_data_num_1]
             let pHpData2 = heroPower[.tag_script_data_num_2]
-            let pHpData3 = heroPower[.tag_script_data_num_3]
+            var pHpData3 = heroPower[.tag_script_data_num_3]
             var pHpAttachedMinion: MinionProxy?
             
             if heroPower.cardId == CardIds.NonCollectible.Neutral.TeronGorefiend_RapidReanimation {
@@ -1196,11 +1196,18 @@ class BobsBuddyInvoker {
                         e[GameTag.cardtype] == CardType.minion.rawValue &&
                         e[GameTag.creator] == heroPower.id &&
                         (e[GameTag.zone] == Zone.play.rawValue ||
-                         e[GameTag.zone] == Zone.graveyard.rawValue)
+                         e[GameTag.zone] == Zone.graveyard.rawValue ||
+                         e[GameTag.zone] == Zone.removedfromgame.rawValue)
                     }
                     if let firedEntity {
-                        pHpAttachedMinion = BobsBuddyInvoker.getMinionFromEntity(sim: simulator, player: friendly, entity: firedEntity,
-                                                                                 attachedEntities: getAttachedEntities(entityId: firedEntity.id))
+                        // A minion fired at the front of the combat can end in REMOVEDFROMGAME.
+                        // Reconstruct from the card id instead.
+                        if firedEntity[GameTag.zone] == Zone.removedfromgame.rawValue {
+                            pHpData3 = Cards.any(byId: firedEntity.info.latestCardId)?.dbfId ?? 0
+                        } else {
+                            pHpAttachedMinion = BobsBuddyInvoker.getMinionFromEntity(sim: simulator, player: friendly, entity: firedEntity,
+                                                                                     attachedEntities: getAttachedEntities(entityId: firedEntity.id))
+                        }
                     }
                 }
             }
