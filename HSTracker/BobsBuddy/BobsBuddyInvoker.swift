@@ -1195,6 +1195,7 @@ class BobsBuddyInvoker {
                     let firedEntity = game.entities.values.first { e in
                         e[GameTag.cardtype] == CardType.minion.rawValue &&
                         e[GameTag.creator] == heroPower.id &&
+                        e.info.turn == game.turnNumber() &&
                         (e[GameTag.zone] == Zone.play.rawValue ||
                          e[GameTag.zone] == Zone.graveyard.rawValue ||
                          e[GameTag.zone] == Zone.removedfromgame.rawValue)
