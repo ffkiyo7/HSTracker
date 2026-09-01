@@ -993,6 +993,7 @@ extension CardIds.NonCollectible {
         static let EternalKnight_EternalLegion = "BG25_008_e"
         static let EternalKnight_EternalKnightPlayerEnchant = "BG25_008pe"
         static let EternalPortrait_GreaterEternalLegionEnchantment = "BG36_MagicItem_216e"
+        static let EternalPortrait_GreaterEternalPortraitPlayerEnchDnt = "BG36_MagicItem_216pe"
         static let EternalSummoner = "BG25_009"
         static let EternalSummoner_EternalSummoner = "BG25_009_G"
         static let NerubianDeathswarmer_UndeadBonusAttackPlayerEnchantDnt = "BG25_011pe"

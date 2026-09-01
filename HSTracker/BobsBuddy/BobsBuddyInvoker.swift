@@ -1307,6 +1307,14 @@ class BobsBuddyInvoker {
             inputPlayer.eternalLegionCounter = Int32(pEternalLegion[.tag_script_data_num_3]) // attached
         }
 
+        // The accumulated count now also lives on the Greater Eternal Portrait player enchant.
+        if inputPlayer.eternalLegionCounter == 0 {
+            let pGreaterPortrait = playerAttached.first { x in x.cardId == CardIds.NonCollectible.Neutral.EternalPortrait_GreaterEternalPortraitPlayerEnchDnt }
+            if let pGreaterPortrait {
+                inputPlayer.eternalLegionCounter = Int32(pGreaterPortrait[.tag_script_data_num_1]) // attached
+            }
+        }
+
         // Eternal Portrait trinket's accumulated grant is also on a per-Knight enchantment.
         // If it's missing from the attached player, read it here from an Eternal Knight.
         if inputPlayer.eternalLegionCounter == 0 {
