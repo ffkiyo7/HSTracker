@@ -2226,6 +2226,10 @@ class BobsBuddyInvoker {
             return
         }
 
+        if MonoHelper.listItems(obj: minion.enchantments).any({ e in MonoHelper.isInstance(obj: e, klass: TimewarpedMagnanimooseEnchantmentProxy._class!) }) {
+            return
+        }
+
         let simulator = SimulatorProxy()
         let summonedMinions = summonedEntities.compactMap { e in BobsBuddyInvoker.getMinionFromEntity(sim: simulator, player: isPlayerMinion, entity: e, attachedEntities: getAttachedEntities(entityId: e.id)) }
 
@@ -2272,6 +2276,10 @@ class BobsBuddyInvoker {
         }
 
         guard let minion else {
+            return
+        }
+
+        if MonoHelper.listItems(obj: minion.enchantments).any({ e in MonoHelper.isInstance(obj: e, klass: TimewarpedNelliesShipEnchantmentProxy._class!) }) {
             return
         }
 
