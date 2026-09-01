@@ -1328,6 +1328,11 @@ class BobsBuddyInvoker {
             inputPlayer.eternalLegionCounter = Int32(pEternalLegion[.tag_script_data_num_3]) // attached
         }
 
+        let pSanlaynScribe = playerAttached.first { x in x.cardId == CardIds.NonCollectible.Neutral.SanlaynScribe_SanlaynScribePlayerEnchantDnt }
+        if let pSanlaynScribe {
+            inputPlayer.sanlaynScribeCounter = Int32(pSanlaynScribe[.tag_script_data_num_1]) // attached
+        }
+
         // The accumulated count now also lives on the Greater Eternal Portrait player enchant.
         if inputPlayer.eternalLegionCounter == 0 {
             let pGreaterPortrait = playerAttached.first { x in x.cardId == CardIds.NonCollectible.Neutral.EternalPortrait_GreaterEternalPortraitPlayerEnchDnt }

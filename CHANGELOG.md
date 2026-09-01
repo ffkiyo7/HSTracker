@@ -8,6 +8,7 @@
 - Fixed Scoutmaster Tavish's Lock and Load minion not being captured when it fired before the combat snapshot.
 - Fixed Nellie's Ship and Magnanimoose enchantments being attached more than once during a combat.
 - Fixed Auto Assembler Deathrattles being miscounted when the host minion had other Deathrattles.
+- Fixed the Sanlayn Scribe counter not being captured in Duos.
 
 # 3.6.7
 ## Fixes
