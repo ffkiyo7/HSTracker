@@ -1,4 +1,6 @@
 # 3.6.8
+## Hearthstone
+- Fixed empty sideboard panels briefly appearing in the deck tracker.
 ## Bob's Buddy
 - Fixed magnetized Auto Assembler Deathrattle observations never being applied to the simulation.
 - Fixed Auto Assembler Deathrattles not being detected on dual-race Mechs.
