@@ -2310,9 +2310,8 @@ class BobsBuddyInvoker {
     private var _observedAutoAssemblerFirings = [Int: Int]()
 
     func observeAutoAssemblerDeathrattleFiring(_ sourceEntityId: Int) {
-        // Counted unconditionally: DEATHRATTLE blocks that resolve before the first observed Automaton
-        // summon (the minion's innate deathrattle) must be in the count that
-        // reconcileAutoAssemblerDeathrattles subtracts otherDeathrattles from.
+        // Each observation is one Auto Assembler deathrattle actually resolving - the spell prefab that
+        // marks it fires whether or not the board had space for the Automaton it summons.
         _observedAutoAssemblerFirings[sourceEntityId] = (_observedAutoAssemblerFirings[sourceEntityId] ?? 0) + 1
     }
 
@@ -2342,6 +2341,8 @@ class BobsBuddyInvoker {
         for kv_pair in sourceThatSummoned {
             changed = reconcileAutoAssemblerDeathrattles(kv_pair.key, kv_pair.value.triggerMultiplier, kv_pair.value.summonedIsPremium) || changed
         }
+
+        _observedAutoAssemblerFirings.removeAll()
 
         if changed {
             tryRerun()
@@ -2392,21 +2393,9 @@ class BobsBuddyInvoker {
         // Extra deathrattles (e.g., Titus Rivendare) resolve as full repeats of the whole deathrattle list —
         // so the first (observed / triggerMultiplier) are the distinct deathrattles in their real order.
         let isAutoAssembler = MonoHelper.isInstance(obj: minion, klass: AutoAssemblerProxy._class!)
-        let otherEnchantmentDeathrattles = MonoHelper.listItems(obj: minion.enchantments).filter { e in
-            MonoHelper.isInstance(obj: e, klass: IDeathrattleProxy._class!)
-                && !MonoHelper.isInstance(obj: e, klass: AutoAssemblerEnchantmentProxy._class!)
-                && !MonoHelper.isInstance(obj: e, klass: AutoAssemblerEnchantmentGoldenProxy._class!)
-        }.count
-        let otherAdditionalDeathrattles = (0 ..< MonoHelper.listCount(obj: minion.additionalDeathrattles)).filter { i in
-            let action = getAction(MonoHelper.listItem(obj: minion.additionalDeathrattles, index: i))
-            return action != autoAssemblerAction && action != autoAssemblerGoldenAction
-        }.count
-        let otherDeathrattles = (MonoHelper.isInstance(obj: minion, klass: IDeathrattleProxy._class!) && !isAutoAssembler ? 1 : 0)
-            + otherEnchantmentDeathrattles
-            + otherAdditionalDeathrattles
 
         let observedFirings = _observedAutoAssemblerFirings[sourceEntityId] ?? 0
-        let firedDeathrattles = max(observedFirings / triggerMultiplier - otherDeathrattles, 0)
+        let firedDeathrattles = observedFirings / triggerMultiplier
         let summonedDeathrattles = summonedByIsPremium.count / triggerMultiplier
         var automatons = summonedByIsPremium.take(max(summonedDeathrattles, firedDeathrattles))
 

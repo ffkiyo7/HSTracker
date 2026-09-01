@@ -7,6 +7,7 @@
 - Fixed the Eternal Legion counter not being read, including Eternal Portrait's accumulated bonus.
 - Fixed Scoutmaster Tavish's Lock and Load minion not being captured when it fired before the combat snapshot.
 - Fixed Nellie's Ship and Magnanimoose enchantments being attached more than once during a combat.
+- Fixed Auto Assembler Deathrattles being miscounted when the host minion had other Deathrattles.
 
 # 3.6.7
 ## Fixes
