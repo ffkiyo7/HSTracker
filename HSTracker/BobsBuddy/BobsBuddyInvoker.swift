@@ -59,13 +59,15 @@ class BobsBuddyInvoker {
     static var currentCombatHasPendingCrabObservations = false
     
     // Incremented on every detected game reconnect. Each combat snapshot records the current value;
-    // a mismatch at validation time means the reconnect happened after this combat started, so the
-    // absence of the combat's outcome should not be deemed as CombatResult.Tie.
+    // a mismatch at validation time means the reconnect happened after this combat started, so we
+    // lost the state the simulation was based on. Such a combat is not validated at all: it reports
+    // no terminal case.
     private static var _reconnectCounter = 0
     static func onGameReconnect() {
         _reconnectCounter += 1
     }
     private var _reconnectCounterAtSnapshot = 0
+    private var didReconnect: Bool { _reconnectCounterAtSnapshot != BobsBuddyInvoker._reconnectCounter }
     
     var doNotReport = true
     
@@ -604,7 +606,7 @@ class BobsBuddyInvoker {
     
     private func getLastCombatResult() -> CombatResult {
         guard let LastAttackingHero else {
-            if _reconnectCounterAtSnapshot != BobsBuddyInvoker._reconnectCounter {
+            if didReconnect {
                 return .reconnect
             }
             return .tie
@@ -697,7 +699,7 @@ class BobsBuddyInvoker {
         
         if isIncorrectCombatResult(result: result) {
 //            terminalCase = true
-            if reportErrors {
+            if !didReconnect && reportErrors {
                 alertWithLastInputOutput(result: "\(result)")
             }
         }
@@ -710,7 +712,7 @@ class BobsBuddyInvoker {
                 return
             }
 //            terminalCase = true
-            if reportErrors {
+            if !didReconnect && reportErrors {
                 alertWithLastInputOutput(result: "\(lethalResult)")
             }
         }   
