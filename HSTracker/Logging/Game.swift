@@ -1082,6 +1082,15 @@ class Game: NSObject, PowerEventHandler {
                 windowManager.rootOverlay?.viewModel.battlegroundsMinionsGuide.enterPreLobby(isDuos: mode == .duos)
                 guidesTabs.activeTab = nil
                 guidesTabs.isPreLobby = true
+                // HDT's BattlegroundsCompsGuidesVM.OnPreLobby(): the comp
+                // guides have no other trigger in the lobby, so without this
+                // the tab stays stuck on its loading state until a match
+                // starts.
+                if let comps = windowManager.rootOverlay?.viewModel.battlegroundsCompsGuides {
+                    Task {
+                        await comps.onPreLobby()
+                    }
+                }
             }
         } else {
             guidesTabs.isPreLobby = false

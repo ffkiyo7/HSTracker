@@ -4,6 +4,7 @@
 - Fixed a crash when the game watchers were started from two threads at once.
 - Fixed a second log reader being left running when tracking was started twice while Hearthstone was still loading.
 ## Battlegrounds
+- Fixed the composition guides never loading in the Battlegrounds lobby, leaving the tab stuck on its loading state until a match started.
 - Fixed the composition and hero guide header art fading out too early, leaving it dimmer than intended.
 ## Bob's Buddy
 - Fixed magnetized Auto Assembler Deathrattle observations never being applied to the simulation.

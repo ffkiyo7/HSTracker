@@ -239,7 +239,7 @@ struct CompGuideDetailView: View {
                 }
             }
             .frame(maxWidth: .infinity)
-            if showInspirationButton {
+            if showInspirationButton && comp.exampleBoardsButtonVisible {
                 inspirationButton
             }
         }
