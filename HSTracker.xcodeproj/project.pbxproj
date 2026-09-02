@@ -1211,6 +1211,7 @@
 		B85462312CE00EED0083BB31 /* BigCardWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B85462302CE00EED0083BB31 /* BigCardWatcher.swift */; };
 		B85462332CE016B80083BB31 /* ArenaWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B85462322CE016B80083BB31 /* ArenaWatcher.swift */; };
 		B85462352CE0185B0083BB31 /* QueueWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B85462342CE0185B0083BB31 /* QueueWatcher.swift */; };
+		B8A1F0022E5F0A0100000002 /* Watcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8A1F0012E5F0A0100000001 /* Watcher.swift */; };
 		B85462372CE019FE0083BB31 /* ChoicesWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B85462362CE019FE0083BB31 /* ChoicesWatcher.swift */; };
 		B85462392CE01B1F0083BB31 /* BattlegroundsTeammateBoardStateWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B85462382CE01B1F0083BB31 /* BattlegroundsTeammateBoardStateWatcher.swift */; };
 		B854623B2CE01C5F0083BB31 /* BattlegroundsLeaderboardWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B854623A2CE01C5F0083BB31 /* BattlegroundsLeaderboardWatcher.swift */; };
@@ -3236,6 +3237,7 @@
 		B85462302CE00EED0083BB31 /* BigCardWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BigCardWatcher.swift; sourceTree = "<group>"; };
 		B85462322CE016B80083BB31 /* ArenaWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArenaWatcher.swift; sourceTree = "<group>"; };
 		B85462342CE0185B0083BB31 /* QueueWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueWatcher.swift; sourceTree = "<group>"; };
+		B8A1F0012E5F0A0100000001 /* Watcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Watcher.swift; sourceTree = "<group>"; };
 		B85462362CE019FE0083BB31 /* ChoicesWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChoicesWatcher.swift; sourceTree = "<group>"; };
 		B85462382CE01B1F0083BB31 /* BattlegroundsTeammateBoardStateWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlegroundsTeammateBoardStateWatcher.swift; sourceTree = "<group>"; };
 		B854623A2CE01C5F0083BB31 /* BattlegroundsLeaderboardWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlegroundsLeaderboardWatcher.swift; sourceTree = "<group>"; };
@@ -5633,6 +5635,7 @@
 				B85462402CE01FCD0083BB31 /* ExperienceWatcher.swift */,
 				B85462422CE021FF0083BB31 /* PVPDungeonRunWatcher.swift */,
 				B85462342CE0185B0083BB31 /* QueueWatcher.swift */,
+				B8A1F0012E5F0A0100000001 /* Watcher.swift */,
 				B854623C2CE01DF50083BB31 /* SceneWatcher.swift */,
 				B8E9C6572EFDF50D00EF3F6E /* SpecialShopChoicesStateWatcher.swift */,
 				EE0000000000000000002011 /* PlayZoneWatcher.swift */,
@@ -8540,6 +8543,7 @@
 				B837D7E22EAEA79D0070DB4B /* UmbralGeist.swift in Sources */,
 				431719711C84911300F5988B /* EditDeck.swift in Sources */,
 				B85462352CE0185B0083BB31 /* QueueWatcher.swift in Sources */,
+				B8A1F0022E5F0A0100000002 /* Watcher.swift in Sources */,
 				B8CDDCBF2F3D63C8004C3E86 /* TimewarpedMagnanimooseEnchantmentProxy.swift in Sources */,
 				B89BCE042FF463400095F011 /* AutoAssemblerProxy.swift in Sources */,
 				B8DB12852EBAD671004268FA /* MurlocRafaamEnchantment.swift in Sources */,
