@@ -38,7 +38,7 @@ class DatabaseTests: HSTrackerTests {
         XCTAssertEqual(card.race, Race.beast, "Dreadscale race")
         XCTAssertEqual(card.rarity, Rarity.legendary, "Dreadscale rarity")
         XCTAssertEqual(card.set, CardSet.tgt, "Dreadscale set")
-        XCTAssertEqual(card.text, "At the end of your turn, deal 1 damage to all other minions.", "Dreadscale text")
+        XCTAssertEqual(card.enText, "At the end of your turn, deal 1 damage to all enemies.", "Dreadscale text")
         XCTAssertEqual(card.type, CardType.minion, "Dreadscale type")
     }
 
@@ -56,8 +56,10 @@ class DatabaseTests: HSTrackerTests {
         XCTAssertEqual(card.playerClass, CardClass.neutral, "Baron Geddon playerClass")
         XCTAssertEqual(card.race, Race.elemental, "Baron Geddon race")
         XCTAssertEqual(card.rarity, Rarity.legendary, "Baron Geddon rarity")
-        XCTAssertEqual(card.set, CardSet.core, "Baron Geddon set")
-        XCTAssertEqual(card.text, "At the end of your turn, deal 2 damage to ALL other characters.",  "Baron Geddon text")
+        // CORE_ 卡当前 CARD_SET=1810，不是 2021 年的 core(1637)
+        XCTAssertEqual(card.set, CardSet.placeholder_202204, "Baron Geddon set")
+        // 宿主 app 先按本机语言加载了卡库，card.text 可能是中文；enText 才稳定
+        XCTAssertEqual(card.enText, "At the end of your turn, deal 2 damage to ALL other characters.",  "Baron Geddon text")
         XCTAssertEqual(card.type, CardType.minion, "Baron Geddon type")
     }
 

@@ -243,11 +243,12 @@ class SecretTests: HSTrackerTests {
                       triggered: [CardIds.Secrets.Mage.FlameWard,
                                   CardIds.Secrets.Mage.IceBarrier,
                                   CardIds.Secrets.Mage.Vaporize,
-                                  CardIds.Secrets.Mage.VengefulVisage])
+                                  CardIds.Secrets.Mage.VengefulVisage,
+                                  CardIds.Secrets.Mage.MysticMisdirection])
         verifySecrets(secretIndex: 2, allSecrets: CardIds.Secrets.Paladin.All,
                       triggered: [CardIds.Secrets.Paladin.NobleSacrifice, CardIds.Secrets.Paladin.JudgementofJustice])
         verifySecrets(secretIndex: 3, allSecrets: CardIds.Secrets.Rogue.All, triggered: [CardIds.Secrets.Rogue.ShadowClone])
-        
+
         // with more than one friendly minions on board
         playerMinion2[.zone] = Zone.play.rawValue
         game.secretsManager?.handleAttack(attacker: playerMinion1, defender: heroOpponent)
@@ -261,7 +262,8 @@ class SecretTests: HSTrackerTests {
                       triggered: [CardIds.Secrets.Mage.FlameWard,
                                   CardIds.Secrets.Mage.IceBarrier,
                                   CardIds.Secrets.Mage.Vaporize,
-                                  CardIds.Secrets.Mage.VengefulVisage])
+                                  CardIds.Secrets.Mage.VengefulVisage,
+                                  CardIds.Secrets.Mage.MysticMisdirection])
         verifySecrets(secretIndex: 2, allSecrets: CardIds.Secrets.Paladin.All,
                       triggered: [CardIds.Secrets.Paladin.NobleSacrifice, CardIds.Secrets.Paladin.JudgementofJustice])
         verifySecrets(secretIndex: 3, allSecrets: CardIds.Secrets.Rogue.All,
@@ -274,7 +276,8 @@ class SecretTests: HSTrackerTests {
         verifySecrets(secretIndex: 0, allSecrets: CardIds.Secrets.Hunter.All,
                       triggered: [CardIds.Secrets.Hunter.SnakeTrap,
                                   CardIds.Secrets.Hunter.VenomstrikeTrap,
-                                  CardIds.Secrets.Hunter.PackTactics])
+                                  CardIds.Secrets.Hunter.PackTactics,
+                                  CardIds.Secrets.Hunter.BaitAndSwitch])
         verifySecrets(secretIndex: 1, allSecrets: CardIds.Secrets.Mage.All,
                       triggered: [CardIds.Secrets.Mage.OasisAlly, CardIds.Secrets.Mage.SplittingImage])
         verifySecrets(secretIndex: 2, allSecrets: CardIds.Secrets.Paladin.All,
@@ -293,7 +296,8 @@ class SecretTests: HSTrackerTests {
                                   CardIds.Secrets.Hunter.PackTactics,
                                   CardIds.Secrets.Hunter.BaitAndSwitch])
         verifySecrets(secretIndex: 1, allSecrets: CardIds.Secrets.Mage.All,
-                      triggered: [CardIds.Secrets.Mage.OasisAlly, CardIds.Secrets.Mage.SplittingImage])
+                      triggered: [CardIds.Secrets.Mage.OasisAlly, CardIds.Secrets.Mage.SplittingImage,
+                                  CardIds.Secrets.Mage.MysticMisdirection])
         verifySecrets(secretIndex: 2, allSecrets: CardIds.Secrets.Paladin.All,
                       triggered: [CardIds.Secrets.Paladin.NobleSacrifice,
                                   CardIds.Secrets.Paladin.AutodefenseMatrix,
@@ -326,7 +330,8 @@ class SecretTests: HSTrackerTests {
                                   CardIds.Secrets.Hunter.PackTactics,
                                   CardIds.Secrets.Hunter.BaitAndSwitch])
         verifySecrets(secretIndex: 1, allSecrets: CardIds.Secrets.Mage.All,
-                      triggered: [CardIds.Secrets.Mage.OasisAlly, CardIds.Secrets.Mage.SplittingImage])
+                      triggered: [CardIds.Secrets.Mage.OasisAlly, CardIds.Secrets.Mage.SplittingImage,
+                                  CardIds.Secrets.Mage.MysticMisdirection])
         verifySecrets(secretIndex: 2, allSecrets: CardIds.Secrets.Paladin.All,
                       triggered: [CardIds.Secrets.Paladin.NobleSacrifice,
                                   CardIds.Secrets.Paladin.JudgementofJustice])
@@ -366,7 +371,8 @@ class SecretTests: HSTrackerTests {
     func testSingleSecret_MinionPlayed() {
         game.playerMinionPlayed(entity: playerMinion1)
         verifySecrets(secretIndex: 0, allSecrets: CardIds.Secrets.Hunter.All,
-                      triggered: [CardIds.Secrets.Hunter.Snipe, CardIds.Secrets.Hunter.Zombeeees])
+                      triggered: [CardIds.Secrets.Hunter.Snipe, CardIds.Secrets.Hunter.Zombeeees,
+                                  CardIds.Secrets.Hunter.BargainBin])
         verifySecrets(secretIndex: 1, allSecrets: CardIds.Secrets.Mage.All,
                       triggered: [CardIds.Secrets.Mage.ExplosiveRunes,
                                   CardIds.Secrets.Mage.MirrorEntity,
@@ -423,7 +429,8 @@ class SecretTests: HSTrackerTests {
         game.secretsManager?.handleCardPlayed(entity: playerSpell1, parentCardId: "")
 
         verifySecrets(secretIndex: 0, allSecrets: CardIds.Secrets.Hunter.All,
-                      triggered: [CardIds.Secrets.Hunter.CatTrick, CardIds.Secrets.Hunter.IceTrap])
+                      triggered: [CardIds.Secrets.Hunter.CatTrick, CardIds.Secrets.Hunter.IceTrap,
+                                  CardIds.Secrets.Hunter.BargainBin])
         verifySecrets(secretIndex: 1, allSecrets: CardIds.Secrets.Mage.All,
                       triggered: [CardIds.Secrets.Mage.Counterspell,
                                   CardIds.Secrets.Mage.Spellbender,
@@ -437,7 +444,8 @@ class SecretTests: HSTrackerTests {
         game.secretsManager?.handleCardPlayed(entity: playerSpell2, parentCardId: "")
 
         verifySecrets(secretIndex: 0, allSecrets: CardIds.Secrets.Hunter.All,
-                      triggered: [CardIds.Secrets.Hunter.CatTrick, CardIds.Secrets.Hunter.IceTrap])
+                      triggered: [CardIds.Secrets.Hunter.CatTrick, CardIds.Secrets.Hunter.IceTrap,
+                                  CardIds.Secrets.Hunter.BargainBin])
         verifySecrets(secretIndex: 1, allSecrets: CardIds.Secrets.Mage.All,
                       triggered: [CardIds.Secrets.Mage.Counterspell,
                                   CardIds.Secrets.Mage.ManaBind,
@@ -450,7 +458,7 @@ class SecretTests: HSTrackerTests {
         game.playerEntity?[.num_cards_played_this_turn] = 3
         game.secretsManager?.handleCardPlayed(entity: playerSpell2, parentCardId: "")
 
-        verifySecrets(secretIndex: 0, allSecrets: CardIds.Secrets.Hunter.All, triggered: [ CardIds.Secrets.Hunter.CatTrick, CardIds.Secrets.Hunter.IceTrap, CardIds.Secrets.Hunter.MotionDenied, CardIds.Secrets.Hunter.RatTrap])
+        verifySecrets(secretIndex: 0, allSecrets: CardIds.Secrets.Hunter.All, triggered: [ CardIds.Secrets.Hunter.CatTrick, CardIds.Secrets.Hunter.IceTrap, CardIds.Secrets.Hunter.MotionDenied, CardIds.Secrets.Hunter.RatTrap, CardIds.Secrets.Hunter.BargainBin])
         verifySecrets(secretIndex: 1, allSecrets: CardIds.Secrets.Mage.All, triggered: [CardIds.Secrets.Mage.Counterspell, CardIds.Secrets.Mage.ManaBind, CardIds.Secrets.Mage.NetherwindPortal])
         verifySecrets(secretIndex: 2, allSecrets: CardIds.Secrets.Paladin.All, triggered: [CardIds.Secrets.Paladin.OhMyYogg, CardIds.Secrets.Paladin.GallopingSavior, CardIds.Secrets.Paladin.HiddenWisdom])
         verifySecrets(secretIndex: 3, allSecrets: CardIds.Secrets.Rogue.All, triggered: [CardIds.Secrets.Rogue.DirtyTricks, CardIds.Secrets.Rogue.StickySituation])
@@ -461,9 +469,10 @@ class SecretTests: HSTrackerTests {
     func testSingleSecret_MinionOnBoard_NoMinionTarget_SpellPlayed() {
         opponentMinion1[.zone] = Zone.play.rawValue
         game.secretsManager?.handleCardPlayed(entity: playerSpell2, parentCardId: "")
-        
+
         verifySecrets(secretIndex: 0, allSecrets: CardIds.Secrets.Hunter.All,
-                      triggered: [CardIds.Secrets.Hunter.CatTrick, CardIds.Secrets.Hunter.IceTrap])
+                      triggered: [CardIds.Secrets.Hunter.CatTrick, CardIds.Secrets.Hunter.IceTrap,
+                                  CardIds.Secrets.Hunter.BargainBin])
         verifySecrets(secretIndex: 1, allSecrets: CardIds.Secrets.Mage.All,
                       triggered: [CardIds.Secrets.Mage.Counterspell,
                                   CardIds.Secrets.Mage.ManaBind,
@@ -603,22 +612,31 @@ class SecretTests: HSTrackerTests {
                       triggered: [CardIds.Secrets.Hunter.ExplosiveTrap,
                                   CardIds.Secrets.Hunter.WanderingMonster])
         verifySecrets(secretIndex: 1, allSecrets: CardIds.Secrets.Mage.All,
-                      triggered: [CardIds.Secrets.Mage.IceBarrier, CardIds.Secrets.Mage.VengefulVisage])
+                      triggered: [CardIds.Secrets.Mage.IceBarrier, CardIds.Secrets.Mage.VengefulVisage,
+                                  CardIds.Secrets.Mage.MysticMisdirection])
         verifySecrets(secretIndex: 2, allSecrets: CardIds.Secrets.Paladin.All,
                       triggered: [CardIds.Secrets.Paladin.NobleSacrifice,
                                   CardIds.Secrets.Paladin.JudgementofJustice])
         verifySecrets(secretIndex: 3, allSecrets: CardIds.Secrets.Rogue.All)
     }
-    
+
     func testMultipleSecrets_MinionPlayed_MinionDied() {
         game.playerMinionPlayed(entity: playerMinion1)
         game.playerMinionDeath(entity: playerMinion1)
-        
-        verifySecrets(secretIndex: 0, allSecrets: CardIds.Secrets.Hunter.All)
+
+        // c0fd1210 起：没有日志确认某张"打出随从"秘密真的触发，随从后来死亡不再撤销这批排除
+        verifySecrets(secretIndex: 0, allSecrets: CardIds.Secrets.Hunter.All,
+                      triggered: [CardIds.Secrets.Hunter.Snipe, CardIds.Secrets.Hunter.Zombeeees,
+                                  CardIds.Secrets.Hunter.BargainBin])
         verifySecrets(secretIndex: 1, allSecrets: CardIds.Secrets.Mage.All,
-                      triggered: [CardIds.Secrets.Mage.FrozenClone])
-        verifySecrets(secretIndex: 2, allSecrets: CardIds.Secrets.Paladin.All)
-        verifySecrets(secretIndex: 3, allSecrets: CardIds.Secrets.Rogue.All, triggered: [CardIds.Secrets.Rogue.Kidnap])
+                      triggered: [CardIds.Secrets.Mage.ExplosiveRunes,
+                                  CardIds.Secrets.Mage.MirrorEntity,
+                                  CardIds.Secrets.Mage.PotionOfPolymorph,
+                                  CardIds.Secrets.Mage.FrozenClone,
+                                  CardIds.Secrets.Mage.Objection])
+        verifySecrets(secretIndex: 2, allSecrets: CardIds.Secrets.Paladin.All,
+                      triggered: [CardIds.Secrets.Paladin.Repentance])
+        verifySecrets(secretIndex: 3, allSecrets: CardIds.Secrets.Rogue.All, triggered: [CardIds.Secrets.Rogue.Ambush, CardIds.Secrets.Rogue.Kidnap])
     }
     
 //    func testMultipleSecrets_MinionPlayed_SecretTriggered_MinionDied() {
@@ -676,9 +694,10 @@ class SecretTests: HSTrackerTests {
     func testMultipleSecrets_MinionPlayed_AnotherMinionDied() {
         game.playerMinionPlayed(entity: playerMinion1)
         game.playerMinionDeath(entity: playerMinion2)
-        
+
         verifySecrets(secretIndex: 0, allSecrets: CardIds.Secrets.Hunter.All,
-                      triggered: [CardIds.Secrets.Hunter.Snipe, CardIds.Secrets.Hunter.Zombeeees])
+                      triggered: [CardIds.Secrets.Hunter.Snipe, CardIds.Secrets.Hunter.Zombeeees,
+                                  CardIds.Secrets.Hunter.BargainBin])
         verifySecrets(secretIndex: 1, allSecrets: CardIds.Secrets.Mage.All,
                       triggered: [CardIds.Secrets.Mage.ExplosiveRunes,
                                   CardIds.Secrets.Mage.FrozenClone,
