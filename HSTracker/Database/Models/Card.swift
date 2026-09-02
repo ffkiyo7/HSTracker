@@ -422,6 +422,7 @@ extension Card: NSCopying {
         copy.rarity = self.rarity
         copy.set = self.set
         copy.text = self.text
+        copy.enText = self.enText
         copy.race = self.race
         copy.type = self.type
         copy.mechanics = self.mechanics
