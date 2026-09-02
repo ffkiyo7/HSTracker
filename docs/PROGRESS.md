@@ -2,9 +2,9 @@
 
 | | |
 |---|---|
-| 最后更新 | 2026-09-01 |
+| 最后更新 | 2026-09-03 |
 | 分支 | `dev`（长期主开发线，2026-08-31 由 `phase0+3` 改名；已合入 upstream `534ee2d8` / **3.6.7**，`master` 保持为上游纯镜像） |
-| 构建 | T6b 第 2 步埋点 + Bug T4 显示门受限环境 Debug / Release 均 `BUILD SUCCEEDED`（review 侧独立复跑）；Build T2 测试 target 49 项（25 过 / 24 个旧预期失败） |
+| 构建 | T6b 第 2 步埋点 + Bug T4 显示门受限环境 Debug / Release 均 `BUILD SUCCEEDED`（review 侧独立复跑）；测试 **50 / 50 全绿**（2026-09-03，受限环境 `xcodebuild test`），从此是红绿灯 |
 | 阻塞 | 无。Bug T1 / T2 / T3 三本均已实战验收并提交 |
 | **在做** | 无。Bug T5 已完成并 review 通过，等一局实战确认 |
 | **下一片** | **Phase 1 / T5（顶部信息区）→ Phase 1 / T6（布局收口）** —— T6 收口才能解锁 Phase 2，而 Phase 2 才是反馈①的真正修复 |
@@ -172,20 +172,24 @@ review 七条逐项结论见任务书。
 成立，但前者只覆盖 RelatedCards 子系统；另一个旧结论“`knownOpponentDeck` 每局开始清”不成立，
 实际是传统模式结束时条件清。本次完整证据、逐项复核和临时日志处置见 Bug T3 任务书。
 
-**自动化测试边界已解除**：Build T2 已去掉失效的 `Wrap` / 系统 Mono 依赖，测试 target 改为宿主
-`HSTracker.app` 并只编译 9 个测试文件，不再复制编译 302 个 app 源文件。受限环境实际执行 49 项：
-25 过、24 个断言失败；失败全部来自卡库事实、秘密池或秘密处理规则已变化，以及数据库测试与宿主语言
-状态耦合，没有发现运行时代码真 bug。没有测试需要炉石进程；`PowerParserTests` 目前是空测试，不能算
-解析器覆盖。逐项分类及 pbxproj 对账见 `docs/tasks/build-t2-fix-test-target.md`。
+**自动化测试已是红绿灯（2026-09-03，50 / 50）**。Build T2（`10c6a812`）先去掉失效的 `Wrap` / 系统 Mono
+依赖，测试 target 改为宿主 `HSTracker.app` 并只编译 9 个测试文件，不再复制编译 302 个 app 源文件；
+当时 49 项里 24 个旧预期失败，逐项分类及 pbxproj 对账见 `docs/archive/tasks/build-t2-fix-test-target.md`。
+2026-09-03 把旧预期更新到当前规则，全绿：
 
-> ⚠️ **但现在还不能拿它当红绿灯。** 24 个已知失败挂着，就没法说"测试绿了 = 没问题"。
-> 要变成真正的门禁，得先把那 23 条旧预期更新到当前规则（卡面文案、`CARD_SET`、
-> Bargain Bin / Mystic Misdirection 的排除、上游 `c0fd1210` 改过的秘密撤销规则），
-> 再把 `PowerParserTests.testCreateGameEntity` 那个空测试补上或删掉 —— 空方法被 XCTest
-> 记成通过，是假绿。**在此之前，测试只能用来看"我这次改动有没有把原本过的 25 项弄挂"。**
-> review 侧抽查过 Bargain Bin 和 Mystic Misdirection：两张卡在 `SecretsManager`
-> （`:563` / `:564` / `:839` / `:873` 和 `:473`）都确有排除逻辑，是旧测试少列了它们 ——
-> 方向在安全的那一侧，不是回归。
+- **23 条测试过期**：Dreadscale 卡面文案、`CORE_EX1_249` 的 `CARD_SET=1810`（`.placeholder_202204`，
+  不是 2021 的 `.core`）、Bargain Bin（随从 / 法术打出即排除，6 处）、Mystic Misdirection（随从发起攻击即
+  排除，5 处）、Bait and Switch（英雄攻击随从那一支）、上游 `c0fd1210` 的秘密撤销规则（随从死亡不再
+  撤销"打出随从"那批排除，9 处）。review 侧此前抽查过 `SecretsManager`（`:563` / `:564` / `:839` /
+  `:873` / `:473`），排除逻辑确在，方向在安全一侧。
+- **1 条测试夹具耦合**：宿主 app 先按本机 zhCN 加载卡库，`card.text` 是中文；改断言 `card.enText`。
+- **顺带抓到一个运行时真 bug**：`Card.copy()` 漏拷 `enText`，而 `Cards.any(byId:)` / `Cards.by(cardId:)`
+  返回的都是副本 —— 所以任何走查表拿到的卡 `enText` 都是空串。受影响的读者：`Card.hideCost`
+  （`enText.contains("Passive")`）、`BattlegroundsKeyword.swift:65`、`BattlegroundsDb.swift:179`
+  （种族文本检测）。已补一行 `copy.enText = self.enText`。上游 3.6.7 同样有此漏拷，合并时留意别被还原。
+- `PowerParserTests` 空方法已换成两条真测试（`CREATE_GAME` + `GameEntity` / `Player` 行能建出实体）。
+
+没有测试需要炉石进程。**以后改完跑一次测试**（`AGENTS.md` 已加规则），红了就是回归。
 
 #### 2026-08-31 复现：打完回主菜单两个记牌器仍挂着（→ Bug T4）
 
@@ -207,7 +211,7 @@ review 七条逐项结论见任务书。
 正向场景：传统对局由 `!gameEnded && !isInMenu` 放行；我方额外保留构筑排队入口，对手没有。
 排队入口补上 `isInMenu`，因此**上面那条挂了两轮的"`isInQueue` 卡住会让我方记牌器整局强制显示"
 隐患从结构上关闭了**。默认值没改。静态真值表、状态异常边界和 review 的四条副作用见
-`docs/tasks/bug-t4-tracker-visibility-out-of-game.md`。
+`docs/archive/tasks/bug-t4-tracker-visibility-out-of-game.md`。
 
 用户确认四项行为全部一致：排队只我方 / 对局中双方 / **打完瞬间双方消失** / 同一时刻水晶上限
 overlay 单独留着。后两项是 review 预先指出的副作用，用户已分别拍板：
@@ -340,18 +344,15 @@ D total 7849.4（n=107，p50 66.5 / avg 73.4），补集 4779.0 = **D 的 60.9%*
 > `applicationDidFinishLaunching` 才配置，表现为"进程在跑但一个字都不写日志"，
 > 极容易误判成没启动。窗口常被炉石盖住，要切到 HSTracker 点 Don't Move。
 
-### D 补集第 2 层埋点（2026-08-31，待 Release 取数）
+### D 补集第 2 层埋点的口径（2026-08-31，Release 数据已取，结果见上节）
 
-原补集现在被拆成两层：精确计时 `ac116be0` 新增的 7 类 watcher / scene 主队列写入；其余间隙由
-主 RunLoop observer 按 `source phase`、`timer/observer phase`、`wait/outside`、`transitions`、
-`unknown` 分桶。`D gaps additive` 检查这些子桶能否加回原补集，原 `D breakdown additive` 继续检查
-整轮 D 是否闭合；两条 coverage 都必须约等于 100%。
-
-这套口径能直接认出已包住的 watcher 插队和 RunLoop 等待，但 **`source phase` 仍是混合桶**：
-AppKit/SwiftUI、未包住的 app/framework 主队列任务、其它 source 处理都在里面。如果它最大，必须再拆，
-不能直接把它当成“渲染”开始合并 turn。取数前判据和 Release 命令已写死在 T6b 任务书。
-受限环境 Debug `BUILD SUCCEEDED`；启动期 `n=1` 烟雾样本的 D 总账与 gap 子账 coverage 都是 100%。
-Debug 数值不作性能判断。没有改变任何刷新 block、顺序、防抖或频率。
+- 两层：精确计时 `ac116be0` 新增的 7 类 watcher / scene 主队列写入；其余间隙由主 RunLoop observer
+  按 `source phase`、`timer/observer phase`、`wait/outside`、`transitions`、`unknown` 分桶。
+- 两条恒等式：`D gaps additive` 检查子桶能否加回原补集；`D breakdown additive` 检查整轮 D 闭合。
+  两条 coverage 都必须约等于 100%。
+- **`source phase` 是混合桶**（AppKit/SwiftUI、未包住的 app/framework 主队列任务、其它 source 处理）。
+  它最大就必须再拆，不能当成"渲染"直接合并 turn。判据和 Release 命令在 T6b 任务书。
+- 没有改变任何刷新 block、顺序、防抖或频率。Debug 烟雾样本（`n=1`）两条 coverage 100%，数值不作性能判断。
 
 ### 仍然作数的结论
 
@@ -620,7 +621,7 @@ A 段包含炉石自己的 flush 延迟，是不可优化的地板。`LatencyPro
 | T1 切片的模型 A/B 完整比对（grok vs codex，逐元素） | 同上，「Phase 1 / T1 的模型 A/B」一节 |
 | Phase 3 的六步任务、译文来源、72 处 review 改动 | 同上，「Phase 3」一节 |
 | 录屏差分的方法学备忘 | 同上，「同一局的录屏分析」一节 |
-| 任务书（**在做 / 待验**） | `docs/tasks/` —— 当前只有 `phase0-t6` / `phase6-t1` / `phaseU-t1` 三本 |
+| 任务书（**在做 / 待验**） | `docs/tasks/` —— 当前只有 `bug-t5`（review 通过，等一局实战）。`bug-t4` / `build-t2` / `phase0-t6b` 已于 2026-09-03 归档 |
 | 任务书（**已完成**） | `docs/archive/tasks/`，索引见该目录的 `README.md` |
 | Firestone / HDT 的调研 | `docs/research/` |
 

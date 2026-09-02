@@ -34,6 +34,18 @@
 > （review 漏看了 `propertyChanged` 闭包里的一层 `main.async`），T3 里 Codex 证伪了
 > 任务书给的 A / B 两条线索、查出了第三条路径。**交叉检验要留出被推翻的余地才有价值。**
 
+### 第三批：2026-09-03（Phase 0 / T6 收口 + Bug T4 结案）
+
+| 归档的 | 完成于 | 状态依据 |
+|---|---|---|
+| `phase0-t6b-shrink-refresh-cost` | 08-31 | D 段拆成 22 块 + 补集拆 RunLoop / watcher，两局 Release 取数后主动收在测量阶段（`b0374928` / `c19b0bd7`） |
+| `bug-t4-tracker-visibility-out-of-game` | 08-31 | 两个主记牌器改正向场景门，实战验收「排队只我方 / 对局双方 / 打完即消失 / 主菜单不显示」（`381a9c80`） |
+| `build-t2-fix-test-target` | 08-31 | 测试 target 救活，49 项跑起来（`10c6a812`） |
+
+> T6b 值得回看的是**它自己写死的判据**（「补集最大就不进优化」「取数前写死判据，不许看完数再补」），
+> 以及第 3 步取消的理由 —— 任务书把「E2E p50 = 350ms 要压下来」写成"定死"，四轮没人回头看。
+> Bug T4 的 review 四条副作用直接生出了 Bug T5。
+
 `phase3-t1-diff-report.md` 不是任务书，是 T1 产出的「gaenyong 与我们译法不同的 77 条」对照表，
 一起放这儿。
 
@@ -43,7 +55,7 @@
    `docs/tasks/_common-phase3.md`、`docs/tasks/phase1-t1-card-row.md` 之类，现在都在
    `docs/archive/tasks/` 下。**故意不改** —— 留档就该是当初交给执行模型的那份原文，
    改了它就不再是"当初下的约束"了。`docs/archive/*.md` 里指向这些书的链接同理。
-2. **`_common.md` 没有归档**，它还在 `docs/tasks/`：Phase 0 / T6 和另两本在做的书都在引用它。
+2. **`_common.md` 没有归档**，它还在 `docs/tasks/`：在做的书都引用它。
    只有 Phase 3 那份专用的 `_common-phase3.md` 跟着它的六本书一起进来了。
 
 ## 勘误（2026-08-30）

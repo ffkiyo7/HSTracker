@@ -4,7 +4,7 @@
 
 ## 前情
 
-`docs/tasks/bug-t4-tracker-visibility-out-of-game.md` 已经把两个主记牌器换成正向场景门，
+`docs/archive/tasks/bug-t4-tracker-visibility-out-of-game.md` 已经把两个主记牌器换成正向场景门，
 2026-08-31 23:26 那一局实战验收通过（排队只显示我方、对局中双方、结束即隐藏，用户确认）。
 **用户已明确决定：「打完的瞬间就消失」这个行为保留，不要改回去。**
 
@@ -65,7 +65,7 @@
 
 ## 背景资料
 
-- Bug T4 的实现、逐格对账和 review 的四条副作用：`docs/tasks/bug-t4-tracker-visibility-out-of-game.md`
+- Bug T4 的实现、逐格对账和 review 的四条副作用：`docs/archive/tasks/bug-t4-tracker-visibility-out-of-game.md`
 - 显示门的历史包袱：`docs/PROGRESS.md` 的「③ 的余留」整节
 
 ## 执行结果（2026-08-31）
