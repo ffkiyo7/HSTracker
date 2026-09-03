@@ -6,6 +6,7 @@
 - Fixed a crash when a card hud finished downloading its source card image, which was cropped on the download thread.
 - Fixed a crash when an overlay window was shown for the first time from a background thread.
 - Fixed a second log reader being left running when tracking was started twice while Hearthstone was still loading.
+- Fixed a crash when the counters were rebuilt at the start or end of a match while the counters overlay was reading them.
 ## Battlegrounds
 - Fixed the Tavern Pinning panel staying on screen after a Battlegrounds match ended, following the player back into the lobby and into other game modes.
 - Fixed the Tier7 pre-lobby widget staying stuck on its loading spinner when HSTracker was started while Hearthstone was already in the Battlegrounds lobby.
