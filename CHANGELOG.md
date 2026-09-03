@@ -1,4 +1,5 @@
 # 3.6.8
+**Updated for Hearthstone 36.4.2**
 ## Hearthstone
 - Fixed empty sideboard panels briefly appearing in the deck tracker.
 - Fixed a crash when the game watchers were started from two threads at once.
@@ -13,6 +14,7 @@
 - Fixed the Tier7 pre-lobby widget staying stuck on its loading spinner when HSTracker was started while Hearthstone was already in the Battlegrounds lobby.
 - Fixed the composition guides never loading in the Battlegrounds lobby, leaving the tab stuck on its loading state until a match started.
 - Fixed the composition and hero guide header art fading out too early, leaving it dimmer than intended.
+- Fixed the session MMR being formatted with the region configured in macOS instead of the language HSTracker is set to.
 ## Bob's Buddy
 - Fixed magnetized Auto Assembler Deathrattle observations never being applied to the simulation.
 - Fixed Auto Assembler Deathrattles not being detected on dual-race Mechs.
