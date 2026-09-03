@@ -1464,6 +1464,11 @@ class BobsBuddyInvoker {
 
     func snapshotBoardState(turn: Int) {
         logger.debug("Snapshotting board state...")
+
+        _observedAutoAssemblerFirings.removeAll()
+        _pendingAutoAssemblerDeathrattleSources.removeAll()
+        _pendingCrabDeathrattleSources.removeAll()
+
         LastAttackingHero = nil
         _attackingHero = nil
         _defendingHero = nil

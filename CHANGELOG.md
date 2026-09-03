@@ -28,6 +28,7 @@
 - Fixed the Sanlayn Scribe counter not being captured in Duos.
 - Fixed an Auto Assembler Deathrattle that summoned nothing being counted a second time alongside a later Deathrattle from the same minion.
 - Fixed the win, tie, loss and lethal percentages being formatted with the region configured in macOS instead of the language HSTracker is set to, and Duos partial results no longer marking their win and loss rates as a lower bound.
+- Fixed Auto Assembler and Sea Star Crab Deathrattle observations from an earlier combat carrying over into the next one.
 
 # 3.6.7
 ## Fixes
