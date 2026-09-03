@@ -2332,7 +2332,12 @@ class BobsBuddyInvoker {
 
     func flushAndUpdateObservedAutoAssemblerDeathrattlesAsync() {
         BobsBuddyInvoker.currentCombatHasPendingAutoAssemblerObservations = false
-        guard !_pendingAutoAssemblerDeathrattleSources.isEmpty else { return }
+        if _pendingAutoAssemblerDeathrattleSources.isEmpty {
+            // A firing with no summon to reconcile must still be dropped here, or it is counted again
+            // alongside a later firing by the same minion.
+            _observedAutoAssemblerFirings.removeAll()
+            return
+        }
         
         let opaque = mono_thread_attach(MonoHelper._monoInstance)
         defer {

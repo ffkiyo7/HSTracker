@@ -25,6 +25,7 @@
 - Fixed Nellie's Ship and Magnanimoose enchantments being attached more than once during a combat.
 - Fixed Auto Assembler Deathrattles being miscounted when the host minion had other Deathrattles.
 - Fixed the Sanlayn Scribe counter not being captured in Duos.
+- Fixed an Auto Assembler Deathrattle that summoned nothing being counted a second time alongside a later Deathrattle from the same minion.
 
 # 3.6.7
 ## Fixes
