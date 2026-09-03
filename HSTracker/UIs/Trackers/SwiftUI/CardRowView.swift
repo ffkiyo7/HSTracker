@@ -412,6 +412,14 @@ struct CardRowView: View {
     }
 }
 
+/// The card-name font the current theme and language resolve to, for views
+/// outside this file that must match the card rows (the tracker header).
+enum TrackerTextFont {
+    static var name: String {
+        ThemeBarLayout.forTheme(Settings.theme).textFontName
+    }
+}
+
 private struct ThemeBarLayout {
     let dir: String
     let frameRect = NSRect(x: 0, y: 0, width: 217, height: 34)

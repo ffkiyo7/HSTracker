@@ -34,6 +34,12 @@ class Tracker: OverWindowController, CardCellHover {
     private var swiftUIPlayerBottom: TrackerSectionHost?
     private var swiftUIOpponentRelatedCards: TrackerSectionHost?
     private var swiftUISectionsActive = false
+    private var swiftUIHeader: TrackerHeaderHost?
+    private var headerStatsKey: (deckId: String, opponentClass: CardClass?)?
+    private var headerOverallRecord: StatsDeckRecord?
+    private var headerMatchupRecord: StatsDeckRecord?
+    private var headerStatsNeedRefresh = true
+    private var headerGameEnded: Bool?
     private var playerSideboardsData: [Sideboard] = []
     
     var bottomY = CGFloat(0.0)
@@ -125,6 +131,9 @@ class Tracker: OverWindowController, CardCellHover {
 
     // MARK: - Game
     func update(cards: [Card], top: [Card], bottom: [Card], sideboards: [Sideboard], relatedCards: [Card], reset: Bool = false) {
+        if reset && playerType == .player {
+            headerStatsNeedRefresh = true
+        }
         if Settings.useSwiftUITracker {
             let host = ensureSwiftUICards()
             if let playerType {
@@ -202,6 +211,77 @@ class Tracker: OverWindowController, CardCellHover {
         window?.contentView?.addSubview(host)
         swiftUICards = host
         return host
+    }
+
+    private func ensureSwiftUIHeader() -> TrackerHeaderHost {
+        if let swiftUIHeader {
+            return swiftUIHeader
+        }
+        let host = TrackerHeaderHost(frame: .zero)
+        window?.contentView?.addSubview(host)
+        swiftUIHeader = host
+        return host
+    }
+
+    private func updateSwiftUIHeader(lineHeight: CGFloat) {
+        let host = ensureSwiftUIHeader()
+        let showCardCount = playerType == .player
+            ? Settings.showPlayerCardCount
+            : Settings.showOpponentCardCount
+        var overallRecord: StatsDeckRecord?
+        var matchupClass: CardClass?
+        var matchupRecord: StatsDeckRecord?
+
+        let game = AppDelegate.instance().coreManager.game
+        if headerGameEnded != game.gameEnded {
+            headerGameEnded = game.gameEnded
+            headerStatsNeedRefresh = true
+        }
+
+        if playerType == .player && Settings.showWinLossRatio,
+           let deckId = game.currentDeck?.id {
+            let opponentClass = game.opponent.playerClassId
+                .flatMap { Cards.hero(byId: $0)?.playerClass }
+            let statsKey = (deckId: deckId, opponentClass: opponentClass)
+            if headerStatsNeedRefresh || headerStatsKey?.deckId != statsKey.deckId ||
+                headerStatsKey?.opponentClass != statsKey.opponentClass {
+                if let deck = RealmHelper.getDeck(with: deckId) {
+                    headerOverallRecord = StatsHelper.getDeckRecord(deck: deck,
+                                                                    againstClass: .neutral,
+                                                                    mode: .all)
+                    headerMatchupRecord = opponentClass.map {
+                        StatsHelper.getDeckRecord(deck: deck, againstClass: $0, mode: .all)
+                    }
+                } else {
+                    headerOverallRecord = nil
+                    headerMatchupRecord = nil
+                }
+                headerStatsKey = statsKey
+                headerStatsNeedRefresh = false
+            }
+            overallRecord = headerOverallRecord
+            matchupClass = opponentClass
+            matchupRecord = headerMatchupRecord
+        } else if !Settings.showWinLossRatio {
+            headerStatsKey = nil
+            headerOverallRecord = nil
+            headerMatchupRecord = nil
+        }
+
+        let showDeckName = playerType == .player && Settings.showDeckNameInTracker
+        let heroCardId = playerType == .player ? (playerClassId ?? "") : ""
+        let ownClass = Cards.hero(byId: heroCardId)?.playerClass ?? game.currentDeck?.playerClass
+        host.viewModel.update(deckName: playerName ?? "",
+                              showDeckName: showDeckName,
+                              playerClass: ownClass,
+                              heroCardId: heroCardId,
+                              handCount: cardCounter.handCount,
+                              deckCount: cardCounter.deckCount,
+                              showCardCount: showCardCount,
+                              overallRecord: overallRecord,
+                              matchupClass: matchupClass,
+                              matchupRecord: matchupRecord,
+                              lineHeight: lineHeight)
     }
 
     private func ensureSwiftUISections() -> (top: TrackerSectionHost,
@@ -305,7 +385,20 @@ class Tracker: OverWindowController, CardCellHover {
         case .big: ratio = 1.0
         }
         
-        if playerType == .opponent {
+        if Settings.useSwiftUITracker {
+            cardCounter.isHidden = true
+            playerDrawChance.isHidden = true
+            opponentDrawChance.isHidden = true
+            recordTracker.isHidden = true
+            graveyardCounter.isHidden = true
+            if playerType == .opponent {
+                playerClass.isHidden = !Settings.showOpponentClassInTracker
+            } else {
+                // D2: the header's first row carries the deck name and the hero
+                // art; the old hero bar would repeat both.
+                playerClass.isHidden = true
+            }
+        } else if playerType == .opponent {
             cardCounter.isHidden = !Settings.showOpponentCardCount
             opponentDrawChance.isHidden = !Settings.showOpponentDrawChance
             playerDrawChance.isHidden = true
@@ -319,7 +412,9 @@ class Tracker: OverWindowController, CardCellHover {
             recordTracker.isHidden = !Settings.showWinLossRatio
         }
         
-        graveyardCounter.isHidden = !showGraveyard
+        if !Settings.useSwiftUITracker {
+            graveyardCounter.isHidden = !showGraveyard
+        }
         
         if !recordTracker.isHidden {
             recordTracker.needsDisplay = true
@@ -417,7 +512,13 @@ class Tracker: OverWindowController, CardCellHover {
             
         }
         
-        if !opponentDrawChance.isHidden {
+        if Settings.useSwiftUITracker {
+            updateSwiftUIHeader(lineHeight: smallFrameHeight)
+            let header = ensureSwiftUIHeader()
+            if header.height > 0 {
+                offsetFrames += header.height
+            }
+        } else if !opponentDrawChance.isHidden {
             offsetFrames += bigFrameHeight
         }
         if !playerDrawChance.isHidden {
@@ -462,6 +563,22 @@ class Tracker: OverWindowController, CardCellHover {
         
         let cardViewHeight = CGFloat(mainListCount) * cardHeight
         var y: CGFloat = windowHeight - startHeight
+
+        if Settings.useSwiftUITracker {
+            let header = ensureSwiftUIHeader()
+            let headerHeight = header.height
+            if headerHeight > 0 {
+                y -= headerHeight
+                header.frame = NSRect(x: 0, y: y, width: windowWidth, height: headerHeight)
+                header.isHidden = false
+            } else {
+                header.frame = .zero
+                header.isHidden = true
+            }
+        } else if let swiftUIHeader {
+            swiftUIHeader.frame = .zero
+            swiftUIHeader.isHidden = true
+        }
 
         if playerTopCount > 0 && Settings.showPlayerCardsTop {
             let playerTopHeight = CGFloat(playerTopCount) * cardHeight + smallFrameHeight + 5
@@ -565,18 +682,18 @@ class Tracker: OverWindowController, CardCellHover {
         playerSideboards.frame = NSRect.zero
         playerSideboards.updateFrames(frameHeight: smallFrameHeight, cardHeight: cardHeight)
         playerSideboards.isHidden = true
-        if !cardCounter.isHidden {
+        if !Settings.useSwiftUITracker && !cardCounter.isHidden {
             y -= smallFrameHeight
             cardCounter.frame = NSRect(x: 0, y: y, width: windowWidth, height: smallFrameHeight)
         }
-        if !opponentDrawChance.isHidden {
+        if !Settings.useSwiftUITracker && !opponentDrawChance.isHidden {
             y -= bigFrameHeight
             opponentDrawChance.frame = NSRect(x: 0,
                                               y: y,
                                               width: windowWidth,
                                               height: bigFrameHeight)
         }
-        if !playerDrawChance.isHidden {
+        if !Settings.useSwiftUITracker && !playerDrawChance.isHidden {
             y -= smallFrameHeight
             playerDrawChance.frame = NSRect(x: 0,
                                             y: y,
@@ -619,7 +736,7 @@ class Tracker: OverWindowController, CardCellHover {
                 }
             }
         }
-        if !graveyardCounter.isHidden {
+        if !Settings.useSwiftUITracker && !graveyardCounter.isHidden {
             y -= smallFrameHeight
             graveyardCounter?.frame = NSRect(x: 0,
                                              y: y,
@@ -633,7 +750,7 @@ class Tracker: OverWindowController, CardCellHover {
             graveyardCounter?.cardHeight = cardHeight
             graveyardCounter?.needsDisplay = true
         }
-        if !recordTracker.isHidden {
+        if !Settings.useSwiftUITracker && !recordTracker.isHidden {
             y -= smallFrameHeight
             recordTracker.frame = NSRect(x: 0,
                                          y: y,

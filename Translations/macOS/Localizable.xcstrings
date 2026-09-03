@@ -5911,6 +5911,40 @@
         }
       }
     },
+    "Deck win rate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deck win rate"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "套牌胜率"
+          }
+        }
+      }
+    },
+    "vs" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "vs"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "vs"
+          }
+        }
+      }
+    },
     "Decks" : {
       "extractionState" : "manual",
       "localizations" : {
