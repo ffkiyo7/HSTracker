@@ -1143,6 +1143,7 @@
 		B8496732289A0CF300D90B30 /* SynchronizedDictionary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8BD84542860058400F4F224 /* SynchronizedDictionary.swift */; };
 		B8496733289A0CF300D90B30 /* SynchronizedArray.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FE1F982875BD15004C397C /* SynchronizedArray.swift */; };
 		B8496734289A0D8F00D90B30 /* UnfairLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8BD8452285D23C500F4F224 /* UnfairLock.swift */; };
+		B8A17C032E5F1A0100C1D2E0 /* MainThreadGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8A17C012E5F1A0100C1D2E0 /* MainThreadGuard.swift */; };
 		B8496735289A0DA900D90B30 /* BattlegroundsTierTriples.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8A70C16284152DC004D054C /* BattlegroundsTierTriples.swift */; };
 		B8496736289A0DB600D90B30 /* BattlegroundsSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8AF932F282D4A7C00864934 /* BattlegroundsSession.swift */; };
 		B8496738289A0DC500D90B30 /* DeckLens.swift in Sources */ = {isa = PBXBuildFile; fileRef = B89C9895280C610C005E9315 /* DeckLens.swift */; };
@@ -1735,6 +1736,7 @@
 		B8BD3BB22C4360B1001E85B7 /* BattlegroundsCompositionStatsRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8BD3BB12C4360B1001E85B7 /* BattlegroundsCompositionStatsRow.swift */; };
 		B8BD8443284AB92700F4F224 /* BattlegroundsSession.xib in Resources */ = {isa = PBXBuildFile; fileRef = B8BD8441284AB92600F4F224 /* BattlegroundsSession.xib */; };
 		B8BD8453285D23C500F4F224 /* UnfairLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8BD8452285D23C500F4F224 /* UnfairLock.swift */; };
+		B8A17C022E5F1A0100C1D2E0 /* MainThreadGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8A17C012E5F1A0100C1D2E0 /* MainThreadGuard.swift */; };
 		B8BD84552860058400F4F224 /* SynchronizedDictionary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8BD84542860058400F4F224 /* SynchronizedDictionary.swift */; };
 		B8BD84572861394100F4F224 /* Regex.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8BD84562861394100F4F224 /* Regex.swift */; };
 		B8BDF9062A9625D9000DA4ED /* AnomalyFactoryProxy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8BDF9052A9625D9000DA4ED /* AnomalyFactoryProxy.swift */; };
@@ -3705,6 +3707,7 @@
 		B8BD3BB12C4360B1001E85B7 /* BattlegroundsCompositionStatsRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlegroundsCompositionStatsRow.swift; sourceTree = "<group>"; };
 		B8BD8442284AB92700F4F224 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/BattlegroundsSession.xib; sourceTree = "<group>"; };
 		B8BD8452285D23C500F4F224 /* UnfairLock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnfairLock.swift; sourceTree = "<group>"; };
+		B8A17C012E5F1A0100C1D2E0 /* MainThreadGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainThreadGuard.swift; sourceTree = "<group>"; };
 		B8BD84542860058400F4F224 /* SynchronizedDictionary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynchronizedDictionary.swift; sourceTree = "<group>"; tabWidth = 3; };
 		B8BD84562861394100F4F224 /* Regex.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; path = Regex.swift; sourceTree = "<group>"; };
 		B8BDF9052A9625D9000DA4ED /* AnomalyFactoryProxy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnomalyFactoryProxy.swift; sourceTree = "<group>"; };
@@ -4337,6 +4340,7 @@
 				434D1CAE1D0C500300222B8E /* ImageUtilities.swift */,
 				B83A703D2E00A3BF00B85BBE /* JsonManager.swift */,
 				B81EEABA2CE69AF300B32448 /* NibHelper.swift */,
+				B8A17C012E5F1A0100C1D2E0 /* MainThreadGuard.swift */,
 				BCCCDB9D1EA54FF800C328D0 /* NotificationManager.swift */,
 				B8AB59932742F94900383EC8 /* RateLimiter.swift */,
 				B8FDE9262CD99D840093BFF7 /* ReflectionHelper.swift */,
@@ -7285,6 +7289,7 @@
 				B80B5B332C7508BF005F4321 /* TrinketFactoryProxy.swift in Sources */,
 				B820294D2CD2D38800C19A8C /* ExpeditionSergeantEnchantment.swift in Sources */,
 				B8BD8453285D23C500F4F224 /* UnfairLock.swift in Sources */,
+				B8A17C022E5F1A0100C1D2E0 /* MainThreadGuard.swift in Sources */,
 				B8CE65DC2950D80200E8D168 /* BattlegroundsPlacementDistribution.swift in Sources */,
 				B8AEB6092FB26BA200CDA2C0 /* AnimalCompanionCounter.swift in Sources */,
 				43F2040F1E93C2E600E0BC4A /* Priest.swift in Sources */,
@@ -9040,6 +9045,7 @@
 				B8496736289A0DB600D90B30 /* BattlegroundsSession.swift in Sources */,
 				B8496735289A0DA900D90B30 /* BattlegroundsTierTriples.swift in Sources */,
 				B8496734289A0D8F00D90B30 /* UnfairLock.swift in Sources */,
+				B8A17C032E5F1A0100C1D2E0 /* MainThreadGuard.swift in Sources */,
 				B8496732289A0CF300D90B30 /* SynchronizedDictionary.swift in Sources */,
 				B8496733289A0CF300D90B30 /* SynchronizedArray.swift in Sources */,
 				B8496731289A0CEB00D90B30 /* Regex.swift in Sources */,

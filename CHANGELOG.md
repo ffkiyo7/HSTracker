@@ -2,6 +2,7 @@
 ## Hearthstone
 - Fixed empty sideboard panels briefly appearing in the deck tracker.
 - Fixed a crash when the game watchers were started from two threads at once.
+- Fixed random crashes on macOS 26 caused by overlay artwork being composed off the main thread. Card, minion, experience and Mercenaries ability images are now built in a thread-safe way.
 - Fixed a second log reader being left running when tracking was started twice while Hearthstone was still loading.
 ## Battlegrounds
 - Fixed the Tavern Pinning panel staying on screen after a Battlegrounds match ended, following the player back into the lobby and into other game modes.
