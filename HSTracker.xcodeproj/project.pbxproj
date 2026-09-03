@@ -272,7 +272,6 @@
 		437B5BB51CD2558500DE0A41 /* OpponentTrackersPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437B5BB41CD2558500DE0A41 /* OpponentTrackersPreferences.swift */; };
 		437B5BB81CD2559300DE0A41 /* OpponentTrackersPreferences.xib in Resources */ = {isa = PBXBuildFile; fileRef = 437B5BB61CD2559300DE0A41 /* OpponentTrackersPreferences.xib */; };
 		437B5BC21CD2568100DE0A41 /* TrackersPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437B5BC11CD2568100DE0A41 /* TrackersPreferences.swift */; };
-		437B5BC51CD2568E00DE0A41 /* TrackersPreferences.xib in Resources */ = {isa = PBXBuildFile; fileRef = 437B5BC31CD2568E00DE0A41 /* TrackersPreferences.xib */; };
 		437C58301EBC7E8400FFD888 /* NSImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437C582F1EBC7E8400FFD888 /* NSImage.swift */; };
 		437E56F01DAAB81400FC0FC1 /* Array.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437E56E91DAAB81400FC0FC1 /* Array.swift */; };
 		437E56F11DAAB81400FC0FC1 /* Color.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437E56EA1DAAB81400FC0FC1 /* Color.swift */; };
@@ -2190,7 +2189,6 @@
 		437B5BB41CD2558500DE0A41 /* OpponentTrackersPreferences.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = OpponentTrackersPreferences.swift; sourceTree = "<group>"; };
 		437B5BB71CD2559300DE0A41 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/OpponentTrackersPreferences.xib; sourceTree = "<group>"; };
 		437B5BC11CD2568100DE0A41 /* TrackersPreferences.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TrackersPreferences.swift; sourceTree = "<group>"; };
-		437B5BC41CD2568E00DE0A41 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/TrackersPreferences.xib; sourceTree = "<group>"; };
 		437C582F1EBC7E8400FFD888 /* NSImage.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NSImage.swift; sourceTree = "<group>"; };
 		437E56E91DAAB81400FC0FC1 /* Array.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Array.swift; sourceTree = "<group>"; };
 		437E56EA1DAAB81400FC0FC1 /* Color.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Color.swift; sourceTree = "<group>"; };
@@ -3220,7 +3218,6 @@
 		B89BCF3C300851CE0095F011 /* mul */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; name = mul; path = mul.lproj/InitialConfiguration.xcstrings; sourceTree = "<group>"; };
 		B89BCF3D300851CE0095F011 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		B89BCF3F300851CE0095F011 /* mul */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; name = mul; path = mul.lproj/GeneralPreferences.xcstrings; sourceTree = "<group>"; };
-		B89BCF40300851CF0095F011 /* mul */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; name = mul; path = mul.lproj/TrackersPreferences.xcstrings; sourceTree = "<group>"; };
 		B89BCF41300851CF0095F011 /* mul */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; name = mul; path = mul.lproj/BattlegroundsSession.xcstrings; sourceTree = "<group>"; };
 		B89BCF42300851D00095F011 /* mul */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; name = mul; path = mul.lproj/SaveDeck.xcstrings; sourceTree = "<group>"; };
 		B89BCF43300851D00095F011 /* mul */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; name = mul; path = mul.lproj/EditDeck.xcstrings; sourceTree = "<group>"; };
@@ -3991,7 +3988,6 @@
 				439C7ED31C777FA900D29859 /* Splashscreen.swift */,
 				432B5FBE1CB5373200B05D19 /* Splashscreen.xib */,
 				437B5BC11CD2568100DE0A41 /* TrackersPreferences.swift */,
-				437B5BC31CD2568E00DE0A41 /* TrackersPreferences.xib */,
 			);
 			path = Preferences;
 			sourceTree = "<group>";
@@ -6770,7 +6766,6 @@
 				43EECB9A1C7E3F620077AC1B /* DeckCellView.xib in Resources */,
 				B85FE9C52E53CACA001865FC /* Resources in Resources */,
 				B800FCAC273318DA00AFBD51 /* MercenariesTaskListView.xib in Resources */,
-				437B5BC51CD2568E00DE0A41 /* TrackersPreferences.xib in Resources */,
 				4C1923962392DFA5007EBB0F /* BattlegroundsOverlay.xib in Resources */,
 				432B5FCB1CB5375500B05D19 /* DeckManager.xib in Resources */,
 				B8BD8443284AB92700F4F224 /* BattlegroundsSession.xib in Resources */,
@@ -8874,15 +8869,6 @@
 				B89BCF39300851CE0095F011 /* mul */,
 			);
 			name = OpponentTrackersPreferences.xib;
-			sourceTree = "<group>";
-		};
-		437B5BC31CD2568E00DE0A41 /* TrackersPreferences.xib */ = {
-			isa = PBXVariantGroup;
-			children = (
-				437B5BC41CD2568E00DE0A41 /* Base */,
-				B89BCF40300851CF0095F011 /* mul */,
-			);
-			name = TrackersPreferences.xib;
 			sourceTree = "<group>";
 		};
 		B83355B024F807220025F644 /* BobsBuddyPanel.xib */ = {

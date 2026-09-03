@@ -2,176 +2,177 @@
 //  TrackersPreferences.swift
 //  HSTracker
 //
-//  Created by Benjamin Michotte on 29/02/16.
-//  Copyright © 2016 Benjamin Michotte. All rights reserved.
-//
 
-import Foundation
+import AppKit
 import Preferences
+import SwiftUI
 
 class TrackersPreferences: PreferencePaneController, PreferencePane {
     var preferencePaneIdentifier = Preferences.PaneIdentifier.trackers
-    
+
     var preferencePaneTitle = String.localizedString("Trackers", comment: "")
-    
+
     var toolbarItemIcon = NSImage(named: "settings-trackers")!
 
-    @IBOutlet var highlightCardsInHand: NSButton!
-    @IBOutlet var highlightLastDrawn: NSButton!
-    @IBOutlet var removeCards: NSButton!
-    @IBOutlet var highlightDiscarded: NSButton!
-    @IBOutlet var opacity: NSSlider!
-    @IBOutlet var cardSize: NSComboBox!
-    @IBOutlet var showTimer: NSButton!
-    @IBOutlet var autoPositionTrackers: NSButton!
-    @IBOutlet var showSecretHelper: NSButton!
-    @IBOutlet var showRarityColors: NSButton!
-    @IBOutlet var showFloatingCard: NSButton!
-    @IBOutlet var theme: NSComboBox!
-    @IBOutlet var allowFullscreen: NSButton!
-    @IBOutlet var hideAllWhenNotInGame: NSButton!
-    @IBOutlet var hideAllWhenGameInBackground: NSButton!
-    @IBOutlet var disableTrackingInSpectatorMode: NSButton!
-    @IBOutlet var showExperienceCounter: NSButton!
-    @IBOutlet var showMulliganToast: NSButton!
-    @IBOutlet var showFlavorText: NSButton!
-    @IBOutlet var enableMulliganGuide: NSButton!
-    @IBOutlet var enableMulliganGV2: NSButton!
-    @IBOutlet var showMulliganGuidePreLobby: NSButton!
-    @IBOutlet var autoShowMulliganGuide: NSButton!
-    
-    let themes = ["classic", "frost", "dark", "minimal"]
+    private var hostingController: NSHostingController<TrackersPreferencesView>?
 
-    override func viewWillAppear() {
-        super.viewWillAppear()
-        
-        guard highlightCardsInHand != nil else {
-            return
-        }
-                
-        highlightCardsInHand.state = Settings.highlightCardsInHand ? .on : .off
-        highlightLastDrawn.state = Settings.highlightLastDrawn ? .on : .off
-        removeCards.state = Settings.removeCardsFromDeck ? .on : .off
-        highlightDiscarded.state = Settings.highlightDiscarded ? .on : .off
-        opacity.doubleValue = Settings.trackerOpacity
-        var index: Int
-        switch Settings.cardSize {
-        case .tiny: index = 0
-        case .small: index = 1
-        case .medium: index = 2
-        case .big: index = 3
-        case .huge: index = 4
-        }
-        cardSize.selectItem(at: index)
-        showTimer.state = Settings.showTimer ? .on : .off
-        autoPositionTrackers.state = Settings.autoPositionTrackers ? .on : .off
-        showSecretHelper.state = Settings.showSecretHelper ? .on : .off
-        showRarityColors.state = Settings.showRarityColors ? .on : .off
-        showFloatingCard.state = Settings.showFloatingCard ? .on : .off
-        showExperienceCounter.state = Settings.showExperienceCounter ? .on : .off
-        showMulliganToast.state = Settings.showMulliganToast ? .on : .off
-        showFlavorText.state = Settings.showFlavorText ? .on : .off
-
-        theme.selectItem(at: themes.firstIndex(of: Settings.theme) ?? 0)
-        allowFullscreen.state = Settings.canJoinFullscreen ? .on : .off
-        hideAllWhenNotInGame.state = Settings.hideAllTrackersWhenNotInGame ? .on : .off
-        hideAllWhenGameInBackground.state = Settings.hideAllWhenGameInBackground
-            ? .on : .off
-        disableTrackingInSpectatorMode.state = Settings.dontTrackWhileSpectating ? .on : .off
-        enableMulliganGuide.state = Settings.enableMulliganGuide ? .on : .off
-        enableMulliganGV2.state = Settings.enableMulliganGV2 ? .on : .off
-        showMulliganGuidePreLobby.state = Settings.showMulliganGuidePreLobby ? .on : .off
-        autoShowMulliganGuide.state = Settings.autoShowMulliganGuide ? .on : .off
+    override func loadView() {
+        let controller = NSHostingController(rootView: TrackersPreferencesView())
+        hostingController = controller
+        view = controller.view
     }
+}
 
-    @IBAction func sliderChange(_ sender: AnyObject) {
-        Settings.trackerOpacity = opacity.doubleValue
-    }
+private struct TrackersPreferencesView: View {
+    @StateObject private var state = TrackersPreferencesState()
+    private let themes = ["classic", "frost", "dark", "minimal"]
 
-    @IBAction func comboboxChange(_ sender: NSComboBox) {
-        if sender == cardSize {
-            let size: CardSize
-            switch cardSize.indexOfSelectedItem {
-            case 0: size = .tiny
-            case 1: size = .small
-            case 3: size = .big
-            case 4: size = .huge
-            case 2: size = .medium
-            default: size = .medium
+    var body: some View {
+        let _ = state.revision
+        Form {
+            Section {
+                Picker(label("tracker_theme"), selection: state.setting(Settings.theme, set: { Settings.theme = $0 })) {
+                    ForEach(themes, id: \.self) { theme in
+                        Text(label("tracker_theme_\(theme)"))
+                            .tag(theme)
+                    }
+                }
+                Picker(label("tracker_card_size"), selection: cardSize) {
+                    Text(label("tracker_card_size_tiny")).tag(CardSize.tiny)
+                    Text(label("tracker_card_size_small")).tag(CardSize.small)
+                    Text(label("tracker_card_size_medium")).tag(CardSize.medium)
+                    Text(label("tracker_card_size_big")).tag(CardSize.big)
+                    Text(label("tracker_card_size_huge")).tag(CardSize.huge)
+                }
+                HStack {
+                    Text(label("tracker_opacity"))
+                    Slider(value: opacity, in: 0...100, step: 1)
+                    Text("\(Int(Settings.trackerOpacity))%")
+                        .monospacedDigit()
+                        .frame(width: 36, alignment: .trailing)
+                }
+                Toggle(label("tracker_highlight_cards_in_hand"), isOn: state.setting(Settings.highlightCardsInHand, set: { Settings.highlightCardsInHand = $0 }))
+                Toggle(label("tracker_highlight_last_drawn"), isOn: state.setting(Settings.highlightLastDrawn, set: { Settings.highlightLastDrawn = $0 }))
+                Toggle(label("tracker_highlight_discarded"), isOn: state.setting(Settings.highlightDiscarded, set: { Settings.highlightDiscarded = $0 }))
+                Toggle(label("tracker_remove_zero_count_cards"), isOn: state.setting(Settings.removeCardsFromDeck, set: { Settings.removeCardsFromDeck = $0 }))
+            } header: {
+                Text(label("trackers_appearance"))
+            } footer: {
+                Text(label("trackers_appearance_footer"))
             }
-            Settings.cardSize = size
-        } else if sender == theme {
-            Settings.theme = themes[theme.indexOfSelectedItem]
+
+            Section {
+                Toggle(label("tracker_auto_position"), isOn: autoPosition)
+                Toggle(label("tracker_allow_fullscreen"), isOn: state.setting(Settings.canJoinFullscreen, set: { Settings.canJoinFullscreen = $0 }))
+                Toggle(label("tracker_hide_in_background"), isOn: state.setting(Settings.hideAllWhenGameInBackground, set: { Settings.hideAllWhenGameInBackground = $0 }))
+                Toggle(label("tracker_disable_spectator"), isOn: state.setting(Settings.dontTrackWhileSpectating, set: { Settings.dontTrackWhileSpectating = $0 }))
+                Toggle(label("tracker_show_timer"), isOn: state.setting(Settings.showTimer, set: { Settings.showTimer = $0 }))
+                Toggle(label("tracker_secret_helper"), isOn: state.setting(Settings.showSecretHelper, set: { Settings.showSecretHelper = $0 }))
+                Toggle(label("tracker_rarity_colors"), isOn: state.setting(Settings.showRarityColors, set: { Settings.showRarityColors = $0 }))
+                Toggle(label("tracker_hover_card"), isOn: state.setting(Settings.showFloatingCard, set: { Settings.showFloatingCard = $0 }))
+                Toggle(label("tracker_experience_counter"), isOn: experienceCounter)
+                Toggle(label("tracker_show_flavor_text"), isOn: state.setting(Settings.showFlavorText, set: { Settings.showFlavorText = $0 }))
+            } header: {
+                Text(label("trackers_overlays"))
+            } footer: {
+                Text(label("trackers_overlays_footer"))
+            }
+
+            Section {
+                Toggle(label("tracker_mulligan_toast"), isOn: state.setting(Settings.showMulliganToast, set: { Settings.showMulliganToast = $0 }))
+                Toggle(label("tracker_enable_mulligan_guide"), isOn: mulliganGuide)
+                Toggle(label("tracker_enable_mulligan_v2"), isOn: mulliganGuideV2)
+                Toggle(label("tracker_mulligan_pre_lobby"), isOn: mulliganPreLobby)
+                Toggle(label("tracker_mulligan_auto_show"), isOn: state.setting(Settings.autoShowMulliganGuide, set: { Settings.autoShowMulliganGuide = $0 }))
+            } header: {
+                Text(label("trackers_mulligan"))
+            } footer: {
+                Text(label("trackers_mulligan_footer"))
+            }
         }
+        .formStyle(.grouped)
+        .padding()
     }
 
-    @IBAction func checkboxClicked(_ sender: NSButton) {
-        if sender == highlightCardsInHand {
-            Settings.highlightCardsInHand = highlightCardsInHand.state == .on
-        } else if sender == highlightLastDrawn {
-            Settings.highlightLastDrawn = highlightLastDrawn.state == .on
-        } else if sender == removeCards {
-            Settings.removeCardsFromDeck = removeCards.state == .on
-        } else if sender == highlightDiscarded {
-            Settings.highlightDiscarded = highlightDiscarded.state == .on
-        } else if sender == autoPositionTrackers {
-            Settings.autoPositionTrackers = autoPositionTrackers.state == .on
-            if Settings.autoPositionTrackers {
+    private var cardSize: Binding<CardSize> {
+        state.setting(Settings.cardSize, set: { Settings.cardSize = $0 })
+    }
+
+    private var opacity: Binding<Double> {
+        state.setting(Settings.trackerOpacity, set: { Settings.trackerOpacity = $0 })
+    }
+
+    private var autoPosition: Binding<Bool> {
+        state.setting(Settings.autoPositionTrackers) { enabled in
+            Settings.autoPositionTrackers = enabled
+            if enabled {
                 Settings.windowsLocked = true
             }
-        } else if sender == showSecretHelper {
-            Settings.showSecretHelper = showSecretHelper.state == .on
-        } else if sender == showRarityColors {
-            Settings.showRarityColors = showRarityColors.state == .on
-        } else if sender == showTimer {
-            Settings.showTimer = showTimer.state == .on
-        } else if sender == showFloatingCard {
-            Settings.showFloatingCard = showFloatingCard.state == .on
-        } else if sender == allowFullscreen {
-            Settings.canJoinFullscreen = allowFullscreen.state == .on
-        } else if sender == hideAllWhenNotInGame {
-            Settings.hideAllTrackersWhenNotInGame = hideAllWhenNotInGame.state == .on
-        } else if sender == hideAllWhenGameInBackground {
-            Settings.hideAllWhenGameInBackground = hideAllWhenGameInBackground.state == .on
-        } else if sender == disableTrackingInSpectatorMode {
-            Settings.dontTrackWhileSpectating = disableTrackingInSpectatorMode.state == .on
-        } else if sender == showExperienceCounter {
-            Settings.showExperienceCounter = showExperienceCounter.state == .on
+        }
+    }
+
+    private var experienceCounter: Binding<Bool> {
+        state.setting(Settings.showExperienceCounter) { enabled in
+            Settings.showExperienceCounter = enabled
             let game = AppDelegate.instance().coreManager.game
-            
-            if showExperienceCounter.state == .on {
-                if let mode = game.currentMode, mode == Mode.hub {
+            if enabled {
+                if let mode = game.currentMode, mode == .hub {
                     game.windowManager.experiencePanel.visible = true
                 }
             } else {
                 game.windowManager.experiencePanel.visible = false
             }
-        } else if sender == showMulliganToast {
-            Settings.showMulliganToast = showMulliganToast.state == .on
-        } else if sender == showFlavorText {
-            Settings.showFlavorText = showFlavorText.state == .on
-        } else if sender == enableMulliganGuide {
-            Settings.enableMulliganGuide = enableMulliganGuide.state == .on
+        }
+    }
+
+    private var mulliganGuide: Binding<Bool> {
+        state.setting(Settings.enableMulliganGuide) { enabled in
+            Settings.enableMulliganGuide = enabled
             let game = AppDelegate.instance().coreManager.game
-            if enableMulliganGuide.state == .on {
+            if enabled {
                 game.hideMulliganGuideStats()
-                // Clear the Mulligan overlay if it's visible
                 game.player.mulliganCardStats = nil
             }
             game.updateMulliganGuidePreLobby()
-        } else if sender == enableMulliganGV2 {
-            Settings.enableMulliganGV2 = enableMulliganGV2.state == .on
+        }
+    }
+
+    private var mulliganGuideV2: Binding<Bool> {
+        state.setting(Settings.enableMulliganGV2) { enabled in
+            Settings.enableMulliganGV2 = enabled
             if #available(macOS 10.15, *) {
                 let game = AppDelegate.instance().coreManager.game
                 game.stopMulliganLivePolling()
                 game.windowManager.rootOverlay?.viewModel.mulliganGuideV2.reset()
             }
-        } else if sender == showMulliganGuidePreLobby {
-            Settings.showMulliganGuidePreLobby = showMulliganGuidePreLobby.state == .on
-            AppDelegate.instance().coreManager.game.updateMulliganGuidePreLobby()
-        } else if sender == autoShowMulliganGuide {
-            Settings.autoShowMulliganGuide = autoShowMulliganGuide.state == .on
         }
+    }
+
+    private var mulliganPreLobby: Binding<Bool> {
+        state.setting(Settings.showMulliganGuidePreLobby) { enabled in
+            Settings.showMulliganGuidePreLobby = enabled
+            AppDelegate.instance().coreManager.game.updateMulliganGuidePreLobby()
+        }
+    }
+
+    private func label(_ key: String) -> String {
+        String.localizedString(key, comment: "")
+    }
+
+}
+
+private final class TrackersPreferencesState: ObservableObject {
+    @Published private(set) var revision = 0
+
+    func setting<Value>(_ value: @autoclosure @escaping () -> Value,
+                        set: @escaping (Value) -> Void) -> Binding<Value> {
+        Binding(get: { [self] in
+            _ = revision
+            return value()
+        }, set: { [self] newValue in
+            set(newValue)
+            revision &+= 1
+        })
     }
 }
 

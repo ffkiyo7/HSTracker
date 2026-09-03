@@ -186,6 +186,19 @@
         }
       }
     },
+    "%lld / %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld / %2$lld"
+          }
+        }
+      }
+    },
+    "%lld%%" : {
+
+    },
     "● Comp Guides" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2706,6 +2719,9 @@
         }
       }
     },
+    "big" : {
+
+    },
     "BLACK_TEMPLE" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3491,6 +3507,9 @@
           }
         }
       }
+    },
+    "classic" : {
+
     },
     "Clear" : {
       "extractionState" : "manual",
@@ -5603,6 +5622,9 @@
           }
         }
       }
+    },
+    "dark" : {
+
     },
     "DARKMOON_FAIRE" : {
       "extractionState" : "manual",
@@ -8400,6 +8422,9 @@
         }
       }
     },
+    "frost" : {
+
+    },
     "Game" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -9487,6 +9512,9 @@
           }
         }
       }
+    },
+    "huge" : {
+
     },
     "hunter" : {
       "extractionState" : "manual",
@@ -11570,6 +11598,9 @@
         }
       }
     },
+    "medium" : {
+
+    },
     "Mercenaries" : {
       "comment" : "Mercenaries",
       "extractionState" : "manual",
@@ -11599,6 +11630,9 @@
           }
         }
       }
+    },
+    "minimal" : {
+
     },
     "minion" : {
       "extractionState" : "manual",
@@ -14987,6 +15021,9 @@
         }
       }
     },
+    "Rarity colors" : {
+
+    },
     "Related_Cards" : {
       "comment" : "Related Cards",
       "extractionState" : "manual",
@@ -16335,6 +16372,12 @@
         }
       }
     },
+    "Size" : {
+
+    },
+    "small" : {
+
+    },
     "Something went wrong" : {
       "localizations" : {
         "zh-Hans" : {
@@ -17158,6 +17201,9 @@
         }
       }
     },
+    "Theme" : {
+
+    },
     "TheOutfinder_Keyword_adjacent_buff" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -17946,6 +17992,9 @@
         }
       }
     },
+    "tiny" : {
+
+    },
     "TITANS" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -18264,6 +18313,533 @@
         }
       }
     },
+    "tracker_allow_fullscreen" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow HSTracker in fullscreen"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "允许 HSTracker 在全屏模式运行"
+          }
+        }
+      }
+    },
+    "tracker_auto_position" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Position trackers automatically"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动定位记牌器"
+          }
+        }
+      }
+    },
+    "tracker_card_size" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Card size"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "卡牌尺寸"
+          }
+        }
+      }
+    },
+    "tracker_card_size_big" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Big"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大"
+          }
+        }
+      }
+    },
+    "tracker_card_size_huge" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Huge"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "超大"
+          }
+        }
+      }
+    },
+    "tracker_card_size_medium" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medium"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中"
+          }
+        }
+      }
+    },
+    "tracker_card_size_small" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Small"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小"
+          }
+        }
+      }
+    },
+    "tracker_card_size_tiny" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tiny"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "极小"
+          }
+        }
+      }
+    },
+    "tracker_disable_spectator" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disable tracking while spectating"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "观战时不记牌"
+          }
+        }
+      }
+    },
+    "tracker_enable_mulligan_guide" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable Mulligan Guide"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启用起手换牌指南"
+          }
+        }
+      }
+    },
+    "tracker_enable_mulligan_v2" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable Mulligan Guide V2"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启用起手换牌指南 V2"
+          }
+        }
+      }
+    },
+    "tracker_experience_counter" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show experience counter"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示经验计数器"
+          }
+        }
+      }
+    },
+    "tracker_hide_in_background" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide trackers when Hearthstone is in the background"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "炉石在后台时隐藏记牌器"
+          }
+        }
+      }
+    },
+    "tracker_highlight_cards_in_hand" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Highlight cards in hand"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高亮手牌"
+          }
+        }
+      }
+    },
+    "tracker_highlight_discarded" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Highlight discarded cards"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高亮弃掉的牌"
+          }
+        }
+      }
+    },
+    "tracker_highlight_last_drawn" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Highlight the last drawn card"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高亮刚抽到的牌"
+          }
+        }
+      }
+    },
+    "tracker_hover_card" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show card on tracker hover"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "悬停记牌器时显示卡牌"
+          }
+        }
+      }
+    },
+    "tracker_mulligan_auto_show" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show availability on the deck selection screen"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在卡组选择界面显示可用状态"
+          }
+        }
+      }
+    },
+    "tracker_mulligan_pre_lobby" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show the Mulligan overlay before the game"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对局开始前显示起手换牌浮层"
+          }
+        }
+      }
+    },
+    "tracker_mulligan_toast" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show constructed Mulligan toast"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示构筑起手换牌提示"
+          }
+        }
+      }
+    },
+    "tracker_opacity" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opacity"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不透明度"
+          }
+        }
+      }
+    },
+    "tracker_rarity_colors" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show rarity colors"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示稀有度颜色"
+          }
+        }
+      }
+    },
+    "tracker_remove_zero_count_cards" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove cards with zero count"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移除数量为零的牌"
+          }
+        }
+      }
+    },
+    "tracker_secret_helper" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show secret helper"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示奥秘助手"
+          }
+        }
+      }
+    },
+    "tracker_show_flavor_text" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show flavor text"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示趣味文本"
+          }
+        }
+      }
+    },
+    "tracker_show_timer" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show timer"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示计时器"
+          }
+        }
+      }
+    },
+    "tracker_theme" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Theme"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "主题"
+          }
+        }
+      }
+    },
+    "tracker_theme_classic" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classic"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "经典"
+          }
+        }
+      }
+    },
+    "tracker_theme_dark" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dark"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "深色"
+          }
+        }
+      }
+    },
+    "tracker_theme_frost" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Frost"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "冰霜"
+          }
+        }
+      }
+    },
+    "tracker_theme_minimal" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minimal"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "简约"
+          }
+        }
+      }
+    },
     "Trackers" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -18349,6 +18925,108 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "記牌器"
+          }
+        }
+      }
+    },
+    "trackers_appearance" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appearance"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "外观"
+          }
+        }
+      }
+    },
+    "trackers_appearance_footer" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose how the card list looks and which card changes stand out."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置卡牌列表外观，以及哪些变化需要高亮。"
+          }
+        }
+      }
+    },
+    "trackers_mulligan" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mulligan"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "起手换牌"
+          }
+        }
+      }
+    },
+    "trackers_mulligan_footer" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controls for the constructed Mulligan Guide and its pre-game overlay."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "控制构筑起手换牌指南及其对局前浮层。"
+          }
+        }
+      }
+    },
+    "trackers_overlays" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tracker behavior"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "记牌器行为"
+          }
+        }
+      }
+    },
+    "trackers_overlays_footer" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controls for where trackers appear and the helpers shown with them."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置记牌器的显示位置，以及随记牌器显示的辅助信息。"
           }
         }
       }

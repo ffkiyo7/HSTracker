@@ -19,6 +19,14 @@ import OAuthSwift
 
 @NSApplicationMain
 class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegate, NSUserNotificationCenterDelegate {
+
+    private enum MainMenuTag {
+        static let decks = 10_001
+        static let replays = 10_002
+        static let lastReplays = 10_003
+        static let window = 10_004
+        static let lockWindows = 10_005
+    }
     
     static var _instance: AppDelegate?
     static func instance() -> AppDelegate {
@@ -45,7 +53,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
         let panes: [PreferencePane] = [
             GeneralPreferences(nibName: "GeneralPreferences", bundle: nil),
             GamePreferences(nibName: "GamePreferences", bundle: nil),
-            TrackersPreferences(nibName: "TrackersPreferences", bundle: nil),
+            TrackersPreferences(),
             HSReplayPreferences(nibName: "HSReplayPreferences", bundle: nil),
             PlayerTrackersPreferences(nibName: "PlayerTrackersPreferences", bundle: nil),
             OpponentTrackersPreferences(nibName: "OpponentTrackersPreferences", bundle: nil),
@@ -68,6 +76,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
     
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         AppDelegate._instance = self
+        configureMainMenuTags()
         GameTag.initialize()
         Race.initialize()
         //setenv("CFNETWORK_DIAGNOSTICS", "3", 1)
@@ -426,6 +435,27 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
     }
     
     // MARK: - Menu
+
+    private func configureMainMenuTags() {
+        guard let mainMenu = NSApplication.shared.mainMenu,
+              mainMenu.items.count >= 5 else {
+            assertionFailure("Main menu does not have its expected layout")
+            return
+        }
+        let deckMenu = mainMenu.items[2]
+        let replayMenu = mainMenu.items[3]
+        let windowMenu = mainMenu.items[4]
+        guard let lastReplays = replayMenu.submenu?.items.first,
+              let lockWindows = windowMenu.submenu?.items.first else {
+            assertionFailure("Main menu is missing required items")
+            return
+        }
+        deckMenu.tag = MainMenuTag.decks
+        replayMenu.tag = MainMenuTag.replays
+        lastReplays.tag = MainMenuTag.lastReplays
+        windowMenu.tag = MainMenuTag.window
+        lockWindows.tag = MainMenuTag.lockWindows
+    }
     
     /**
      Builds the menu and its items.
@@ -439,7 +469,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
             // build main menu
             // ---------------
             let mainMenu = NSApplication.shared.mainMenu
-            let deckMenu = mainMenu?.item(withTitle: String.localizedString("Decks", comment: ""))
+            let deckMenu = mainMenu?.item(withTag: MainMenuTag.decks)
             deckMenu?.submenu?.removeAllItems()
             deckMenu?.submenu?.addItem(withTitle: String.localizedString("Deck Manager", comment: ""),
                                        action: #selector(AppDelegate.openDeckManager(_:)),
@@ -487,6 +517,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
             }
             
             let dockdeckMenu = self.dockMenu.item(withTag: 1)
+            let activeDeckId = self.coreManager?.game.currentDeck?.id ?? Settings.activeDeck
             
             // add deck items to main and dock menu
             // ------------------------------------
@@ -505,7 +536,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
                             .addItem(withTitle: $0.name,
                                      action: #selector(AppDelegate.playDeck(_:)),
                                      keyEquivalent: "")
-                        item.representedObject = $0
+                        item.representedObject = $0.deckId
+                        item.state = $0.deckId == activeDeckId ? .on : .off
                     })
                 classmenuitem.submenu = classsubMenu
                 deckMenu?.submenu?.addItem(classmenuitem)
@@ -514,9 +546,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
                 }
             }
             
-            let replayMenu = mainMenu?.item(withTitle: String.localizedString("Replays", comment: ""))
-            let replaysMenu = replayMenu?.submenu?.item(withTitle: String.localizedString("Last replays",
-                                                                                     comment: ""))
+            let replayMenu = mainMenu?.item(withTag: MainMenuTag.replays)
+            let replaysMenu = replayMenu?.submenu?.item(withTag: MainMenuTag.lastReplays)
             replaysMenu?.submenu?.removeAllItems()
             replaysMenu?.isEnabled = false
             if Settings.hsReplayUploadToken != nil,
@@ -553,9 +584,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
                 }
             }
             
-            let windowMenu = mainMenu?.item(withTitle: String.localizedString("Window", comment: ""))
-            let item = windowMenu?.submenu?.item(withTitle: String.localizedString("Lock windows",
-                                                                              comment: ""))
+            let windowMenu = mainMenu?.item(withTag: MainMenuTag.window)
+            let item = windowMenu?.submenu?.item(withTag: MainMenuTag.lockWindows)
             item?.title = String.localizedString(Settings.windowsLocked ?  "Unlock windows" : "Lock windows",
                                             comment: "")
         }
@@ -572,10 +602,26 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
     }
     
     @objc func playDeck(_ sender: NSMenuItem) {
-        if let deck = sender.representedObject as? Deck {
-            let deckId = deck.deckId
-            self.coreManager?.game.set(activeDeckId: deckId, autoDetected: false)
+        guard let deckId = sender.representedObject as? String else {
+            assertionFailure("Deck menu item is missing its deck identifier")
+            return
         }
+        guard RealmHelper.getDeck(with: deckId) != nil else {
+            assertionFailure("Selected deck no longer exists")
+            return
+        }
+        guard let coreManager else {
+            assertionFailure("Deck selection occurred before CoreManager started")
+            return
+        }
+        if let deckMenu = dockMenu.item(withTag: 1)?.submenu {
+            for classMenu in deckMenu.items {
+                classMenu.submenu?.items.forEach { $0.state = .off }
+            }
+        }
+        sender.state = .on
+        Toast.show(title: sender.title)
+        coreManager.game.set(activeDeckId: deckId, autoDetected: false)
     }
     
     @IBAction func openDeckManager(_ sender: AnyObject) {
@@ -633,9 +679,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
     
     @IBAction func lockWindows(_ sender: AnyObject) {
         let mainMenu = NSApplication.shared.mainMenu
-        let windowMenu = mainMenu?.item(withTitle: String.localizedString("Window", comment: ""))
-        let text = Settings.windowsLocked ? "Unlock windows" : "Lock windows"
-        let item = windowMenu?.submenu?.item(withTitle: String.localizedString(text, comment: ""))
+        let windowMenu = mainMenu?.item(withTag: MainMenuTag.window)
+        let item = windowMenu?.submenu?.item(withTag: MainMenuTag.lockWindows)
         Settings.windowsLocked = !Settings.windowsLocked
         item?.title = String.localizedString(Settings.windowsLocked ?  "Unlock windows" : "Lock windows",
                                         comment: "")
