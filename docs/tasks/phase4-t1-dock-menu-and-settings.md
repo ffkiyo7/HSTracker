@@ -46,7 +46,7 @@
 
 ## 验收
 
-1. 受限环境 Debug build `BUILD SUCCEEDED`（命令见 `docs/tasks/bug-t5-tracker-visibility-consistency.md`「验收」）；测试 50 / 50 全绿。
+1. 受限环境 Debug build `BUILD SUCCEEDED`（命令见 `docs/archive/tasks/bug-t5-tracker-visibility-consistency.md`「验收」）；测试 50 / 50 全绿。
 2. 报告里写清：第 1 件定位到的是哪条出口、依据；第 2 件每处改成了什么定位方式；第 3 件每个开关新旧位置对照表。
 3. 🎮 第 1 件：先不开炉石，看 Toast + 菜单项打勾；再进一局确认用的就是那副牌；切中文重复一遍。
    🖥️ 第 3 件：设置窗口中英文各看一遍。**两项都不排在本次，与 Phase 1 / T5 一起验。**

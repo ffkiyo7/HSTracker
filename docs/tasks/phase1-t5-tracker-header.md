@@ -56,7 +56,7 @@
 
 ## 验收
 
-1. 受限环境 Debug build `BUILD SUCCEEDED`（命令见 `docs/tasks/bug-t5-tracker-visibility-consistency.md`「验收」）。
+1. 受限环境 Debug build `BUILD SUCCEEDED`（命令见 `docs/archive/tasks/bug-t5-tracker-visibility-consistency.md`「验收」）。
 2. 测试 target 仍 50 / 50 全绿：同一命令把 `build` 换成 `test`。
 3. 报告里给出：新视图在 `updateFrames()` 里占的高度怎么算、与旧四面板之和的差异；胜率何时刷新；开关关掉后哪些代码路径被走到。
 4. 🎮 卡点 ② 由用户实战看：手牌数 / 牌库数 / 总胜率 / 对阵职业胜率四个数对不对，开局前第 3 行的状态。**不排在本次验收里，与 Phase 4 一起验。**

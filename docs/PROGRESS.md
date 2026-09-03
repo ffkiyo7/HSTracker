@@ -9,7 +9,7 @@
 | **在做** | 两本都已 review 通过并提交：`docs/tasks/phase1-t5-tracker-header.md`（Phase 1 / T5，2026-09-04 按定稿 D2 重做）、`docs/tasks/phase4-t1-dock-menu-and-settings.md`（Phase 4 三件）。Bug T5 已实战确认 |
 | **待实战 🎮** | 卡点 ②（T5 三行头四个数字、开局前第 3 行、原画底观感）+ Phase 4 / 4.1（Dock 打勾 + Toast，进局确认用的是那副牌）+ 🖥️ 设置页中英文各看一遍 |
 | **下一片** | **Phase 1 / T5（顶部信息区）→ Phase 1 / T6（布局收口）** —— T6 收口才能解锁 Phase 2，而 Phase 2 才是反馈①的真正修复 |
-| **待办（等你）** | 🎮 下一局顺带看一眼：结算瞬间两个主记牌器 + 水晶上限 + 计数器**同一轮一起消失**。**不再需要为延迟单独取数** |
+| **待办（等你）** | ~~🎮 结算瞬间两个主记牌器 + 水晶上限 + 计数器同一轮一起消失~~ ✅ 2026-09-03 实战确认。**不再需要为延迟单独取数** |
 | **不作为验收手段** | **战棋** —— 用户不玩（2026-08-30 确认）。战棋代码该对还是要对，但验证只能静态做，不排"打一局战棋"这种项 |
 
 > 本文件只回答三件事：**做到哪了 / 下一步是什么 / 哪些结论还作数**。
@@ -219,11 +219,10 @@ overlay 单独留着。后两项是 review 预先指出的副作用，用户已�
 
 - **「打完瞬间消失」保留**，不改回"离开牌桌才消失"。理由是 `gameEnded` 同时充当判定和触发点 ——
   `inMenu()`（`Game.swift:2211`）只置位、不请求刷新，改条件而不补刷新会重新开出显示陈旧终局的窗口。
-- ✅ **Bug T5 已完成静态验收。** 水晶上限 overlay 和双方计数器不再读旧的
-  `hide_all_trackers_when_not_in_game` 判定，统一复用 T4 的 `!gameEnded && !isInMenu` 对局门；因此结算
-  瞬间会与两个主记牌器一起隐藏。`clearTrackersOnGameEnd` 只在带 `reset` 的结束刷新清空一次，普通刷新
-  不再反复写隐藏窗口。受限环境 Debug `BUILD SUCCEEDED`；标准模式窗口实效仍需下一局顺带确认，战棋只做
-  静态论证。完整读者清单和边界见 `docs/tasks/bug-t5-tracker-visibility-consistency.md`。
+- ✅ **Bug T5 已实战确认（2026-09-03）。** 水晶上限 overlay 和双方计数器不再读旧的
+  `hide_all_trackers_when_not_in_game` 判定，统一复用 T4 的 `!gameEnded && !isInMenu` 对局门；结算
+  瞬间与两个主记牌器一起隐藏，用户实战确认。`clearTrackersOnGameEnd` 只在带 `reset` 的结束刷新清空一次，普通刷新
+  不再反复写隐藏窗口。战棋只做静态论证。完整读者清单和边界见 `docs/archive/tasks/bug-t5-tracker-visibility-consistency.md`。
 
 ---
 
@@ -435,7 +434,7 @@ D total 7849.4（n=107，p50 66.5 / avg 73.4），补集 4779.0 = **D 的 60.9%*
 | Discover 开着时悬停记牌器，OutFinder 的池会消失 | 备牌浮窗和 OutFinder 共用 `RelatedCardsTooltipPanel.shared`；鼠标移开触发 `hide()`，而 `DiscoverStateWatcher` 只在状态**变化**时回调（`:63` `if curr == _prev { continue }`），要等玩家真的选牌才回来 | 合并上游相关牌框架时一并解决（PLAN 的 Phase U 后续任务） |
 | 卡条尺寸一局之内会变大 | `Tracker.swift:459` 行高按当前行数压缩，牌打光了弹回 `card_size` 上限。**上游一直如此**，非回归 | 等用户决定，选项记在 PLAN 2.8 |
 | 抽到手上的牌仍留在牌库段（看起来像"延迟一两回合"） | `Settings.highlightCardsInHand` 的既定行为：`getHighlightedCardsInHand()`（`Player.swift:381`）把手牌里的卡以 `count = 0` 塞回列表。**不是延迟**，探针 E2E p50 171ms | Phase 2 / 2.1 分区时消化（用户已认可） |
-| 设置里「不在对局时隐藏全部记牌器」现在是个**完全没用的勾选框** | Bug T5 把最后两个读者（水晶上限、计数器）改走 T4 的对局门后，`hideAllTrackersWhenNotInGame` 只剩 `Settings` 声明和 `TrackersPreferences` 的读写，不再影响任何窗口。撤掉它要动 XIB，而任务书按 `_common.md` 禁止改 XIB，所以只能留着 | Phase 4（设置 UI）—— **那时一并撤掉控件和本地化 key** |
+| ~~设置里「不在对局时隐藏全部记牌器」现在是个完全没用的勾选框~~ | Bug T5 把最后两个读者（水晶上限、计数器）改走 T4 的对局门后，`hideAllTrackersWhenNotInGame` 只剩 `Settings` 声明，不再影响任何窗口 | ✅ Phase 4 已撤掉控件和本地化 key（`35fea72a`），`Settings` 声明保留给老 defaults |
 
 > 合并前评估说过「不存在两个 tooltip 抢同一扇窗」—— 那个结论只覆盖了**注册表**层面
 > （`RelatedCardsSystem/` 里没有 ETC / 下水道之王），**窗口层是共用的**，review 时才补上。
