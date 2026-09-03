@@ -742,6 +742,7 @@ class BobsBuddyInvoker {
                 "result": "\(result)",
                 "is_duos": "\(game.isBattlegroundsDuosMatch())",
                 "threadCount": "\(ProcessInfo.processInfo.activeProcessorCount / 2)",
+                "re_run_count": "\(reRunCount)",
                 "iterations": "\(output.simulationCount)",
                 "exitCondition": "\(output.getMyExitCondition())",
                 "output": MonoHelper.toString(obj: output)], input: input.unitestCopyableVersion(), log: BobsBuddyInvoker._recentHDTLog.array().joined(separator: "\n"))
