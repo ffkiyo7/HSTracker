@@ -4,6 +4,7 @@
 - Fixed a crash when the game watchers were started from two threads at once.
 - Fixed a second log reader being left running when tracking was started twice while Hearthstone was still loading.
 ## Battlegrounds
+- Fixed the Tavern Pinning panel staying on screen after a Battlegrounds match ended, following the player back into the lobby and into other game modes.
 - Fixed the Tier7 pre-lobby widget staying stuck on its loading spinner when HSTracker was started while Hearthstone was already in the Battlegrounds lobby.
 - Fixed the composition guides never loading in the Battlegrounds lobby, leaving the tab stuck on its loading state until a match started.
 - Fixed the composition and hero guide header art fading out too early, leaving it dimmer than intended.

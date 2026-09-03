@@ -1211,7 +1211,6 @@
 		B85462312CE00EED0083BB31 /* BigCardWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B85462302CE00EED0083BB31 /* BigCardWatcher.swift */; };
 		B85462332CE016B80083BB31 /* ArenaWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B85462322CE016B80083BB31 /* ArenaWatcher.swift */; };
 		B85462352CE0185B0083BB31 /* QueueWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B85462342CE0185B0083BB31 /* QueueWatcher.swift */; };
-		B8A1F0022E5F0A0100000002 /* Watcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8A1F0012E5F0A0100000001 /* Watcher.swift */; };
 		B85462372CE019FE0083BB31 /* ChoicesWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B85462362CE019FE0083BB31 /* ChoicesWatcher.swift */; };
 		B85462392CE01B1F0083BB31 /* BattlegroundsTeammateBoardStateWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B85462382CE01B1F0083BB31 /* BattlegroundsTeammateBoardStateWatcher.swift */; };
 		B854623B2CE01C5F0083BB31 /* BattlegroundsLeaderboardWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B854623A2CE01C5F0083BB31 /* BattlegroundsLeaderboardWatcher.swift */; };
@@ -1548,6 +1547,7 @@
 		B89C9894280A113A005E9315 /* AnimatedCardList.swift in Sources */ = {isa = PBXBuildFile; fileRef = B89C9893280A113A005E9315 /* AnimatedCardList.swift */; };
 		B89C9896280C610C005E9315 /* DeckLens.swift in Sources */ = {isa = PBXBuildFile; fileRef = B89C9895280C610C005E9315 /* DeckLens.swift */; };
 		B89F51EA2C9CF8D600E31195 /* ActiveEffect.xib in Resources */ = {isa = PBXBuildFile; fileRef = B89F51E92C9CF8D600E31195 /* ActiveEffect.xib */; };
+		B8A1F0022E5F0A0100000002 /* Watcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8A1F0012E5F0A0100000001 /* Watcher.swift */; };
 		B8A70C152841494D004D054C /* BattlegroundsTierTriples.xib in Resources */ = {isa = PBXBuildFile; fileRef = B8A70C142841494D004D054C /* BattlegroundsTierTriples.xib */; };
 		B8A70C17284152DC004D054C /* BattlegroundsTierTriples.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8A70C16284152DC004D054C /* BattlegroundsTierTriples.swift */; };
 		B8A9CB2E25699B13000071FC /* BattlegroundsMinionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8956CFC25509B3F0073D70C /* BattlegroundsMinionView.swift */; };
@@ -3237,7 +3237,6 @@
 		B85462302CE00EED0083BB31 /* BigCardWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BigCardWatcher.swift; sourceTree = "<group>"; };
 		B85462322CE016B80083BB31 /* ArenaWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArenaWatcher.swift; sourceTree = "<group>"; };
 		B85462342CE0185B0083BB31 /* QueueWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueueWatcher.swift; sourceTree = "<group>"; };
-		B8A1F0012E5F0A0100000001 /* Watcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Watcher.swift; sourceTree = "<group>"; };
 		B85462362CE019FE0083BB31 /* ChoicesWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChoicesWatcher.swift; sourceTree = "<group>"; };
 		B85462382CE01B1F0083BB31 /* BattlegroundsTeammateBoardStateWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlegroundsTeammateBoardStateWatcher.swift; sourceTree = "<group>"; };
 		B854623A2CE01C5F0083BB31 /* BattlegroundsLeaderboardWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlegroundsLeaderboardWatcher.swift; sourceTree = "<group>"; };
@@ -3532,6 +3531,7 @@
 		B89C9893280A113A005E9315 /* AnimatedCardList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedCardList.swift; sourceTree = "<group>"; };
 		B89C9895280C610C005E9315 /* DeckLens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckLens.swift; sourceTree = "<group>"; };
 		B89F51E92C9CF8D600E31195 /* ActiveEffect.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = ActiveEffect.xib; sourceTree = "<group>"; };
+		B8A1F0012E5F0A0100000001 /* Watcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Watcher.swift; sourceTree = "<group>"; };
 		B8A70C142841494D004D054C /* BattlegroundsTierTriples.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = BattlegroundsTierTriples.xib; sourceTree = "<group>"; };
 		B8A70C16284152DC004D054C /* BattlegroundsTierTriples.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlegroundsTierTriples.swift; sourceTree = "<group>"; };
 		B8A9CB322571F160000071FC /* GuessedCardState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuessedCardState.swift; sourceTree = "<group>"; };
@@ -9671,7 +9671,7 @@
 					"$(SDKROOT)/usr/lib/swift",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.14;
-				MARKETING_VERSION = 3.6.7;
+				MARKETING_VERSION = 3.6.8;
 				OTHER_CFLAGS = "$(inherited)";
 				OTHER_CODE_SIGN_FLAGS = "--deep";
 				OTHER_LDFLAGS = (
@@ -9735,7 +9735,7 @@
 					"$(SDKROOT)/usr/lib/swift",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.14;
-				MARKETING_VERSION = 3.6.7;
+				MARKETING_VERSION = 3.6.8;
 				OTHER_CODE_SIGN_FLAGS = "--deep";
 				OTHER_LDFLAGS = (
 					"$(inherited)",
