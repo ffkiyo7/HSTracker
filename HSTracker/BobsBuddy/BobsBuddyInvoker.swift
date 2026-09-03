@@ -2326,6 +2326,7 @@ class BobsBuddyInvoker {
         // Each observation is one Auto Assembler deathrattle actually resolving - the spell prefab that
         // marks it fires whether or not the board had space for the Automaton it summons.
         _observedAutoAssemblerFirings[sourceEntityId] = (_observedAutoAssemblerFirings[sourceEntityId] ?? 0) + 1
+        BobsBuddyInvoker.currentCombatHasPendingAutoAssemblerObservations = true
     }
 
     func observeMagnetizedAutoAssemblerDeathrattles(_ sourceEntityId: Int, _ extraDeathrattles: Int, _ isGolden: Bool) {
