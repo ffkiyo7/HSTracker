@@ -7,6 +7,7 @@
 - Fixed a crash when an overlay window was shown for the first time from a background thread.
 - Fixed a second log reader being left running when tracking was started twice while Hearthstone was still loading.
 - Fixed a crash when the counters were rebuilt at the start or end of a match while the counters overlay was reading them.
+- Fixed a crash in the constructed lobby when the mulligan guide deck badges refreshed, which could happen while browsing decks with the mouse.
 ## Battlegrounds
 - Fixed the Tavern Pinning panel staying on screen after a Battlegrounds match ended, following the player back into the lobby and into other game modes.
 - Fixed the Tier7 pre-lobby widget staying stuck on its loading spinner when HSTracker was started while Hearthstone was already in the Battlegrounds lobby.
