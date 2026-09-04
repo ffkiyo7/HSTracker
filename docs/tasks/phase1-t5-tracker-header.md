@@ -30,7 +30,7 @@
 - 手牌数 / 牌库数：沿用现在喂给 `cardCounter` 的 `deckCount` / `handCount`，只换呈现。
 - 第 2 / 3 行：`StatsHelper.getDeckRecord(deck:againstClass:mode:)`（`StatsHelper.swift:228`），
   第 2 行传 `.neutral`，第 3 行传对手职业。
-- 套牌名称受 `Settings.showDeckNameInTracker` 控制。
+- ~~套牌名称受 `Settings.showDeckNameInTracker` 控制。~~ 2026-09-05 起不再画套牌名，该开关只控制职业图标（见「二次调整」）。
 - 第 3 行依赖已知对手职业：开局前整行隐藏或显示占位，两者选一并在报告里说明。
 
 ## 硬约束
@@ -90,3 +90,14 @@
 - `Localizable.xcstrings` 新增 `Deck win rate`（套牌胜率）、`vs`。
 - 受限环境 Debug build `BUILD SUCCEEDED`；测试见 PROGRESS。
 - 🎮 仍待实战：四个数字、开局前第 3 行、原画压暗后右侧数字是否可读、隶书 + Belwe 的实际观感。
+
+## 二次调整（2026-09-05，用户实机反馈，`e99997f4`）
+
+反馈：格子太窄放不下文字；底图比下面卡条暗一截，不搭。
+
+- 行 1 删套牌名 `Text`，只留职业图标；`TrackerHeaderViewModel.deckName` 随之删掉，`showDeckName` 含义收窄为「是否显示职业图标」（`TrackerHeaderView.swift:13`、`:196-201`，`Tracker.swift:274` 调用点同步）。
+- 行 3 删对手职业名，只留 `vs` + 图标（`TrackerHeaderView.swift:239-243`）。
+- 底图：手调渐变 `0.95 → 0.9 → 0.4` 换成**直接复用卡条的 `fade.png`**。`CardRowView.swift:423-445` 新增 `TrackerFade`（`image` / `startFraction` / `opaqueFraction`），头部按 `fadeRect.minX / frameRect.width` 同一相对起点铺，暗度和过渡点与卡条逐像素同源，换主题跟着换。卡条里 fade 左边一条被宝石 / 边框挡住，头部没边框，用第二张放大 `1/0.4` 后裁切填满。`opaqueFraction = 0.4` 是解四张 fade.png 的 alpha 得出的：classic / dark / frost 在 `x < 0.45` 前 alpha 恒 1.0，之后到 0.7~0.8 降到 0；minimal 整张 45% 黑无 ramp。frost 的 fade 是浅灰 `(190,194,212)` 不是黑，所以调渐变凑不出全主题一致，复用资源是唯一对得上的做法。主题图取不到时回退原渐变。
+- review 发现回归并修（`cc97f633`）：fade 尾部 25~30% alpha 为 0，**无原画时**（对手侧恒无、我方原画加载中）牌库数会直接压在游戏画面上 → `heroBackground` 按 `heroArt` 分支，nil 走 `fallbackShade`（原三段渐变，有 0.4 下限）。
+- 设置项 `Show deck name` 文案改为 `Show class icon` / `显示职业图标`（`PlayerTrackersPreferences.xcstrings` `e7g-zd-YkC`，仅 en / zh-Hans；其余 11 种语言和 xib 里的按钮 title 未动）。
+- 🎮 待实战：底图亮度是否和卡条搭；对手侧三行头右侧不透底。

@@ -25,8 +25,9 @@
 | 阶段 | 内容 | 状态 |
 |---|---|---|
 | **Phase 0** | 地基：驱动循环与窗口层 | ✅ **T0–T6 完成。T6 于 2026-08-31 主动收在测量阶段，不做延迟优化** —— 理由见 Phase 0 一节 |
-| **Phase 1** | SwiftUI 记牌器渲染 | 🟡 T1–T4 / T7 完成并已实战，T5 / T6 / T8 待做 |
+| **Phase 1** | SwiftUI 记牌器渲染 | 🟡 T1–T4 / T7 完成并已实战，T5 代码完成待卡点 ②，T6 / T8 待做 |
 | **Phase U** | **合并上游 3.6.7** | ✅ 卡点 ① 已实战（2026-08-30），产出 5 条反馈，见下 |
+| **Phase U2** | **合并上游 3.6.8** | ✅ 2026-09-05 合入（`5835f8a4`），白得 macOS 26 overlay 崩溃根因修复 + `MainThreadGuard`；细节见 PROGRESS「其余阶段」。🎮 Debug 实战一局待验 |
 | **Phase 2** | 记牌器分区（牌库 / 手牌 / 已打出） | ⬜ 依赖 Phase 1 的 T4 / T6 |
 | **收尾** | 删 A/B 开关、删旧路径（原 Phase 1 的 T9） | ⬜ **排在 Phase 2 之后** |
 | **Phase 3** | 补全简体中文 | ✅ 完成（Phase U 补课后 100%） |
@@ -583,7 +584,7 @@ T7 提前做还有额外好处：后面三个卡点都能享受到异步卡图�
 - 第 2/3 行数据源**已确认现成**：`StatsHelper.getDeckRecord(deck:againstClass:mode:)`
   （`Statistics/StatsHelper.swift:64,87`）本来就带 `againstClass` 维度，第 2 行传 `.neutral`
   取总体、第 3 行传对手职业
-- 套牌名称沿用 `Settings.showDeckNameInTracker`
+- ~~套牌名称沿用 `Settings.showDeckNameInTracker`~~ 2026-09-05 定稿后套牌名不再显示（格子放不下），开关只控制职业图标
 - **第 3 行依赖「已知对手职业」**，开局前应显示占位或整行隐藏
 
 ### 2.5 ETC / 下水道之王 改为悬停展开（→ Phase 1 的 T3 执行）

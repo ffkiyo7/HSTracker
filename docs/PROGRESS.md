@@ -2,12 +2,13 @@
 
 | | |
 |---|---|
-| 最后更新 | 2026-09-03 |
-| 分支 | `dev`（长期主开发线，2026-08-31 由 `phase0+3` 改名；已合入 upstream `534ee2d8` / **3.6.7**，`master` 保持为上游纯镜像） |
-| 构建 | T6b 第 2 步埋点 + Bug T4 显示门受限环境 Debug / Release 均 `BUILD SUCCEEDED`（review 侧独立复跑）；测试 **50 / 50 全绿**（2026-09-03，受限环境 `xcodebuild test`），从此是红绿灯 |
-| 阻塞 | 无。Bug T1 / T2 / T3 三本均已实战验收并提交 |
-| **在做** | 两本都已 review 通过并提交：`docs/tasks/phase1-t5-tracker-header.md`（Phase 1 / T5，2026-09-04 按定稿 D2 重做）、`docs/tasks/phase4-t1-dock-menu-and-settings.md`（Phase 4 三件）。Bug T5 已实战确认 |
-| **待实战 🎮** | 卡点 ②（T5 三行头四个数字、开局前第 3 行、原画底观感）+ Phase 4 / 4.1（Dock 打勾 + Toast，进局确认用的是那副牌）+ 🖥️ 设置页中英文各看一遍 |
+| 最后更新 | 2026-09-05 |
+| 分支 | `dev`（长期主开发线，2026-08-31 由 `phase0+3` 改名；已合入 upstream `ee2ad031` / **3.6.8**（2026-09-05，Phase U2），`master` 保持为上游纯镜像） |
+| 构建 | Phase U2 合并后 Debug `BUILD SUCCEEDED`；测试 **50 / 50 全绿**（2026-09-05，`xcodebuild test`，PowerParser 期望未改） |
+| 阻塞 | 无。Bug T1 / T2 / T3 / T5 均已实战验收并提交 |
+| **在做** | Phase U2（合上游 3.6.8）已合入；T5 三行头按 2026-09-05 反馈去文字、底图改用卡条 `fade.png`（见任务书「二次调整」） |
+| **待实战 🎮** | 卡点 ②（T5 三行头四个数字、开局前第 3 行、**底图亮度是否和卡条搭**）+ Phase 4 / 4.1（Dock 打勾 + Toast，进局确认用的是那副牌）+ 🖥️ 设置页中英文各看一遍 + **Debug 跑一局看有没有命中上游新加的 `assertMainThread()`** |
+| **待查 🎮** | 局末部分卡条变暗（2026-09-05 截图，见「已知问题」末行） |
 | **下一片** | **Phase 1 / T5（顶部信息区）→ Phase 1 / T6（布局收口）** —— T6 收口才能解锁 Phase 2，而 Phase 2 才是反馈①的真正修复 |
 | **待办（等你）** | ~~🎮 结算瞬间两个主记牌器 + 水晶上限 + 计数器同一轮一起消失~~ ✅ 2026-09-03 实战确认。**不再需要为延迟单独取数** |
 | **不作为验收手段** | **战棋** —— 用户不玩（2026-08-30 确认）。战棋代码该对还是要对，但验证只能静态做，不排"打一局战棋"这种项 |
@@ -42,7 +43,7 @@
 | T2 | 主牌表接进 `Tracker` + `Settings.useSwiftUITracker` 开关 | ✅ 实战验过一局，**开关默认关**（本机 defaults 已置 1） |
 | T3 | ETC / 下水道之王 改悬停浮出 | ✅ **卡点 ① 实战通过** —— ETC 标题正确 |
 | T4 | 其余三段卡表 → `TrackerSectionView` | ✅ **卡点 ① 实战通过** —— 协同高亮描边视觉 OK |
-| T5 | 顶部信息区重做（Firestone 三行头） | 🟡 **代码完成**（2026-09-04 定稿 D2：Firestone 表格 + 皮肤原画底 + 去 hero 卡条，见任务书「定稿」），等卡点 ② 实战 |
+| T5 | 顶部信息区重做（Firestone 三行头） | 🟡 **代码完成**（2026-09-04 定稿 D2：Firestone 表格 + 皮肤原画底 + 去 hero 卡条；2026-09-05 二次调整：去套牌名 / 对手职业名，底图复用卡条 `fade.png`，见任务书），等卡点 ② 实战 |
 | T6 | 根视图 + 布局收口 | ⬜ **Phase 2 的堵点**，也就是反馈①真正的前置。⚠️ 别和 Phase 0 / T6（延迟）搞混，引用时写全阶段号 |
 | T7 | 卡图异步加载 + LRU | ✅ **卡点 ① 实战通过** —— 卡图基本没有顿挫感 |
 | T8 | 动效 | ⬜ |
@@ -61,6 +62,7 @@
 | | 内容 | 状态 |
 |---|---|---|
 | **Phase U** | **合并上游 3.6.7** | ✅ 42 commits / 4 个冲突文件 · **卡点 ① 已实战**；串卡修复 **2026-08-30 实战确认「串卡没了」** |
+| **Phase U2** | **合并上游 3.6.8**（`5835f8a4`，2026-09-05） | ✅ 31 commits / 2 个冲突文件（pbxproj 6 块、`BobsBuddy-version.txt`）· 白得：macOS 26 overlay 崩溃根因（`lockFocus` 破坏堆 → `NSImage(drawingHandler:)`）、`MainThreadGuard.assertMainThread()`、watcher 双线程 start 崩溃、sideboard 闪现。`CardHud` 里上游新加的 main hop 已去掉（`ImageUtils.completeOnMain` 已覆盖）。🎮 静态合入，Debug 实战一局待验 |
 | Phase 2 | 记牌器分区（牌库 / 手牌 / 已打出） | ⬜ 依赖 Phase 1 的 T4 / T6 · 🎮 ×4 |
 | 收尾 | 删 A/B 开关、删旧路径 | ⬜ 排在 Phase 2 之后 · 🎮 |
 | Phase 3 | 补全简体中文 | ✅ Phase U 补课后 **945 / 945（100%）** |
@@ -435,6 +437,7 @@ D total 7849.4（n=107，p50 66.5 / avg 73.4），补集 4779.0 = **D 的 60.9%*
 | 卡条尺寸一局之内会变大 | `Tracker.swift:459` 行高按当前行数压缩，牌打光了弹回 `card_size` 上限。**上游一直如此**，非回归 | 等用户决定，选项记在 PLAN 2.8 |
 | 抽到手上的牌仍留在牌库段（看起来像"延迟一两回合"） | `Settings.highlightCardsInHand` 的既定行为：`getHighlightedCardsInHand()`（`Player.swift:381`）把手牌里的卡以 `count = 0` 塞回列表。**不是延迟**，探针 E2E p50 171ms | Phase 2 / 2.1 分区时消化（用户已认可） |
 | ~~设置里「不在对局时隐藏全部记牌器」现在是个完全没用的勾选框~~ | Bug T5 把最后两个读者（水晶上限、计数器）改走 T4 的对局门后，`hideAllTrackersWhenNotInGame` 只剩 `Settings` 声明，不再影响任何窗口 | ✅ Phase 4 已撤掉控件和本地化 key（`35fea72a`），`Settings` 声明保留给老 defaults |
+| **局末部分卡条变暗**（2026-09-05 截图：空降歹徒、海盗之锚两行底色变暗、名字同时变绿） | **未定位。** 假设：变绿 = `highlightCardsInHand` 的手牌回填状态（上一行），变暗是 `CardRowView` 对该状态的底色；局末手牌不清空就留在那。待用户下次实战核对「变暗的行是不是结束时手里的牌」 | 待查，核实后并入 Phase 2 / 2.1 或单开 Bug T6 |
 
 > 合并前评估说过「不存在两个 tooltip 抢同一扇窗」—— 那个结论只覆盖了**注册表**层面
 > （`RelatedCardsSystem/` 里没有 ETC / 下水道之王），**窗口层是共用的**，review 时才补上。
@@ -442,7 +445,8 @@ D total 7849.4（n=107，p50 66.5 / avg 73.4），补集 4779.0 = **D 的 60.9%*
 
 本轮已关闭的四项不再留在“已知问题”里：两个战棋计数器已各完成 pbxproj 四处登记并在二进制中检出
 （**到此为止，实机验证已取消 —— 用户不玩战棋**）；
-`BobsBuddy-version.txt` 已更新到 1.69.3（Phase U 时是 1.69.0），并和 HearthDb 36.4.0 一起固定进
+`BobsBuddy-version.txt` 现为 **1.70.2**，HearthDb **36.4.2**（Phase U2 时随 `scripts/update-managed-deps.sh` 重新 vendor；
+该脚本只能拉 latest，且两个依赖必须一起换，上游 3.6.8 声明的 1.70.0 因此没法单独钉），一起固定进
 仓库；构建会核对两份程序集版本。T7 的磁盘/网络图片都通过
 ImageIO 在后台强制解码，后台工作由最多 4 路的专用队列承载。
 
@@ -604,7 +608,7 @@ A 段包含炉石自己的 flush 延迟，是不可优化的地板。`LatencyPro
    在 `Contents/Resources/Managed`，都不再位于 folder reference 会覆盖的 `Resources/Resources`。
    实测强制重跑 Resources 阶段后产物仍完整。只有 `HearthMirror-version.txt` 刚变化、旧 PCH 报
    framework header 被修改时，需要执行一次 `clean build`。
-7. BobsBuddy `1.69.3` 与 HearthDb `36.4.0` 的 zip 固定在 `Vendor/Managed/`，普通构建不访问两个
+7. BobsBuddy `1.70.2` 与 HearthDb `36.4.2` 的 zip 固定在 `Vendor/Managed/`，普通构建不访问两个
    会变化的 latest URL。版本文件是唯一声明；安装阶段先在 staging 校验四个文件与两份程序集版本，
    全部通过才 `cp` 到 `downloaded-frameworks/managed/`。升级时同时替换对应 zip 和版本文件。
    不要把版本写进制品路径，也不要改成直接 unzip 到 outputs —— 后者会保留归档旧时间，导致阶段
