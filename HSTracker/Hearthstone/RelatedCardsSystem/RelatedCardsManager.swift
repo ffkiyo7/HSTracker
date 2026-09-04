@@ -341,13 +341,13 @@ class RelatedCardsManager {
     }
 
     private static func formatMedian(_ value: Double) -> String {
-        return value == value.rounded(.down) ? "\(Int(value))" : String(format: "%.1f", value)
+        return value == value.rounded(.down) ? "\(Int(value))" : String(format: "%.1f", locale: Language.culture, value)
     }
 
     // Mirrors C#'s "{0:0.#}" format: round to at most 1 decimal, no trailing zero.
     private static func formatPercent(_ value: Float) -> String {
         let rounded = (Double(value) * 10).rounded() / 10
-        return rounded == rounded.rounded(.down) ? "\(Int(rounded))" : String(format: "%.1f", rounded)
+        return rounded == rounded.rounded(.down) ? "\(Int(rounded))" : String(format: "%.1f", locale: Language.culture, rounded)
     }
 
     private static func calculateMedian(_ values: [Int], _ count: Int) -> Double {

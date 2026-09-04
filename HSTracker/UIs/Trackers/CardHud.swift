@@ -89,11 +89,12 @@ class CardHud: NSView {
         }
         sourceCard = card
         if let card {
-            ImageUtils.tile(for: card.id, completion: { img in
+            // ImageUtils already delivers every completion on the main queue,
+            // so the crop, the property write and the redraw need no extra hop.
+            ImageUtils.tile(for: card.id, completion: { [weak self] img in
+                guard let self else { return }
                 self.sourceCardImage = img?.crop(rect: self.cropRect)
-                DispatchQueue.main.async {
-                    self.needsDisplay = true
-                }
+                self.needsDisplay = true
             })
         } else {
             sourceCardImage = nil
@@ -101,6 +102,7 @@ class CardHud: NSView {
     }
     
     override func draw(_ dirtyRect: NSRect) {
+        assertMainThread()
         super.draw(dirtyRect)
         
         addImage(filename: "card-marker", rect: cardMarkerFrame)

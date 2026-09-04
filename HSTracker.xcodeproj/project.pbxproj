@@ -1306,6 +1306,7 @@
 		B89C9894280A113A005E9315 /* AnimatedCardList.swift in Sources */ = {isa = PBXBuildFile; fileRef = B89C9893280A113A005E9315 /* AnimatedCardList.swift */; };
 		B89C9896280C610C005E9315 /* DeckLens.swift in Sources */ = {isa = PBXBuildFile; fileRef = B89C9895280C610C005E9315 /* DeckLens.swift */; };
 		B89F51EA2C9CF8D600E31195 /* ActiveEffect.xib in Resources */ = {isa = PBXBuildFile; fileRef = B89F51E92C9CF8D600E31195 /* ActiveEffect.xib */; };
+		B8A1F0022E5F0A0100000002 /* Watcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8A1F0012E5F0A0100000001 /* Watcher.swift */; };
 		B8A70C152841494D004D054C /* BattlegroundsTierTriples.xib in Resources */ = {isa = PBXBuildFile; fileRef = B8A70C142841494D004D054C /* BattlegroundsTierTriples.xib */; };
 		B8A70C17284152DC004D054C /* BattlegroundsTierTriples.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8A70C16284152DC004D054C /* BattlegroundsTierTriples.swift */; };
 		B8A9CB332571F160000071FC /* GuessedCardState.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8A9CB322571F160000071FC /* GuessedCardState.swift */; };
@@ -1486,6 +1487,7 @@
 		B8BD8443284AB92700F4F224 /* BattlegroundsSession.xib in Resources */ = {isa = PBXBuildFile; fileRef = B8BD8441284AB92600F4F224 /* BattlegroundsSession.xib */; };
 		B8BD8453285D23C500F4F224 /* UnfairLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8BD8452285D23C500F4F224 /* UnfairLock.swift */; };
 		B8A11C0C2FC000010001A003 /* LatencyProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8A11C0A2FC000010001A001 /* LatencyProbe.swift */; };
+		B8A17C022E5F1A0100C1D2E0 /* MainThreadGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8A17C012E5F1A0100C1D2E0 /* MainThreadGuard.swift */; };
 		B8BD84552860058400F4F224 /* SynchronizedDictionary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8BD84542860058400F4F224 /* SynchronizedDictionary.swift */; };
 		B8BD84572861394100F4F224 /* Regex.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8BD84562861394100F4F224 /* Regex.swift */; };
 		B8BDF9062A9625D9000DA4ED /* AnomalyFactoryProxy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8BDF9052A9625D9000DA4ED /* AnomalyFactoryProxy.swift */; };
@@ -3235,6 +3237,7 @@
 		B89C9893280A113A005E9315 /* AnimatedCardList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnimatedCardList.swift; sourceTree = "<group>"; };
 		B89C9895280C610C005E9315 /* DeckLens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckLens.swift; sourceTree = "<group>"; };
 		B89F51E92C9CF8D600E31195 /* ActiveEffect.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = ActiveEffect.xib; sourceTree = "<group>"; };
+		B8A1F0012E5F0A0100000001 /* Watcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Watcher.swift; sourceTree = "<group>"; };
 		B8A70C142841494D004D054C /* BattlegroundsTierTriples.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = BattlegroundsTierTriples.xib; sourceTree = "<group>"; };
 		B8A70C16284152DC004D054C /* BattlegroundsTierTriples.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattlegroundsTierTriples.swift; sourceTree = "<group>"; };
 		B8A9CB322571F160000071FC /* GuessedCardState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuessedCardState.swift; sourceTree = "<group>"; };
@@ -3409,6 +3412,7 @@
 		B8BD8442284AB92700F4F224 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/BattlegroundsSession.xib; sourceTree = "<group>"; };
 		B8BD8452285D23C500F4F224 /* UnfairLock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnfairLock.swift; sourceTree = "<group>"; };
 		B8A11C0A2FC000010001A001 /* LatencyProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LatencyProbe.swift; sourceTree = "<group>"; };
+		B8A17C012E5F1A0100C1D2E0 /* MainThreadGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainThreadGuard.swift; sourceTree = "<group>"; };
 		B8BD84542860058400F4F224 /* SynchronizedDictionary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynchronizedDictionary.swift; sourceTree = "<group>"; tabWidth = 3; };
 		B8BD84562861394100F4F224 /* Regex.swift */ = {isa = PBXFileReference; explicitFileType = sourcecode.swift; path = Regex.swift; sourceTree = "<group>"; };
 		B8BDF9052A9625D9000DA4ED /* AnomalyFactoryProxy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnomalyFactoryProxy.swift; sourceTree = "<group>"; };
@@ -4049,6 +4053,7 @@
 				434D1CAE1D0C500300222B8E /* ImageUtilities.swift */,
 				B83A703D2E00A3BF00B85BBE /* JsonManager.swift */,
 				B81EEABA2CE69AF300B32448 /* NibHelper.swift */,
+				B8A17C012E5F1A0100C1D2E0 /* MainThreadGuard.swift */,
 				BCCCDB9D1EA54FF800C328D0 /* NotificationManager.swift */,
 				B8AB59932742F94900383EC8 /* RateLimiter.swift */,
 				B8FDE9262CD99D840093BFF7 /* ReflectionHelper.swift */,
@@ -5365,6 +5370,7 @@
 				B85462402CE01FCD0083BB31 /* ExperienceWatcher.swift */,
 				B85462422CE021FF0083BB31 /* PVPDungeonRunWatcher.swift */,
 				B85462342CE0185B0083BB31 /* QueueWatcher.swift */,
+				B8A1F0012E5F0A0100000001 /* Watcher.swift */,
 				B854623C2CE01DF50083BB31 /* SceneWatcher.swift */,
 				B8E9C6572EFDF50D00EF3F6E /* SpecialShopChoicesStateWatcher.swift */,
 				EE0000000000000000002011 /* PlayZoneWatcher.swift */,
@@ -7026,6 +7032,7 @@
 				B820294D2CD2D38800C19A8C /* ExpeditionSergeantEnchantment.swift in Sources */,
 				B8BD8453285D23C500F4F224 /* UnfairLock.swift in Sources */,
 				B8A11C0C2FC000010001A003 /* LatencyProbe.swift in Sources */,
+				B8A17C022E5F1A0100C1D2E0 /* MainThreadGuard.swift in Sources */,
 				B8CE65DC2950D80200E8D168 /* BattlegroundsPlacementDistribution.swift in Sources */,
 				B8AEB6092FB26BA200CDA2C0 /* AnimalCompanionCounter.swift in Sources */,
 				43F2040F1E93C2E600E0BC4A /* Priest.swift in Sources */,
@@ -8286,6 +8293,7 @@
 				B837D7E22EAEA79D0070DB4B /* UmbralGeist.swift in Sources */,
 				431719711C84911300F5988B /* EditDeck.swift in Sources */,
 				B85462352CE0185B0083BB31 /* QueueWatcher.swift in Sources */,
+				B8A1F0022E5F0A0100000002 /* Watcher.swift in Sources */,
 				B8CDDCBF2F3D63C8004C3E86 /* TimewarpedMagnanimooseEnchantmentProxy.swift in Sources */,
 				B89BCE042FF463400095F011 /* AutoAssemblerProxy.swift in Sources */,
 				B8DB12852EBAD671004268FA /* MurlocRafaamEnchantment.swift in Sources */,
@@ -9111,7 +9119,7 @@
 					"$(SDKROOT)/usr/lib/swift",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 3.6.7;
+				MARKETING_VERSION = 3.6.8;
 				OTHER_CFLAGS = "$(inherited)";
 				OTHER_CODE_SIGN_FLAGS = "--deep";
 				OTHER_LDFLAGS = (
@@ -9175,7 +9183,7 @@
 					"$(SDKROOT)/usr/lib/swift",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 3.6.7;
+				MARKETING_VERSION = 3.6.8;
 				OTHER_CODE_SIGN_FLAGS = "--deep";
 				OTHER_LDFLAGS = (
 					"$(inherited)",

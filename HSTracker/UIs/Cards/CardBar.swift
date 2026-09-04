@@ -293,6 +293,7 @@ class CardBar: NSView, CardBarTheme {
 
     // MARK: - drawing
     override func draw(_ dirtyRect: NSRect) {
+        assertMainThread()
         super.draw(dirtyRect)
 
         guard hasAllRequired else { return }
@@ -893,10 +894,10 @@ class CardBar: NSView, CardBarTheme {
 
 extension NSImage {
     convenience init(color: NSColor, size: NSSize) {
-        self.init(size: size)
-        lockFocus()
-        color.drawSwatch(in: NSRect(origin: .zero, size: size))
-        unlockFocus()
+        self.init(size: size, flipped: false, drawingHandler: { (rect) -> Bool in
+            color.drawSwatch(in: rect)
+            return true
+        })
     }
 }
 

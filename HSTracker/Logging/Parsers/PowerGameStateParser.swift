@@ -31,6 +31,11 @@ class PowerGameStateParser: LogEventParser {
     final let ShuffleRegex = Regex("SHUFFLE_DECK\\ PlayerID=(?<id>(\\d+))")
     final let SubSpellStartRegex = Regex("SUB_SPELL_START - SpellPrefabGUID=(.*) Source=(\\d+)")
     final let MetaInfoRegex = Regex("Info\\[\\d+\\]\\s*=\\s*(?:.*\\bid=(\\d+).*]|\\b(\\d+)\\b)")
+
+    // The spellPrefabGuid for Auto Assembler deathrattle trigger.
+    // It is the only thing inside a trigger block when triggered on a full board.
+    static let autoAssemblerSpellPrefab = "ReuseFX_Mech_OverrideSpawn_Gears_Super"
+
     var tagChangeHandler = TagChangeHandler()
     var tmpEntities = SynchronizedArray<Entity>()
     var currentEntity: Entity?
@@ -312,8 +317,9 @@ class PowerGameStateParser: LogEventParser {
                     currentBlock.type == "TRIGGER" && currentBlock.triggerKeyword == "DEATHRATTLE",
                     let deadMinion = eventHandler.entities[currentBlock.sourceEntityId],
                     deadMinion.isMinion {
-                    let race = deadMinion[GameTag.cardrace]
-                    if race == Race.lookup(Race.mechanical) || race == Race.lookup(Race.all) {
+                    // The CARDRACE tag only carries the primary race, so a dual-race Mech is missed;
+                    // read the race off the card definition instead.
+                    if deadMinion.card.isMech() || deadMinion.card.isAllRace() {
                         let isGolden = cardId == CardIds.NonCollectible.Neutral.AncestralAutomaton_AncestralAutomaton
                         let sourceZone = deadMinion[GameTag.zone]
                         if sourceZone == Zone.graveyard.rawValue {  // Deathrattles triggered the normal way
@@ -622,6 +628,17 @@ class PowerGameStateParser: LogEventParser {
         } else if SubSpellStartRegex.match(logLine.line) {
             let match = SubSpellStartRegex.matches(logLine.line)
             if let sourceId = Int(match[1].value) {
+                // Count the Auto Assembler Deathrattle TRIGGERS (not just those that summoned onto the board).
+                if match[0].value.starts(with: PowerGameStateParser.autoAssemblerSpellPrefab),
+                   currentBlock?.type == "TRIGGER", currentBlock?.triggerKeyword == "DEATHRATTLE",
+                   eventHandler.currentGameMode == GameMode.battlegrounds,
+                   let firingMinion = eventHandler.entities[sourceId],
+                   firingMinion.isMinion,
+                   firingMinion[GameTag.zone] == Zone.play.rawValue || firingMinion[GameTag.zone] == Zone.graveyard.rawValue {
+                    BobsBuddyInvoker.instance(gameId: eventHandler.gameId, turn: eventHandler.turnNumber())?
+                        .observeAutoAssemblerDeathrattleFiring(sourceId)
+                }
+
                 if let entity = eventHandler.entities[sourceId] {
                     if entity.cardId == CardIds.Collectible.Druid.BottomlessToyChest {
                         let lastCardDrawnId = eventHandler.opponent.hand.sorted(by: { $0.zonePosition > $1.zonePosition}).first?.id ?? -1
@@ -673,18 +690,6 @@ class PowerGameStateParser: LogEventParser {
                     return
                 }
                 currentBlock?.sourceEntityId = actionStartingEntityId
-
-                // Count the Auto Assembler Deathrattle FIRINGS (not just those that summoned onto the board).
-                if blockType == "TRIGGER" && triggerKeyword == "DEATHRATTLE" && eventHandler.currentGameMode == GameMode.battlegrounds,
-                   let firingMinion = eventHandler.entities[actionStartingEntityId],
-                   firingMinion.isMinion,
-                   firingMinion[GameTag.zone] == Zone.graveyard.rawValue {
-                    let firingRace = firingMinion[GameTag.cardrace]
-                    if firingRace == Race.lookup(Race.mechanical) || firingRace == Race.lookup(Race.all) {
-                        BobsBuddyInvoker.instance(gameId: eventHandler.gameId, turn: eventHandler.turnNumber())?
-                            .observeAutoAssemblerDeathrattleFiring(actionStartingEntityId)
-                    }
-                }
 
                 var actionStartingCardId: String? = matches[3].value
                 var actionStartingEntity: Entity?

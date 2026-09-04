@@ -835,14 +835,18 @@ class Game: NSObject, PowerEventHandler {
                 // function's HDT analogue (ShowBgsTopBar).
                 self.windowManager.rootOverlay?.viewModel.battlegroundsGuidesTabs.isPreLobby = false
                 self.windowManager.rootOverlay?.viewModel.battlegroundsMinionsGuide.updateLobby()
-                // OverlayWindow.Update re-evaluates ShouldShowBgsMinionPinning()
-                // and re-pushes AvailableRaces on the same tick, for the same
-                // reason: neither the mulligan state nor the lobby's races are
-                // settled at match start.
-                if let pinning = self.windowManager.rootOverlay?.viewModel.battlegroundsMinionPinning {
-                    pinning.updateLobby()
-                    pinning.updateVisibility()
-                }
+                // OverlayWindow.Update re-pushes AvailableRaces on the same
+                // tick, because the lobby's races are not settled at match
+                // start.
+                self.windowManager.rootOverlay?.viewModel.battlegroundsMinionPinning.updateLobby()
+            }
+
+            // Outside the isBG branch for the same reason setInMatch is: the
+            // Tavern Pinning panel has to be taken down when a match ends
+            // however it ended, not only on the handleEndGame path. Its own
+            // predicate carries the match term - see updateVisibility().
+            if #available(macOS 10.15, *) {
+                self.windowManager.rootOverlay?.viewModel.battlegroundsMinionPinning.updateVisibility()
             }
 
             if isBG && ((Settings.hideAllWhenGameInBackground && self.hearthstoneRunState.isActive)
@@ -1175,6 +1179,15 @@ class Game: NSObject, PowerEventHandler {
                 windowManager.rootOverlay?.viewModel.battlegroundsMinionsGuide.enterPreLobby(isDuos: mode == .duos)
                 guidesTabs.activeTab = nil
                 guidesTabs.isPreLobby = true
+                // HDT's BattlegroundsCompsGuidesVM.OnPreLobby(): the comp
+                // guides have no other trigger in the lobby, so without this
+                // the tab stays stuck on its loading state until a match
+                // starts.
+                if let comps = windowManager.rootOverlay?.viewModel.battlegroundsCompsGuides {
+                    Task {
+                        await comps.onPreLobby()
+                    }
+                }
             }
         } else {
             guidesTabs.isPreLobby = false
