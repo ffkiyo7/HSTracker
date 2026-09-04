@@ -271,8 +271,7 @@ class Tracker: OverWindowController, CardCellHover {
         let showDeckName = playerType == .player && Settings.showDeckNameInTracker
         let heroCardId = playerType == .player ? (playerClassId ?? "") : ""
         let ownClass = Cards.hero(byId: heroCardId)?.playerClass ?? game.currentDeck?.playerClass
-        host.viewModel.update(deckName: playerName ?? "",
-                              showDeckName: showDeckName,
+        host.viewModel.update(showDeckName: showDeckName,
                               playerClass: ownClass,
                               heroCardId: heroCardId,
                               handCount: cardCounter.handCount,

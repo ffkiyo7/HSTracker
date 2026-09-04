@@ -420,6 +420,29 @@ enum TrackerTextFont {
     }
 }
 
+/// The theme's `fade.png` and where the card rows put it, so views outside this
+/// file can shade art exactly like a card row does (the tracker header).
+enum TrackerFade {
+    static var image: NSImage? {
+        let layout = ThemeBarLayout.forTheme(Settings.theme)
+        return ThemeImageCache.image(theme: layout.dir, file: "fade.png")
+    }
+
+    /// `fadeRect.minX` as a fraction of the row width. A card row leaves that
+    /// leading strip to the opaque gem/frame; a caller without a frame has to
+    /// fill it itself.
+    static var startFraction: CGFloat {
+        let layout = ThemeBarLayout.forTheme(Settings.theme)
+        return layout.fadeRect.minX / layout.frameRect.width
+    }
+
+    /// Fraction of `fade.png`'s width whose alpha is still flat, sampled from
+    /// the bundled fades: classic/dark/frost hold alpha 1.0 out to x = 0.45
+    /// before ramping to 0 by x ≈ 0.7-0.8, and minimal is a flat 45% black over
+    /// its whole width. 0.4 is inside the flat part of all four.
+    static let opaqueFraction: CGFloat = 0.4
+}
+
 private struct ThemeBarLayout {
     let dir: String
     let frameRect = NSRect(x: 0, y: 0, width: 217, height: 34)
