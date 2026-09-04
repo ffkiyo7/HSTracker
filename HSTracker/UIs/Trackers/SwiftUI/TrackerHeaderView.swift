@@ -171,8 +171,15 @@ struct TrackerHeaderView: View {
                         .scaledToFill()
                         .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
                         .offset(y: -proxy.size.height * 0.12)
+                    shade(width: proxy.size.width, height: proxy.size.height)
+                } else {
+                    // `fade.png` is fully transparent on its trailing quarter,
+                    // which is fine over art but would leave the deck-count
+                    // column sitting straight on the game screen when there is
+                    // no art (the opponent tracker always, the player tracker
+                    // until its art loads). The gradient keeps an opacity floor.
+                    fallbackShade
                 }
-                shade(width: proxy.size.width, height: proxy.size.height)
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
             .clipped()
@@ -201,16 +208,22 @@ struct TrackerHeaderView: View {
                     .frame(width: max(width - start, 0), height: height)
             }
         } else {
-            LinearGradient(
-                stops: [
-                    .init(color: HeaderStyle.shade.opacity(0.95), location: 0),
-                    .init(color: HeaderStyle.shade.opacity(0.9), location: 0.48),
-                    .init(color: HeaderStyle.shade.opacity(0.4), location: 1)
-                ],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
+            fallbackShade
         }
+    }
+
+    /// Used when the theme ships no `fade.png`, and when there is no hero art
+    /// to shade — unlike the fade it never drops to fully transparent.
+    private var fallbackShade: some View {
+        LinearGradient(
+            stops: [
+                .init(color: HeaderStyle.shade.opacity(0.95), location: 0),
+                .init(color: HeaderStyle.shade.opacity(0.9), location: 0.48),
+                .init(color: HeaderStyle.shade.opacity(0.4), location: 1)
+            ],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
     }
 
     private var rows: some View {

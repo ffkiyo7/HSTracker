@@ -302,7 +302,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Show deck name"
+            "value" : "Show class icon"
           }
         },
         "es" : {
@@ -368,7 +368,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "显示卡组名称"
+            "value" : "显示职业图标"
           }
         },
         "zh-Hant" : {
