@@ -10,7 +10,8 @@ import AppKit
 import SwiftUI
 
 final class TrackerHeaderViewModel: ObservableObject {
-    @Published var deckName = ""
+    /// Settings.showDeckNameInTracker. The name itself is not drawn any more —
+    /// the flag now only gates the player class icon.
     @Published var showDeckName = false
     @Published var playerClass: CardClass?
     @Published var handCount = 0
@@ -35,8 +36,7 @@ final class TrackerHeaderViewModel: ObservableObject {
         return (showFirstLine ? 1 : 0) + (overallRecord == nil ? 0 : 1) + (matchupRecord == nil ? 0 : 1)
     }
 
-    func update(deckName: String,
-                showDeckName: Bool,
+    func update(showDeckName: Bool,
                 playerClass: CardClass?,
                 heroCardId: String,
                 handCount: Int,
@@ -46,9 +46,6 @@ final class TrackerHeaderViewModel: ObservableObject {
                 matchupClass: CardClass?,
                 matchupRecord: StatsDeckRecord?,
                 lineHeight: CGFloat) {
-        if self.deckName != deckName {
-            self.deckName = deckName
-        }
         if self.showDeckName != showDeckName {
             self.showDeckName = showDeckName
         }
@@ -175,18 +172,44 @@ struct TrackerHeaderView: View {
                         .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
                         .offset(y: -proxy.size.height * 0.12)
                 }
-                LinearGradient(
-                    stops: [
-                        .init(color: HeaderStyle.shade.opacity(0.95), location: 0),
-                        .init(color: HeaderStyle.shade.opacity(0.9), location: 0.48),
-                        .init(color: HeaderStyle.shade.opacity(0.4), location: 1)
-                    ],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
+                shade(width: proxy.size.width, height: proxy.size.height)
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
             .clipped()
+        }
+    }
+
+    /// The card rows shade their art with the theme's `fade.png`; the header
+    /// draws the same asset so the two match in both darkness and where the
+    /// dark-left/art-right transition lands. A card row hides the fade's
+    /// leading strip behind the opaque gem/frame, so here that strip is filled
+    /// by over-scaling a second copy until only its flat, opaque part shows.
+    @ViewBuilder
+    private func shade(width: CGFloat, height: CGFloat) -> some View {
+        if let fade = TrackerFade.image {
+            let start = (width * TrackerFade.startFraction).rounded()
+            HStack(spacing: 0) {
+                if start > 0 {
+                    Image(nsImage: fade)
+                        .resizable()
+                        .frame(width: start / TrackerFade.opaqueFraction, height: height)
+                        .frame(width: start, height: height, alignment: .leading)
+                        .clipped()
+                }
+                Image(nsImage: fade)
+                    .resizable()
+                    .frame(width: max(width - start, 0), height: height)
+            }
+        } else {
+            LinearGradient(
+                stops: [
+                    .init(color: HeaderStyle.shade.opacity(0.95), location: 0),
+                    .init(color: HeaderStyle.shade.opacity(0.9), location: 0.48),
+                    .init(color: HeaderStyle.shade.opacity(0.4), location: 1)
+                ],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
         }
     }
 
@@ -195,18 +218,11 @@ struct TrackerHeaderView: View {
             if viewModel.showFirstLine {
                 TrackerHeaderRow(scale: scale, height: viewModel.lineHeight,
                                  isLast: viewModel.overallRecord == nil) {
-                    HStack(spacing: 7 * scale) {
-                        if viewModel.showDeckName {
-                            if let icon = viewModel.playerClass.flatMap(classIcon) {
-                                Image(nsImage: icon)
-                                    .resizable()
-                                    .frame(width: 22 * scale, height: 22 * scale)
-                            }
-                            Text(viewModel.deckName)
-                                .font(HeaderStyle.text(scale))
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                        }
+                    if viewModel.showDeckName,
+                       let icon = viewModel.playerClass.flatMap(classIcon) {
+                        Image(nsImage: icon)
+                            .resizable()
+                            .frame(width: 22 * scale, height: 22 * scale)
                     }
                 } middle: {
                     if viewModel.showCardCount {
@@ -252,10 +268,6 @@ struct TrackerHeaderView: View {
                                 .resizable()
                                 .frame(width: 22 * scale, height: 22 * scale)
                         }
-                        Text(String.localizedString(matchupClass.rawValue, comment: ""))
-                            .font(HeaderStyle.text(scale, size: 13))
-                            .lineLimit(1)
-                            .truncationMode(.tail)
                     }
                 } middle: {
                     Text(record.trackerWinRate)
