@@ -31,6 +31,7 @@ git checkout <工作分支> && git merge master
 
 `master` 是上游纯镜像，**任何自己的改动都不许提交到 master**，否则以后无法快进。
 合完更新 `docs/PROGRESS.md` 的基线 commit 和构建状态。
+**每次合上游按 `docs/upstream-merges.md` 走**：热点文件从哪看起、冲突固定解法、依赖重新 vendor、历次记录；合完在那里追加一节。
 
 ## 分工：任务书交给执行模型
 

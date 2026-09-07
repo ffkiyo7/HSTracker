@@ -28,6 +28,7 @@
 | **Phase 1** | SwiftUI 记牌器渲染 | 🟡 T1–T4 / T7 完成并已实战，T5 代码完成待卡点 ②，T6 / T8 待做 |
 | **Phase U** | **合并上游 3.6.7** | ✅ 卡点 ① 已实战（2026-08-30），产出 5 条反馈，见下 |
 | **Phase U2** | **合并上游 3.6.8** | ✅ 2026-09-05 合入（`5835f8a4`），白得 macOS 26 overlay 崩溃根因修复 + `MainThreadGuard`；细节见 PROGRESS「其余阶段」。🎮 Debug 实战一局待验 |
+| **Phase U3** | **合并上游 3.6.9** | ✅ 2026-09-08 合入（`9da27c8e`），白得 Bob's Buddy 自检崩溃修复 + OutFinder 设置页；合并流程与历次记录见 `docs/upstream-merges.md`。🎮 与 U2 同一局实战验 |
 | **Phase 2** | 记牌器分区（牌库 / 手牌 / 已打出） | ⬜ 依赖 Phase 1 的 T4 / T6 |
 | **收尾** | 删 A/B 开关、删旧路径（原 Phase 1 的 T9） | ⬜ **排在 Phase 2 之后** |
 | **Phase 3** | 补全简体中文 | ✅ 完成（Phase U 补课后 100%） |

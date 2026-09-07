@@ -2,12 +2,12 @@
 
 | | |
 |---|---|
-| 最后更新 | 2026-09-05 |
-| 分支 | `dev`（长期主开发线，2026-08-31 由 `phase0+3` 改名；已合入 upstream `ee2ad031` / **3.6.8**（2026-09-05，Phase U2），`master` 保持为上游纯镜像） |
-| 构建 | Phase U2 合并后 Debug `BUILD SUCCEEDED`；测试 **50 / 50 全绿**（2026-09-05，`xcodebuild test`，PowerParser 期望未改） |
+| 最后更新 | 2026-09-08 |
+| 分支 | `dev`（长期主开发线，2026-08-31 由 `phase0+3` 改名；已合入 upstream `8ea0eaea` / **3.6.9**（2026-09-08，Phase U3，`9da27c8e`），`master` 保持为上游纯镜像） |
+| 构建 | Phase U3 合并后 Debug `clean build` `BUILD SUCCEEDED`；测试 **50 / 50 全绿**（2026-09-08，`xcodebuild test`，期望未改） |
 | 阻塞 | 无。Bug T1 / T2 / T3 / T5 均已实战验收并提交 |
-| **在做** | Phase U2（合上游 3.6.8）已合入；T5 三行头按 2026-09-05 反馈去文字、底图改用卡条 `fade.png`（见任务书「二次调整」） |
-| **待实战 🎮** | 卡点 ②（T5 三行头四个数字、开局前第 3 行；~~底图亮度~~ ✅ 2026-09-08 调到 0.8 + 原画裁边后用户确认 ok）+ Phase 4 / 4.1（Dock 打勾 + Toast，进局确认用的是那副牌）+ 🖥️ 设置页中英文各看一遍 + **Debug 跑一局看有没有命中上游新加的 `assertMainThread()`** |
+| **在做** | Phase U3（合上游 3.6.9）已合入，流程沉淀到 `docs/upstream-merges.md`；T5 三行头按 2026-09-05 反馈去文字、底图改用卡条 `fade.png`（见任务书「二次调整」） |
+| **待实战 🎮** | 卡点 ②（T5 三行头四个数字、开局前第 3 行；~~底图亮度~~ ✅ 2026-09-08 调到 0.8 + 原画裁边后用户确认 ok）+ Phase 4 / 4.1（Dock 打勾 + Toast，进局确认用的是那副牌）+ 🖥️ 设置页中英文各看一遍 + **Debug 跑一局看有没有命中上游 3.6.8 / 3.6.9 加的 `assertMainThread()`**（U3 又加到了 `AnimatedCardList.update/updateFrames`，若 trap 看 `DeckLens.swift:84` / `DeckSideboards.swift:121`） |
 | **待查 🎮** | 局末部分卡条变暗（2026-09-05 截图，见「已知问题」末行） |
 | **下一片** | **Phase 1 / T5（顶部信息区）→ Phase 1 / T6（布局收口）** —— T6 收口才能解锁 Phase 2，而 Phase 2 才是反馈①的真正修复 |
 | **待办（等你）** | ~~🎮 结算瞬间两个主记牌器 + 水晶上限 + 计数器同一轮一起消失~~ ✅ 2026-09-03 实战确认。**不再需要为延迟单独取数** |
@@ -63,6 +63,7 @@
 |---|---|---|
 | **Phase U** | **合并上游 3.6.7** | ✅ 42 commits / 4 个冲突文件 · **卡点 ① 已实战**；串卡修复 **2026-08-30 实战确认「串卡没了」** |
 | **Phase U2** | **合并上游 3.6.8**（`5835f8a4`，2026-09-05） | ✅ 31 commits / 2 个冲突文件（pbxproj 6 块、`BobsBuddy-version.txt`）· 白得：macOS 26 overlay 崩溃根因（`lockFocus` 破坏堆 → `NSImage(drawingHandler:)`）、`MainThreadGuard.assertMainThread()`、watcher 双线程 start 崩溃、sideboard 闪现。`CardHud` 里上游新加的 main hop 已去掉（`ImageUtils.completeOnMain` 已覆盖）。🎮 静态合入，Debug 实战一局待验 |
+| **Phase U3** | **合并上游 3.6.9**（`9da27c8e`，2026-09-08） | ✅ 11 commits / 5 个冲突文件（pbxproj 4 块、`BobsBuddy-version.txt`、Watchers、MonoHelper、ImageUtils —— 后三个都是上游和 dev 独立修了同一个 bug）· 白得：Bob's Buddy 启动自检崩溃修复、Sentry 5xx 误报修复、OutFinder 设置页。BobsBuddy vendor 到 **1.71.1**（上游钉 1.70.7，脚本只拉 latest）。流程 / 热点文件 / 历次处理沉淀到 **`docs/upstream-merges.md`**。🎮 静态合入，Debug 实战一局待验（与 U2 合并成一次） |
 | Phase 2 | 记牌器分区（牌库 / 手牌 / 已打出） | ⬜ 依赖 Phase 1 的 T4 / T6 · 🎮 ×4 |
 | 收尾 | 删 A/B 开关、删旧路径 | ⬜ 排在 Phase 2 之后 · 🎮 |
 | Phase 3 | 补全简体中文 | ✅ Phase U 补课后 **945 / 945（100%）** |
@@ -445,8 +446,8 @@ D total 7849.4（n=107，p50 66.5 / avg 73.4），补集 4779.0 = **D 的 60.9%*
 
 本轮已关闭的四项不再留在“已知问题”里：两个战棋计数器已各完成 pbxproj 四处登记并在二进制中检出
 （**到此为止，实机验证已取消 —— 用户不玩战棋**）；
-`BobsBuddy-version.txt` 现为 **1.70.2**，HearthDb **36.4.2**（Phase U2 时随 `scripts/update-managed-deps.sh` 重新 vendor；
-该脚本只能拉 latest，且两个依赖必须一起换，上游 3.6.8 声明的 1.70.0 因此没法单独钉），一起固定进
+`BobsBuddy-version.txt` 现为 **1.71.1**，HearthDb **36.4.2**（Phase U3 时随 `scripts/update-managed-deps.sh` 重新 vendor；
+该脚本只能拉 latest，且两个依赖必须一起换，上游 3.6.9 声明的 1.70.7 因此没法单独钉），一起固定进
 仓库；构建会核对两份程序集版本。T7 的磁盘/网络图片都通过
 ImageIO 在后台强制解码，后台工作由最多 4 路的专用队列承载。
 
