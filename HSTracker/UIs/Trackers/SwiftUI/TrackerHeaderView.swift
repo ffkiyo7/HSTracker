@@ -130,6 +130,9 @@ private enum HeaderStyle {
     static let win = Color(red: 0x62 / 255, green: 0xD9 / 255, blue: 0x7A / 255)
     static let loss = Color(red: 0xFF / 255, green: 0x6B / 255, blue: 0x5E / 255)
     static let shade = Color(red: 12 / 255, green: 11 / 255, blue: 9 / 255)
+    /// Opacity applied to the theme `fade.png` layer over hero art (1 = as dark
+    /// as a card row's fully opaque strip; 2026-09-08 user found that too dark).
+    static let fadeOpacity: CGFloat = 0.8
 
     static func text(_ scale: CGFloat, size: CGFloat = 14) -> Font {
         Font.custom(TrackerTextFont.name, size: size * scale)
@@ -207,6 +210,10 @@ struct TrackerHeaderView: View {
                     .resizable()
                     .frame(width: max(width - start, 0), height: height)
             }
+            // The fade's flat part is fully opaque; under a card row that sits
+            // behind gem/frame textures, but here it is a bare three-row block
+            // and reads too dark. Lift the whole layer a little.
+            .opacity(HeaderStyle.fadeOpacity)
         } else {
             fallbackShade
         }
