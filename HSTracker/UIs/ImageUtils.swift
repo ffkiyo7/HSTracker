@@ -219,6 +219,10 @@ struct ImageUtils {
                     return
                 }
                 imageLoadQueue.addOperation {
+                    // A 404 from art.hearthstonejson.com arrives as an HTML body with no
+                    // URLSession error (e.g. the /bgs variant of a constructed card), so this
+                    // branch is also the "no such art" path — it must still call back, or every
+                    // caller with a fallback or placeholder is stranded.
                     guard let image = decodedImage(data: data) else {
                         logger.error("download returned an invalid image for \(url)")
                         completeOnMain(nil, completion: completion)
