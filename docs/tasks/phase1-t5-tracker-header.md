@@ -100,4 +100,5 @@
 - 底图：手调渐变 `0.95 → 0.9 → 0.4` 换成**直接复用卡条的 `fade.png`**。`CardRowView.swift:423-445` 新增 `TrackerFade`（`image` / `startFraction` / `opaqueFraction`），头部按 `fadeRect.minX / frameRect.width` 同一相对起点铺，暗度和过渡点与卡条逐像素同源，换主题跟着换。卡条里 fade 左边一条被宝石 / 边框挡住，头部没边框，用第二张放大 `1/0.4` 后裁切填满。`opaqueFraction = 0.4` 是解四张 fade.png 的 alpha 得出的：classic / dark / frost 在 `x < 0.45` 前 alpha 恒 1.0，之后到 0.7~0.8 降到 0；minimal 整张 45% 黑无 ramp。frost 的 fade 是浅灰 `(190,194,212)` 不是黑，所以调渐变凑不出全主题一致，复用资源是唯一对得上的做法。主题图取不到时回退原渐变。
 - review 发现回归并修（`cc97f633`）：fade 尾部 25~30% alpha 为 0，**无原画时**（对手侧恒无、我方原画加载中）牌库数会直接压在游戏画面上 → `heroBackground` 按 `heroArt` 分支，nil 走 `fallbackShade`（原三段渐变，有 0.4 下限）。
 - 设置项 `Show deck name` 文案改为 `Show class icon` / `显示职业图标`（`PlayerTrackersPreferences.xcstrings` `e7g-zd-YkC`，仅 en / zh-Hans；其余 11 种语言和 xib 里的按钮 title 未动）。
-- 🎮 待实战：底图亮度是否和卡条搭；对手侧三行头右侧不透底。
+- ✅ 2026-09-08 实战：用户反馈左侧暗部太暗 → fade 层加 `.opacity(0.8)`（`37069da3`，`HeaderStyle.fadeOpacity`）；随后左边缘露出一条灰条，是 256x 原画图块自带的浅色边（`HERO_03cd.jpg` 上下白边、左侧一列浅色），原画按 1.08 倍宽度绘制裁边（`e02d6c30`，`HeaderStyle.artOverscan`）。用户确认「亮度 ok、灰条没了」。
+- 🎮 仍待看：对手侧三行头右侧不透底。
