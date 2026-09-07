@@ -133,6 +133,9 @@ private enum HeaderStyle {
     /// Opacity applied to the theme `fade.png` layer over hero art (1 = as dark
     /// as a card row's fully opaque strip; 2026-09-08 user found that too dark).
     static let fadeOpacity: CGFloat = 0.8
+    /// Hero art is drawn this much wider than the header and clipped, so the
+    /// tile's own edge columns never reach the visible area.
+    static let artOverscan: CGFloat = 1.08
 
     static func text(_ scale: CGFloat, size: CGFloat = 14) -> Font {
         Font.custom(TrackerTextFont.name, size: size * scale)
@@ -169,10 +172,14 @@ struct TrackerHeaderView: View {
         GeometryReader { proxy in
             ZStack {
                 if let art = viewModel.heroArt {
+                    // Slightly over-scan the art: the 256x tiles carry a light
+                    // border column/row from the source crop, and at 0.8 fade
+                    // opacity that edge showed as a grey strip on the left.
                     Image(nsImage: art)
                         .resizable()
                         .scaledToFill()
-                        .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
+                        .frame(width: proxy.size.width * HeaderStyle.artOverscan,
+                               height: proxy.size.height, alignment: .top)
                         .offset(y: -proxy.size.height * 0.12)
                     shade(width: proxy.size.width, height: proxy.size.height)
                 } else {
