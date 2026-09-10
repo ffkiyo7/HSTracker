@@ -36,6 +36,10 @@ final class TrackerHeaderViewModel: ObservableObject {
         return (showFirstLine ? 1 : 0) + (overallRecord == nil ? 0 : 1) + (matchupRecord == nil ? 0 : 1)
     }
 
+    var height: CGFloat {
+        CGFloat(lineCount) * lineHeight
+    }
+
     func update(showDeckName: Bool,
                 playerClass: CardClass?,
                 heroCardId: String,
@@ -122,7 +126,8 @@ private extension StatsDeckRecord {
     }
 }
 
-private enum HeaderStyle {
+/// Internal, not private: the session recap window reuses this as its spec.
+enum HeaderStyle {
     static let digitFontName = "Belwe Bd BT"
     static let divider = Color.white.opacity(0.18)
     static let border = Color(red: 0x14 / 255, green: 0x16 / 255, blue: 0x17 / 255)
@@ -359,39 +364,5 @@ private struct TrackerHeaderRecord: View {
                 .foregroundColor(HeaderStyle.loss)
         }
         .font(HeaderStyle.digits(scale))
-    }
-}
-
-final class TrackerHeaderHost: NSView {
-    let viewModel = TrackerHeaderViewModel()
-    private let hostingView: TrackerTransparentHostingView<TrackerHeaderView>
-
-    var height: CGFloat {
-        CGFloat(viewModel.lineCount) * viewModel.lineHeight
-    }
-
-    override var isOpaque: Bool { false }
-
-    override init(frame: NSRect) {
-        hostingView = TrackerTransparentHostingView(
-            rootView: TrackerHeaderView(viewModel: viewModel)
-        )
-        super.init(frame: frame)
-        wantsLayer = true
-        layer?.backgroundColor = NSColor.clear.cgColor
-        layer?.isOpaque = false
-        hostingView.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(hostingView)
-        NSLayoutConstraint.activate([
-            hostingView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            hostingView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            hostingView.topAnchor.constraint(equalTo: topAnchor),
-            hostingView.bottomAnchor.constraint(equalTo: bottomAnchor)
-        ])
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
     }
 }

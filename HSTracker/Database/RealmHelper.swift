@@ -551,7 +551,24 @@ struct RealmHelper {
         }
         return results.sorted(by: { $0.startTime > $1.startTime })
 	}
-	
+
+    /// Games started on or after `date`, oldest first, paired with the deck they
+    /// belong to. GameStats is an embedded object, so the deck is the only way
+    /// in — and the only way a game can be lost is with its deck.
+    static func getStatistics(since date: Date) -> [(deck: Deck, stats: GameStats)]? {
+        guard let realm = try? Realm() else {
+            logger.error("Error accessing Realm database")
+            return nil
+        }
+        var results = [(deck: Deck, stats: GameStats)]()
+        for deck in realm.objects(Deck.self) {
+            for stat in deck.gameStats where stat.startTime >= date {
+                results.append((deck: deck, stats: stat))
+            }
+        }
+        return results.sorted(by: { $0.stats.startTime < $1.stats.startTime })
+    }
+
 	static func addStatistics(to deck: Deck, stats: GameStats) {
 		guard let realm = try? Realm() else {
 			logger.error("Error accessing Realm database")

@@ -57,8 +57,13 @@ final class CoreManager: NSObject {
         super.init()
         
         let ok = Helper.ensureClientLogConfig()
-        if CoreManager.isHearthstoneRunning() && !ok {
-            NotificationManager.showNotification(type: .restartRequired)
+        if CoreManager.isHearthstoneRunning() {
+            if !ok {
+                NotificationManager.showNotification(type: .restartRequired)
+            }
+            // appLaunched() never fires when the game was already up, and the
+            // recap would then have no session to slice.
+            SessionRecap.beginSession()
         }
         
         let logPath = MirrorHelper.getLogSessionDir()
@@ -431,6 +436,7 @@ final class CoreManager: NSObject {
             }
             self.startTracking()
             self.game.setHearthstoneRunning(flag: true)
+            SessionRecap.beginSession()
             Watchers.experienceWatcher.run()
             NotificationCenter.default.post(name: Notification.Name(rawValue: Events.hearthstone_running), object: nil)
         }
@@ -445,8 +451,18 @@ final class CoreManager: NSObject {
             self.game.setHearthstoneRunning(flag: false)
             AppHealth.instance.setHearthstoneRunning(flag: false)
             Watchers.experienceWatcher.stop()
+
+            // The notification is delivered on OperationQueue.main, so this is
+            // already the main thread.
+            let recapShown = SessionRecapWindowController.showIfNeeded { [weak self] in
+                if Settings.quitWhenHearthstoneCloses {
+                    NSApplication.shared.terminate(self)
+                }
+            }
             if Settings.quitWhenHearthstoneCloses {
-                NSApplication.shared.terminate(self)
+                if !recapShown {
+                    NSApplication.shared.terminate(self)
+                }
             } else {
                 logger.info("Not closing app since setting says so.")
             }

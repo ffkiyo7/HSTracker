@@ -415,6 +415,10 @@ final class Settings {
     static var removeCardsFromDeck: Bool
     @UserDefault(key: Settings.use_swiftui_tracker, defaultValue: false)
     static var useSwiftUITracker: Bool
+    /// Our constructed session recap. Not to be confused with upstream's
+    /// `showSessionRecap`, which is the battlegrounds one.
+    @UserDefault(key: Settings.show_constructed_session_recap, defaultValue: true)
+    static var showConstructedSessionRecap: Bool
     @UserDefault(key: Settings.highlight_last_drawn, defaultValue: true)
     static var highlightLastDrawn: Bool
     @UserDefault(key: Settings.highlight_cards_in_hand, defaultValue: false)
@@ -734,6 +738,7 @@ extension Settings {
 
     static let remove_cards_from_deck = "remove_cards_from_deck"
     static let use_swiftui_tracker = "use_swiftui_tracker"
+    static let show_constructed_session_recap = "show_constructed_session_recap"
     static let highlight_last_drawn = "highlight_last_drawn"
     static let highlight_cards_in_hand = "highlight_cards_in_hand"
     static let highlight_discarded = "highlight_discarded"
