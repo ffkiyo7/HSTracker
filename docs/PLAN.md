@@ -24,17 +24,18 @@
 
 | 阶段 | 内容 | 状态 |
 |---|---|---|
-| **Phase 0** | 地基：驱动循环与窗口层 | ✅ **T0–T6 完成。T6 于 2026-08-31 主动收在测量阶段，不做延迟优化** —— 理由见 Phase 0 一节 |
-| **Phase 1** | SwiftUI 记牌器渲染 | 🟡 T1–T4 / T7 完成并已实战，T5 代码完成待卡点 ②，T6 / T8 待做 |
-| **Phase U** | **合并上游 3.6.7** | ✅ 卡点 ① 已实战（2026-08-30），产出 5 条反馈，见下 |
-| **Phase U2** | **合并上游 3.6.8** | ✅ 2026-09-05 合入（`5835f8a4`），白得 macOS 26 overlay 崩溃根因修复 + `MainThreadGuard`；细节见 PROGRESS「其余阶段」。🎮 Debug 实战一局待验 |
-| **Phase U3** | **合并上游 3.6.9** | ✅ 2026-09-08 合入（`9da27c8e`），白得 Bob's Buddy 自检崩溃修复 + OutFinder 设置页；合并流程与历次记录见 `docs/upstream-merges.md`。🎮 与 U2 同一局实战验 |
+| ~~**Phase 0**~~ | 地基：驱动循环与窗口层 | ✅ **T0–T6 完成。T6 于 2026-08-31 主动收在测量阶段，不做延迟优化** —— 理由见 Phase 0 一节 |
+| **Phase 1** | SwiftUI 记牌器渲染 | 🟡 T1–T7 完成并已实战（卡点 ③ 2026-09-11 通过），只剩 T8 动效 |
+| ~~**Phase U**~~ | **合并上游 3.6.7** | ✅ 卡点 ① 已实战（2026-08-30），产出 5 条反馈，见下 |
+| ~~**Phase U2**~~ | **合并上游 3.6.8** | ✅ 2026-09-05 合入（`5835f8a4`），白得 macOS 26 overlay 崩溃根因修复 + `MainThreadGuard`；细节见 PROGRESS「其余阶段」。✅ 2026-09-09 Debug 实战一局通过 |
+| ~~**Phase U3**~~ | **合并上游 3.6.9** | ✅ 2026-09-08 合入（`9da27c8e`），白得 Bob's Buddy 自检崩溃修复 + OutFinder 设置页；合并流程与历次记录见 `docs/upstream-merges.md`。✅ 2026-09-09 与 U2 同一局实战通过 |
 | **Phase 2** | 记牌器分区（牌库 / 手牌 / 已打出） | ⬜ 依赖 Phase 1 的 T4 / T6 |
 | **收尾** | 删 A/B 开关、删旧路径（原 Phase 1 的 T9） | ⬜ **排在 Phase 2 之后** |
-| **Phase 3** | 补全简体中文 | ✅ 完成（Phase U 补课后 100%） |
-| **Phase 4** | 设置界面 + Dock 菜单 | ⬜ 前置已解除，随时可开始 |
+| ~~**Phase 3**~~ | 补全简体中文 | ✅ 完成（Phase U 补课后 100%） |
+| **Phase 4** | 设置界面 + Dock 菜单 | 🟡 T1 完成：4.1 / 4.2 ✅（Dock 2026-09-09 实战通过），4.3 只做了 Trackers 一页（🖥️ 待看），其余 8 页未动 |
 | **Phase 5** | 计数器 overlay 可自由拖动 | ⬜ 落点已按 3.6.7 重新确认 |
-| **Phase 6** | 排队时就显示牌组 | ✅ T1 2026-08-30 实战通过（进队列 30 张全在）；**「改动很小」的判断已被推翻**，见 Phase 6 一节。排队入口随后被 Bug T4 收紧（补 `isInMenu` 门、对手无排队入口） |
+| ~~**Phase 7**~~ | 局末小结弹窗（几把 / 套牌 / 职业 / 胜率） | ✅ T1 2026-09-11 与卡点 ③ 同一局实战通过（D2 稿）；上游只有战棋 recap，构筑自己加。设置开关 UI 留 Phase 4 / 4.3 |
+| ~~**Phase 6**~~ | 排队时就显示牌组 | ✅ T1 2026-08-30 实战通过（进队列 30 张全在）；**「改动很小」的判断已被推翻**，见 Phase 6 一节。排队入口随后被 Bug T4 收紧（补 `isInMenu` 门、对手无排队入口） |
 
 ### 本轮（2026-08-30）—— 卡点 ① 实战产出
 
@@ -77,15 +78,15 @@
 | **Phase U 合完上游** | 🖥️ | app 能起、记牌器有卡条、设置窗口不出现裸 key —— 静态过一遍就够，真正的验收并进卡点 ① | 增量包已验证完整，不再强制 `clean build` |
 | ~~**Phase 1 卡点 ①**~~ | ✅ | **2026-08-30 已过**：ETC 标题正确、协同高亮描边 OK、卡图无顿挫。产出 5 条反馈见「本轮」一节。**延迟 before 基线取的是 Debug 包，不可用**，Phase 0 / T6 修完口径后要重取一次 Release | — |
 | ~~卡点 ① 的战棋那一局~~ | ❌ | **取消。用户不玩战棋**（2026-08-30 确认）。两个新计数器的工程登记已完成、二进制里检出，但**没有人会去实机数它们**，这条不再挂在清单上 | — |
-| **Phase 1 卡点 ②**（T5） | 🎮 | 三行头的数字对不对：手牌数 / 牌库数 / 总胜率 / 对阵职业胜率 | 开局前第 3 行应是占位或整行隐藏 |
-| **Phase 1 卡点 ③**（T6） | 🎮 | **整个布局** —— 必须独占一局，混着别的改动根本没法定位 | 各段都有内容的一局最好 |
+| ~~**Phase 1 卡点 ②**（T5）~~ | ✅ | **2026-09-09 已过**：四个数字、开局前第 3 行、对手侧右侧不透底都 ok | — |
+| ~~**Phase 1 卡点 ③**（T6）~~ | ✅ | **2026-09-11 已过**：整个布局 ok；Phase 7 小结窗同一局一起过 | — |
 | **Phase 1 卡点 ④**（T8） | 🎮 | 动效 —— 要**录像逐帧看**，不是当场看手感 | OBS 同规格录屏 |
 | Phase 2 分区落地（2.1 / 2.2） | 🎮 | 抽到的牌从「牌库」进「手牌」、打出后进「已打出」；**三段之和恒等于原牌表**；关掉 `groupCardsByZone` 能干净回平铺；对手侧未链接牌表时保持平铺 | 一局标准模式 |
 | Phase 2 / 2.6 高亮加强 | 🎮 | **只能在游戏画面背景上看** —— 问题本身就是「在炉石背景上几乎看不出来」，比对窗验不了 | 一张弑君者之类的关联卡 |
 | Phase 2 / 2.7 已打出段图标 | 🎮 | 骷髅 / 火焰状态图标 —— 要真的弃牌、爆牌才会出现 | 带弃牌的牌组 |
 | Phase 2 / 2.8 尺寸重做 | 🎮 | **全屏实机** —— 这是最初提的「卡条太宽、整体太高」，只有全屏才作数；换一次分辨率再看一遍 | 全屏 + 至少两种分辨率 |
 | 收尾（删开关、删旧路径） | 🎮 | 完整打一局，确认新路径没有退路也不出问题 | **不可逆** —— 做之前新路径要已经连续用过一段时间 |
-| Phase 4 / 4.1 Dock 菜单 | 🎮 | 先不开炉石，看 Toast + 菜单项打勾；**再开炉石进一局**确认用的就是那副牌 | 切中文后重复一遍 |
+| ~~Phase 4 / 4.1 Dock 菜单~~ | ✅ | **2026-09-09 已过**：Toast + 打勾 + 进局用的是那副牌 | — |
 | Phase 4 / 4.3 设置界面 | 🖥️ | 设置窗口逐页看，不用开炉石 | 中英文各看一遍 |
 | Phase 5 计数器拖动 | 🎮 | 在炉石窗口上真拖一次；计数器变多时往哪个方向长；换分辨率后位置跟不跟 | **构筑局，有计数器的职业**（不走战棋） |
 | ~~Phase 6 排队显示~~ | ✅ | **2026-08-30 已过**：进队列 30 张全在；Bug T4（08-31）又验了排队只我方 / 对局双方 / 打完即消失 / 主菜单不显示。战棋侧只做静态论证（用户不玩） | — |
@@ -146,7 +147,7 @@
 
 **T6 的顺序是死的：口径没修好之前不许调参、不许优化。** 这个仓库已经在这上面栽过两次
 （拿 Debug 数当 Release、拿只覆盖 1/20 的 D 段排序）。任务书
-`docs/archive/tasks/phase0-t6-latency-spike.md`（已归档）与 `docs/tasks/phase0-t6b-shrink-refresh-cost.md`（已结案）。
+`docs/archive/tasks/phase0-t6-latency-spike.md`（已归档）与 `docs/archive/tasks/phase0-t6b-shrink-refresh-cost.md`（已结案）。
 
 ### 🔻 T6 为什么收在这里（2026-08-31 决定）
 
@@ -230,13 +231,13 @@ A 段是地板、C 是 D 的因变量、22 个刷新 block 的代码只占 D 的
 
 | 片 | 内容 | 状态 |
 |---|---|---|
-| T1 | `CardRowView` + `ThemeImageCache` + 并排比对窗 | ✅ |
-| T2 | 主牌表接进 `Tracker`，`Settings.useSwiftUITracker` 开关 | ✅ |
-| T3 | ETC / 下水道之王 改悬停浮出，备牌段整体消失（见 2.5，**从 Phase 2 提前**） | ✅ 已适配 3.6.7，2026-08-30 实战通过 |
-| T4 | 其余三段卡表 → `TrackerSectionView`：置顶 / 置底 / 相关牌（`DeckLens` ×3） | ✅ 2026-08-30 实战通过 |
-| T5 | 顶部信息区重做：拿掉旧面板，上 Firestone 三行头（见 2.4，**从 Phase 2 提前**） | ⬜ |
-| T6 | 根视图 `TrackerView` + `TrackerViewModel`，布局收口（见 1.4） | ⬜ |
-| T7 | 卡图异步加载 + `ImageUtils` 缓存加 LRU（见 1.2） | ✅ 含限宽后台队列和预解码，2026-08-30 实战通过 |
+| T1 | ~~`CardRowView` + `ThemeImageCache` + 并排比对窗~~ | ✅ |
+| T2 | ~~主牌表接进 `Tracker`，`Settings.useSwiftUITracker` 开关~~ | ✅ |
+| T3 | ~~ETC / 下水道之王 改悬停浮出，备牌段整体消失（见 2.5，**从 Phase 2 提前**）~~ | ✅ 已适配 3.6.7，2026-08-30 实战通过 |
+| T4 | ~~其余三段卡表 → `TrackerSectionView`：置顶 / 置底 / 相关牌（`DeckLens` ×3）~~ | ✅ 2026-08-30 实战通过 |
+| T5 | ~~顶部信息区重做：拿掉旧面板，上 Firestone 三行头（见 2.4，**从 Phase 2 提前**）~~ | ✅ 2026-09-09 卡点 ② 实战通过，定稿与二次调整见任务书 |
+| T6 | ~~根视图 `TrackerView` + `TrackerViewModel`，布局收口（见 1.4）~~ | ✅ 2026-09-11 卡点 ③ 实战通过。任务书 `docs/tasks/phase1-t6-tracker-root-layout.md` |
+| T7 | ~~卡图异步加载 + `ImageUtils` 缓存加 LRU（见 1.2）~~ | ✅ 含限宽后台队列和预解码，2026-08-30 实战通过 |
 | T8 | 动效：淡入淡出、抽卡闪光、布局动画（验收标准第 3 条） | ⬜ |
 
 > **原来的 T9（删开关、删旧路径）已挪到 Phase 2 之后**，见文末「收尾」一节。
@@ -451,14 +452,14 @@ T7 提前做还有额外好处：后面三个卡点都能享受到异步卡图�
 
 ### 执行清单
 
-1. ✅ 开 checkpoint 分支 `backup/phase0+3-before-upstream-367`
-2. ✅ `project.pbxproj` 保住 `net8.0` 和两个 `MACOSX_DEPLOYMENT_TARGET = 14.0`
-3. ✅ `Tracker.swift` 按 `RelatedCardsTooltipPanel` API 适配 T3，并清空备牌浮窗的池统计状态
-4. ✅ `MainMenu.xcstrings`：61 个块合并（我们插 `zh-Hans`，上游往同一个 localizations 块插
+1. ✅ ~~开 checkpoint 分支 `backup/phase0+3-before-upstream-367`~~
+2. ✅ ~~`project.pbxproj` 保住 `net8.0` 和两个 `MACOSX_DEPLOYMENT_TARGET = 14.0`~~
+3. ✅ ~~`Tracker.swift` 按 `RelatedCardsTooltipPanel` API 适配 T3，并清空备牌浮窗的池统计状态~~
+4. ✅ ~~`MainMenu.xcstrings`：61 个块合并（我们插 `zh-Hans`，上游往同一个 localizations 块插
    es / fr / it / ja / ko / …），脚本化解完过
-   String Catalog 校验
-5. ✅ 受限环境 `clean build` 和强制 Resources 重跑后的增量 `build` 均成功；增量包完整
-6. ✅ Phase 3 补课：新增 82 条简中，11 个空白/符号控制 key 标为不需翻译，覆盖率 100%
+   String Catalog 校验~~
+5. ✅ ~~受限环境 `clean build` 和强制 Resources 重跑后的增量 `build` 均成功；增量包完整~~
+6. ✅ ~~Phase 3 补课：新增 82 条简中，11 个空白/符号控制 key 标为不需翻译，覆盖率 100%~~
 
 ### 合并之后的后续任务：把 T3 接进 `ICardWithRelatedCards`
 
@@ -923,6 +924,38 @@ Firestone 在排队阶段就把牌表铺出来了。
 
 ---
 
+## Phase 7 — 局末小结弹窗（2026-09-09 新需求，🎨 先设计再实现）
+
+**需求**：每次打完炉石（退出游戏或结束一段对局），弹一个小结窗：本次打了几把、每把用的套牌 / 职业、胜率。
+列表形态。
+
+**上游现状**：只有战棋的 session recap（`Settings.showSessionRecap`，`Game.swift:1208`，战棋专用 overlay），
+构筑模式没有对应功能 → **自己加**。
+
+**数据**：对局记录已经落 Realm（`StatsHelper` / `GameStats`），不需要新采集，只需要按「本次会话」切片。
+「一次会话」的边界待定：炉石进程启动到退出（`hearthstoneRunState`），还是 HSTracker 自己的运行期。
+
+**顺序**：页面先走设计（比稿方式沿用 T5：出对照页 → 用户挑 → 定稿再写任务书）。
+不依赖 Phase 1 / 2，可在 T6 执行期间并行做设计。
+
+**已决（2026-09-09 用户定）**：
+
+| 项 | 决定 | 落点 |
+|---|---|---|
+| 触发时机 | **炉石退出时弹一次** | `CoreManager.swift:445` 的 `setHearthstoneRunning(flag: false)` 是现成钩子 |
+| 会话边界 | **炉石进程启动到退出** | 起点记在 `:433` 置 true 时；按 `GameStats.startTime >= 会话起点` 从 Realm 切片 |
+| 形态 | **独立小窗** | 新 `NSWindow`，不挂在 overlay 层，不受 `hideAllWhenGameInBackground` 影响 |
+
+**仍待决**：是否要求能回看历史会话（首版可不做）；窗口内容是 SwiftUI 还是 xib（倾向 SwiftUI，Phase 4 已验证接法）。
+
+**设计比稿（2026-09-10）**：三稿对照页 https://claude.ai/code/artifact/5f974e11-72ec-424a-9ec5-053759a6aaa4 ——
+D1 系统窗（原生外观，最便宜）/ D2 记牌器同款（三行头表格延伸，复用 `TrackerHeaderView` 样式）/ D3 战报卡（大数字 + 套牌卡，明细折叠，两本任务书）。
+**用户 2026-09-10 定稿 D2**，并定：弹窗不自动消失、0 局不弹、「打开统计」接现有 `Statistics` 窗（按套牌）。
+任务书 `docs/tasks/phase7-t1-session-recap-window.md`，与 T6 无文件交集，并行执行，卡点 ③ 那一局一起验。
+**2026-09-11 实战通过**（「做的不错」）。开关 `Settings.showConstructedSessionRecap` 已有（默认开），**设置页里的勾选项留到 4.3 重做设置界面时一并加**。
+
+---
+
 ## 关键文件清单
 
 | 文件 | 涉及阶段 |
@@ -939,7 +972,7 @@ Firestone 在排队阶段就把牌表铺出来了。
 | `HSTracker/Core/Settings.swift` | 2.3（~`:352` / ~`:652`） |
 | `HSTracker/UIs/Cards/CardSize.swift` | 2.8 |
 | `HSTracker/AppDelegate.swift` | 4.1 / 4.2（`:431-556`、`:572-578`） |
-| `HSTracker/UIs/Trackers/CountersOverlay.swift` | 5 |
+| `HSTracker/UIs/CountersOverlay.swift` | 5 |
 | `HSTracker/Logging/QueueEvents.swift` | 6（队列状态与模式白名单的现成常量） |
 
 ---

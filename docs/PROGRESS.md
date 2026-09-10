@@ -2,14 +2,14 @@
 
 | | |
 |---|---|
-| 最后更新 | 2026-09-08 |
+| 最后更新 | 2026-09-11 |
 | 分支 | `dev`（长期主开发线，2026-08-31 由 `phase0+3` 改名；已合入 upstream `8ea0eaea` / **3.6.9**（2026-09-08，Phase U3，`9da27c8e`），`master` 保持为上游纯镜像） |
 | 构建 | Phase U3 合并后 Debug `clean build` `BUILD SUCCEEDED`；测试 **50 / 50 全绿**（2026-09-08，`xcodebuild test`，期望未改） |
 | 阻塞 | 无。Bug T1 / T2 / T3 / T5 均已实战验收并提交 |
-| **在做** | Phase U3（合上游 3.6.9）已合入，流程沉淀到 `docs/upstream-merges.md`；T5 三行头按 2026-09-05 反馈去文字、底图改用卡条 `fade.png`（见任务书「二次调整」） |
-| **待实战 🎮** | 卡点 ②（T5 三行头四个数字、开局前第 3 行；~~底图亮度~~ ✅ 2026-09-08 调到 0.8 + 原画裁边后用户确认 ok）+ Phase 4 / 4.1（Dock 打勾 + Toast，进局确认用的是那副牌）+ 🖥️ 设置页中英文各看一遍 + **Debug 跑一局看有没有命中上游 3.6.8 / 3.6.9 加的 `assertMainThread()`**（U3 又加到了 `AnimatedCardList.update/updateFrames`，若 trap 看 `DeckLens.swift:84` / `DeckSideboards.swift:121`） |
-| **待查 🎮** | 局末部分卡条变暗（2026-09-05 截图，见「已知问题」末行） |
-| **下一片** | **Phase 1 / T5（顶部信息区）→ Phase 1 / T6（布局收口）** —— T6 收口才能解锁 Phase 2，而 Phase 2 才是反馈①的真正修复 |
+| **在做** | 无在写的代码。**T6 + Phase 7 / T1 代码尚未提交**（工作区 13 个改动 + 4 个新文件），实战已过，等提交。另起一个与排期无关的 spike：红龙贼 combo 提示器（调研中，见 `docs/research/red-dragon-rogue-spike.md`） |
+| **待实战 🎮** | ~~卡点 ③（T6 整个布局，独占一局，各段都有内容的套牌最好；重点看满压缩时底部会不会溢出 `5 × 段数`，这是上游原有行为照抄的）+ Phase 7 小结窗（退出炉石后：局数 / 套牌 / 职业 / 胜率 / 逐局对不对，ESC 能关，「打开统计」进对应套牌）~~ ✅ **2026-09-11 一局全过：「布局 ok」「对局小结做的不错」**，小结开关的设置 UI 留 4.3。~~卡点 ②（T5 三行头四个数字、开局前第 3 行、对手侧右侧不透底）+ Phase 4 / 4.1（Dock 打勾 + Toast，进局确认用的是那副牌）+ Debug 跑一局看有没有命中上游 3.6.8 / 3.6.9 加的 `assertMainThread()`~~ ✅ **2026-09-09 一局全过，用户反馈「都没问题」**。仍剩 🖥️ 设置页中英文各看一遍（Phase 4 / 4.3，不用开炉石） |
+| **待查 🎮** | ~~局末部分卡条变暗（2026-09-05 截图，见「已知问题」末行）~~ ✅ 2026-09-09 实战核对无问题 |
+| **下一片** | 先提交 T6 + Phase 7。之后可选：**Phase 2 / 2.1 分区**（反馈①的真修，T6 已解锁）/ Phase 1 T8 动效 / Phase 4 / 4.3 其余 8 页设置（含小结开关）/ 红龙贼 spike |
 | **待办（等你）** | ~~🎮 结算瞬间两个主记牌器 + 水晶上限 + 计数器同一轮一起消失~~ ✅ 2026-09-03 实战确认。**不再需要为延迟单独取数** |
 | **不作为验收手段** | **战棋** —— 用户不玩（2026-08-30 确认）。战棋代码该对还是要对，但验证只能静态做，不排"打一局战棋"这种项 |
 
@@ -27,28 +27,28 @@
 
 | | 内容 | 状态 |
 |---|---|---|
-| T0 | 前置环境（`wget`、本地签名、`net8.0` 修复） | ✅ |
-| T1 | `WindowManager.show()` 去抖 | ✅ |
-| T2 | AX 调用移出主线程 | ✅ |
-| T3 | 提高 tick 频率 + 跟窗 | ✅ review 时改了设计，见 PLAN |
-| T4 | 部署目标 → macOS 14.0 | ✅ |
-| T5 | GUI 刷新改防抖 | ✅ 代码已合，但**实测收益未兑现**，见下节 |
-| **T6** | **修埋点量程（D 段 + B 段 + E2E 归因）→ 取 Release 基线 → 拆 D** | ✅ **2026-08-31 收在测量阶段，不做延迟优化**（前提复查后的主动收口，理由见「延迟实测」末尾）。产出是排除法结论 + 一个可复用的探针；唯一留下的候选「合并 18 次投递」改以**帧一致性**立项，见 `docs/PLAN.md` Phase 0 一节 |
+| T0 | ~~前置环境（`wget`、本地签名、`net8.0` 修复）~~ | ✅ |
+| T1 | ~~`WindowManager.show()` 去抖~~ | ✅ |
+| T2 | ~~AX 调用移出主线程~~ | ✅ |
+| T3 | ~~提高 tick 频率 + 跟窗~~ | ✅ review 时改了设计，见 PLAN |
+| T4 | ~~部署目标 → macOS 14.0~~ | ✅ |
+| T5 | ~~GUI 刷新改防抖~~ | ✅ 代码已合，但**实测收益未兑现**，见下节 |
+| **T6** | ~~**修埋点量程（D 段 + B 段 + E2E 归因）→ 取 Release 基线 → 拆 D**~~ | ✅ **2026-08-31 收在测量阶段，不做延迟优化**（前提复查后的主动收口，理由见「延迟实测」末尾）。产出是排除法结论 + 一个可复用的探针；唯一留下的候选「合并 18 次投递」改以**帧一致性**立项，见 `docs/PLAN.md` Phase 0 一节 |
 
-### Phase 1 — SwiftUI 记牌器渲染（🟡 5 / 8）
+### Phase 1 — SwiftUI 记牌器渲染（🟡 7 / 8）
 
 | 片 | 内容 | 状态 |
 |---|---|---|
-| T1 | `CardRowView` + `ThemeImageCache` + 并排比对窗 | ✅ 合入 grok 版（模型 A/B 的产物，codex 版留在 `ab/t1-codex`） |
-| T2 | 主牌表接进 `Tracker` + `Settings.useSwiftUITracker` 开关 | ✅ 实战验过一局，**开关默认关**（本机 defaults 已置 1） |
-| T3 | ETC / 下水道之王 改悬停浮出 | ✅ **卡点 ① 实战通过** —— ETC 标题正确 |
-| T4 | 其余三段卡表 → `TrackerSectionView` | ✅ **卡点 ① 实战通过** —— 协同高亮描边视觉 OK |
-| T5 | 顶部信息区重做（Firestone 三行头） | 🟡 **代码完成**（2026-09-04 定稿 D2：Firestone 表格 + 皮肤原画底 + 去 hero 卡条；2026-09-05 二次调整：去套牌名 / 对手职业名，底图复用卡条 `fade.png`，见任务书），等卡点 ② 实战 |
-| T6 | 根视图 + 布局收口 | ⬜ **Phase 2 的堵点**，也就是反馈①真正的前置。⚠️ 别和 Phase 0 / T6（延迟）搞混，引用时写全阶段号 |
-| T7 | 卡图异步加载 + LRU | ✅ **卡点 ① 实战通过** —— 卡图基本没有顿挫感 |
+| T1 | ~~`CardRowView` + `ThemeImageCache` + 并排比对窗~~ | ✅ 合入 grok 版（模型 A/B 的产物，codex 版留在 `ab/t1-codex`） |
+| T2 | ~~主牌表接进 `Tracker` + `Settings.useSwiftUITracker` 开关~~ | ✅ 实战验过一局，**开关默认关**（本机 defaults 已置 1） |
+| T3 | ~~ETC / 下水道之王 改悬停浮出~~ | ✅ **卡点 ① 实战通过** —— ETC 标题正确 |
+| T4 | ~~其余三段卡表 → `TrackerSectionView`~~ | ✅ **卡点 ① 实战通过** —— 协同高亮描边视觉 OK |
+| T5 | ~~顶部信息区重做（Firestone 三行头）~~ | ✅ **卡点 ② 2026-09-09 实战通过**（四个数字、开局前第 3 行、对手侧右侧都 ok）。2026-09-04 定稿 D2：Firestone 表格 + 皮肤原画底 + 去 hero 卡条；2026-09-05 二次调整：去套牌名 / 对手职业名，底图复用卡条 `fade.png`，见任务书 |
+| T6 | ~~根视图 + 布局收口~~ | ✅ **卡点 ③ 2026-09-11 实战通过**（review 2026-09-10）。没用 `GeometryReader`：`bottomY` 要和渲染高度同源，改由 view model 算一次。两处上游怪癖照抄保住逐像素一致（段间 `+5` 不进预算、坟场行仍预留），见任务书 |
+| T7 | ~~卡图异步加载 + LRU~~ | ✅ **卡点 ① 实战通过** —— 卡图基本没有顿挫感 |
 | T8 | 动效 | ⬜ |
 
-**实测卡点**：~~① T3+T4+T7 + Phase U~~ ✅ → ② T5 → ③ T6 → ④ T8。
+**实测卡点**：~~① T3+T4+T7 + Phase U~~ ✅ → ~~② T5~~ ✅ 2026-09-09 → ~~③ T6~~ ✅ 2026-09-11 → ④ T8。
 分批理由见 PLAN 的「执行卡点」一节。原来的 T9（删开关、删旧路径）**已挪到 Phase 2 之后**。
 
 **卡点 ① 已于 2026-08-30 实战通过**（标准模式一局）。三片本身都过了；同一局产出 5 条反馈，
@@ -61,15 +61,16 @@
 
 | | 内容 | 状态 |
 |---|---|---|
-| **Phase U** | **合并上游 3.6.7** | ✅ 42 commits / 4 个冲突文件 · **卡点 ① 已实战**；串卡修复 **2026-08-30 实战确认「串卡没了」** |
-| **Phase U2** | **合并上游 3.6.8**（`5835f8a4`，2026-09-05） | ✅ 31 commits / 2 个冲突文件（pbxproj 6 块、`BobsBuddy-version.txt`）· 白得：macOS 26 overlay 崩溃根因（`lockFocus` 破坏堆 → `NSImage(drawingHandler:)`）、`MainThreadGuard.assertMainThread()`、watcher 双线程 start 崩溃、sideboard 闪现。`CardHud` 里上游新加的 main hop 已去掉（`ImageUtils.completeOnMain` 已覆盖）。🎮 静态合入，Debug 实战一局待验 |
-| **Phase U3** | **合并上游 3.6.9**（`9da27c8e`，2026-09-08） | ✅ 11 commits / 5 个冲突文件（pbxproj 4 块、`BobsBuddy-version.txt`、Watchers、MonoHelper、ImageUtils —— 后三个都是上游和 dev 独立修了同一个 bug）· 白得：Bob's Buddy 启动自检崩溃修复、Sentry 5xx 误报修复、OutFinder 设置页。BobsBuddy vendor 到 **1.71.1**（上游钉 1.70.7，脚本只拉 latest）。流程 / 热点文件 / 历次处理沉淀到 **`docs/upstream-merges.md`**。🎮 静态合入，Debug 实战一局待验（与 U2 合并成一次） |
+| ~~**Phase U**~~ | **合并上游 3.6.7** | ✅ 42 commits / 4 个冲突文件 · **卡点 ① 已实战**；串卡修复 **2026-08-30 实战确认「串卡没了」** |
+| ~~**Phase U2**~~ | **合并上游 3.6.8**（`5835f8a4`，2026-09-05） | ✅ 31 commits / 2 个冲突文件（pbxproj 6 块、`BobsBuddy-version.txt`）· 白得：macOS 26 overlay 崩溃根因（`lockFocus` 破坏堆 → `NSImage(drawingHandler:)`）、`MainThreadGuard.assertMainThread()`、watcher 双线程 start 崩溃、sideboard 闪现。`CardHud` 里上游新加的 main hop 已去掉（`ImageUtils.completeOnMain` 已覆盖）。✅ 2026-09-09 Debug 实战一局通过，未命中 `assertMainThread()` |
+| ~~**Phase U3**~~ | **合并上游 3.6.9**（`9da27c8e`，2026-09-08） | ✅ 11 commits / 5 个冲突文件（pbxproj 4 块、`BobsBuddy-version.txt`、Watchers、MonoHelper、ImageUtils —— 后三个都是上游和 dev 独立修了同一个 bug）· 白得：Bob's Buddy 启动自检崩溃修复、Sentry 5xx 误报修复、OutFinder 设置页。BobsBuddy vendor 到 **1.71.1**（上游钉 1.70.7，脚本只拉 latest）。流程 / 热点文件 / 历次处理沉淀到 **`docs/upstream-merges.md`**。✅ 2026-09-09 Debug 实战一局通过（与 U2 同一局） |
 | Phase 2 | 记牌器分区（牌库 / 手牌 / 已打出） | ⬜ 依赖 Phase 1 的 T4 / T6 · 🎮 ×4 |
 | 收尾 | 删 A/B 开关、删旧路径 | ⬜ 排在 Phase 2 之后 · 🎮 |
-| Phase 3 | 补全简体中文 | ✅ Phase U 补课后 **945 / 945（100%）** |
-| Phase 4 | 设置 UI + Dock 菜单 | ⬜ 三项都不依赖任何东西，随时可开始 · 🎮 + 🖥️ |
+| ~~Phase 3~~ | 补全简体中文 | ✅ Phase U 补课后 **945 / 945（100%）** |
+| Phase 4 | 设置 UI + Dock 菜单 | 🟡 T1 代码完成（`35fea72a`）：4.1 Dock 打勾 + Toast + 进局用对牌 ✅ 2026-09-09 实战通过；4.2 菜单栏改 tag 定位 ✅；4.3 只重做了 Trackers 一页，🖥️ 中英文待看，其余 8 页未动 |
 | Phase 5 | 计数器 overlay 可拖动 | ⬜ 🎮 · 3.6.7 落点已重查，根因仍在窗口层 |
-| Phase 6 | 排队时就显示牌组 | ✅ T1 **2026-08-30 标准模式实战通过**（进队列 30 张全在）。战棋队列按惯例只静态确认（`.bacon` 不在白名单） |
+| ~~Phase 6~~ | 排队时就显示牌组 | ✅ T1 **2026-08-30 标准模式实战通过**（进队列 30 张全在）。战棋队列按惯例只静态确认（`.bacon` 不在白名单） |
+| ~~Phase 7~~ | 局末小结弹窗（几把 / 套牌 / 职业 / 胜率） | ✅ T1 **2026-09-11 实战通过**（D2 稿，`docs/tasks/phase7-t1-session-recap-window.md`）。钩子在 `CoreManager.appTerminated`，开关 `Settings.showConstructedSessionRecap`（默认开，**设置 UI 留 Phase 4 / 4.3**）。「打开统计」做成弹窗的 sheet |
 
 > 🎮 = 这一阶段有需要**你亲自开炉石看**的卡点，🖥️ = 只需静态看（比对窗 / 设置窗口）。
 > 每个卡点具体验什么、要备什么料，见 `docs/PLAN.md` 的「🎮 需要人亲自看的卡点」。
@@ -81,10 +82,10 @@
 | # | 反馈 | 核对结论 | 落点 |
 |---|---|---|---|
 | ① | 抽到手上的牌还留在牌库段，延迟一两回合甚至一直不消 | **不是延迟。** 探针 E2E p50 171ms / p95 450ms，没有那个量级的样本。真因是 `Settings.highlightCardsInHand`（本机开着）—— `getHighlightedCardsInHand()`（`Player.swift:381`）**故意**把手牌里的卡塞回列表，`count = 0` + 亮绿名 | Phase 2 / 2.1 分区时消化（PLAN 已记）。用户已认可 |
-| ② | 卡池浮窗串卡（「误炸」`WW_348` 窜进好几张卡的相关牌） | **上游 3.6.7 的回归。** `RelatedCardImageView` 的 `@State image` + `ForEach(0..<rows/cols, id:\.self)`，格子身份是行列下标不是卡；`hide()` 只 `orderOut`，视图树不销毁 → 复用时留着上一张的图。`git diff 534ee2d8` 对该文件为空；3.6.5 用的是 AppKit `GridCardImages`，所以是换 SwiftUI 时引入的 | ✅ 格子身份改为位置 + card id，**2026-08-30 实战通过** |
-| ③ | 排队时显示的是上一局残局 | `game.reset()` 只在 `Gameplay.Start` / `CREATE_GAME` 跑，排队时 `revealedEntities` 还是满的。**且这同时解释了"排队时记牌器为什么会显示"** —— `_currentGameType` 也没被清，绕过了 `Game.swift:376` 的条件。**清残留会让记牌器消失**，必须和放宽条件一起做 | ✅ **Bug T4 已于 2026-08-31 实战验收通过**（排队只我方 / 对局中双方 / 打完即消失 / 主菜单都不显示）。带出的两条一致性问题转 Bug T5 |
+| ② | ~~卡池浮窗串卡（「误炸」`WW_348` 窜进好几张卡的相关牌）~~ | **上游 3.6.7 的回归。** `RelatedCardImageView` 的 `@State image` + `ForEach(0..<rows/cols, id:\.self)`，格子身份是行列下标不是卡；`hide()` 只 `orderOut`，视图树不销毁 → 复用时留着上一张的图。`git diff 534ee2d8` 对该文件为空；3.6.5 用的是 AppKit `GridCardImages`，所以是换 SwiftUI 时引入的 | ✅ 格子身份改为位置 + card id，**2026-08-30 实战通过** |
+| ③ | ~~排队时显示的是上一局残局~~ | `game.reset()` 只在 `Gameplay.Start` / `CREATE_GAME` 跑，排队时 `revealedEntities` 还是满的。**且这同时解释了"排队时记牌器为什么会显示"** —— `_currentGameType` 也没被清，绕过了 `Game.swift:376` 的条件。**清残留会让记牌器消失**，必须和放宽条件一起做 | ✅ **Bug T4 已于 2026-08-31 实战验收通过**（排队只我方 / 对局中双方 / 打完即消失 / 主菜单都不显示）。带出的两条一致性问题转 Bug T5 |
 | ④ | 卡条尺寸一局之内会变大 | **上游一直如此**：`Tracker.swift:459` 的 `cardHeight = min(cardHeight, (windowHeight - offsetFrames) / totalCards)`，行高按当前行数压缩。3.6.7 的 `:298-299` 一字不差 | 记在 PLAN 2.8，**等用户决定**（(a) 固定行高 / (b) 宽度跟着缩，二选一） |
-| ⑤ | 留牌时右下角的 HSReplay 引流浮窗（`MulliganToastView`，「What should I keep?」，`SizeHelper.swift:474` 定位在右下） | 有现成开关 `Settings.showMulliganToast` | ✅ **已改为本 fork 默认关闭**，见「与上游的默认值差异」 |
+| ⑤ | ~~留牌时右下角的 HSReplay 引流浮窗（`MulliganToastView`，「What should I keep?」，`SizeHelper.swift:474` 定位在右下）~~ | 有现成开关 `Settings.showMulliganToast` | ✅ **已改为本 fork 默认关闭**，见「与上游的默认值差异」 |
 
 顺带确认：**E2E p99 5.0s / max 9.3s 的长尾是真的**，且 >10s 的样本被 `outlierCutoff` 直接丢进
 `dropped` 计数、不进百分位。连同两个旧的 🔴（D 段量程、B 段没埋点）一起进 Phase 0 / T6。
@@ -438,7 +439,7 @@ D total 7849.4（n=107，p50 66.5 / avg 73.4），补集 4779.0 = **D 的 60.9%*
 | 卡条尺寸一局之内会变大 | `Tracker.swift:459` 行高按当前行数压缩，牌打光了弹回 `card_size` 上限。**上游一直如此**，非回归 | 等用户决定，选项记在 PLAN 2.8 |
 | 抽到手上的牌仍留在牌库段（看起来像"延迟一两回合"） | `Settings.highlightCardsInHand` 的既定行为：`getHighlightedCardsInHand()`（`Player.swift:381`）把手牌里的卡以 `count = 0` 塞回列表。**不是延迟**，探针 E2E p50 171ms | Phase 2 / 2.1 分区时消化（用户已认可） |
 | ~~设置里「不在对局时隐藏全部记牌器」现在是个完全没用的勾选框~~ | Bug T5 把最后两个读者（水晶上限、计数器）改走 T4 的对局门后，`hideAllTrackersWhenNotInGame` 只剩 `Settings` 声明，不再影响任何窗口 | ✅ Phase 4 已撤掉控件和本地化 key（`35fea72a`），`Settings` 声明保留给老 defaults |
-| **局末部分卡条变暗**（2026-09-05 截图：空降歹徒、海盗之锚两行底色变暗、名字同时变绿） | **未定位。** 假设：变绿 = `highlightCardsInHand` 的手牌回填状态（上一行），变暗是 `CardRowView` 对该状态的底色；局末手牌不清空就留在那。待用户下次实战核对「变暗的行是不是结束时手里的牌」 | 待查，核实后并入 Phase 2 / 2.1 或单开 Bug T6 |
+| ~~**局末部分卡条变暗**（2026-09-05 截图：空降歹徒、海盗之锚两行底色变暗、名字同时变绿）~~ | 假设：变绿 = `highlightCardsInHand` 的手牌回填状态（上一行），变暗是 `CardRowView` 对该状态的底色；局末手牌不清空就留在那 | ✅ 2026-09-09 实战核对「没问题」，不单开 Bug；若再现按上述假设并入 Phase 2 / 2.1 |
 
 > 合并前评估说过「不存在两个 tooltip 抢同一扇窗」—— 那个结论只覆盖了**注册表**层面
 > （`RelatedCardsSystem/` 里没有 ETC / 下水道之王），**窗口层是共用的**，review 时才补上。

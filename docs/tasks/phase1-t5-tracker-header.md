@@ -59,7 +59,7 @@
 1. 受限环境 Debug build `BUILD SUCCEEDED`（命令见 `docs/archive/tasks/bug-t5-tracker-visibility-consistency.md`「验收」）。
 2. 测试 target 仍 50 / 50 全绿：同一命令把 `build` 换成 `test`。
 3. 报告里给出：新视图在 `updateFrames()` 里占的高度怎么算、与旧四面板之和的差异；胜率何时刷新；开关关掉后哪些代码路径被走到。
-4. 🎮 卡点 ② 由用户实战看：手牌数 / 牌库数 / 总胜率 / 对阵职业胜率四个数对不对，开局前第 3 行的状态。**不排在本次验收里，与 Phase 4 一起验。**
+4. ✅ ~~2026-09-09 卡点 ② 用户实战看过：手牌数 / 牌库数 / 总胜率 / 对阵职业胜率四个数、开局前第 3 行都没问题（与 Phase 4 同一局）。~~
 
 ## 执行结果（2026-09-03）
 
@@ -89,7 +89,7 @@
 - `Tracker.swift`：给 header 传套牌名 / 职业 / 皮肤 id；SwiftUI 路径下我方 `playerClass` 恒隐藏。
 - `Localizable.xcstrings` 新增 `Deck win rate`（套牌胜率）、`vs`。
 - 受限环境 Debug build `BUILD SUCCEEDED`；测试见 PROGRESS。
-- 🎮 仍待实战：四个数字、开局前第 3 行、原画压暗后右侧数字是否可读、隶书 + Belwe 的实际观感。
+- ✅ ~~2026-09-09 实战：四个数字、开局前第 3 行、右侧数字可读性、隶书 + Belwe 观感均通过。~~
 
 ## 二次调整（2026-09-05，用户实机反馈，`e99997f4`）
 
@@ -100,5 +100,5 @@
 - 底图：手调渐变 `0.95 → 0.9 → 0.4` 换成**直接复用卡条的 `fade.png`**。`CardRowView.swift:423-445` 新增 `TrackerFade`（`image` / `startFraction` / `opaqueFraction`），头部按 `fadeRect.minX / frameRect.width` 同一相对起点铺，暗度和过渡点与卡条逐像素同源，换主题跟着换。卡条里 fade 左边一条被宝石 / 边框挡住，头部没边框，用第二张放大 `1/0.4` 后裁切填满。`opaqueFraction = 0.4` 是解四张 fade.png 的 alpha 得出的：classic / dark / frost 在 `x < 0.45` 前 alpha 恒 1.0，之后到 0.7~0.8 降到 0；minimal 整张 45% 黑无 ramp。frost 的 fade 是浅灰 `(190,194,212)` 不是黑，所以调渐变凑不出全主题一致，复用资源是唯一对得上的做法。主题图取不到时回退原渐变。
 - review 发现回归并修（`cc97f633`）：fade 尾部 25~30% alpha 为 0，**无原画时**（对手侧恒无、我方原画加载中）牌库数会直接压在游戏画面上 → `heroBackground` 按 `heroArt` 分支，nil 走 `fallbackShade`（原三段渐变，有 0.4 下限）。
 - 设置项 `Show deck name` 文案改为 `Show class icon` / `显示职业图标`（`PlayerTrackersPreferences.xcstrings` `e7g-zd-YkC`，仅 en / zh-Hans；其余 11 种语言和 xib 里的按钮 title 未动）。
-- ✅ 2026-09-08 实战：用户反馈左侧暗部太暗 → fade 层加 `.opacity(0.8)`（`37069da3`，`HeaderStyle.fadeOpacity`）；随后左边缘露出一条灰条，是 256x 原画图块自带的浅色边（`HERO_03cd.jpg` 上下白边、左侧一列浅色），原画按 1.08 倍宽度绘制裁边（`e02d6c30`，`HeaderStyle.artOverscan`）。用户确认「亮度 ok、灰条没了」。
-- 🎮 仍待看：对手侧三行头右侧不透底。
+- ✅ ~~2026-09-08 实战：用户反馈左侧暗部太暗 → fade 层加 `.opacity(0.8)`（`37069da3`，`HeaderStyle.fadeOpacity`）；随后左边缘露出一条灰条，是 256x 原画图块自带的浅色边（`HERO_03cd.jpg` 上下白边、左侧一列浅色），原画按 1.08 倍宽度绘制裁边（`e02d6c30`，`HeaderStyle.artOverscan`）。用户确认「亮度 ok、灰条没了」。~~
+- ✅ ~~2026-09-09 实战：对手侧三行头右侧不透底，确认 ok。**本任务书全部完成。**~~
