@@ -1737,6 +1737,8 @@
 		C4D801A12FC000010001000B /* TrackerCardListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC000010001000A /* TrackerCardListView.swift */; };
 		C4D801A12FC000010001000D /* TrackerSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC000010001000C /* TrackerSectionView.swift */; };
 		C4D801A12FC0000100010011 /* TrackerHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010010 /* TrackerHeaderView.swift */; };
+		C4D801A12FC0000100010013 /* TrackerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010012 /* TrackerViewModel.swift */; };
+		C4D801A12FC0000100010015 /* TrackerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010014 /* TrackerView.swift */; };
 		C4D801A12FC000010001000E /* SynchronizedLRUCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC000010001000F /* SynchronizedLRUCache.swift */; };
 		CAF404560A15BDD5CEAD011B /* TimeLostProtodrake.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98B4635B55E3A54AFCD939FA /* TimeLostProtodrake.swift */; };
 		CB68AC75D3662AD35E4FFB3D /* CompGuideDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A56A6CC532F29CA066AB4AD /* CompGuideDetailView.swift */; };
@@ -3768,6 +3770,8 @@
 		C4D801A12FC000010001000A /* TrackerCardListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerCardListView.swift; sourceTree = "<group>"; };
 		C4D801A12FC000010001000C /* TrackerSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerSectionView.swift; sourceTree = "<group>"; };
 		C4D801A12FC0000100010010 /* TrackerHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerHeaderView.swift; sourceTree = "<group>"; };
+		C4D801A12FC0000100010012 /* TrackerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerViewModel.swift; sourceTree = "<group>"; };
+		C4D801A12FC0000100010014 /* TrackerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerView.swift; sourceTree = "<group>"; };
 		C4D801A12FC000010001000F /* SynchronizedLRUCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynchronizedLRUCache.swift; sourceTree = "<group>"; };
 		F812ACD581A1AC7978D7C85D /* BloodClone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BloodClone.swift; sourceTree = "<group>"; };
 		F8809DB00B99A49E226038D0 /* BeastSpeakerTaka.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeastSpeakerTaka.swift; sourceTree = "<group>"; };
@@ -4382,6 +4386,8 @@
 				C4D801A12FC000010001000A /* TrackerCardListView.swift */,
 				C4D801A12FC000010001000C /* TrackerSectionView.swift */,
 				C4D801A12FC0000100010010 /* TrackerHeaderView.swift */,
+				C4D801A12FC0000100010012 /* TrackerViewModel.swift */,
+				C4D801A12FC0000100010014 /* TrackerView.swift */,
 			);
 			path = SwiftUI;
 			sourceTree = "<group>";
@@ -8746,6 +8752,8 @@
 				C4D801A12FC000010001000B /* TrackerCardListView.swift in Sources */,
 				C4D801A12FC000010001000D /* TrackerSectionView.swift in Sources */,
 				C4D801A12FC0000100010011 /* TrackerHeaderView.swift in Sources */,
+				C4D801A12FC0000100010013 /* TrackerViewModel.swift in Sources */,
+				C4D801A12FC0000100010015 /* TrackerView.swift in Sources */,
 				C4D801A12FC000010001000E /* SynchronizedLRUCache.swift in Sources */,
 				947577168CC05BE7DC23659A /* RootOverlayWindow.swift in Sources */,
 				4C8E201F195AC2873021D4F9 /* MulliganV2StatusParams.swift in Sources */,

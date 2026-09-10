@@ -3,7 +3,8 @@
 //  HSTracker
 //
 //  SwiftUI stand-in for AnimatedCardList on Tracker's main card table.
-//  Host is added as a sibling of the xib outlet; the outlet type is unchanged.
+//  Stacked inside TrackerView; the xib outlet is left untouched for the
+//  useSwiftUITracker == false path.
 //
 
 import AppKit
@@ -37,59 +38,6 @@ struct TrackerCardListView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color.clear)
         .transaction { $0.animation = nil }
-    }
-}
-
-/// NSView sibling of `cardsView`. Created once; updates go through the
-/// ObservableObject, not by replacing the hosting view or its rootView.
-final class TrackerCardListHost: NSView {
-    let viewModel = TrackerCardListViewModel()
-    private let hostingView: TrackerTransparentHostingView<TrackerCardListView>
-
-    var count: Int { viewModel.count }
-
-    var cardHeight: CGFloat {
-        get { viewModel.rowHeight }
-        set {
-            if viewModel.rowHeight != newValue {
-                viewModel.rowHeight = newValue
-            }
-        }
-    }
-
-    var onHover: ((Card, NSView) -> Void)? {
-        get { viewModel.onHover }
-        set { viewModel.onHover = newValue }
-    }
-
-    var onExit: ((Card) -> Void)? {
-        get { viewModel.onExit }
-        set { viewModel.onExit = newValue }
-    }
-
-    override var isOpaque: Bool { false }
-
-    override init(frame: NSRect) {
-        hostingView = TrackerTransparentHostingView(
-            rootView: TrackerCardListView(viewModel: viewModel)
-        )
-        super.init(frame: frame)
-        wantsLayer = true
-        layer?.backgroundColor = NSColor.clear.cgColor
-        layer?.isOpaque = false
-        hostingView.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(hostingView)
-        NSLayoutConstraint.activate([
-            hostingView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            hostingView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            hostingView.topAnchor.constraint(equalTo: topAnchor),
-            hostingView.bottomAnchor.constraint(equalTo: bottomAnchor)
-        ])
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
     }
 }
 
