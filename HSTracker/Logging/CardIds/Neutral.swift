@@ -903,6 +903,9 @@ extension CardIds.Collectible {
         static let LinaShopManager = "TOY_531"
         static let SpitefulSummoner = "LOOT_539"
         static let Steeldancer = "SCH_522"
+        static let DarkscaleBroodmother = "CATA_111"
+        // 与上面的 Alexstrasza（EX1_561，把生命值设为 15 的老阿莱）是两张不同的牌
+        static let AlexstraszaTheLifeBinder = "LEG_CS3_031"
     }
 }
 

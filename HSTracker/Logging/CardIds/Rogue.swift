@@ -302,6 +302,18 @@ extension CardIds.Collectible {
         static let Waxmancy = "YOD_018"
         static let WhirlkickMaster = "ULD_231"
         static let WishingWell = "WW_415"
+        static let ShadowOfDemise = "RLK_567"
+        static let ShadowOfDemiseCore = "CORE_RLK_567"
+        static let GoneFishin = "TSC_916"
+        static let Deafen = "JAM_022"
+        static let BlackwaterCutlass = "DED_004"
+        static let CultistMap = "TLC_515"
+        static let FoxyFraudCore = "CORE_DMF_511"
+        static let SerratedBoneSpike = "REV_939"
+        static let ScabbsCutterbutter = "BAR_552"
+        static let SpiritOfTheShark = "TRL_092"
+        static let PotionOfIllusion = "SCH_352"
+        static let MathiasShaw: String = "HERO_03bm"
     }
 }
 
@@ -309,6 +321,7 @@ extension CardIds.NonCollectible {
     struct Rogue {
         static let WickedKnife: String = "CS2_082"
         static let DaggerMastery: String = "CS2_083b"
+        static let DaggerMasteryMathiasShaw: String = "HERO_03bmhp"
         static let SharpenedEnchantment: String = "CS2_083e"
         static let ColdBlood_ColdBloodEnchantment1: String = "CS2_073e"
         static let ColdBlood_ColdBloodEnchantment2: String = "CS2_073e2"
