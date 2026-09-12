@@ -419,6 +419,10 @@ final class Settings {
     /// `showSessionRecap`, which is the battlegrounds one.
     @UserDefault(key: Settings.show_constructed_session_recap, defaultValue: true)
     static var showConstructedSessionRecap: Bool
+    /// Upstream truncates `Power.log` to 0 bytes once Hearthstone quits. Keep
+    /// it so past games can be replayed offline (red dragon spike fixtures).
+    @UserDefault(key: Settings.keep_power_log, defaultValue: true)
+    static var keepPowerLog: Bool
     @UserDefault(key: Settings.highlight_last_drawn, defaultValue: true)
     static var highlightLastDrawn: Bool
     @UserDefault(key: Settings.highlight_cards_in_hand, defaultValue: false)
@@ -739,6 +743,7 @@ extension Settings {
     static let remove_cards_from_deck = "remove_cards_from_deck"
     static let use_swiftui_tracker = "use_swiftui_tracker"
     static let show_constructed_session_recap = "show_constructed_session_recap"
+    static let keep_power_log = "keep_power_log"
     static let highlight_last_drawn = "highlight_last_drawn"
     static let highlight_cards_in_hand = "highlight_cards_in_hand"
     static let highlight_discarded = "highlight_discarded"

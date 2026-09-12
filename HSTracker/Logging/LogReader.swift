@@ -30,9 +30,10 @@ final class LogReader {
 		
         self.path = "\(logPath)/\(info.name.rawValue).log"
         logger.info("Init reader for \(info.name) at path \(self.path)")
+        let keepForReplay = info.name == .power && Settings.keepPowerLog
         if fileManager.fileExists(atPath: self.path)
                    && !FileUtils.isFileOpen(byHearthstone: self.path)
-					&& removeLogfile {
+					&& removeLogfile && !keepForReplay {
             do {
 				logger.info("Removing log file at \(self.path)")
                 try fileManager.removeItem(atPath: self.path)
@@ -150,7 +151,8 @@ final class LogReader {
         _lines.clear()
         
         // try to truncate log file when stopping
-        if fileManager.fileExists(atPath: path) && eraseFile {
+        let keepForReplay = info.name == .power && Settings.keepPowerLog
+        if fileManager.fileExists(atPath: path) && eraseFile && !keepForReplay {
             let file = FileHandle(forWritingAtPath: path)
             file?.truncateFile(atOffset: UInt64(0))
             file?.closeFile()
