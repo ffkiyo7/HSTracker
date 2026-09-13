@@ -18734,6 +18734,23 @@
         }
       }
     },
+    "tracker_group_cards_by_zone" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Group cards by zone (deck / hand / played)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按区域分区显示（牌库 / 手牌 / 已打出）"
+          }
+        }
+      }
+    },
     "tracker_hide_in_background" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -21639,6 +21656,60 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已將本場賽局上傳至 HSReplay"
+          }
+        }
+      }
+    },
+    "Zone_Deck" : {
+      "comment" : "Tracker zone section - cards still in the deck",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deck"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "牌库"
+          }
+        }
+      }
+    },
+    "Zone_Hand" : {
+      "comment" : "Tracker zone section - cards in hand",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hand"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手牌"
+          }
+        }
+      }
+    },
+    "Zone_Played" : {
+      "comment" : "Tracker zone section - cards that left the deck",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Played"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已打出"
           }
         }
       }

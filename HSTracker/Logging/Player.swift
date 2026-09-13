@@ -68,6 +68,59 @@ class DeckState {
     }
 }
 
+/// The tracker's main list split by zone (PLAN 2.1): what is still in the deck,
+/// what is in hand, and what left the deck without being in hand.
+struct CardZoneGroups {
+    let deck: [Card]
+    let hand: [Card]
+    let played: [Card]
+
+    /// The split is built so that, for every card id,
+    /// `deck + hand + |played| == the copies known to exist`. That is the
+    /// invariant that keeps a card from vanishing or being counted twice as it
+    /// moves between zones; the flat list cannot state it, because it forces
+    /// every card that left the deck to `count = 0`.
+    ///
+    /// - Parameter cardsInHand: hand entities already grouped by card id.
+    /// - Parameter originalDeck: the deck list, i.e. how many copies exist.
+    static func make(remainingInDeck: [Card],
+                     predictedInDeck: [Card],
+                     removedFromDeck: [Card],
+                     cardsInHand: [Card],
+                     originalDeck: [Card]) -> CardZoneGroups {
+        func counts(_ cards: [Card]) -> [String: Int] {
+            var result = [String: Int]()
+            for card in cards {
+                result[card.id] = (result[card.id] ?? 0) + abs(card.count)
+            }
+            return result
+        }
+        let remaining = counts(remainingInDeck)
+        let inHand = counts(cardsInHand)
+        let original = counts(originalDeck)
+
+        let played: [Card] = removedFromDeck.compactMap { card in
+            let rem = remaining[card.id] ?? 0
+            let held = inHand[card.id] ?? 0
+            // A card that is not in the deck list is a created / stolen one: all
+            // we know is that at least this copy left the deck.
+            let total = original[card.id] ?? (rem + held + 1)
+            let copies = total - rem - held
+            guard copies > 0 else { return nil }
+            let row = card.copy()
+            // Negative count: CardRowView darkens anything <= 0 and prints abs()
+            // in the count box, so the bar still looks like today's played card
+            // while carrying how many copies it stands for.
+            row.count = -copies
+            return row
+        }
+
+        return CardZoneGroups(deck: (remainingInDeck + predictedInDeck).filter { $0.count > 0 },
+                              hand: cardsInHand,
+                              played: played)
+    }
+}
+
 class PredictedCard {
     var cardId: String
     var turn: Int
@@ -529,6 +582,63 @@ final class Player {
             return (inDeck + predictedInDeck + getHighlightedCardsInHand(cardsInDeck: inDeck) + createdInHand).sortCardList()
         }
         return (inDeck + predictedInDeck + createdInHand).sortCardList()
+    }
+
+    /// Hand entities grouped by card id. The created / stolen ones keep going
+    /// through `createdCardsInHand`, so `Settings.showPlayerGet` still governs
+    /// them exactly as it does in the flat list.
+    private var cardsInHandByCardId: [Card] {
+        let drawn: [Card] = hand.filter({ $0.hasCardId && !($0.info.created || $0.info.stolen) })
+            .group { (e: Entity) in e.cardId }
+            .compactMap { g -> Card? in
+                if let card = Cards.by(cardId: g.key) {
+                    card.count = g.value.count
+                    card.highlightInHand = true
+                    return card
+                } else {
+                    return nil
+                }
+            }
+        let created = Settings.showPlayerGet ? createdCardsInHand : [Card]()
+        return drawn + created
+    }
+
+    /// Zone split of the player's main list, for `Settings.groupCardsByZone`.
+    /// `nil` means there is nothing to split (no deck known) and the caller has
+    /// to keep the flat `playerCardList`.
+    var playerCardGroups: CardZoneGroups? {
+        guard let currentDeck = game.currentDeck else { return nil }
+        let deckState = getDeckState()
+        let inDeck = deckState.remainingInDeck
+        let predictedInDeck = getPredictedCardsInDeck(hidden: false).filter({ x in inDeck.all { c in x.id != c.id } })
+        let groups = CardZoneGroups.make(remainingInDeck: inDeck,
+                                         predictedInDeck: predictedInDeck,
+                                         removedFromDeck: deckState.removedFromDeck,
+                                         cardsInHand: cardsInHandByCardId,
+                                         originalDeck: currentDeck.cards)
+        let sorting = game.isMulliganDone() ? CardListSorting.cost : CardListSorting.mulliganWr
+        return CardZoneGroups(deck: annotateCards(cards: groups.deck).sortCardList(sorting),
+                              hand: annotateCards(cards: groups.hand).sortCardList(sorting),
+                              played: annotateCards(cards: groups.played).sortCardList(sorting))
+    }
+
+    /// Zone split of the opponent's list. Only defined once the deck has been
+    /// linked: without a known deck the list is made of revealed entities only,
+    /// and a "in hand" section would state something we are not supposed to
+    /// know (PLAN 2.1).
+    var opponentCardGroups: CardZoneGroups? {
+        guard let knownDeck = Player.knownOpponentDeck else { return nil }
+        let deckState = getOpponentDeckState()
+        let inDeck = deckState.remainingInDeck
+        let predictedInDeck = getPredictedCardsInDeck(hidden: false).filter { x in inDeck.all { c in x.id != c.id } }
+        let groups = CardZoneGroups.make(remainingInDeck: inDeck,
+                                         predictedInDeck: predictedInDeck,
+                                         removedFromDeck: deckState.removedFromDeck,
+                                         cardsInHand: cardsInHandByCardId,
+                                         originalDeck: knownDeck)
+        return CardZoneGroups(deck: groups.deck.sortCardList(),
+                              hand: groups.hand.sortCardList(),
+                              played: groups.played.sortCardList())
     }
 
     private func entityIsRemovedFromGamePassive(entity: Entity) -> Bool {

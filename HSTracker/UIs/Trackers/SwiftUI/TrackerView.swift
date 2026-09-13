@@ -15,6 +15,9 @@ struct TrackerView: View {
     let topTitle: String
     let bottomTitle: String
     let relatedTitle: String
+    let deckTitle: String
+    let handTitle: String
+    let playedTitle: String
 
     var body: some View {
         let layout = viewModel.layout
@@ -27,8 +30,22 @@ struct TrackerView: View {
                 TrackerSectionView(viewModel: viewModel.top, title: topTitle)
                     .frame(height: layout.topHeight)
             }
+            // Zone mode feeds these three and empties `cards`; flat mode does the
+            // reverse, so only one of the two shapes ever has a height.
             TrackerCardListView(viewModel: viewModel.cards)
                 .frame(height: layout.listHeight)
+            if layout.deckHeight > 0 {
+                TrackerSectionView(viewModel: viewModel.deck, title: deckTitle)
+                    .frame(height: layout.deckHeight)
+            }
+            if layout.handHeight > 0 {
+                TrackerSectionView(viewModel: viewModel.hand, title: handTitle)
+                    .frame(height: layout.handHeight)
+            }
+            if layout.playedHeight > 0 {
+                TrackerSectionView(viewModel: viewModel.played, title: playedTitle)
+                    .frame(height: layout.playedHeight)
+            }
             if layout.bottomHeight > 0 {
                 TrackerSectionView(viewModel: viewModel.bottom, title: bottomTitle)
                     .frame(height: layout.bottomHeight)
@@ -52,12 +69,16 @@ final class TrackerRootHost: NSView {
 
     override var isOpaque: Bool { false }
 
-    init(frame: NSRect, topTitle: String, bottomTitle: String, relatedTitle: String) {
+    init(frame: NSRect, topTitle: String, bottomTitle: String, relatedTitle: String,
+         deckTitle: String, handTitle: String, playedTitle: String) {
         hostingView = TrackerTransparentHostingView(
             rootView: TrackerView(viewModel: viewModel,
                                   topTitle: topTitle,
                                   bottomTitle: bottomTitle,
-                                  relatedTitle: relatedTitle)
+                                  relatedTitle: relatedTitle,
+                                  deckTitle: deckTitle,
+                                  handTitle: handTitle,
+                                  playedTitle: playedTitle)
         )
         super.init(frame: frame)
         wantsLayer = true

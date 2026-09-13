@@ -415,6 +415,10 @@ final class Settings {
     static var removeCardsFromDeck: Bool
     @UserDefault(key: Settings.use_swiftui_tracker, defaultValue: false)
     static var useSwiftUITracker: Bool
+    /// Splits the main list into deck / hand / played (PLAN Phase 2). Only the
+    /// SwiftUI tracker honors it.
+    @UserDefault(key: Settings.group_cards_by_zone, defaultValue: true)
+    static var groupCardsByZone: Bool
     /// Our constructed session recap. Not to be confused with upstream's
     /// `showSessionRecap`, which is the battlegrounds one.
     @UserDefault(key: Settings.show_constructed_session_recap, defaultValue: true)
@@ -742,6 +746,7 @@ extension Settings {
 
     static let remove_cards_from_deck = "remove_cards_from_deck"
     static let use_swiftui_tracker = "use_swiftui_tracker"
+    static let group_cards_by_zone = "group_cards_by_zone"
     static let show_constructed_session_recap = "show_constructed_session_recap"
     static let keep_power_log = "keep_power_log"
     static let highlight_last_drawn = "highlight_last_drawn"

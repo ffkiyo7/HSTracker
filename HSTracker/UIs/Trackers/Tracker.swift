@@ -125,7 +125,8 @@ class Tracker: OverWindowController, CardCellHover {
     }
 
     // MARK: - Game
-    func update(cards: [Card], top: [Card], bottom: [Card], sideboards: [Sideboard], relatedCards: [Card], reset: Bool = false) {
+    func update(cards: [Card], top: [Card], bottom: [Card], sideboards: [Sideboard], relatedCards: [Card],
+                groups: CardZoneGroups? = nil, reset: Bool = false) {
         if reset && playerType == .player {
             headerStatsNeedRefresh = true
         }
@@ -135,7 +136,8 @@ class Tracker: OverWindowController, CardCellHover {
                 host.viewModel.playerType = playerType
             }
             playerSideboardsData = sideboards
-            host.viewModel.update(cards: cards, top: top, bottom: bottom, relatedCards: relatedCards)
+            host.viewModel.update(cards: cards, top: top, bottom: bottom, relatedCards: relatedCards,
+                                  groups: groups)
             host.isHidden = false
             cardsView.isHidden = true
             playerTop.isHidden = true
@@ -165,17 +167,23 @@ class Tracker: OverWindowController, CardCellHover {
             frame: .zero,
             topTitle: String.localizedString("On Top", comment: ""),
             bottomTitle: String.localizedString("On Bottom", comment: ""),
-            relatedTitle: String.localizedString("Related_Cards", comment: "")
+            relatedTitle: String.localizedString("Related_Cards", comment: ""),
+            deckTitle: String.localizedString("Zone_Deck", comment: ""),
+            handTitle: String.localizedString("Zone_Hand", comment: ""),
+            playedTitle: String.localizedString("Zone_Played", comment: "")
         )
         // The section identity is bound here, once, instead of being guessed by
-        // walking superviews at hover time.
-        host.viewModel.cards.onHover = { [weak self] card, view in
-            guard let self else { return }
-            let component: HoveredComponent = self.playerType == .player ? .playerCardView : .opponentCardView
-            self.hover(card: card, frameView: view, component: component)
-        }
-        host.viewModel.cards.onExit = { [weak self] card in
-            self?.out(card: card)
+        // walking superviews at hover time. The three zone sections are the main
+        // list split up, so they carry its identity.
+        for list in [host.viewModel.cards, host.viewModel.deck, host.viewModel.hand, host.viewModel.played] {
+            list.onHover = { [weak self] card, view in
+                guard let self else { return }
+                let component: HoveredComponent = self.playerType == .player ? .playerCardView : .opponentCardView
+                self.hover(card: card, frameView: view, component: component)
+            }
+            list.onExit = { [weak self] card in
+                self?.out(card: card)
+            }
         }
         bindHover(host.viewModel.top, component: .playerTop)
         bindHover(host.viewModel.bottom, component: .playerBottom)
@@ -762,7 +770,7 @@ class Tracker: OverWindowController, CardCellHover {
     func highlightPlayerDeckCards(highlightSourceCardId: String?) {
         guard let highlightSourceCardId, !highlightSourceCardId.isEmpty, Settings.showPlayerHighlightSynergies else {
             cardsView?.shouldHighlightCard = nil
-            swiftUIRoot?.viewModel.cards.setHighlight(nil)
+            setSwiftUIHighlight(nil)
             return
         }
 
@@ -770,12 +778,22 @@ class Tracker: OverWindowController, CardCellHover {
         let highlightSourceCard = game.relatedCardsManager.getCardWithHighlight(highlightSourceCardId)
         let fn = highlightSourceCard?.shouldHighlight
         if Settings.useSwiftUITracker {
-            swiftUIRoot?.viewModel.cards.setHighlight(fn)
+            setSwiftUIHighlight(fn)
             cardsView?.shouldHighlightCard = nil
         } else {
             cardsView?.shouldHighlightCard = fn
-            swiftUIRoot?.viewModel.cards.setHighlight(nil)
+            setSwiftUIHighlight(nil)
         }
+    }
+
+    /// The main list is one list in flat mode and three in zone mode; the
+    /// synergy highlight covers whichever is being drawn.
+    private func setSwiftUIHighlight(_ fn: ((Card, [Card]) -> HighlightColor)?) {
+        guard let viewModel = swiftUIRoot?.viewModel else { return }
+        viewModel.cards.setHighlight(fn)
+        viewModel.deck.setHighlight(fn)
+        viewModel.hand.setHighlight(fn)
+        viewModel.played.setHighlight(fn)
     }
         
     func hover(cell: CardBar, card: Card) {

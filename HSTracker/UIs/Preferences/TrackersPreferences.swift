@@ -55,6 +55,7 @@ private struct TrackersPreferencesView: View {
                 Toggle(label("tracker_highlight_last_drawn"), isOn: state.setting(Settings.highlightLastDrawn, set: { Settings.highlightLastDrawn = $0 }))
                 Toggle(label("tracker_highlight_discarded"), isOn: state.setting(Settings.highlightDiscarded, set: { Settings.highlightDiscarded = $0 }))
                 Toggle(label("tracker_remove_zero_count_cards"), isOn: state.setting(Settings.removeCardsFromDeck, set: { Settings.removeCardsFromDeck = $0 }))
+                Toggle(label("tracker_group_cards_by_zone"), isOn: state.setting(Settings.groupCardsByZone, set: { Settings.groupCardsByZone = $0 }))
             } header: {
                 Text(label("trackers_appearance"))
             } footer: {

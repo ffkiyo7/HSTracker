@@ -324,7 +324,11 @@ class Game: NSObject, PowerEventHandler {
                 cardWithRelatedCards.forEach({
                     $0.count = 1
                 })
-                tracker.update(cards: self.opponent.opponentCardList, top: [], bottom: [], sideboards: [], relatedCards: cardWithRelatedCards, reset: reset)
+                // Opponent side only groups once the deck is linked (PLAN 2.1).
+                let groups = self.useZoneGroups ? self.opponent.opponentCardGroups : nil
+                tracker.update(cards: groups == nil ? self.opponent.opponentCardList : [Card](),
+                               top: [], bottom: [], sideboards: [], relatedCards: cardWithRelatedCards,
+                               groups: groups, reset: reset)
                 
                 let gameStarted = !self.isInMenu && self.entities.count >= 67
                 tracker.updateCardCounter(deckCount: !gameStarted || !isMulliganDone() ? 30 - self.opponent.handCount : self.opponent.deckCount,
@@ -375,6 +379,12 @@ class Game: NSObject, PowerEventHandler {
 		}
 	}
     
+    /// Only the SwiftUI tracker can draw the zone sections; the old path has no
+    /// place to put them.
+    private var useZoneGroups: Bool {
+        Settings.useSwiftUITracker && Settings.groupCardsByZone
+    }
+
     @objc func updatePlayerTracker(reset: Bool = false) {
         DispatchQueue.main.async { [weak self] in
             let latencyBlock = LatencyProbe.shared.renderBlockStarted(.playerTracker)
@@ -407,7 +417,12 @@ class Game: NSObject, PowerEventHandler {
                     return card
                 }
 
-                tracker.update(cards: self.player.playerCardList, top: top, bottom: bottom, sideboards: self.player.playerSideboardsDict, relatedCards: [], reset: reset)
+                // Zone mode draws the groups and ignores the flat list; building
+                // both would run getDeckState() twice per refresh.
+                let groups = self.useZoneGroups ? self.player.playerCardGroups : nil
+                tracker.update(cards: groups == nil ? self.player.playerCardList : [Card](),
+                               top: top, bottom: bottom, sideboards: self.player.playerSideboardsDict,
+                               relatedCards: [], groups: groups, reset: reset)
                 
                 // update card counter values
                 let gameStarted = !self.isInMenu && self.entities.count >= 67
@@ -1658,14 +1673,15 @@ class Game: NSObject, PowerEventHandler {
 		                                 Settings.show_win_loss_ratio, Settings.player_in_hand_color, Settings.show_deck_name,
 		                                 Settings.player_graveyard_details_frame, Settings.player_graveyard_frame,
                                          Settings.player_cards_top, Settings.player_cards_bottom, Settings.player_cards_top,
-                                         Settings.player_cards_bottom, Settings.hide_player_sideboards]
+                                         Settings.player_cards_bottom, Settings.hide_player_sideboards,
+                                         Settings.group_cards_by_zone]
 		
 		// events that should update the opponent's tracker
 		let opponentTrackerUpdateEvents = [Settings.show_opponent_tracker, Settings.opponent_card_count, Settings.opponent_draw_chance,
 		                                   Settings.opponent_deathrattle_frame,
 		                                   Settings.show_opponent_class, Settings.opponent_graveyard_frame,
 		                                   Settings.opponent_graveyard_details_frame,
-                                           Settings.opponent_related_cards]
+                                           Settings.opponent_related_cards, Settings.group_cards_by_zone]
 		
 		// events that should update all trackers
 		let allTrackerUpdateEvents = [Settings.rarity_colors, Events.reload_decks, Settings.window_locked, Settings.auto_position_trackers,
