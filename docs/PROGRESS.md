@@ -6,7 +6,7 @@
 | 分支 | `dev`（长期主开发线，2026-08-31 由 `phase0+3` 改名；已合入 upstream `8ea0eaea` / **3.6.9**（2026-09-08，Phase U3，`9da27c8e`），`master` 保持为上游纯镜像） |
 | 构建 | Phase U3 合并后 Debug `clean build` `BUILD SUCCEEDED`；测试 **50 / 50 全绿**（2026-09-08，`xcodebuild test`，期望未改）；红龙 spike T1 加了 `RedDragonTests` 24 条，2026-09-11 **74 / 74 全绿**（已提交 `0a921d6b`） |
 | 阻塞 | 无。Bug T1 / T2 / T3 / T5 均已实战验收并提交 |
-| **在做** | 无在写的代码，回到主线。~~T6 + Phase 7 / T1 代码尚未提交~~ ✅ 已提交（`e7beb430` / `0af024d7`，2026-09-10）。与排期无关的 spike **红龙贼 combo 提示器**：T0 转录 + 卡表 + T1 搜索核心已完成、review 通过、阈值已校准，代码 `HSTracker/RedDragon/` 六个文件 + fixture + 24 条测试已提交（`0a921d6b`，2026-09-12）。**⏸ 2026-09-13 暂缓**：T2「overlay」任务书不写，代码留在仓库不删（纯模块，不接 `Game`、不画 UI），恢复时从 `docs/research/red-dragon-rogue-spike.md` 第九节第 5 条接着做 |
+| **在做** | **Phase 2 / T1 分区**（牌库 / 手牌 / 已打出），任务书 `docs/tasks/phase2-t1-zone-groups.md`，2026-09-13 交 Opus 子代理实现。~~T6 + Phase 7 / T1 代码尚未提交~~ ✅ 已提交（`e7beb430` / `0af024d7`，2026-09-10）。与排期无关的 spike **红龙贼 combo 提示器**：T0 转录 + 卡表 + T1 搜索核心已完成、review 通过、阈值已校准，代码 `HSTracker/RedDragon/` 六个文件 + fixture + 24 条测试已提交（`0a921d6b`，2026-09-12）。**⏸ 2026-09-13 暂缓**：T2「overlay」任务书不写，代码留在仓库不删（纯模块，不接 `Game`、不画 UI），恢复时从 `docs/research/red-dragon-rogue-spike.md` 第九节第 5 条接着做 |
 | **待实战 🎮** | ~~卡点 ③（T6 整个布局，独占一局，各段都有内容的套牌最好；重点看满压缩时底部会不会溢出 `5 × 段数`，这是上游原有行为照抄的）+ Phase 7 小结窗（退出炉石后：局数 / 套牌 / 职业 / 胜率 / 逐局对不对，ESC 能关，「打开统计」进对应套牌）~~ ✅ **2026-09-11 一局全过：「布局 ok」「对局小结做的不错」**，小结开关的设置 UI 留 4.3。~~卡点 ②（T5 三行头四个数字、开局前第 3 行、对手侧右侧不透底）+ Phase 4 / 4.1（Dock 打勾 + Toast，进局确认用的是那副牌）+ Debug 跑一局看有没有命中上游 3.6.8 / 3.6.9 加的 `assertMainThread()`~~ ✅ **2026-09-09 一局全过，用户反馈「都没问题」**。仍剩 🖥️ 设置页中英文各看一遍（Phase 4 / 4.3，不用开炉石） |
 | **待查 🎮** | ~~局末部分卡条变暗（2026-09-05 截图，见「已知问题」末行）~~ ✅ 2026-09-09 实战核对无问题 |
 | **下一片** | 主线三选一：**Phase 2 / 2.1 分区**（反馈①的真修，T6 已解锁）/ Phase 1 T8 动效（卡点 ④）/ Phase 4 / 4.3 其余 8 页设置（含小结开关）。红龙 spike 已暂缓，见「在做」 |
@@ -64,7 +64,7 @@
 | ~~**Phase U**~~ | **合并上游 3.6.7** | ✅ 42 commits / 4 个冲突文件 · **卡点 ① 已实战**；串卡修复 **2026-08-30 实战确认「串卡没了」** |
 | ~~**Phase U2**~~ | **合并上游 3.6.8**（`5835f8a4`，2026-09-05） | ✅ 31 commits / 2 个冲突文件（pbxproj 6 块、`BobsBuddy-version.txt`）· 白得：macOS 26 overlay 崩溃根因（`lockFocus` 破坏堆 → `NSImage(drawingHandler:)`）、`MainThreadGuard.assertMainThread()`、watcher 双线程 start 崩溃、sideboard 闪现。`CardHud` 里上游新加的 main hop 已去掉（`ImageUtils.completeOnMain` 已覆盖）。✅ 2026-09-09 Debug 实战一局通过，未命中 `assertMainThread()` |
 | ~~**Phase U3**~~ | **合并上游 3.6.9**（`9da27c8e`，2026-09-08） | ✅ 11 commits / 5 个冲突文件（pbxproj 4 块、`BobsBuddy-version.txt`、Watchers、MonoHelper、ImageUtils —— 后三个都是上游和 dev 独立修了同一个 bug）· 白得：Bob's Buddy 启动自检崩溃修复、Sentry 5xx 误报修复、OutFinder 设置页。BobsBuddy vendor 到 **1.71.1**（上游钉 1.70.7，脚本只拉 latest）。流程 / 热点文件 / 历次处理沉淀到 **`docs/upstream-merges.md`**。✅ 2026-09-09 Debug 实战一局通过（与 U2 同一局） |
-| Phase 2 | 记牌器分区（牌库 / 手牌 / 已打出） | ⬜ 依赖 Phase 1 的 T4 / T6 · 🎮 ×4 |
+| Phase 2 | 记牌器分区（牌库 / 手牌 / 已打出） | 🚧 T1 任务书 2026-09-13 开出（`docs/tasks/phase2-t1-zone-groups.md`），前置 T4 / T6 已解锁 · 🎮 ×4 |
 | 收尾 | 删 A/B 开关、删旧路径 | ⬜ 排在 Phase 2 之后 · 🎮 |
 | ~~Phase 3~~ | 补全简体中文 | ✅ Phase U 补课后 **945 / 945（100%）** |
 | Phase 4 | 设置 UI + Dock 菜单 | 🟡 T1 代码完成（`35fea72a`）：4.1 Dock 打勾 + Toast + 进局用对牌 ✅ 2026-09-09 实战通过；4.2 菜单栏改 tag 定位 ✅；4.3 只重做了 Trackers 一页，🖥️ 中英文待看，其余 8 页未动 |
