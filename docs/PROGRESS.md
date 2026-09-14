@@ -4,10 +4,10 @@
 |---|---|
 | 最后更新 | 2026-09-15 |
 | 分支 | `dev`（长期主开发线，2026-08-31 由 `phase0+3` 改名；已合入 upstream `8ea0eaea` / **3.6.9**（2026-09-08，Phase U3，`9da27c8e`），`master` 保持为上游纯镜像） |
-| 构建 | Phase U3 合并后 Debug `clean build` `BUILD SUCCEEDED`；测试 **50 / 50 全绿**（2026-09-08，`xcodebuild test`，期望未改）；红龙 spike T1 加了 `RedDragonTests` 24 条，2026-09-11 **74 / 74 全绿**（已提交 `0a921d6b`） |
+| 构建 | Phase U3 合并后 Debug `clean build` `BUILD SUCCEEDED`；测试 **50 / 50 全绿**（2026-09-08，`xcodebuild test`，期望未改）；红龙 spike T1 加了 `RedDragonTests` 24 条，2026-09-11 **74 / 74 全绿**（已提交 `0a921d6b`）；Phase 2 / T1 + Bug T6 / T7 + V1 又加 32 条，2026-09-15 **106 / 106 全绿**（`7bd3192b`） |
 | 阻塞 | 无。Codex 统一 review（09-15）的 3 条 P2 已由 **Bug T7** 修掉（第 1 条修一半：洗入副本被抽走仍少算 1，根治要动 `TagChangeActions`），review 通过，**106 / 106 全绿** |
 | **在做** | 无在写的代码。**Bug T6 已修、review 通过**（2026-09-15，`docs/tasks/bug-t6-zone-sections-stale.md`）：根因是 `info.created` 对普通抽牌也为 true，分区改按实体当前区域计数；离线回放 fixture 5 条 + 单元 11 条，**90 / 90 全绿**。等 🎮。背景：Phase 2 / T1 分区代码 2026-09-13 完成、review 通过（`1c44b212`，82 / 82 全绿），**2026-09-14 实战不过**，4 条反馈见 PLAN「本轮（2026-09-14）」。~~T6 + Phase 7 / T1 代码尚未提交~~ ✅ 已提交（`e7beb430` / `0af024d7`，2026-09-10）。与排期无关的 spike **红龙贼 combo 提示器**：T0 转录 + 卡表 + T1 搜索核心已完成、review 通过、阈值已校准，代码 `HSTracker/RedDragon/` 六个文件 + fixture + 24 条测试已提交（`0a921d6b`，2026-09-12）。**⏸ 2026-09-13 暂缓**：T2「overlay」任务书不写，代码留在仓库不删（纯模块，不接 `Game`、不画 UI），恢复时从 `docs/research/red-dragon-rogue-spike.md` 第九节第 5 条接着做 |
-| **待实战 🎮** | ~~卡点 ③（T6 整个布局，独占一局，各段都有内容的套牌最好；重点看满压缩时底部会不会溢出 `5 × 段数`，这是上游原有行为照抄的）+ Phase 7 小结窗（退出炉石后：局数 / 套牌 / 职业 / 胜率 / 逐局对不对，ESC 能关，「打开统计」进对应套牌）~~ ✅ **2026-09-11 一局全过：「布局 ok」「对局小结做的不错」**，小结开关的设置 UI 留 4.3。~~卡点 ②（T5 三行头四个数字、开局前第 3 行、对手侧右侧不透底）+ Phase 4 / 4.1（Dock 打勾 + Toast，进局确认用的是那副牌）+ Debug 跑一局看有没有命中上游 3.6.8 / 3.6.9 加的 `assertMainThread()`~~ ✅ **2026-09-09 一局全过，用户反馈「都没问题」**。仍剩 🖥️ 设置页中英文各看一遍（Phase 4 / 4.3，不用开炉石）。~~Phase 2 / T1 分区 ×4~~ ❌ **2026-09-14 一局不过**：手牌 / 牌库段跟不上（⑥⑦，Bug T6）、段头视觉不符（⑧）、整体太大（⑨）。**Bug T6 已修（09-15），再打一局看**：手牌段逐张等于手牌（含幸运币 / 发现牌）、牌库段随抽牌递减、降落伞洗入后牌库段计数跟着掉；段头视觉和尺寸这局先不评（等视觉重做） |
+| **待实战 🎮** | ~~卡点 ③（T6 整个布局，独占一局，各段都有内容的套牌最好；重点看满压缩时底部会不会溢出 `5 × 段数`，这是上游原有行为照抄的）+ Phase 7 小结窗（退出炉石后：局数 / 套牌 / 职业 / 胜率 / 逐局对不对，ESC 能关，「打开统计」进对应套牌）~~ ✅ **2026-09-11 一局全过：「布局 ok」「对局小结做的不错」**，小结开关的设置 UI 留 4.3。~~卡点 ②（T5 三行头四个数字、开局前第 3 行、对手侧右侧不透底）+ Phase 4 / 4.1（Dock 打勾 + Toast，进局确认用的是那副牌）+ Debug 跑一局看有没有命中上游 3.6.8 / 3.6.9 加的 `assertMainThread()`~~ ✅ **2026-09-09 一局全过，用户反馈「都没问题」**。仍剩 🖥️ 设置页中英文各看一遍（Phase 4 / 4.3，不用开炉石）。~~Phase 2 / T1 分区 ×4~~ ❌ **2026-09-14 一局不过**：手牌 / 牌库段跟不上（⑥⑦，Bug T6）、段头视觉不符（⑧）、整体太大（⑨）。**Bug T6 / T7 + V1 已合入（09-15），一局一起看**：① 手牌段逐张等于手牌（含幸运币 / 发现牌）、牌库段随抽牌递减、降落伞洗入后牌库段计数跟着掉、带探寻时牌库段不超过牌表张数；② V1 视觉：整体大小（`card_size = small`）、「公诉人梅尔特拉尼克斯」完整可读、费用格四色、原画渐隐。段头还是旧样式，这局不评（V2） |
 | **待查 🎮** | ~~局末部分卡条变暗（2026-09-05 截图，见「已知问题」末行）~~ ✅ 2026-09-09 实战核对无问题 |
 | **下一片** | **Phase 2 / V 视觉重做**（⑧⑨⑩ 合并：统一底色 + 矢量卡条 + 尺寸按比例 + 段头折叠，`docs/tasks/phase2-v-visual-redesign.md`）：✅ **D2 定稿**（酒馆底 + 方块费用格），**V1 矢量卡条 + 尺寸**（`docs/tasks/phase2-v1-vector-card-bars.md`）2026-09-15 Opus 完成、**100 / 100 全绿、按用户指示未经 Claude review 直接提交**，等 Codex 统一 review 后由 Claude 复核；V2（段头 + 折叠 + 三行头 + 拖拽吸附 + 套牌名截断）等 V1 落地再写，排在 Bug T6 之后。`card_size` 已切 small 应急。拖拽等用户确认上游「解锁窗口」机制够不够。之后：Phase 1 T8 动效 / Phase 4 / 4.3 其余 8 页设置。红龙 spike 已暂缓 |
 | **待办（等你）** | ~~🎮 结算瞬间两个主记牌器 + 水晶上限 + 计数器同一轮一起消失~~ ✅ 2026-09-03 实战确认。**不再需要为延迟单独取数** |
@@ -64,13 +64,13 @@
 | ~~**Phase U**~~ | **合并上游 3.6.7** | ✅ 42 commits / 4 个冲突文件 · **卡点 ① 已实战**；串卡修复 **2026-08-30 实战确认「串卡没了」** |
 | ~~**Phase U2**~~ | **合并上游 3.6.8**（`5835f8a4`，2026-09-05） | ✅ 31 commits / 2 个冲突文件（pbxproj 6 块、`BobsBuddy-version.txt`）· 白得：macOS 26 overlay 崩溃根因（`lockFocus` 破坏堆 → `NSImage(drawingHandler:)`）、`MainThreadGuard.assertMainThread()`、watcher 双线程 start 崩溃、sideboard 闪现。`CardHud` 里上游新加的 main hop 已去掉（`ImageUtils.completeOnMain` 已覆盖）。✅ 2026-09-09 Debug 实战一局通过，未命中 `assertMainThread()` |
 | ~~**Phase U3**~~ | **合并上游 3.6.9**（`9da27c8e`，2026-09-08） | ✅ 11 commits / 5 个冲突文件（pbxproj 4 块、`BobsBuddy-version.txt`、Watchers、MonoHelper、ImageUtils —— 后三个都是上游和 dev 独立修了同一个 bug）· 白得：Bob's Buddy 启动自检崩溃修复、Sentry 5xx 误报修复、OutFinder 设置页。BobsBuddy vendor 到 **1.71.1**（上游钉 1.70.7，脚本只拉 latest）。流程 / 热点文件 / 历次处理沉淀到 **`docs/upstream-merges.md`**。✅ 2026-09-09 Debug 实战一局通过（与 U2 同一局） |
-| Phase 2 | 记牌器分区（牌库 / 手牌 / 已打出） | 🚧 T1 代码 2026-09-13 合入（`1c44b212`，`docs/tasks/phase2-t1-zone-groups.md`），**2026-09-14 实战不过**：数据跟不上（Bug T6 在修）、段头视觉（⑧）和整体尺寸（⑨ = 2.8）等用户定方向。2.6 / 2.7 未动 |
+| Phase 2 | 记牌器分区 + 视觉重做 | 🚧 T1 分区合入（`1c44b212`），09-14 实战不过 → Bug T6（`e9a67db6`，根因 `info.created` 不可信）+ Bug T7（`7bd3192b`，Codex 三条边角）已修；**V1 矢量卡条 + 尺寸合入（`e3797ba8`）**，主题选择器撤掉；V2（段头 / 折叠 / 三行头 / 拖拽吸附 / 套牌名截断）待写任务书；2.6 / 2.7 未动 |
 | 收尾 | 删 A/B 开关、删旧路径 | ⬜ 排在 Phase 2 之后 · 🎮 |
 | ~~Phase 3~~ | 补全简体中文 | ✅ Phase U 补课后 **945 / 945（100%）** |
 | Phase 4 | 设置 UI + Dock 菜单 | 🟡 T1 代码完成（`35fea72a`）：4.1 Dock 打勾 + Toast + 进局用对牌 ✅ 2026-09-09 实战通过；4.2 菜单栏改 tag 定位 ✅；4.3 只重做了 Trackers 一页，🖥️ 中英文待看，其余 8 页未动 |
 | Phase 5 | 计数器 overlay 可拖动 | ⬜ 🎮 · 3.6.7 落点已重查，根因仍在窗口层 |
 | ~~Phase 6~~ | 排队时就显示牌组 | ✅ T1 **2026-08-30 标准模式实战通过**（进队列 30 张全在）。战棋队列按惯例只静态确认（`.bacon` 不在白名单） |
-| ~~Phase 7~~ | 局末小结弹窗（几把 / 套牌 / 职业 / 胜率） | ✅ T1 **2026-09-11 实战通过**（D2 稿，`docs/tasks/phase7-t1-session-recap-window.md`）。钩子在 `CoreManager.appTerminated`，开关 `Settings.showConstructedSessionRecap`（默认开，**设置 UI 留 Phase 4 / 4.3**）。「打开统计」做成弹窗的 sheet |
+| ~~Phase 7~~ | 局末小结弹窗（几把 / 套牌 / 职业 / 胜率） | ✅ T1 **2026-09-11 实战通过**（D2 稿，`docs/archive/tasks/phase7-t1-session-recap-window.md`）。钩子在 `CoreManager.appTerminated`，开关 `Settings.showConstructedSessionRecap`（默认开，**设置 UI 留 Phase 4 / 4.3**）。「打开统计」做成弹窗的 sheet |
 
 > 🎮 = 这一阶段有需要**你亲自开炉石看**的卡点，🖥️ = 只需静态看（比对窗 / 设置窗口）。
 > 每个卡点具体验什么、要备什么料，见 `docs/PLAN.md` 的「🎮 需要人亲自看的卡点」。
