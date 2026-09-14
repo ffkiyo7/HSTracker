@@ -3,6 +3,8 @@
 //  HSTracker
 //
 //  Phase 2 / T1: the deck / hand / played split of the tracker's main list.
+//  Bug T6 rebuilt the split around the zone the entities are in; the inputs
+//  below are what `Player` derives from them.
 //
 
 import XCTest
@@ -19,8 +21,6 @@ class CardZoneGroupsTests: HSTrackerTests {
         return card
     }
 
-    /// What the flat list would show for a card id: `remainingInDeck` carries the
-    /// copies still in the deck, `removedFromDeck` rows are forced to 0.
     private func totals(_ cards: [Card]) -> [String: Int] {
         var result = [String: Int]()
         for card in cards {
@@ -29,8 +29,11 @@ class CardZoneGroupsTests: HSTrackerTests {
         return result
     }
 
+    /// Every copy of every card has exactly one home. Copies that are not in the
+    /// deck list (gifts, cards shuffled in) are known copies too, so they are
+    /// passed in explicitly rather than derived from the list.
     private func assertNoCardIsLost(_ groups: CardZoneGroups,
-                                    originalDeck: [Card],
+                                    known: [String: Int],
                                     line: UInt = #line) {
         var sum = totals(groups.deck)
         for (id, count) in totals(groups.hand) {
@@ -39,7 +42,7 @@ class CardZoneGroupsTests: HSTrackerTests {
         for (id, count) in totals(groups.played) {
             sum[id] = (sum[id] ?? 0) + count
         }
-        XCTAssertEqual(sum, totals(originalDeck),
+        XCTAssertEqual(sum, known,
                        "deck + hand + played must account for every copy of every card",
                        line: line)
     }
@@ -52,20 +55,20 @@ class CardZoneGroupsTests: HSTrackerTests {
 
     // MARK: - Invariant 1 / 2
 
-    /// Nothing drawn yet: the whole deck list is the deck section, and the flat
-    /// list and the deck section are the same rows with the same counts.
+    /// Nothing drawn yet: the whole deck list is the deck section.
     func testUntouchedDeckIsEntirelyInTheDeckSection() {
         let deckList = [card("A", 2), card("B", 2), card("C", 1)]
-        let groups = CardZoneGroups.make(remainingInDeck: deckList,
+        let groups = CardZoneGroups.make(deckList: deckList,
+                                         knownInDeck: [],
                                          predictedInDeck: [],
-                                         removedFromDeck: [],
                                          cardsInHand: [],
-                                         originalDeck: deckList)
+                                         leftDeck: [],
+                                         inHandFromDeck: [:])
 
         XCTAssertEqual(totals(groups.deck), ["A": 2, "B": 2, "C": 1])
         XCTAssertTrue(groups.hand.isEmpty)
         XCTAssertTrue(groups.played.isEmpty)
-        assertNoCardIsLost(groups, originalDeck: deckList)
+        assertNoCardIsLost(groups, known: ["A": 2, "B": 2, "C": 1])
         assertDeckHasNoZeroCount(groups)
     }
 
@@ -75,63 +78,95 @@ class CardZoneGroupsTests: HSTrackerTests {
         // A: 2 copies, both drawn, both played. B: 2 copies, one drawn and still
         // in hand. C: 2 copies, one drawn and played. D: 1 copy, untouched.
         let deckList = [card("A", 2), card("B", 2), card("C", 2), card("D", 1)]
-        let remaining = [card("B", 1), card("C", 1), card("D", 1)]
-        // The rows getDeckState() builds for cards that left the deck: count 0.
-        let removed = [card("A", 0), card("B", 0), card("C", 0)]
+        let leftDeck = [card("A", 2), card("B", 1), card("C", 1)]
         let inHand = [card("B", 1)]
 
-        let groups = CardZoneGroups.make(remainingInDeck: remaining,
+        let groups = CardZoneGroups.make(deckList: deckList,
+                                         knownInDeck: [],
                                          predictedInDeck: [],
-                                         removedFromDeck: removed,
                                          cardsInHand: inHand,
-                                         originalDeck: deckList)
+                                         leftDeck: leftDeck,
+                                         inHandFromDeck: ["B": 1])
 
         XCTAssertEqual(totals(groups.deck), ["B": 1, "C": 1, "D": 1])
         XCTAssertEqual(totals(groups.hand), ["B": 1])
         // A had both copies played, C one; B is fully accounted for by the hand.
         XCTAssertEqual(totals(groups.played), ["A": 2, "C": 1])
-        assertNoCardIsLost(groups, originalDeck: deckList)
+        assertNoCardIsLost(groups, known: ["A": 2, "B": 2, "C": 2, "D": 1])
         assertDeckHasNoZeroCount(groups)
     }
 
     /// The played rows keep rendering as today's dark bar (`count <= 0`), the
     /// copies they stand for live in `abs(count)`.
     func testPlayedRowsStayDark() {
-        let deckList = [card("A", 2)]
-        let groups = CardZoneGroups.make(remainingInDeck: [],
+        let groups = CardZoneGroups.make(deckList: [card("A", 2)],
+                                         knownInDeck: [],
                                          predictedInDeck: [],
-                                         removedFromDeck: [card("A", 0)],
                                          cardsInHand: [],
-                                         originalDeck: deckList)
+                                         leftDeck: [card("A", 2)],
+                                         inHandFromDeck: [:])
 
         XCTAssertEqual(groups.played.count, 1)
         XCTAssertEqual(groups.played.first?.count, -2)
-        assertNoCardIsLost(groups, originalDeck: deckList)
+        assertNoCardIsLost(groups, known: ["A": 2])
     }
 
-    /// A created card in hand is not in the deck list, so it only has to be in
-    /// the hand section, and a created card that left the deck counts as one
-    /// copy played.
+    /// A gift in hand is not in the deck list, so it only has to be in the hand
+    /// section, and it never touches the deck or played sections.
     func testCreatedCards() {
         let created = card("X", 1)
         created.isCreated = true
-        let groups = CardZoneGroups.make(remainingInDeck: [card("A", 1)],
+        let groups = CardZoneGroups.make(deckList: [card("A", 1)],
+                                         knownInDeck: [],
                                          predictedInDeck: [],
-                                         removedFromDeck: [card("Y", 0)],
                                          cardsInHand: [created],
-                                         originalDeck: [card("A", 1)])
+                                         leftDeck: [],
+                                         inHandFromDeck: [:])
 
         XCTAssertEqual(totals(groups.hand), ["X": 1])
-        XCTAssertEqual(totals(groups.played), ["Y": 1])
+        XCTAssertEqual(totals(groups.deck), ["A": 1])
+        XCTAssertTrue(groups.played.isEmpty)
+        assertNoCardIsLost(groups, known: ["A": 1, "X": 1])
+    }
+
+    /// Cards shuffled into the deck are not in the list; the deck section counts
+    /// them from the deck zone, on top of what the list still owes.
+    func testCardsShuffledIntoTheDeck() {
+        let token = card("T", 6)
+        token.isCreated = true
+        let groups = CardZoneGroups.make(deckList: [card("A", 2)],
+                                         knownInDeck: [token],
+                                         predictedInDeck: [],
+                                         cardsInHand: [],
+                                         leftDeck: [],
+                                         inHandFromDeck: [:])
+
+        XCTAssertEqual(totals(groups.deck), ["A": 2, "T": 6])
+        assertNoCardIsLost(groups, known: ["A": 2, "T": 6])
+        assertDeckHasNoZeroCount(groups)
+    }
+
+    /// A copy shuffled in on top of the list's own copies must not be swallowed
+    /// by the list: three copies are in the deck, the list only knows two.
+    func testAnExtraCopyShuffledInIsNotSwallowed() {
+        let groups = CardZoneGroups.make(deckList: [card("A", 2)],
+                                         knownInDeck: [card("A", 3)],
+                                         predictedInDeck: [],
+                                         cardsInHand: [],
+                                         leftDeck: [],
+                                         inHandFromDeck: [:])
+
+        XCTAssertEqual(totals(groups.deck), ["A": 3])
     }
 
     /// Predicted cards belong to the deck section (PLAN 2.1's first row).
     func testPredictedCardsAreInTheDeckSection() {
-        let groups = CardZoneGroups.make(remainingInDeck: [card("A", 1)],
+        let groups = CardZoneGroups.make(deckList: [card("A", 1)],
+                                         knownInDeck: [],
                                          predictedInDeck: [card("P", 1)],
-                                         removedFromDeck: [],
                                          cardsInHand: [],
-                                         originalDeck: [card("A", 1)])
+                                         leftDeck: [],
+                                         inHandFromDeck: [:])
 
         XCTAssertEqual(totals(groups.deck), ["A": 1, "P": 1])
     }
@@ -143,8 +178,7 @@ class CardZoneGroupsTests: HSTrackerTests {
     /// deck section (feedback ①).
     func testGroupingIgnoresHighlightCardsInHand() {
         let deckList = [card("A", 2), card("B", 1)]
-        let remaining = [card("A", 1)]
-        let removed = [card("A", 0), card("B", 0)]
+        let leftDeck = [card("A", 1), card("B", 1)]
         let inHand = [card("A", 1), card("B", 1)]
 
         let previous = Settings.highlightCardsInHand
@@ -153,21 +187,41 @@ class CardZoneGroupsTests: HSTrackerTests {
         var results = [CardZoneGroups]()
         for highlight in [true, false] {
             Settings.highlightCardsInHand = highlight
-            let groups = CardZoneGroups.make(remainingInDeck: remaining,
+            let groups = CardZoneGroups.make(deckList: deckList,
+                                             knownInDeck: [],
                                              predictedInDeck: [],
-                                             removedFromDeck: removed,
                                              cardsInHand: inHand,
-                                             originalDeck: deckList)
+                                             leftDeck: leftDeck,
+                                             inHandFromDeck: ["A": 1, "B": 1])
             XCTAssertEqual(totals(groups.deck), ["A": 1])
             XCTAssertEqual(totals(groups.hand), ["A": 1, "B": 1])
             XCTAssertTrue(groups.played.isEmpty)
-            assertNoCardIsLost(groups, originalDeck: deckList)
+            assertNoCardIsLost(groups, known: ["A": 2, "B": 1])
             assertDeckHasNoZeroCount(groups)
             results.append(groups)
         }
         XCTAssertEqual(totals(results[0].deck), totals(results[1].deck))
         XCTAssertEqual(totals(results[0].hand), totals(results[1].hand))
         XCTAssertEqual(totals(results[0].played), totals(results[1].played))
+    }
+
+    /// Same for `showPlayerGet`: it governs the flat list, not the hand section.
+    func testGroupingIgnoresShowPlayerGet() {
+        let previous = Settings.showPlayerGet
+        defer { Settings.showPlayerGet = previous }
+
+        let gift = card("X", 1)
+        gift.isCreated = true
+        for show in [true, false] {
+            Settings.showPlayerGet = show
+            let groups = CardZoneGroups.make(deckList: [card("A", 1)],
+                                             knownInDeck: [],
+                                             predictedInDeck: [],
+                                             cardsInHand: [gift],
+                                             leftDeck: [],
+                                             inHandFromDeck: [:])
+            XCTAssertEqual(totals(groups.hand), ["X": 1])
+        }
     }
 
     // MARK: - Opponent
