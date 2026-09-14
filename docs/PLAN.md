@@ -45,8 +45,10 @@
 |---|---|---|---|
 | ⑥ | 手牌段 / 牌库段跟不上区域变化：洗入牌库、从牌库抽出（帕奇斯的降落伞）不稳定 | 待查。那一局 `Power.log` 已留存，离线回放 | `docs/tasks/bug-t6-zone-sections-stale.md` |
 | ⑦ | 手牌段不认发现出来的牌、从牌库抽的牌，或晚认 | 待查。线索：created 牌走 `createdCardsInHand`，受 `showPlayerGet`（本机默认关）控制 | 同上，合并成一本 |
-| ⑧ | 三段的 UI 不满足需求：字体和整体视觉不符 | 段头是 T4 按 `DeckLens` 复刻的系统字体 + 放大镜图标，与三行头 / 卡条的 Belwe 字体不是一套 | **等用户定方向**，见 PROGRESS「下一片」 |
-| ⑨ | 整体 overlay 太大，要等比例缩小 | 就是 2.8「尺寸重做」，用户 08-30 说过「优先级不高」，现在要了 | **等用户定方向**：先用 `card_size` 档位应急，还是直接做 2.8 |
+| ⑧ | 三段的 UI 不满足需求：字体和整体视觉不符 | 段头是 T4 按 `DeckLens` 复刻的系统字体 + 放大镜图标，与三行头 / 卡条的 Belwe 字体不是一套。用户 09-15 定：按 Firestone 统一视觉语言，段头带张数、可折叠 | `docs/tasks/phase2-t2-zone-headers.md`，排在 Bug T6 之后 |
+| ⑨ | 整体 overlay 太大，要等比例缩小 | 就是 2.8「尺寸重做」。本机 `card_size` 原本就是 medium（1），09-15 先切到 **small（0）** 应急试 | 试完不够再做 2.8 |
+| ⑩ | 长卡名右侧被遮（公诉人梅尔特拉尼克斯） | `CardRowView.cardNameRect` 照 `CardBar` 复刻，中文长名缩到看不清 / 被计数框遮 | 并入 T2 第 4 条 |
+| — | 用户另提：浮窗要能拖拽 | 上游现成：窗口菜单「解锁窗口」+ 设置关「自动定位」，位置持久化在 `Settings.playerTrackerFrame`（`Game.onWindowMove`）。「锁定时也能拖」要另开，且与锁定态 `ignoresMouseEvents` 冲突 | 等用户确认现成机制够不够 |
 
 ### 本轮（2026-08-30）—— 卡点 ① 实战产出
 
