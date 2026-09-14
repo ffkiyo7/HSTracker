@@ -48,7 +48,7 @@
 | ⑧ | 三段的 UI 不满足需求：字体和整体视觉不符 | 段头是 T4 按 `DeckLens` 复刻的系统字体 + 放大镜图标，与三行头 / 卡条的 Belwe 字体不是一套。用户 09-15 定：按 Firestone 统一视觉语言、整个面板一个底色 = 卡条矢量化（2.8 末段） | **合并成 Phase 2 / V 视觉重做**，`docs/tasks/phase2-v-visual-redesign.md`，🎨 D1 比稿中，排在 Bug T6 之后 |
 | ⑨ | 整体 overlay 太大，要等比例缩小 | 就是 2.8「尺寸重做」。本机 `card_size` 原本就是 medium（1），09-15 先切到 **small（0）** 应急试 | 并入 Phase 2 / V |
 | ⑩ | 长卡名右侧被遮（公诉人梅尔特拉尼克斯） | `CardRowView.cardNameRect` 照 `CardBar` 复刻，中文长名缩到看不清 / 被计数框遮 | 并入 Phase 2 / V |
-| — | 用户另提：浮窗要能拖拽 | 上游现成：窗口菜单「解锁窗口」+ 设置关「自动定位」，位置持久化在 `Settings.playerTrackerFrame`（`Game.onWindowMove`）。「锁定时也能拖」要另开，且与锁定态 `ignoresMouseEvents` 冲突 | 等用户确认现成机制够不够 |
+| — | 用户另提：浮窗要能拖拽 | 上游现成：窗口菜单「解锁窗口」+ 设置关「自动定位」，位置持久化在 `Settings.playerTrackerFrame`（`Game.onWindowMove`）。用户 09-15 定：记牌器改「不锁定 + 边缘吸附」，锚点持久化（HDT 方案，见 Phase 5） | 并入 Phase 2 / V 的 V2 |
 
 ### 本轮（2026-08-30）—— 卡点 ① 实战产出
 
