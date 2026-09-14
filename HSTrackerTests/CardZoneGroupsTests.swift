@@ -159,6 +159,44 @@ class CardZoneGroupsTests: HSTrackerTests {
         XCTAssertEqual(totals(groups.deck), ["A": 3])
     }
 
+    /// Codex review 2026-09-15 #1: two copies of the list's own card are still
+    /// in the deck unrevealed, and a third copy of the same card is shuffled in.
+    /// Counting "what the list owes" and "what is provably in there" as
+    /// alternatives reported 2; they have to be added up instead.
+    func testAShuffledInCopyIsNotSwallowedByUnrevealedListCopies() {
+        let shuffledIn = card("A", 1)
+        shuffledIn.isCreated = true
+        let groups = CardZoneGroups.make(deckList: [card("A", 2)],
+                                         knownInDeck: [shuffledIn],
+                                         predictedInDeck: [],
+                                         cardsInHand: [],
+                                         leftDeck: [],
+                                         shuffledIntoDeck: ["A": 1],
+                                         inHandFromDeck: [:])
+
+        XCTAssertEqual(totals(groups.deck), ["A": 3])
+        assertNoCardIsLost(groups, known: ["A": 3])
+        assertDeckHasNoZeroCount(groups)
+    }
+
+    /// The same, one turn later: one of the three copies has been drawn and
+    /// played. The list still owes two, the shuffled in copy is still in there.
+    func testAShuffledInCopySurvivesACopyOfTheSameCardBeingDrawn() {
+        let shuffledIn = card("A", 1)
+        shuffledIn.isCreated = true
+        let groups = CardZoneGroups.make(deckList: [card("A", 2)],
+                                         knownInDeck: [shuffledIn],
+                                         predictedInDeck: [],
+                                         cardsInHand: [],
+                                         leftDeck: [card("A", 1)],
+                                         shuffledIntoDeck: ["A": 1],
+                                         inHandFromDeck: [:])
+
+        XCTAssertEqual(totals(groups.deck), ["A": 2])
+        XCTAssertEqual(totals(groups.played), ["A": 1])
+        assertNoCardIsLost(groups, known: ["A": 3])
+    }
+
     /// Predicted cards belong to the deck section (PLAN 2.1's first row).
     func testPredictedCardsAreInTheDeckSection() {
         let groups = CardZoneGroups.make(deckList: [card("A", 1)],
@@ -222,6 +260,95 @@ class CardZoneGroupsTests: HSTrackerTests {
                                              inHandFromDeck: [:])
             XCTAssertEqual(totals(groups.hand), ["X": 1])
         }
+    }
+
+    // MARK: - Where a card came from, not who holds it
+
+    /// The host app fills `Cards` on a background queue while the first tests
+    /// are already running, so anything that reads the card database has to wait
+    /// for the card it needs to show up.
+    @discardableResult
+    private func waitForCard(_ cardId: String, line: UInt = #line) -> Card? {
+        let deadline = Date().addingTimeInterval(60)
+        while Cards.any(byId: cardId) == nil && Date() < deadline {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+        }
+        let card = Cards.any(byId: cardId)
+        XCTAssertNotNil(card, "\(cardId) never showed up in the card database", line: line)
+        return card
+    }
+
+    private func makeGame() -> Game {
+        let game = Game(hearthstoneRunState: HearthstoneRunState(isRunning: false, isActive: false))
+        game.player.id = 1
+        game.opponent.id = 2
+        return game
+    }
+
+    /// A card that started in someone's deck and is on the board now.
+    private func addPlayedDeckCard(_ game: Game, id: Int, cardId: String,
+                                   controller: Int, originalController: Int) {
+        let entity = Entity(id: id)
+        entity.cardId = cardId
+        entity[.zone] = Zone.play.rawValue
+        entity[.controller] = controller
+        entity[.cardtype] = CardType.minion.rawValue
+        entity.info.originalZone = .deck
+        entity.info.originalController = originalController
+        game.entities[id] = entity
+    }
+
+    /// Codex review 2026-09-15 #2: the sections used to ask who controls a card
+    /// right now. A mind controlled minion then counts against the wrong deck in
+    /// both directions.
+    func testAChangeOfControlDoesNotMoveCardsBetweenTheDecks() {
+        let previous = Player.knownOpponentDeck
+        defer { Player.knownOpponentDeck = previous }
+
+        waitForCard("BT_753")
+        waitForCard("SC_010")
+        let game = makeGame()
+        Player.knownOpponentDeck = [card("BT_753", 1), card("SC_010", 1)]
+        // Their card, drawn from their deck, now under our control.
+        addPlayedDeckCard(game, id: 10, cardId: "BT_753", controller: 1, originalController: 2)
+        // Our card, drawn from our deck, now under their control.
+        addPlayedDeckCard(game, id: 11, cardId: "SC_010", controller: 2, originalController: 1)
+
+        guard let groups = game.opponent.opponentCardGroups else {
+            return XCTFail("a linked opponent deck is grouped")
+        }
+        XCTAssertNil(totals(groups.deck)["BT_753"],
+                     "their card left their deck, whoever controls it now")
+        XCTAssertEqual(totals(groups.played)["BT_753"], 1)
+        XCTAssertEqual(totals(groups.deck)["SC_010"], 1,
+                       "our card was never in their deck, it cannot take a copy out of it")
+    }
+
+    /// Codex review 2026-09-15 #3: a customised Zilliax is in the deck list as
+    /// the base card and comes out of the deck as its cosmetic module, so the
+    /// two never cancelled out and the base card stayed in the deck all game.
+    func testACustomisedZilliaxLeavesTheDeckSectionOnceItIsDrawn() {
+        let previous = Player.knownOpponentDeck
+        defer { Player.knownOpponentDeck = previous }
+
+        let zilliax = CardIds.Collectible.Neutral.ZilliaxDeluxe3000
+        waitForCard(zilliax)
+        // One of Zilliax's cosmetic modules; this is the id the drawn entity
+        // carries, while the deck list only ever names the base card.
+        guard let cosmetic = waitForCard("TOY_330t10") else { return }
+        XCTAssertTrue(cosmetic.zilliaxCustomizableCosmeticModule,
+                      "TOY_330t10 is no longer flagged as a Zilliax cosmetic module")
+
+        let game = makeGame()
+        Player.knownOpponentDeck = [card(zilliax, 1)]
+        addPlayedDeckCard(game, id: 10, cardId: cosmetic.id, controller: 2, originalController: 2)
+
+        guard let groups = game.opponent.opponentCardGroups else {
+            return XCTFail("a linked opponent deck is grouped")
+        }
+        XCTAssertNil(totals(groups.deck)[zilliax],
+                     "the customised Zilliax was drawn, the base card cannot stay in the deck")
+        XCTAssertEqual(totals(groups.played)[zilliax], 1)
     }
 
     // MARK: - Opponent

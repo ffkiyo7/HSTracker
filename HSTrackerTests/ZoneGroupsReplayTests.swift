@@ -207,4 +207,39 @@ class ZoneGroupsReplayTests: HSTrackerTests {
         XCTAssertEqual(counts(groups().deck)[Self.parachute], 3,
                        "drawn Parachutes must leave the deck section")
     }
+
+    /// The "shuffled in" signal (a card as creator) must fire on the Parachutes
+    /// and on nothing else: if it also fired on a deck list card sitting in the
+    /// deck, that card would be counted once by the list and once as an extra
+    /// copy, and its deck section row would go above its deck list count.
+    func testNoDeckListCardIsCountedAboveItsListCount() {
+        for marker in [Self.beforePatchesPlayed, Self.beforeDarkBargain,
+                       Self.beforeFelosophy, Self.beforeCopiedBruteIsPlayed] {
+            feed(upTo: marker)
+            let deck = counts(groups().deck)
+            for (id, count) in Self.deckList {
+                XCTAssertLessThanOrEqual(deck[id] ?? 0, count,
+                                         "\(id) is counted twice in the deck section at \(marker)")
+            }
+        }
+    }
+
+    // MARK: - Cards that change controller
+
+    /// 跳虫 (SC_010, entity 18) is drawn out of the deck and then handed to the
+    /// opponent by 黑暗贿赂. It left our deck, so it may not sit in the deck
+    /// section waiting to be drawn again — and it is not in our hand either.
+    func testADeckCardGivenToTheOpponentLeavesTheDeckSection() {
+        feed(upTo: Self.beforeCopiedBruteIsPlayed)
+        let stolen = game.entities.values.first { $0.id == 18 }
+        XCTAssertEqual(stolen?.cardId, "SC_010")
+        XCTAssertEqual(stolen?.info.originalController, game.player.id)
+        XCTAssertFalse(stolen?.isControlled(by: game.player.id) ?? true,
+                       "the replayed card is under the opponent's control by now")
+
+        XCTAssertNil(counts(groups().deck)["SC_010"],
+                     "a card that was drawn and given away is not in the deck anymore")
+        XCTAssertNil(counts(groups().hand)["SC_010"], "it is not in our hand either")
+        XCTAssertEqual(counts(groups().played)["SC_010"], 1)
+    }
 }

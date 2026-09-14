@@ -92,12 +92,15 @@ struct CardZoneGroups {
     /// - Parameter cardsInHand: hand entities already grouped by card id.
     /// - Parameter leftDeck: copies that came out of the deck list and are not
     ///   in the deck anymore, in hand or not.
+    /// - Parameter shuffledIntoDeck: of the cards in the deck, how many per card
+    ///   id are copies the deck list does not own.
     /// - Parameter inHandFromDeck: of those, how many are in hand per card id.
     static func make(deckList: [Card],
                      knownInDeck: [Card],
                      predictedInDeck: [Card],
                      cardsInHand: [Card],
                      leftDeck: [Card],
+                     shuffledIntoDeck: [String: Int] = [:],
                      inHandFromDeck: [String: Int]) -> CardZoneGroups {
         func counts(_ cards: [Card]) -> [String: Int] {
             var result = [String: Int]()
@@ -119,10 +122,12 @@ struct CardZoneGroups {
         var seen = Set<String>()
         var deck = [Card]()
         for card in deckList + knownInDeck where seen.insert(card.id).inserted {
-            // What the deck list still owes, or what is provably in there —
-            // whichever is larger, so a copy shuffled in on top of the list's
-            // own copies is not swallowed by it.
-            let copies = max((listed[card.id] ?? 0) - (left[card.id] ?? 0), known[card.id] ?? 0)
+            // What the deck list still owes, plus the copies that were shuffled
+            // in on top of it. Counting them separately is what keeps a copy
+            // shuffled in from being swallowed by the list's own unrevealed
+            // copies; `known` is only a floor, for when the list is incomplete.
+            let fromList = max((listed[card.id] ?? 0) - (left[card.id] ?? 0), 0)
+            let copies = max(fromList + (shuffledIntoDeck[card.id] ?? 0), known[card.id] ?? 0)
             guard copies > 0, let row = templates[card.id]?.copy() else { continue }
             row.count = copies
             row.highlightInHand = heldIds.contains(card.id)
@@ -622,7 +627,7 @@ final class Player {
     private var cardsInHandByCardId: [Card] {
         return hand.filter({ $0.hasCardId })
             .map({ (e: Entity) -> (DynamicEntity) in
-                DynamicEntity(cardId: e.cardId,
+                DynamicEntity(cardId: self.zoneCardId(e),
                               created: e.info.created || e.info.stolen,
                               extraInfo: e.info.extraInfo)
             })
@@ -640,6 +645,19 @@ final class Player {
             }
     }
 
+    /// A customised Zilliax is in the deck list under its base id while the
+    /// entity that comes out of the deck carries the cosmetic module's id, so
+    /// the two never cancel out and the base card stays in the deck section for
+    /// the whole game. The zone sections key everything on the base id;
+    /// `annotateCards` puts the customised card back for display, the same way
+    /// the flat list does (`Helper.resolveZilliax3000`).
+    private func zoneCardId(_ entity: Entity) -> String {
+        if Cards.by(cardId: entity.cardId)?.zilliaxCustomizableCosmeticModule == true {
+            return CardIds.Collectible.Neutral.ZilliaxDeluxe3000
+        }
+        return entity.cardId
+    }
+
     /// Cards with a known id sitting in the deck right now: revealed deck cards
     /// and whatever was shuffled in.
     private var knownCardsInDeckZone: [Card] {
@@ -647,7 +665,7 @@ final class Player {
         // know about; our own deck is ours to read.
         return deck.filter({ $0.hasCardId && (isLocalPlayer || !$0.info.hidden) })
             .map({ (e: Entity) -> (DynamicEntity) in
-                DynamicEntity(cardId: e.cardId,
+                DynamicEntity(cardId: self.zoneCardId(e),
                               created: e.info.created || e.info.stolen,
                               discarded: e.info.discarded,
                               extraInfo: e.info.extraInfo)
@@ -669,14 +687,42 @@ final class Player {
     /// on purpose: `getDeckState()` keys the same question on `info.created`,
     /// which is set on most ordinary draws, so its `remainingInDeck` keeps
     /// listing cards that have long been drawn or played (bug T6).
+    ///
+    /// Ownership is the *original* controller, not the current one: a card of
+    /// ours the opponent took has left our deck all the same, and a minion we
+    /// took from them was never in it, so neither may be filtered by who holds
+    /// it now (Codex review, 2026-09-15).
     private var entitiesThatLeftTheDeck: [Entity] {
-        return playerEntities.filter { $0.hasCardId && !$0.isInDeck && $0.info.originalZone == .deck }
+        return revealedEntities.filter { entity in
+            guard entity.info.originalZone == .deck, !entity.isInDeck else { return false }
+            let owner = entity.info.originalController
+            return owner == self.id || (owner == 0 && entity.isControlled(by: self.id))
+        }
+    }
+
+    /// Copies sitting in the deck that the deck list does not own, i.e. shuffled
+    /// in by a card. `info.created` on its own does not say that (bug T6: it is
+    /// set on ordinary draws, and on anything that re-enters the deck, dredge
+    /// included), so the entity also has to name a *card* as its creator, which
+    /// is what the game writes when it makes a new card. Deck list cards get no
+    /// creator, or the game entity as one.
+    private var shuffledIntoDeckByCardId: [String: Int] {
+        var result = [String: Int]()
+        for entity in deck where entity.hasCardId && (isLocalPlayer || !entity.info.hidden) {
+            guard entity.info.created else { continue }
+            let creatorId = entity[.creator] > 0 ? entity[.creator] : entity[.displayed_creator]
+            guard creatorId > 0, creatorId != entity.id,
+                  game.entities[creatorId]?.hasCardId == true else { continue }
+            let cardId = zoneCardId(entity)
+            result[cardId] = (result[cardId] ?? 0) + 1
+        }
+        return result
     }
 
     private var cardsThatLeftTheDeck: [Card] {
         return entitiesThatLeftTheDeck
             .map({ (e: Entity) -> (DynamicEntity) in
-                DynamicEntity(cardId: e.cardId,
+                DynamicEntity(cardId: self.zoneCardId(e),
                               discarded: e.info.discarded && Settings.highlightDiscarded,
                               extraInfo: e.info.extraInfo)
             })
@@ -695,8 +741,11 @@ final class Player {
 
     private var cardsInHandFromDeck: [String: Int] {
         var result = [String: Int]()
-        for entity in entitiesThatLeftTheDeck where entity.isInHand {
-            result[entity.cardId] = (result[entity.cardId] ?? 0) + 1
+        // Our own hand only: a card of ours the opponent is now holding left the
+        // deck, but it is not in the hand section, so it belongs to "played".
+        for entity in entitiesThatLeftTheDeck where entity.isInHand && entity.isControlled(by: self.id) {
+            let cardId = zoneCardId(entity)
+            result[cardId] = (result[cardId] ?? 0) + 1
         }
         return result
     }
@@ -710,6 +759,7 @@ final class Player {
                                    predictedInDeck: predictedInDeck,
                                    cardsInHand: cardsInHandByCardId,
                                    leftDeck: cardsThatLeftTheDeck,
+                                   shuffledIntoDeck: shuffledIntoDeckByCardId,
                                    inHandFromDeck: cardsInHandFromDeck)
     }
 
