@@ -155,3 +155,13 @@
 - 一处已知局限记下：牌库段 `max(牌表 − 离开, 已知在库)` 在「牌表卡还有副本未揭示 **且** 同名生成副本被洗入」时会少算，原因还是 created 不可信；实战里罕见，等 2.7 再看。
 - 测试文件头注释原写「丢掉 PowerTaskList」，与执行结果和 fixture（2919 行 PowerTaskList）矛盾，已改准。
 - 平铺路径的 `getDeckState()` 同源 bug 要不要修，交用户定。
+
+## Codex review（gpt-6-astra / medium，2026-09-15，范围 `f08de7d3...e3797ba8` 整批）—— Claude 复核：3 条全部成立
+
+| # | Codex 的发现 | 复核 | 触发条件 |
+|---|---|---|---|
+| 1 | `CardZoneGroups.make` 牌库段 `max(牌表 − 离开, 已知在库)`：两张原版未揭示 + 洗入一张同名 → 报 2，实际 3 | ✅ 成立，即上面 review 记的已知局限，Codex 给了具体反例；现有测试只覆盖三张全已知的情况 | 同名副本洗入牌库 |
+| 2 | `entitiesThatLeftTheDeck` 走 `playerEntities`（按**当前**控制者过滤）：我方牌被夺走后从「离开牌库」消失 → 牌库段当它还在；夺来的对手随从反向扣我方同名牌 | ✅ 成立。旧 `getDeckState()` 走 `revealedEntities`（`isControlled || originalController == self.id`）就是为此 | 心灵控制类换控制权 |
+| 3 | 定制 Zilliax：牌表是基础 id `ZilliaxDeluxe3000`，实体是装饰模块 id，减法对不上，基础 Zilliax 永留牌库段 | ✅ 成立。旧路径 `Player.swift:796` 遇到装饰 id 就把基础 id 从牌表移除，新路径没有等价处理 | 牌组带定制 Zilliax |
+
+三条都在本片新增的分区取数里，修法方向：2 改按 `originalController`；3 在 `zoneGroups` 入口做一次 id 归一；1 需要一个不依赖 `info.created` 的「洗入副本」信号（`originalZone != .deck` 且当前在库？待验）。**未动代码，等用户定排期。**
