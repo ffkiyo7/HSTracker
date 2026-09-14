@@ -8,6 +8,10 @@
 
 import Foundation
 
+// The constants below size the legacy `CardBar` path only: they are the point
+// dimensions its 217x34 theme PNGs were cut for. On the SwiftUI path the five
+// presets are multipliers over a window-proportional base instead — see
+// `TrackerMetrics` in UIs/Trackers/SwiftUI/TrackerBarStyle.swift (PLAN 2.8).
 let kFrameWidth = 217.0
 let kFrameHeight = 700.0
 let kRowHeight = 34.0

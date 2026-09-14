@@ -65,9 +65,8 @@ struct TrackerCardRow: Identifiable, Equatable {
 
 final class TrackerCardListViewModel: ObservableObject {
     @Published private(set) var rows: [TrackerCardRow] = []
-    @Published var rowHeight: CGFloat = CGFloat(kRowHeight)
-    @Published var theme: String = Settings.theme
-    @Published var cardSize: CardSize = Settings.cardSize
+    @Published var rowHeight: CGFloat = TrackerMetrics.rowHeight
+    @Published var barWidth: CGFloat = TrackerMetrics.panelWidth
     @Published var showRarityColors: Bool = Settings.showRarityColors
     @Published var playerType: PlayerType = .player
     @Published var sectionHeaderHeight: CGFloat = 40
@@ -80,19 +79,10 @@ final class TrackerCardListViewModel: ObservableObject {
     private var highlightFn: ((Card, [Card]) -> HighlightColor)?
 
     func syncAppearance() {
-        let nextTheme = Settings.theme
-        let nextSize = Settings.cardSize
         let nextRarity = Settings.showRarityColors
-        if theme != nextTheme {
-            theme = nextTheme
-        }
-        if cardSize != nextSize {
-            cardSize = nextSize
-        }
         if showRarityColors != nextRarity {
             showRarityColors = nextRarity
         }
-        ThemeImageCache.prepare(theme: nextTheme)
     }
 
     func update(cards: [Card]) {

@@ -117,6 +117,15 @@ class Tracker: OverWindowController, CardCellHover {
     // MARK: - Notifications
 
     func setOpacity() {
+        if Settings.useSwiftUITracker {
+            // D2 paints one base colour under the panel itself, sized to the
+            // content; a window-wide tint would show as a full-height column.
+            self.window!.backgroundColor = .clear
+            if swiftUIRoot != nil {
+                updateFrames()
+            }
+            return
+        }
         let alpha = CGFloat(Settings.trackerOpacity / 100.0)
         self.window!.backgroundColor = NSColor(red: 0,
                                                green: 0,
@@ -282,7 +291,7 @@ class Tracker: OverWindowController, CardCellHover {
         }
         
         if Settings.useSwiftUITracker {
-            updateSwiftUIFrames(windowWidth: windowWidth, windowHeight: windowHeight, ratio: ratio)
+            updateSwiftUIFrames(windowWidth: windowWidth, windowHeight: windowHeight)
         } else {
             updateLegacyFrames(windowWidth: windowWidth, windowHeight: windowHeight, ratio: ratio)
         }
@@ -329,7 +338,7 @@ class Tracker: OverWindowController, CardCellHover {
 
     /// SwiftUI path: only the hero bar is still AppKit, everything below it is
     /// one host that lays itself out (`TrackerView` / `TrackerViewModel`).
-    private func updateSwiftUIFrames(windowWidth: CGFloat, windowHeight: CGFloat, ratio: CGFloat) {
+    private func updateSwiftUIFrames(windowWidth: CGFloat, windowHeight: CGFloat) {
         cardCounter.isHidden = true
         playerDrawChance.isHidden = true
         opponentDrawChance.isHidden = true
@@ -353,7 +362,11 @@ class Tracker: OverWindowController, CardCellHover {
         opponentRelatedCards.frame = .zero
         opponentRelatedCards.isHidden = true
 
-        let smallFrameHeight = round(40 / ratio)
+        // The window width *is* the panel width (SizeHelper.trackerWidth), so
+        // the row height and everything on the row grid follow from it; the
+        // `ratio` the legacy path uses no longer applies here.
+        let baseRowHeight = TrackerMetrics.rowHeight(panelWidth: windowWidth)
+        let smallFrameHeight = TrackerMetrics.headerLineHeight(rowHeight: baseRowHeight)
 
         var startHeight: CGFloat = 0
         if !playerClass.isHidden && playerType == .opponent, let playerClassId = self.playerClassId {
@@ -369,6 +382,7 @@ class Tracker: OverWindowController, CardCellHover {
         let host = ensureSwiftUIRoot()
         let availableHeight = windowHeight - startHeight
         host.viewModel.updateLayout(availableHeight: availableHeight,
+                                    panelWidth: windowWidth,
                                     frameHeight: smallFrameHeight,
                                     reserveGraveyardRow: showGraveyard)
         host.frame = NSRect(x: 0, y: 0, width: windowWidth, height: availableHeight)

@@ -426,8 +426,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
         
         splashscreen?.close()
         splashscreen = nil
-
-        CardRowCompareWindowController.openIfRequested()
     }
     
     deinit {

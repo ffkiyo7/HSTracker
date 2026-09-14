@@ -19,6 +19,13 @@ struct TrackerView: View {
     let handTitle: String
     let playedTitle: String
 
+    /// The panel hugs the window edge it is docked to, so when the rows narrow
+    /// under compression the gap opens on the inner side, not against the
+    /// screen edge.
+    private var dockedEdge: Alignment {
+        viewModel.playerType == .opponent ? .topLeading : .topTrailing
+    }
+
     var body: some View {
         let layout = viewModel.layout
         VStack(spacing: 0) {
@@ -55,8 +62,12 @@ struct TrackerView: View {
                     .frame(height: layout.relatedHeight)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Color.clear)
+        .frame(width: layout.barWidth > 0 ? layout.barWidth : nil,
+               alignment: .topLeading)
+        // D2: one base under the whole panel, times the opacity setting. The
+        // window itself is left clear on this path (Tracker.setOpacity).
+        .background(TrackerBarStyle.base.opacity(layout.opacity))
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: dockedEdge)
         .transaction { $0.animation = nil }
     }
 }

@@ -26,9 +26,8 @@ struct TrackerSectionView: View {
             .frame(maxWidth: .infinity,
                    maxHeight: .infinity,
                    alignment: .topLeading)
-            .background(Color(red: 0x23 / 255,
-                              green: 0x27 / 255,
-                              blue: 0x2A / 255))
+            // No background of its own: D2 gives the whole panel one base,
+            // painted once in TrackerView.
             .transaction { $0.animation = nil }
         }
     }
@@ -48,27 +47,31 @@ private struct TrackerSectionHeaderView: View {
 #endif
     }()
 
+    /// T4 drew this at a flat 17pt inside a 40pt row; rows are shorter now, so
+    /// it is clamped to the row instead. Restyling the section headers is V2.
+    private var content: CGFloat { min(17, max(height - 6, 1)) }
+
     var body: some View {
         ZStack(alignment: .topLeading) {
             HStack(spacing: 5) {
                 Image(nsImage: Self.icon)
                     .resizable()
-                    .frame(width: 17, height: 17)
+                    .frame(width: content, height: content)
                 Text(title)
-                    .font(.system(size: NSFont.systemFontSize))
+                    .font(.system(size: NSFont.systemFontSize * content / 17))
                     .foregroundColor(.white)
                     .lineLimit(1)
                     .frame(maxWidth: .infinity,
-                           minHeight: 17,
-                           maxHeight: 17,
+                           minHeight: content,
+                           maxHeight: content,
                            alignment: .leading)
             }
             .padding(.horizontal, 5)
             .frame(maxWidth: .infinity,
-                   minHeight: 17,
-                   maxHeight: 17,
+                   minHeight: content,
+                   maxHeight: content,
                    alignment: .leading)
-            .offset(y: (height - 17) / 2)
+            .offset(y: (height - content) / 2)
         }
         .frame(maxWidth: .infinity,
                minHeight: height,

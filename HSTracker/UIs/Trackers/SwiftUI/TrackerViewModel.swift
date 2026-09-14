@@ -16,6 +16,12 @@ import Foundation
 /// would be free to drift apart.
 struct TrackerLayout: Equatable {
     var cardHeight: CGFloat = 0
+    /// Panel width for this frame. When the adaptive row height kicks in, the
+    /// bars narrow by the same factor so the 8.14 : 1 aspect never changes
+    /// (PLAN 2.8 third cause). Purely a drawing width — the window frame and
+    /// therefore `Tracker.bottomY` / the tracking area are unaffected.
+    var barWidth: CGFloat = 0
+    var opacity: CGFloat = 1
     var headerHeight: CGFloat = 0
     var topHeight: CGFloat = 0
     var listHeight: CGFloat = 0
@@ -81,10 +87,14 @@ final class TrackerViewModel: ObservableObject {
     /// - Parameters:
     ///   - availableHeight: the window below the AppKit hero bar, i.e. the root
     ///     host's own height.
-    ///   - frameHeight: `round(40 / ratio)`, one section header / header row.
+    ///   - panelWidth: the tracker window's own width, i.e. the uncompressed
+    ///     panel width `SizeHelper.trackerWidth` derived from the Hearthstone
+    ///     window. The base row height follows from it and the fixed aspect.
+    ///   - frameHeight: one section header / header row.
     ///   - reserveGraveyardRow: the graveyard counter is not drawn on this path,
     ///     but the old layout still reserved its row in the compression budget.
     func updateLayout(availableHeight: CGFloat,
+                      panelWidth: CGFloat,
                       frameHeight: CGFloat,
                       reserveGraveyardRow: Bool) {
         for list in lists {
@@ -104,40 +114,49 @@ final class TrackerViewModel: ObservableObject {
             offset += frameHeight
         }
         var totalCards = cards.count
+        // A section costs its header *and* its bottom padding. Leaving the
+        // padding out of the budget (as the pre-V1 code did) let contentHeight
+        // overshoot `availableHeight` by 5 per section once compression kicked
+        // in, which pushed `Tracker.bottomY` negative.
+        let sectionOffset = frameHeight + Self.sectionPadding
         if showDeck {
-            offset += frameHeight
+            offset += sectionOffset
             totalCards += deck.count
         }
         if showHand {
-            offset += frameHeight
+            offset += sectionOffset
             totalCards += hand.count
         }
         if showPlayed {
-            offset += frameHeight
+            offset += sectionOffset
             totalCards += played.count
         }
         if showTop {
-            offset += frameHeight
+            offset += sectionOffset
             totalCards += top.count
         }
         if showBottom {
-            offset += frameHeight
+            offset += sectionOffset
             totalCards += bottom.count
         }
         if showRelated {
-            offset += frameHeight
+            offset += sectionOffset
             totalCards += related.count
         }
 
         // Upstream's adaptive row height: rows shrink so that everything still
         // fits when the deck list is long (Tracker.swift, pre-T6).
-        var cardHeight = Self.baseCardHeight
+        let baseCardHeight = TrackerMetrics.rowHeight(panelWidth: panelWidth)
+        var cardHeight = baseCardHeight
         if totalCards > 0 {
-            cardHeight = min(cardHeight, (availableHeight - offset) / CGFloat(totalCards))
+            cardHeight = max(min(cardHeight, (availableHeight - offset) / CGFloat(totalCards)), 1)
         }
+        let barWidth = cardHeight * TrackerMetrics.aspect
 
         let next = TrackerLayout(
             cardHeight: cardHeight,
+            barWidth: barWidth,
+            opacity: CGFloat(Settings.trackerOpacity / 100.0),
             headerHeight: headerHeight,
             topHeight: showTop ? sectionHeight(top, cardHeight, frameHeight) : 0,
             listHeight: CGFloat(cards.count) * cardHeight,
@@ -155,6 +174,9 @@ final class TrackerViewModel: ObservableObject {
             if list.rowHeight != cardHeight {
                 list.rowHeight = cardHeight
             }
+            if list.barWidth != barWidth {
+                list.barWidth = barWidth
+            }
             if list.sectionHeaderHeight != frameHeight {
                 list.sectionHeaderHeight = frameHeight
             }
@@ -165,15 +187,5 @@ final class TrackerViewModel: ObservableObject {
                                _ cardHeight: CGFloat,
                                _ frameHeight: CGFloat) -> CGFloat {
         CGFloat(list.count) * cardHeight + frameHeight + Self.sectionPadding
-    }
-
-    private static var baseCardHeight: CGFloat {
-        switch Settings.cardSize {
-        case .tiny: return CGFloat(kTinyRowHeight)
-        case .small: return CGFloat(kSmallRowHeight)
-        case .medium: return CGFloat(kMediumRowHeight)
-        case .huge: return CGFloat(kHighRowHeight)
-        case .big: return CGFloat(kRowHeight)
-        }
     }
 }

@@ -25,18 +25,11 @@ class TrackersPreferences: PreferencePaneController, PreferencePane {
 
 private struct TrackersPreferencesView: View {
     @StateObject private var state = TrackersPreferencesState()
-    private let themes = ["classic", "frost", "dark", "minimal"]
 
     var body: some View {
         let _ = state.revision
         Form {
             Section {
-                Picker(label("tracker_theme"), selection: state.setting(Settings.theme, set: { Settings.theme = $0 })) {
-                    ForEach(themes, id: \.self) { theme in
-                        Text(label("tracker_theme_\(theme)"))
-                            .tag(theme)
-                    }
-                }
                 Picker(label("tracker_card_size"), selection: cardSize) {
                     Text(label("tracker_card_size_tiny")).tag(CardSize.tiny)
                     Text(label("tracker_card_size_small")).tag(CardSize.small)

@@ -20,10 +20,9 @@ struct TrackerCardListView: View {
                     CardRowView(
                         card: row.card,
                         playerType: viewModel.playerType,
-                        theme: viewModel.theme,
-                        cardSize: viewModel.cardSize,
                         showRarityColors: viewModel.showRarityColors,
                         rowHeight: viewModel.rowHeight,
+                        barWidth: viewModel.barWidth,
                         highlightColor: row.highlight
                     )
                     TrackerCardRowSensor(card: row.card, viewModel: viewModel)

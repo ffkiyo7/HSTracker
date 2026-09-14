@@ -296,7 +296,16 @@ struct SizeHelper {
         return hearthstoneWindow.frame
     }
     
+    /// The SwiftUI tracker sizes itself off the Hearthstone window (PLAN 2.8);
+    /// the legacy `CardBar` path keeps the absolute point values its 217x34
+    /// PNGs were cut for, so `useSwiftUITracker == false` is unchanged.
     static var trackerWidth: CGFloat {
+        if Settings.useSwiftUITracker {
+            let frame = hearthstoneWindow.frame
+            return TrackerMetrics.panelWidth(windowWidth: frame.width,
+                                             windowHeight: frame.height,
+                                             cardSize: Settings.cardSize)
+        }
         let width: Double
         switch Settings.cardSize {
         case .tiny: width = kTinyFrameWidth

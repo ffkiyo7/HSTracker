@@ -340,6 +340,7 @@
 		B8DD0F00000000000000B006 /* RedDragonSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A006 /* RedDragonSearch.swift */; };
 		B8DD0F00000000000000B007 /* RedDragonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A007 /* RedDragonTests.swift */; };
 		B8DD0F00000000000000B009 /* CardZoneGroupsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A009 /* CardZoneGroupsTests.swift */; };
+		B8DD0F00000000000000B00C /* TrackerMetricsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A00C /* TrackerMetricsTests.swift */; };
 		B8DD0F00000000000000B008 /* formulas.json in Resources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A008 /* formulas.json */; };
 		B8DD0F00000000000000B00A /* ZoneGroupsReplayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A00A /* ZoneGroupsReplayTests.swift */; };
 		B8DD0F00000000000000B00B /* 2026-09-14-standard.log in Resources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A00B /* 2026-09-14-standard.log */; };
@@ -1741,9 +1742,8 @@
 		CAA30A4CAACC31D95DBA10D4 /* Rheastrasza.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46C342855F8B11EA41581FE4 /* Rheastrasza.swift */; };
 		CAA8EA7DEF3E99A74B07BF5C /* DistressSignal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DE331D144B1F061932C7C50 /* DistressSignal.swift */; };
 		CAB1941AFC7E94E2D2F47408 /* RootOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1F19717A4A8D185811FB9E /* RootOverlayView.swift */; };
-		C4D801A12FC0000100010002 /* ThemeImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010001 /* ThemeImageCache.swift */; };
+		C4D801A12FC0000100010002 /* TrackerBarStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010001 /* TrackerBarStyle.swift */; };
 		C4D801A12FC0000100010004 /* CardRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010003 /* CardRowView.swift */; };
-		C4D801A12FC0000100010006 /* CardRowCompareWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010005 /* CardRowCompareWindow.swift */; };
 		C4D801A12FC0000100010009 /* TrackerCardListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010008 /* TrackerCardListViewModel.swift */; };
 		C4D801A12FC000010001000B /* TrackerCardListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC000010001000A /* TrackerCardListView.swift */; };
 		C4D801A12FC000010001000D /* TrackerSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC000010001000C /* TrackerSectionView.swift */; };
@@ -2237,6 +2237,7 @@
 		B8DD0F00000000000000A006 /* RedDragonSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonSearch.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A007 /* RedDragonTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonTests.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A009 /* CardZoneGroupsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardZoneGroupsTests.swift; sourceTree = "<group>"; };
+		B8DD0F00000000000000A00C /* TrackerMetricsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerMetricsTests.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A008 /* formulas.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = formulas.json; path = Fixtures/RedDragon/formulas.json; sourceTree = "<group>"; };
 		B8DD0F00000000000000A00A /* ZoneGroupsReplayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneGroupsReplayTests.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A00B /* 2026-09-14-standard.log */ = {isa = PBXFileReference; lastKnownFileType = text; name = "2026-09-14-standard.log"; path = "Fixtures/ZoneReplay/2026-09-14-standard.log"; sourceTree = "<group>"; };
@@ -3788,9 +3789,8 @@
 		F79833961FFF324200D2893E /* Events.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Events.swift; sourceTree = "<group>"; };
 		F7D7A3A52011B67D00E3A5F0 /* Hearthstone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Hearthstone.swift; sourceTree = "<group>"; };
 		F7D7A3AD2017B51300E3A5F0 /* dsa_pub.pem */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = dsa_pub.pem; path = HSTracker/Resources/dsa_pub.pem; sourceTree = SOURCE_ROOT; };
-		C4D801A12FC0000100010001 /* ThemeImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeImageCache.swift; sourceTree = "<group>"; };
+		C4D801A12FC0000100010001 /* TrackerBarStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerBarStyle.swift; sourceTree = "<group>"; };
 		C4D801A12FC0000100010003 /* CardRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardRowView.swift; sourceTree = "<group>"; };
-		C4D801A12FC0000100010005 /* CardRowCompareWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardRowCompareWindow.swift; sourceTree = "<group>"; };
 		C4D801A12FC0000100010008 /* TrackerCardListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerCardListViewModel.swift; sourceTree = "<group>"; };
 		C4D801A12FC000010001000A /* TrackerCardListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerCardListView.swift; sourceTree = "<group>"; };
 		C4D801A12FC000010001000C /* TrackerSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerSectionView.swift; sourceTree = "<group>"; };
@@ -4197,6 +4197,7 @@
 				1CF1B5891E81426D007DCBF2 /* AlgorithmTests.swift */,
 				B8DD0F00000000000000A007 /* RedDragonTests.swift */,
 				B8DD0F00000000000000A009 /* CardZoneGroupsTests.swift */,
+				B8DD0F00000000000000A00C /* TrackerMetricsTests.swift */,
 				B8DD0F00000000000000A00A /* ZoneGroupsReplayTests.swift */,
 				B8DD0F00000000000000A008 /* formulas.json */,
 				B8DD0F00000000000000A00B /* 2026-09-14-standard.log */,
@@ -4428,8 +4429,7 @@
 			isa = PBXGroup;
 			children = (
 				C4D801A12FC0000100010003 /* CardRowView.swift */,
-				C4D801A12FC0000100010005 /* CardRowCompareWindow.swift */,
-				C4D801A12FC0000100010001 /* ThemeImageCache.swift */,
+				C4D801A12FC0000100010001 /* TrackerBarStyle.swift */,
 				C4D801A12FC0000100010008 /* TrackerCardListViewModel.swift */,
 				C4D801A12FC000010001000A /* TrackerCardListView.swift */,
 				C4D801A12FC000010001000C /* TrackerSectionView.swift */,
@@ -8811,9 +8811,8 @@
 				6F10D744995FB62C28FB3813 /* MulliganTipIconView.swift in Sources */,
 				1F966AEAB083406B7A9876F0 /* RootOverlayViewModel.swift in Sources */,
 				CAB1941AFC7E94E2D2F47408 /* RootOverlayView.swift in Sources */,
-				C4D801A12FC0000100010002 /* ThemeImageCache.swift in Sources */,
+				C4D801A12FC0000100010002 /* TrackerBarStyle.swift in Sources */,
 				C4D801A12FC0000100010004 /* CardRowView.swift in Sources */,
-				C4D801A12FC0000100010006 /* CardRowCompareWindow.swift in Sources */,
 				C4D801A12FC0000100010009 /* TrackerCardListViewModel.swift in Sources */,
 				C4D801A12FC000010001000B /* TrackerCardListView.swift in Sources */,
 				C4D801A12FC000010001000D /* TrackerSectionView.swift in Sources */,
@@ -8842,6 +8841,7 @@
 				439BD8C91EBCD40200959F69 /* EnumTests.swift in Sources */,
 				B8DD0F00000000000000B007 /* RedDragonTests.swift in Sources */,
 				B8DD0F00000000000000B009 /* CardZoneGroupsTests.swift in Sources */,
+				B8DD0F00000000000000B00C /* TrackerMetricsTests.swift in Sources */,
 				B8DD0F00000000000000B00A /* ZoneGroupsReplayTests.swift in Sources */,
 				1C561C991EC1EC6600007A46 /* ReplayUploadTests.swift in Sources */,
 				43C1C9F61E96CCDB008C20B1 /* SecretTests.swift in Sources */,
