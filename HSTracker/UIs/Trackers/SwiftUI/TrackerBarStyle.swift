@@ -110,6 +110,16 @@ enum TrackerMetrics {
         max(panelWidth / aspect, 1)
     }
 
+    /// Alpha of the panel base for the `tracker_opacity` setting (0...100).
+    /// The setting's default is 0: on the theme-PNG path that meant "no extra
+    /// black tint under the opaque bars", so 0 must not erase the D2 base —
+    /// it is treated as "unset" and paints the base in full. Any explicit value
+    /// above 0 is applied as-is.
+    static func baseOpacity(setting: Double) -> CGFloat {
+        guard setting > 0 else { return 1 }
+        return CGFloat(min(setting, 100) / 100)
+    }
+
     /// The three-row header and the section headers keep the 40 : 34 ratio to a
     /// card row they had on the theme-PNG path; squeezing them onto the 21-px
     /// grid is V2.

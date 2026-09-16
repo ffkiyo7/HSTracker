@@ -33,4 +33,17 @@ class EnumTests: HSTrackerTests {
         XCTAssertEqual(languages.count, 14, "There are 14 locales")
         XCTAssertEqual(languages, locales, "Sorting locale is not the same")
     }
+
+    /// A Hearthstone patch can add scene modes before this enum learns them;
+    /// the mirror's ordinal must never trap (2026-09-16 crash in SceneWatcher).
+    func testModeFromMirrorToleratesUnknownOrdinals() {
+        XCTAssertEqual(Mode.fromMirror(0), .invalid)
+        XCTAssertEqual(Mode.fromMirror(3), .hub)
+        XCTAssertEqual(Mode.fromMirror(28), .lucky_draw)
+        XCTAssertEqual(Mode.fromMirror(29), .black_market)
+        XCTAssertEqual(Mode.fromMirror(Mode.allCases.count - 1), .black_market)
+        XCTAssertEqual(Mode.fromMirror(Mode.allCases.count), .invalid)
+        XCTAssertEqual(Mode.fromMirror(99), .invalid)
+        XCTAssertEqual(Mode.fromMirror(-1), .invalid)
+    }
 }

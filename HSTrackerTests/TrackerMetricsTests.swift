@@ -145,4 +145,17 @@ class TrackerMetricsTests: HSTrackerTests {
         let layout = layout(cards: 0, availableHeight: 900)
         XCTAssertEqual(layout.contentHeight, 0, accuracy: accuracy)
     }
+
+    // MARK: - base opacity
+
+    /// `tracker_opacity` defaults to 0, which on the theme-PNG path meant "no
+    /// extra tint". Read literally it would erase the D2 base, so 0 paints it
+    /// in full; explicit values still apply.
+    func testDefaultOpacitySettingPaintsTheBaseInFull() {
+        XCTAssertEqual(TrackerMetrics.baseOpacity(setting: 0), 1, accuracy: accuracy)
+        XCTAssertEqual(TrackerMetrics.baseOpacity(setting: -5), 1, accuracy: accuracy)
+        XCTAssertEqual(TrackerMetrics.baseOpacity(setting: 40), 0.4, accuracy: accuracy)
+        XCTAssertEqual(TrackerMetrics.baseOpacity(setting: 100), 1, accuracy: accuracy)
+        XCTAssertEqual(TrackerMetrics.baseOpacity(setting: 250), 1, accuracy: accuracy)
+    }
 }

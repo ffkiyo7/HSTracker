@@ -156,7 +156,7 @@ final class TrackerViewModel: ObservableObject {
         let next = TrackerLayout(
             cardHeight: cardHeight,
             barWidth: barWidth,
-            opacity: CGFloat(Settings.trackerOpacity / 100.0),
+            opacity: TrackerMetrics.baseOpacity(setting: Settings.trackerOpacity),
             headerHeight: headerHeight,
             topHeight: showTop ? sectionHeight(top, cardHeight, frameHeight) : 0,
             listHeight: CGFloat(cards.count) * cardHeight,

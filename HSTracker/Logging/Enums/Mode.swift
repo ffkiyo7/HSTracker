@@ -37,5 +37,18 @@ enum Mode: String, CaseIterable {
     lettuce_friendly,
     lettuce_bounty_team_select,
     lettuce_pack_opening,
-    lucky_draw
+    lucky_draw,
+    /// Added by the 2026-09-16 client patch (`LoadingScreen.log` shows
+    /// `nextMode=BLACK_MARKET`); neither HDT nor upstream HSTracker lists it
+    /// yet, so the ordinal 29 is inferred from the append pattern.
+    black_market
+
+    /// The scene manager's `SceneMgr.Mode` ordinal as HearthMirror reads it.
+    /// A client patch can add modes this enum does not know yet (2026-09-16:
+    /// the mirror reported an index past `lucky_draw` and `allCases[i]`
+    /// trapped in SceneWatcher), so unknown ordinals map to `.invalid`.
+    static func fromMirror(_ index: Int) -> Mode {
+        guard index >= 0, index < allCases.count else { return .invalid }
+        return allCases[index]
+    }
 }
