@@ -17,13 +17,22 @@ struct CardRowView: View {
     var rowHeight: CGFloat = TrackerMetrics.rowHeight
     var barWidth: CGFloat = TrackerMetrics.panelWidth
     var highlightColor: HighlightColor = .none
+    /// The art's shade is the panel base, so it has to carry the panel's own
+    /// alpha — otherwise a translucent panel would show a fully opaque strip
+    /// under every card name. Read here because the list view between
+    /// `TrackerView` and this one is not part of this change; it is re-read
+    /// whenever the row is rebuilt, which is what `Tracker.setOpacity()`
+    /// triggers.
+    var baseOpacity: CGFloat = TrackerMetrics.baseOpacity(setting: Settings.trackerOpacity)
 
     @SwiftUI.State private var tile: NSImage?
+    @Environment(\.trackerHandSection) private var isHandSection
 
     /// One reference pixel of the 171 x 21 sheet, in points.
     private var u: CGFloat { rowHeight / TrackerMetrics.rowHeight }
     private var costWidth: CGFloat { TrackerBarStyle.costWidth * u }
-    private var artWidth: CGFloat { barWidth * TrackerBarStyle.artFraction }
+    /// D3-b: from the cost cell's trailing edge to the end of the bar.
+    private var artWidth: CGFloat { max(barWidth - costWidth, 0) }
     private var boxWidth: CGFloat { TrackerBarStyle.boxWidth * u }
 
     private var absCount: Int { abs(card.count) }
@@ -62,8 +71,11 @@ struct CardRowView: View {
 
     // MARK: - layers
 
-    /// Art strip on the trailing edge, with the panel base bled over its
-    /// leading 35% so the name always sits on flat colour.
+    /// D3-b: the art fills everything right of the cost cell, under a shade that
+    /// is solid panel base for the leading tenth and gone by three quarters, so
+    /// the name still sits on flat colour and the back third of the art is lit.
+    /// `.fill` is cover: 149 : 21 is flatter than the 256 x 59 tile, so the tile
+    /// is scaled to the width and cropped vertically, never blown up.
     @ViewBuilder
     private var art: some View {
         ZStack(alignment: .topLeading) {
@@ -77,9 +89,10 @@ struct CardRowView: View {
             }
             LinearGradient(
                 stops: [
-                    .init(color: TrackerBarStyle.base, location: 0),
-                    .init(color: TrackerBarStyle.base, location: TrackerBarStyle.artFadeFraction),
-                    .init(color: TrackerBarStyle.base.opacity(0), location: 1)
+                    .init(color: shade, location: 0),
+                    .init(color: shade, location: TrackerBarStyle.artSolidFraction),
+                    .init(color: shade.opacity(0), location: TrackerBarStyle.artClearFraction),
+                    .init(color: shade.opacity(0), location: 1)
                 ],
                 startPoint: .leading,
                 endPoint: .trailing
@@ -87,6 +100,11 @@ struct CardRowView: View {
             .frame(width: artWidth, height: rowHeight)
         }
         .frame(width: barWidth, height: rowHeight, alignment: .trailing)
+    }
+
+    /// The panel base at the panel's own alpha (see `baseOpacity`).
+    private var shade: Color {
+        TrackerBarStyle.base.opacity(baseOpacity)
     }
 
     /// The whole cell carries the rarity colour (D2 dropped the round gem).
@@ -116,7 +134,8 @@ struct CardRowView: View {
             .foregroundColor(nameColor)
             .lineLimit(1)
             .truncationMode(.tail)
-            .shadow(color: .black.opacity(0.9), radius: 2 * u, y: u)
+            .shadow(color: .black.opacity(0.95), radius: TrackerBarStyle.nameShadowNear * u, y: u)
+            .shadow(color: .black.opacity(0.8), radius: TrackerBarStyle.nameShadowFar * u)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .padding(.leading, costWidth + TrackerBarStyle.namePadLeading * u)
             .padding(.trailing, (showsCountBox ? TrackerBarStyle.namePadBoxed
@@ -136,9 +155,10 @@ struct CardRowView: View {
                                   size: TrackerBarStyle.countFontSize * u))
                     .foregroundColor(.white)
             } else {
-                Text("★")
-                    .font(.system(size: TrackerBarStyle.nameFontSize * u))
-                    .foregroundColor(TrackerBarStyle.star)
+                TrackerStar()
+                    .fill(TrackerBarStyle.star)
+                    .frame(width: TrackerBarStyle.starSize * u,
+                           height: TrackerBarStyle.starSize * u)
             }
         }
         .frame(width: boxWidth, height: rowHeight)
@@ -213,8 +233,19 @@ struct CardRowView: View {
     /// `Card.textColor()` still owns the draw / in-hand / discarded precedence
     /// and the four settings that gate them; only its plain-white default is
     /// swapped for the D2 parchment.
+    ///
+    /// The hand section is the exception: D2 took the in-hand green off it (it
+    /// only says something in the deck section) and the sheet paints those names
+    /// flat — `.inhand .name { color: var(--hand) }`, which is this very colour.
+    /// The just-drawn orange outranks the green in `Card.textColor()` and is kept
+    /// here too: every card in that section is in hand, so dropping the green
+    /// leaves orange as the only signal the section can carry (review 09-17).
+    /// `Card.textColor()` itself is untouched; the old bar path shares it.
     private var nameColor: Color {
         if playerType == .cardList || playerType == .editDeck {
+            return TrackerBarStyle.text
+        }
+        if isHandSection && !(card.highlightDraw && Settings.highlightLastDrawn) {
             return TrackerBarStyle.text
         }
         let color = card.textColor()

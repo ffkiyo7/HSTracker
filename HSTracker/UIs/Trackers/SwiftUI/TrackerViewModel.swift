@@ -170,6 +170,12 @@ final class TrackerViewModel: ObservableObject {
             layout = next
         }
 
+        // The header's two fixed columns are a fraction of the panel, so it
+        // needs the compressed width too (V1 left them frozen to the base).
+        if header.barWidth != barWidth {
+            header.barWidth = barWidth
+        }
+
         for list in lists {
             if list.rowHeight != cardHeight {
                 list.rowHeight = cardHeight

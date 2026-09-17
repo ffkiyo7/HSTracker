@@ -80,7 +80,7 @@ class TrackerMetricsTests: HSTrackerTests {
         viewModel.update(cards: deck, top: [], bottom: [], relatedCards: [], groups: nil)
         viewModel.updateLayout(availableHeight: availableHeight,
                                panelWidth: panelWidth,
-                               frameHeight: TrackerMetrics.headerLineHeight(
+                               frameHeight: TrackerMetrics.sectionHeaderHeight(
                                    rowHeight: TrackerMetrics.rowHeight(panelWidth: panelWidth)),
                                reserveGraveyardRow: false)
         return viewModel.layout
@@ -131,7 +131,7 @@ class TrackerMetricsTests: HSTrackerTests {
         viewModel.update(cards: [], top: [], bottom: [], relatedCards: [], groups: groups)
         viewModel.updateLayout(availableHeight: available,
                                panelWidth: panelWidth,
-                               frameHeight: TrackerMetrics.headerLineHeight(
+                               frameHeight: TrackerMetrics.sectionHeaderHeight(
                                    rowHeight: TrackerMetrics.rowHeight(panelWidth: panelWidth)),
                                reserveGraveyardRow: false)
         let layout = viewModel.layout
@@ -144,6 +144,94 @@ class TrackerMetricsTests: HSTrackerTests {
     func testEmptyListHasNoContent() {
         let layout = layout(cards: 0, availableHeight: 900)
         XCTAssertEqual(layout.contentHeight, 0, accuracy: accuracy)
+    }
+
+    // MARK: - V2a: header and section header on the row grid
+
+    /// The 40 : 34 stretch the theme-PNG path gave both header kinds is gone: a
+    /// header line is a card row, a section header the sheet's 22 : 21 notch.
+    func testHeaderKindsSitOnTheCardRowGrid() {
+        let rowHeight = TrackerMetrics.rowHeight(panelWidth: 171)
+        XCTAssertEqual(rowHeight, 21, accuracy: 0.1)
+        XCTAssertEqual(TrackerMetrics.sectionHeaderHeight(rowHeight: rowHeight), 22, accuracy: 0.1)
+        XCTAssertLessThan(TrackerMetrics.sectionHeaderHeight(rowHeight: rowHeight),
+                          rowHeight * 40 / 34)
+    }
+
+    func testSectionHeaderKeepsItsRatioToTheRow() {
+        for panelWidth in [113.7, 171.0, 227.5] {
+            let rowHeight = TrackerMetrics.rowHeight(panelWidth: panelWidth)
+            XCTAssertEqual(TrackerMetrics.sectionHeaderHeight(rowHeight: rowHeight) / rowHeight,
+                           22.0 / 21.0, accuracy: accuracy)
+        }
+    }
+
+    /// The two count columns are fixed; what is left is the deck-name column.
+    func testHeaderColumnsLeaveRoomForTheDeckName() {
+        let fixed = TrackerBarStyle.headerMiddleColumn + TrackerBarStyle.headerTrailingColumn
+        XCTAssertEqual(fixed, 86, accuracy: accuracy)
+        // D2 asked for a name column of about 80 reference pixels; 171 - 86 = 85.
+        XCTAssertGreaterThanOrEqual(TrackerMetrics.panelWidth - fixed, 80)
+    }
+
+    /// V1 left the header's columns frozen to the uncompressed row height, so a
+    /// heavily compressed panel squeezed the deck name to nothing. The header
+    /// now gets the compressed bar width.
+    func testCompressedPanelNarrowsTheHeaderColumns() {
+        let viewModel = TrackerViewModel()
+        let deck = (0..<40).map { index -> Card in
+            let card = Card()
+            card.id = "c\(index)"
+            card.count = 1
+            return card
+        }
+        viewModel.update(cards: deck, top: [], bottom: [], relatedCards: [], groups: nil)
+        let rowHeight = TrackerMetrics.rowHeight(panelWidth: 171)
+        viewModel.updateLayout(availableHeight: 500,
+                               panelWidth: 171,
+                               frameHeight: TrackerMetrics.sectionHeaderHeight(rowHeight: rowHeight),
+                               reserveGraveyardRow: false)
+        XCTAssertLessThan(viewModel.layout.barWidth, 171)
+        XCTAssertEqual(viewModel.header.barWidth, viewModel.layout.barWidth, accuracy: accuracy)
+    }
+
+    // MARK: - V2b: D3-b full-bleed art
+
+    /// The art starts at the cost cell's trailing edge and runs to the end of
+    /// the bar: 149 of the 171 reference pixels, at every panel size.
+    func testArtStripSpansEverythingRightOfTheCostCell() {
+        for panelWidth in [113.7, 170.6, 227.5] {
+            let u = TrackerMetrics.rowHeight(panelWidth: panelWidth) / TrackerMetrics.rowHeight
+            let cost = TrackerBarStyle.costWidth * u
+            XCTAssertEqual(cost / u, 22, accuracy: accuracy)
+            XCTAssertEqual((panelWidth - cost) / u, 149, accuracy: 0.5)
+        }
+    }
+
+    /// `.D.fe75`: solid for the leading tenth of the strip, gone by 75%.
+    func testD3bFadeStopsMatchTheSheet() {
+        XCTAssertEqual(TrackerBarStyle.artSolidFraction, 0.10, accuracy: 0.0001)
+        XCTAssertEqual(TrackerBarStyle.artClearFraction, 0.75, accuracy: 0.0001)
+        // In bar coordinates: solid out to 36.9, fully clear at 133.75 of 171.
+        XCTAssertEqual(22 + 149 * TrackerBarStyle.artSolidFraction, 36.9, accuracy: 0.05)
+        XCTAssertEqual(22 + 149 * TrackerBarStyle.artClearFraction, 133.75, accuracy: 0.05)
+    }
+
+    /// The session recap window still wants the D2 strip. Its two numbers used
+    /// to be derived from the card row's; D3-b moved the row, so they are now
+    /// the recap's own and must not track it.
+    func testSessionRecapFadeIsIndependentOfTheCardRow() {
+        XCTAssertEqual(TrackerFade.opaqueFraction, 0.35, accuracy: accuracy)
+        XCTAssertEqual(TrackerFade.startFraction, 1 - 100.0 / 171.0, accuracy: accuracy)
+        XCTAssertNotEqual(TrackerFade.opaqueFraction, TrackerBarStyle.artSolidFraction)
+    }
+
+    /// The shade over the art is the panel base, so it has to dim with the
+    /// panel instead of staying opaque over a translucent one.
+    func testArtShadeCarriesThePanelOpacity() {
+        XCTAssertEqual(CardRowView(card: Card()).baseOpacity,
+                       TrackerMetrics.baseOpacity(setting: Settings.trackerOpacity),
+                       accuracy: accuracy)
     }
 
     // MARK: - base opacity

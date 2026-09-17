@@ -366,24 +366,28 @@ class Tracker: OverWindowController, CardCellHover {
         // the row height and everything on the row grid follow from it; the
         // `ratio` the legacy path uses no longer applies here.
         let baseRowHeight = TrackerMetrics.rowHeight(panelWidth: windowWidth)
-        let smallFrameHeight = TrackerMetrics.headerLineHeight(rowHeight: baseRowHeight)
+        // V2a: one row grid for the whole panel. A three-row header line is a
+        // card row; a section header is the 22 : 21 notch of the D3 sheet. The
+        // opponent's AppKit hero bar sits on the same grid as a header line.
+        let headerLineHeight = baseRowHeight
+        let sectionHeaderHeight = TrackerMetrics.sectionHeaderHeight(rowHeight: baseRowHeight)
 
         var startHeight: CGFloat = 0
         if !playerClass.isHidden && playerType == .opponent, let playerClassId = self.playerClassId {
-            startHeight += smallFrameHeight
+            startHeight += headerLineHeight
             layoutHeroBar(cardId: playerClassId,
                           windowWidth: windowWidth,
                           windowHeight: windowHeight,
-                          height: smallFrameHeight,
+                          height: headerLineHeight,
                           hideCost: true)
         }
 
-        updateSwiftUIHeader(lineHeight: smallFrameHeight)
+        updateSwiftUIHeader(lineHeight: headerLineHeight)
         let host = ensureSwiftUIRoot()
         let availableHeight = windowHeight - startHeight
         host.viewModel.updateLayout(availableHeight: availableHeight,
                                     panelWidth: windowWidth,
-                                    frameHeight: smallFrameHeight,
+                                    frameHeight: sectionHeaderHeight,
                                     reserveGraveyardRow: showGraveyard)
         host.frame = NSRect(x: 0, y: 0, width: windowWidth, height: availableHeight)
         host.isHidden = false

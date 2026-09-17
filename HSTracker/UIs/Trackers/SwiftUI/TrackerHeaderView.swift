@@ -10,9 +10,10 @@ import AppKit
 import SwiftUI
 
 final class TrackerHeaderViewModel: ObservableObject {
-    /// Settings.showDeckNameInTracker. The name itself is not drawn any more —
-    /// the flag now only gates the player class icon.
+    /// Settings.showDeckNameInTracker. V2a put the deck name back on the first
+    /// line next to the class icon, so the flag gates both again.
     @Published var showDeckName = false
+    @Published var deckName = ""
     @Published var playerClass: CardClass?
     @Published var handCount = 0
     @Published var deckCount = 0
@@ -20,7 +21,13 @@ final class TrackerHeaderViewModel: ObservableObject {
     @Published var overallRecord: StatsDeckRecord?
     @Published var matchupClass: CardClass?
     @Published var matchupRecord: StatsDeckRecord?
-    @Published var lineHeight: CGFloat = 40
+    /// One header line, i.e. one card row (V2a); `TrackerMetrics.rowHeight` is
+    /// the reference value the sheet's numbers are expressed in.
+    @Published var lineHeight: CGFloat = TrackerMetrics.rowHeight
+    /// The panel's drawing width for this frame. The two fixed columns are a
+    /// fraction of it, so a compressed panel narrows them instead of eating the
+    /// deck-name column (V1 left this as a known defect).
+    @Published var barWidth: CGFloat = TrackerMetrics.panelWidth
     @Published var heroArt: NSImage?
 
     private var heroCardId = ""
@@ -52,6 +59,15 @@ final class TrackerHeaderViewModel: ObservableObject {
                 lineHeight: CGFloat) {
         if self.showDeckName != showDeckName {
             self.showDeckName = showDeckName
+        }
+        // The deck name is read here rather than passed in: `Tracker.swift` is
+        // only open to the header / section *heights* in this change, and this
+        // is the same source its `playerName` comes from (Game.swift).
+        let name = showDeckName
+            ? (AppDelegate.instance().coreManager.game.currentDeck?.name ?? "")
+            : ""
+        if deckName != name {
+            deckName = name
         }
         if self.playerClass != playerClass {
             self.playerClass = playerClass
@@ -129,19 +145,23 @@ private extension StatsDeckRecord {
 /// Internal, not private: the session recap window reuses this as its spec.
 enum HeaderStyle {
     static let digitFontName = "Belwe Bd BT"
+    /// Session recap only. The tracker header went to the gold rules of the D3
+    /// sheet (`TrackerBarStyle.line`) in V2a.
     static let divider = Color.white.opacity(0.18)
     static let border = Color(red: 0x14 / 255, green: 0x16 / 255, blue: 0x17 / 255)
-    static let innerBorder = Color.white.opacity(0.08)
     static let win = Color(red: 0x62 / 255, green: 0xD9 / 255, blue: 0x7A / 255)
     static let loss = Color(red: 0xFF / 255, green: 0x6B / 255, blue: 0x5E / 255)
     static let shade = Color(red: 12 / 255, green: 11 / 255, blue: 9 / 255)
-    /// Opacity applied to the theme `fade.png` layer over hero art (1 = as dark
-    /// as a card row's fully opaque strip; 2026-09-08 user found that too dark).
+    /// Session recap only. The tracker header no longer lays `TrackerFade` over
+    /// its hero art: the D3 sheet's `.hdr .shade` is the plain 0.95 / 0.9 / 0.4
+    /// gradient, which is what `panelShade` draws.
     static let fadeOpacity: CGFloat = 0.8
     /// Hero art is drawn this much wider than the header and clipped, so the
     /// tile's own edge columns never reach the visible area.
     static let artOverscan: CGFloat = 1.08
 
+    /// Absolute point sizes: the session recap window is a normal window, not a
+    /// panel on the card-row grid, so it passes `scale` 1.
     static func text(_ scale: CGFloat, size: CGFloat = 14) -> Font {
         Font.custom(TrackerTextFont.name, size: size * scale)
     }
@@ -154,7 +174,17 @@ enum HeaderStyle {
 struct TrackerHeaderView: View {
     @ObservedObject var viewModel: TrackerHeaderViewModel
 
-    private var scale: CGFloat { viewModel.lineHeight / 40 }
+    /// One reference pixel of the 171 x 21 sheet. A header line *is* a card row
+    /// since V2a, so the whole panel reads off one grid.
+    private var u: CGFloat { viewModel.lineHeight / TrackerMetrics.rowHeight }
+    /// The two fixed columns follow the panel width rather than the line height:
+    /// under compression the bars narrow while `lineHeight` stays at the base
+    /// value, and a 40 + 46 pair frozen to the base would eat the deck-name
+    /// column (V1 reported this as a known defect).
+    private var columnUnit: CGFloat {
+        viewModel.barWidth > 0 ? viewModel.barWidth / TrackerMetrics.panelWidth : u
+    }
+    private var rule: CGFloat { max(TrackerBarStyle.hairline * u, 0.5) }
 
     var body: some View {
         Group {
@@ -164,8 +194,7 @@ struct TrackerHeaderView: View {
                     rows
                 }
                 .clipped()
-                .overlay(Rectangle().strokeBorder(HeaderStyle.innerBorder, lineWidth: 1).padding(1))
-                .overlay(Rectangle().strokeBorder(HeaderStyle.border, lineWidth: 1))
+                .overlay(Rectangle().strokeBorder(TrackerBarStyle.line, lineWidth: rule))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -178,62 +207,29 @@ struct TrackerHeaderView: View {
             ZStack {
                 if let art = viewModel.heroArt {
                     // Slightly over-scan the art: the 256x tiles carry a light
-                    // border column/row from the source crop, and at 0.8 fade
-                    // opacity that edge showed as a grey strip on the left.
+                    // border column/row from the source crop, which showed as a
+                    // grey strip on the left through the shade.
                     Image(nsImage: art)
                         .resizable()
                         .scaledToFill()
                         .frame(width: proxy.size.width * HeaderStyle.artOverscan,
                                height: proxy.size.height, alignment: .top)
                         .offset(y: -proxy.size.height * 0.12)
-                    shade(width: proxy.size.width, height: proxy.size.height)
-                } else {
-                    // `fade.png` is fully transparent on its trailing quarter,
-                    // which is fine over art but would leave the deck-count
-                    // column sitting straight on the game screen when there is
-                    // no art (the opponent tracker always, the player tracker
-                    // until its art loads). The gradient keeps an opacity floor.
-                    fallbackShade
                 }
+                // Drawn with or without art: the sheet's `.hdr .shade` is this
+                // gradient, and it never drops to fully transparent, so the
+                // deck-count column never sits straight on the game screen
+                // (the opponent tracker has no hero art at all).
+                panelShade
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
             .clipped()
         }
     }
 
-    /// The card rows shade their art with the theme's `fade.png`; the header
-    /// draws the same asset so the two match in both darkness and where the
-    /// dark-left/art-right transition lands. A card row hides the fade's
-    /// leading strip behind the opaque gem/frame, so here that strip is filled
-    /// by over-scaling a second copy until only its flat, opaque part shows.
-    @ViewBuilder
-    private func shade(width: CGFloat, height: CGFloat) -> some View {
-        if let fade = TrackerFade.image {
-            let start = (width * TrackerFade.startFraction).rounded()
-            HStack(spacing: 0) {
-                if start > 0 {
-                    Image(nsImage: fade)
-                        .resizable()
-                        .frame(width: start / TrackerFade.opaqueFraction, height: height)
-                        .frame(width: start, height: height, alignment: .leading)
-                        .clipped()
-                }
-                Image(nsImage: fade)
-                    .resizable()
-                    .frame(width: max(width - start, 0), height: height)
-            }
-            // The fade's flat part is fully opaque; under a card row that sits
-            // behind gem/frame textures, but here it is a bare three-row block
-            // and reads too dark. Lift the whole layer a little.
-            .opacity(HeaderStyle.fadeOpacity)
-        } else {
-            fallbackShade
-        }
-    }
-
-    /// Used when the theme ships no `fade.png`, and when there is no hero art
-    /// to shade — unlike the fade it never drops to fully transparent.
-    private var fallbackShade: some View {
+    /// `.hdr .shade` of the D3 sheet, kept from T5: 0.95 / 0.9 / 0.4 at
+    /// 0 / 0.48 / 1.
+    private var panelShade: some View {
         LinearGradient(
             stops: [
                 .init(color: HeaderStyle.shade.opacity(0.95), location: 0),
@@ -246,71 +242,88 @@ struct TrackerHeaderView: View {
     }
 
     private var rows: some View {
-        VStack(spacing: 0) {
+        let labelFont = TrackerBarStyle.label(u, size: TrackerBarStyle.headerLabelFontSize)
+        let digitFont = TrackerBarStyle.digits(u, size: TrackerBarStyle.headerDigitFontSize)
+        let icon = TrackerBarStyle.headerIcon * u
+        return VStack(spacing: 0) {
             if viewModel.showFirstLine {
-                TrackerHeaderRow(scale: scale, height: viewModel.lineHeight,
-                                 isLast: viewModel.overallRecord == nil) {
-                    if viewModel.showDeckName,
-                       let icon = viewModel.playerClass.flatMap(classIcon) {
-                        Image(nsImage: icon)
-                            .resizable()
-                            .frame(width: 22 * scale, height: 22 * scale)
+                row(isFirst: true) {
+                    // D3 sheet's first line is "<class dot> <deck name> | 6 | 13":
+                    // the two SF Symbols that labelled the counts are gone, the
+                    // column itself says which count it is.
+                    HStack(spacing: TrackerBarStyle.headerIconGap * u) {
+                        if viewModel.showDeckName,
+                           let image = viewModel.playerClass.flatMap(classIcon) {
+                            Image(nsImage: image)
+                                .resizable()
+                                .frame(width: icon, height: icon)
+                        }
+                        if viewModel.showDeckName && !viewModel.deckName.isEmpty {
+                            Text(viewModel.deckName)
+                                .font(labelFont)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
                     }
                 } middle: {
                     if viewModel.showCardCount {
-                        HStack(spacing: 5 * scale) {
-                            Image(systemName: "hand.raised")
-                                .font(.system(size: 13 * scale, weight: .semibold))
-                            Text("\(viewModel.handCount)")
-                                .font(HeaderStyle.digits(scale, size: 16))
-                        }
+                        Text("\(viewModel.handCount)").font(digitFont)
                     }
                 } trailing: {
                     if viewModel.showCardCount {
-                        HStack(spacing: 5 * scale) {
-                            Image(systemName: "rectangle.portrait.on.rectangle.portrait")
-                                .font(.system(size: 13 * scale, weight: .semibold))
-                            Text("\(viewModel.deckCount)")
-                                .font(HeaderStyle.digits(scale, size: 16))
-                        }
+                        Text("\(viewModel.deckCount)").font(digitFont)
                     }
                 }
             }
             if let record = viewModel.overallRecord {
-                TrackerHeaderRow(scale: scale, height: viewModel.lineHeight,
-                                 isLast: viewModel.matchupRecord == nil) {
+                row(isFirst: !viewModel.showFirstLine) {
                     Text(String.localizedString("Deck win rate", comment: ""))
-                        .font(HeaderStyle.text(scale, size: 13))
+                        .font(labelFont)
                         .lineLimit(1)
+                        .truncationMode(.tail)
                 } middle: {
-                    Text(record.trackerWinRate)
-                        .font(HeaderStyle.digits(scale))
+                    Text(record.trackerWinRate).font(digitFont)
                 } trailing: {
-                    TrackerHeaderRecord(record: record, scale: scale)
+                    TrackerHeaderRecord(record: record, u: u, font: digitFont)
                 }
             }
             if let matchupClass = viewModel.matchupClass,
                let record = viewModel.matchupRecord {
-                TrackerHeaderRow(scale: scale, height: viewModel.lineHeight, isLast: true) {
-                    HStack(spacing: 7 * scale) {
+                row(isFirst: false) {
+                    HStack(spacing: TrackerBarStyle.headerIconGap * u) {
                         Text(String.localizedString("vs", comment: ""))
-                            .font(HeaderStyle.text(scale, size: 13))
-                        if let icon = classIcon(matchupClass) {
-                            Image(nsImage: icon)
+                            .font(labelFont)
+                        if let image = classIcon(matchupClass) {
+                            Image(nsImage: image)
                                 .resizable()
-                                .frame(width: 22 * scale, height: 22 * scale)
+                                .frame(width: icon, height: icon)
                         }
                     }
                 } middle: {
-                    Text(record.trackerWinRate)
-                        .font(HeaderStyle.digits(scale))
+                    Text(record.trackerWinRate).font(digitFont)
                 } trailing: {
-                    TrackerHeaderRecord(record: record, scale: scale)
+                    TrackerHeaderRecord(record: record, u: u, font: digitFont)
                 }
             }
         }
-        .foregroundColor(.white)
+        .foregroundColor(TrackerBarStyle.text)
         .shadow(color: .black, radius: 0, x: 1, y: 1)
+    }
+
+    private func row<Leading: View, Middle: View, Trailing: View>(
+        isFirst: Bool,
+        @ViewBuilder leading: @escaping () -> Leading,
+        @ViewBuilder middle: @escaping () -> Middle,
+        @ViewBuilder trailing: @escaping () -> Trailing
+    ) -> some View {
+        TrackerHeaderRow(u: u,
+                         height: viewModel.lineHeight,
+                         middleWidth: TrackerBarStyle.headerMiddleColumn * columnUnit,
+                         trailingWidth: TrackerBarStyle.headerTrailingColumn * columnUnit,
+                         isFirst: isFirst,
+                         leading: leading,
+                         middle: middle,
+                         trailing: trailing)
     }
 
     private func classIcon(_ cardClass: CardClass) -> NSImage? {
@@ -318,32 +331,42 @@ struct TrackerHeaderView: View {
     }
 }
 
+/// One `.hdr` line: a flexible label column and the two fixed count columns,
+/// separated by the gold rules of the D3 sheet.
 private struct TrackerHeaderRow<Leading: View, Middle: View, Trailing: View>: View {
-    let scale: CGFloat
+    let u: CGFloat
     let height: CGFloat
-    let isLast: Bool
+    let middleWidth: CGFloat
+    let trailingWidth: CGFloat
+    let isFirst: Bool
     @ViewBuilder let leading: () -> Leading
     @ViewBuilder let middle: () -> Middle
     @ViewBuilder let trailing: () -> Trailing
 
+    private var rule: CGFloat { max(TrackerBarStyle.hairline * u, 0.5) }
+
     var body: some View {
         HStack(spacing: 0) {
             leading()
-                .padding(.horizontal, 8 * scale)
+                .padding(.horizontal, TrackerBarStyle.headerPadding * u)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                .overlay(alignment: .trailing) { Rectangle().fill(HeaderStyle.divider).frame(width: 1) }
             middle()
-                .frame(width: 62 * scale)
+                .frame(width: middleWidth)
                 .frame(maxHeight: .infinity)
-                .overlay(alignment: .trailing) { Rectangle().fill(HeaderStyle.divider).frame(width: 1) }
+                .overlay(alignment: .leading) {
+                    Rectangle().fill(TrackerBarStyle.line).frame(width: rule)
+                }
             trailing()
-                .frame(width: 76 * scale)
+                .frame(width: trailingWidth)
                 .frame(maxHeight: .infinity)
+                .overlay(alignment: .leading) {
+                    Rectangle().fill(TrackerBarStyle.line).frame(width: rule)
+                }
         }
         .frame(height: height)
-        .overlay(alignment: .bottom) {
-            if !isLast {
-                Rectangle().fill(HeaderStyle.divider).frame(height: 1)
+        .overlay(alignment: .top) {
+            if !isFirst {
+                Rectangle().fill(TrackerBarStyle.line).frame(height: rule)
             }
         }
     }
@@ -351,18 +374,18 @@ private struct TrackerHeaderRow<Leading: View, Middle: View, Trailing: View>: Vi
 
 private struct TrackerHeaderRecord: View {
     let record: StatsDeckRecord
-    let scale: CGFloat
+    let u: CGFloat
+    let font: Font
 
     var body: some View {
-        HStack(spacing: 4 * scale) {
+        HStack(spacing: TrackerBarStyle.headerRecordGap * u) {
             Text("\(record.wins)")
                 .foregroundColor(HeaderStyle.win)
             Text("/")
-                .font(HeaderStyle.digits(scale, size: 12))
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(TrackerBarStyle.text.opacity(0.8))
             Text("\(record.losses)")
                 .foregroundColor(HeaderStyle.loss)
         }
-        .font(HeaderStyle.digits(scale))
+        .font(font)
     }
 }

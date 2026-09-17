@@ -55,16 +55,106 @@ enum TrackerBarStyle {
     static let costFontSize: CGFloat = 12
     static let countFontSize: CGFloat = 11
     static let createdMark: CGFloat = 6
-    /// Art strip as a fraction of the bar width (100 / 171 in the D2 sheet), and
-    /// the part of it the base colour still covers fully.
-    static let artFraction: CGFloat = 100.0 / 171.0
-    static let artFadeFraction: CGFloat = 0.35
+    static let starSize: CGFloat = 10
+    /// D3-b (`.D` / `.D.fe75` in the sheet): the art runs from the cost cell's
+    /// trailing edge to the end of the bar — 149 of the 171 reference pixels —
+    /// and the panel base lies over it, solid for the first tenth and gone by
+    /// three quarters. Both fractions are of the *art strip*, not of the bar.
+    static let artSolidFraction: CGFloat = 0.10
+    static let artClearFraction: CGFloat = 0.75
+    /// `.D .row .name`: the name's back half can sit on lit art now.
+    static let nameShadowNear: CGFloat = 2
+    static let nameShadowFar: CGFloat = 4
     /// `.dim` in the D2 sheet: count <= 0 / jousted rows.
     static let dimContent: CGFloat = 0.45
     static let dimCost: CGFloat = 0.55
 
+    // MARK: - three-row header and section header (`.hdr` / `.sec` in the D3 sheet)
+
+    /// A header line is exactly one card row; a section header is one notch
+    /// taller. Everything else here is in the same reference pixels.
+    static let sectionRowHeight: CGFloat = 22
+    static let headerPadding: CGFloat = 6
+    static let headerMiddleColumn: CGFloat = 40
+    static let headerTrailingColumn: CGFloat = 46
+    static let headerLabelFontSize: CGFloat = 9.5
+    static let headerDigitFontSize: CGFloat = 10
+    static let headerIcon: CGFloat = 11
+    static let headerIconGap: CGFloat = 4
+    static let headerRecordGap: CGFloat = 3
+    static let sectionFontSize: CGFloat = 10
+    /// `letter-spacing: .04em` on `.sec`.
+    static let sectionTracking: CGFloat = 0.04
+    static let sectionCountGap: CGFloat = 3
+    static let sectionSideColumn: CGFloat = 22
+    static let chevron: CGFloat = 6
+    static let chevronStroke: CGFloat = 1.5
+    static let chevronOpacity: CGFloat = 0.8
+
     /// Belwe for every numeral, as in the D2 sheet's `--num`.
     static let digitFontName = "Belwe Bd BT"
+
+    /// Labels and section names: the theme face (AR LisuGB in Chinese).
+    static func label(_ u: CGFloat, size: CGFloat) -> Font {
+        Font.custom(TrackerTextFont.name, size: size * u)
+    }
+
+    /// Every numeral on the panel.
+    static func digits(_ u: CGFloat, size: CGFloat) -> Font {
+        Font.custom(digitFontName, size: size * u)
+    }
+}
+
+/// The count box's legendary marker. It used to be `Text("★")` in the system
+/// font — the one face the panel is not allowed to show — so the star is drawn.
+struct TrackerStar: Shape {
+    func path(in rect: CGRect) -> Path {
+        let centre = CGPoint(x: rect.midX, y: rect.midY)
+        let outer = min(rect.width, rect.height) / 2
+        // 0.382 = 1 / phi^2, the inner radius of a regular pentagram.
+        let inner = outer * 0.382
+        var path = Path()
+        for step in 0..<10 {
+            let radius = step.isMultiple(of: 2) ? outer : inner
+            let angle = -CGFloat.pi / 2 + CGFloat(step) * .pi / 5
+            let point = CGPoint(x: centre.x + radius * cos(angle),
+                                y: centre.y + radius * sin(angle))
+            if step == 0 {
+                path.move(to: point)
+            } else {
+                path.addLine(to: point)
+            }
+        }
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// `.sec .chev`: the trailing and bottom edges of a square, stroked and turned
+/// 45 degrees, which is the sheet's collapse arrow.
+struct TrackerChevron: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        return path
+    }
+}
+
+/// True inside the hand section. D2 dropped the in-hand green there (it only
+/// says something in the deck section), and the row view has to know which
+/// section it is in — `TrackerCardListView` between the two is not part of
+/// this change, so the flag travels by environment.
+private struct TrackerHandSectionKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var trackerHandSection: Bool {
+        get { self[TrackerHandSectionKey.self] }
+        set { self[TrackerHandSectionKey.self] = newValue }
+    }
 }
 
 /// Panel and row size, derived from the Hearthstone window instead of the
@@ -120,11 +210,11 @@ enum TrackerMetrics {
         return CGFloat(min(setting, 100) / 100)
     }
 
-    /// The three-row header and the section headers keep the 40 : 34 ratio to a
-    /// card row they had on the theme-PNG path; squeezing them onto the 21-px
-    /// grid is V2.
-    static func headerLineHeight(rowHeight: CGFloat) -> CGFloat {
-        max(round(rowHeight * 40 / 34), 1)
+    /// V2a put the whole panel on one row grid: a three-row header line *is* a
+    /// card row, and a section header is the 22 : 21 notch of the D3 sheet's
+    /// `.sec`. Nothing keeps the old 40 : 34 ratio to a card row any more.
+    static func sectionHeaderHeight(rowHeight: CGFloat) -> CGFloat {
+        max(rowHeight * TrackerBarStyle.sectionRowHeight / Self.rowHeight, 1)
     }
 }
 
@@ -143,14 +233,16 @@ enum TrackerTextFont {
     }
 }
 
-/// The shade a card row lays over its art, as a drawn gradient rather than the
-/// retired `fade.png`. Kept as an `NSImage` because the session recap window
-/// scales it in two pieces the way the tracker header does.
+/// The session recap window's row shade, as a drawn gradient rather than the
+/// retired `fade.png`. Kept as an `NSImage` because that window scales it in two
+/// pieces. **Card rows no longer use it** — D3-b gave them their own full-bleed
+/// geometry (`TrackerBarStyle.artSolidFraction` / `artClearFraction`), so the two
+/// numbers below are the recap's own and are not derived from the bar any more.
 enum TrackerFade {
-    /// Where the art strip starts, as a fraction of the bar width.
-    static var startFraction: CGFloat { 1 - TrackerBarStyle.artFraction }
+    /// Where the shaded strip starts, as a fraction of the row width.
+    static let startFraction: CGFloat = 1 - 100.0 / 171.0
     /// Fraction of the gradient whose alpha is still flat.
-    static let opaqueFraction: CGFloat = TrackerBarStyle.artFadeFraction
+    static let opaqueFraction: CGFloat = 0.35
 
     private static var cached: NSImage?
 

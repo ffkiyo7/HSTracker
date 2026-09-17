@@ -48,6 +48,9 @@ struct TrackerView: View {
             if layout.handHeight > 0 {
                 TrackerSectionView(viewModel: viewModel.hand, title: handTitle)
                     .frame(height: layout.handHeight)
+                    // The only place that knows a section is the hand section;
+                    // the rows read it back in `CardRowView.nameColor`.
+                    .environment(\.trackerHandSection, true)
             }
             if layout.playedHeight > 0 {
                 TrackerSectionView(viewModel: viewModel.played, title: playedTitle)
