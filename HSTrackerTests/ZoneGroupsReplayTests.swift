@@ -224,6 +224,56 @@ class ZoneGroupsReplayTests: HSTrackerTests {
         }
     }
 
+    /// Bug T8: the signal is latched while parsing, so on our side it has to be
+    /// on the six Parachutes and on nothing else — and it has to stay on them
+    /// once they are drawn, which is the whole point of latching it.
+    ///
+    /// Scoped to our entities on purpose: the replayed opponent opens with
+    /// 阿札莉娜 (`JAIL_430`, entity 52), which builds their deck out of created
+    /// copies, so twenty of their cards are legitimately flagged too.
+    func testTheShuffledInSignalIsLatchedOnTheShuffledInCopiesOnly() {
+        func ourFlagged() -> [Entity] {
+            return game.entities.values.filter {
+                $0.wasShuffledIntoDeck && $0.isControlled(by: game.player.id)
+            }
+        }
+
+        feed(upTo: Self.beforeDarkBargain)
+        XCTAssertEqual(ourFlagged().count, 6, "the six Parachutes are the only copies shuffled in")
+        XCTAssertTrue(ourFlagged().all { $0.cardId == Self.parachute })
+
+        // Dark Bargain draws three of them out of the deck.
+        feed(upTo: Self.beforeFelosophy)
+        XCTAssertEqual(ourFlagged().count, 6, "being drawn does not undo the signal")
+        XCTAssertEqual(ourFlagged().filter { !$0.isInDeck }.count, 3)
+
+        // And it never lands on a card of ours that came from the deck list:
+        // dredge, a card coming back from the graveyard and an ordinary draw all
+        // set `info.created` too.
+        let listIds = Set(Self.deckList.map { $0.0 })
+        XCTAssertTrue(ourFlagged().all { !listIds.contains($0.cardId) },
+                      "a deck list card was taken for a shuffled in copy")
+    }
+
+    /// Bug T9: the sideboard latch only fires while the board is being built, on
+    /// entities the game creates straight into SETASIDE. The replayed deck has no
+    /// sideboard, so what this asserts is that it does not misfire — nothing that
+    /// really came out of the deck list, and nothing shuffled in, may carry it.
+    func testTheSetAsideAtSetupSignalNeverLandsOnADeckCard() {
+        let listIds = Set(Self.deckList.map { $0.0 })
+        for marker in [Self.beforePatchesPlayed, Self.beforeDarkBargain,
+                       Self.beforeFelosophy, Self.beforeCopiedBruteIsPlayed] {
+            feed(upTo: marker)
+            let flagged = game.entities.values.filter { $0.wasSetAsideAtSetup }
+            XCTAssertTrue(flagged.all { !listIds.contains($0.cardId) },
+                          "a deck list card was taken for a sideboard card at \(marker)")
+            XCTAssertTrue(flagged.all { !$0.wasShuffledIntoDeck },
+                          "a copy shuffled into the deck was taken for a sideboard card at \(marker)")
+            XCTAssertTrue(flagged.all { !$0.isInDeck },
+                          "a card in the deck cannot be a sideboard card at \(marker)")
+        }
+    }
+
     // MARK: - Cards that change controller
 
     /// 跳虫 (SC_010, entity 18) is drawn out of the deck and then handed to the

@@ -25,6 +25,23 @@ class Entity {
 	
     lazy var info: EntityInfo = EntityInfo(entity: self)
 
+    /// Set once this entity has been seen sitting in the deck zone while naming
+    /// a *card* as its creator: it is a copy the game made during the match, not
+    /// one of the deck list's own copies. Latched while parsing rather than
+    /// derived on read, because the test only holds while the copy is still in
+    /// the deck — once it is drawn the zone sections used to charge it to the
+    /// deck list and the deck section came up one short (bug T8).
+    var wasShuffledIntoDeck = false
+
+    /// Set while the board is being built, on the entities the game creates
+    /// straight into SETASIDE: E.T.C.'s sideboard, Zilliax's modules, choose one
+    /// halves. The setup branch of `TagChangeActions.zoneChange` writes
+    /// `originalZone = .deck` for all of them, so the zone sections took them
+    /// for deck cards that had already left the deck and listed the sideboard as
+    /// played (bug T9). Cleared again if such an entity really does enter the
+    /// deck later.
+    var wasSetAsideAtSetup = false
+
     init() {
         self.id = -1
     }
@@ -262,6 +279,8 @@ extension Entity: NSCopying {
         e.info.creatorId = info.creatorId
         e.info.cardIdBeforeReveal = info.cardIdBeforeReveal
         e.info.originalCardId = info.originalCardId
+        e.wasShuffledIntoDeck = wasShuffledIntoDeck
+        e.wasSetAsideAtSetup = wasSetAsideAtSetup
 
         return e
     }

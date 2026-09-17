@@ -94,6 +94,9 @@ struct CardZoneGroups {
     ///   in the deck anymore, in hand or not.
     /// - Parameter shuffledIntoDeck: of the cards in the deck, how many per card
     ///   id are copies the deck list does not own.
+    /// - Parameter shuffledLeftDeck: of `leftDeck`, how many per card id were
+    ///   such copies. They still belong to the played / hand sections, but they
+    ///   may not be charged to the deck list: it never owned them.
     /// - Parameter inHandFromDeck: of those, how many are in hand per card id.
     static func make(deckList: [Card],
                      knownInDeck: [Card],
@@ -101,6 +104,7 @@ struct CardZoneGroups {
                      cardsInHand: [Card],
                      leftDeck: [Card],
                      shuffledIntoDeck: [String: Int] = [:],
+                     shuffledLeftDeck: [String: Int] = [:],
                      inHandFromDeck: [String: Int]) -> CardZoneGroups {
         func counts(_ cards: [Card]) -> [String: Int] {
             var result = [String: Int]()
@@ -126,7 +130,10 @@ struct CardZoneGroups {
             // in on top of it. Counting them separately is what keeps a copy
             // shuffled in from being swallowed by the list's own unrevealed
             // copies; `known` is only a floor, for when the list is incomplete.
-            let fromList = max((listed[card.id] ?? 0) - (left[card.id] ?? 0), 0)
+            // Only the list's own copies come off the list, which is why a
+            // shuffled in copy being drawn no longer costs the list a card.
+            let leftFromList = (left[card.id] ?? 0) - (shuffledLeftDeck[card.id] ?? 0)
+            let fromList = max((listed[card.id] ?? 0) - leftFromList, 0)
             let copies = max(fromList + (shuffledIntoDeck[card.id] ?? 0), known[card.id] ?? 0)
             guard copies > 0, let row = templates[card.id]?.copy() else { continue }
             row.count = copies
@@ -692,8 +699,15 @@ final class Player {
     /// ours the opponent took has left our deck all the same, and a minion we
     /// took from them was never in it, so neither may be filtered by who holds
     /// it now (Codex review, 2026-09-15).
+    ///
+    /// The sideboard is not part of the deck either: E.T.C.'s cards and Zilliax's
+    /// modules are created set aside while the board is being built and the setup
+    /// branch of `zoneChange` calls that `originalZone = .deck`, so they used to
+    /// show up here — and in the played section — from turn zero (bug T9). The
+    /// flag is latched while parsing (`TagChangeActions.markSetAsideAtSetup`).
     private var entitiesThatLeftTheDeck: [Entity] {
         return revealedEntities.filter { entity in
+            guard !entity.wasSetAsideAtSetup else { return false }
             guard entity.info.originalZone == .deck, !entity.isInDeck else { return false }
             let owner = entity.info.originalController
             return owner == self.id || (owner == 0 && entity.isControlled(by: self.id))
@@ -701,18 +715,25 @@ final class Player {
     }
 
     /// Copies sitting in the deck that the deck list does not own, i.e. shuffled
-    /// in by a card. `info.created` on its own does not say that (bug T6: it is
-    /// set on ordinary draws, and on anything that re-enters the deck, dredge
-    /// included), so the entity also has to name a *card* as its creator, which
-    /// is what the game writes when it makes a new card. Deck list cards get no
-    /// creator, or the game entity as one.
+    /// in by a card. The flag is latched while parsing
+    /// (`TagChangeActions.markShuffledIntoDeck`); reading it back here instead of
+    /// re-deriving it is what makes the answer survive the copy being drawn.
     private var shuffledIntoDeckByCardId: [String: Int] {
         var result = [String: Int]()
         for entity in deck where entity.hasCardId && (isLocalPlayer || !entity.info.hidden) {
-            guard entity.info.created else { continue }
-            let creatorId = entity[.creator] > 0 ? entity[.creator] : entity[.displayed_creator]
-            guard creatorId > 0, creatorId != entity.id,
-                  game.entities[creatorId]?.hasCardId == true else { continue }
+            guard entity.wasShuffledIntoDeck else { continue }
+            let cardId = zoneCardId(entity)
+            result[cardId] = (result[cardId] ?? 0) + 1
+        }
+        return result
+    }
+
+    /// Of the copies that left the deck, the ones the deck list never owned.
+    /// Without this the deck list pays for a shuffled in copy being drawn and
+    /// the deck section comes up one short (bug T8).
+    private var shuffledCopiesThatLeftTheDeck: [String: Int] {
+        var result = [String: Int]()
+        for entity in entitiesThatLeftTheDeck where entity.wasShuffledIntoDeck {
             let cardId = zoneCardId(entity)
             result[cardId] = (result[cardId] ?? 0) + 1
         }
@@ -760,6 +781,7 @@ final class Player {
                                    cardsInHand: cardsInHandByCardId,
                                    leftDeck: cardsThatLeftTheDeck,
                                    shuffledIntoDeck: shuffledIntoDeckByCardId,
+                                   shuffledLeftDeck: shuffledCopiesThatLeftTheDeck,
                                    inHandFromDeck: cardsInHandFromDeck)
     }
 

@@ -24,8 +24,9 @@ struct TagChangeActions {
         }
         return {
             switch tag {
-            case .zone: 
+            case .zone:
                 self.zoneChange(eventHandler: eventHandler, id: id, value: value, prevValue: prevValue)
+                self.markShuffledIntoDeck(eventHandler: eventHandler, id: id)
             case .playstate: 
                 self.playstateChange(eventHandler: eventHandler, id: id, value: value)
             case .gametag_3479:
@@ -58,10 +59,12 @@ struct TagChangeActions {
                 self.transformedFromCardChange(eventHandler: eventHandler, id: id, value: value)
             case .creator:
                 self.creatorChanged(eventHandler: eventHandler, id: id, value: value)
+                self.markShuffledIntoDeck(eventHandler: eventHandler, id: id)
             case .displayed_creator:
                 self.azalinaCopyCreated(eventHandler: eventHandler, id: id, value: value)
                 self.creatorChanged(eventHandler: eventHandler, id: id, value: value)
                 self.ectoplasmCreated(eventHandler: eventHandler, id: id, value: value)
+                self.markShuffledIntoDeck(eventHandler: eventHandler, id: id)
             case .whizbang_deck_id:
                 self.whizbangDeckIdChange(eventHandler: eventHandler, id: id, value: value)
             case .mulligan_state:
@@ -488,6 +491,16 @@ struct TagChangeActions {
         entity.info.guessedCardState = .guessed
     }
 
+    /// Far Sight writes `DISPLAYED_CREATOR` on the card it draws instead of on a
+    /// created copy, so a creator pointing at it does not mean "this entity was
+    /// made by that card". Shared by `creatorChanged` and `markShuffledIntoDeck`.
+    private func isFarSight(_ entity: Entity?) -> Bool {
+        guard let cardId = entity?.cardId else { return false }
+        return cardId == CardIds.Collectible.Shaman.FarSight
+            || cardId == CardIds.Collectible.Shaman.FarSightCore
+            || cardId == CardIds.Collectible.Shaman.FarSightVanilla
+    }
+
     private func creatorChanged(eventHandler: PowerEventHandler, id: Int, value: Int) {
         if value == 0 {
             return
@@ -500,11 +513,9 @@ struct TagChangeActions {
                 // on themselves instead of the created entity.
                 return
             }
-            if let displayedCreator = eventHandler.entities[displayedCreatorId] {
-                // For some reason Far Sight sets DISPLAYED_CREATOR on the entity
-                if displayedCreator.cardId == CardIds.Collectible.Shaman.FarSight || displayedCreator.cardId == CardIds.Collectible.Shaman.FarSightCore ||  displayedCreator.cardId == CardIds.Collectible.Shaman.FarSightVanilla {
-                    return
-                }
+            // For some reason Far Sight sets DISPLAYED_CREATOR on the entity
+            if isFarSight(eventHandler.entities[displayedCreatorId]) {
+                return
             }
 
             let creatorId = entity[.creator]
@@ -974,10 +985,56 @@ struct TagChangeActions {
         }
     }
 
+    /// Latches `Entity.wasShuffledIntoDeck`: this copy was made by a card and put
+    /// into the deck, so it is not one of the deck list's copies (bug T8).
+    ///
+    /// `info.created` alone does not say that — it is set on ordinary draws and
+    /// on anything that re-enters the deck, dredge included (bug T6) — so the
+    /// entity also has to name a *card* as its creator, which is what the game
+    /// writes when it makes a new card. Deck list cards get no creator, or the
+    /// game entity as one.
+    ///
+    /// Either tag can be the last one in: a `FULL_ENTITY` straight into the deck
+    /// queues its zone action (`TagChangeHandler.tagChange`, `isCreationTag`)
+    /// while the `DISPLAYED_CREATOR` line right after it runs at once, so the
+    /// check has to run on both tags.
+    ///
+    /// Far Sight is excluded the same way `creatorChanged` excludes it: it names
+    /// itself as the creator of the card it *drew*, and that card going back into
+    /// the deck would otherwise be taken for a copy shuffled in (Codex review,
+    /// 2026-09-15).
+    private func markShuffledIntoDeck(eventHandler: PowerEventHandler, id: Int) {
+        guard let entity = eventHandler.entities[id], !entity.wasShuffledIntoDeck else { return }
+        guard entity.isInDeck, entity.info.created else { return }
+        guard !isFarSight(eventHandler.entities[entity[.creator]]),
+              !isFarSight(eventHandler.entities[entity[.displayed_creator]]) else { return }
+        let creatorId = entity[.creator] > 0 ? entity[.creator] : entity[.displayed_creator]
+        guard creatorId > 0, creatorId != entity.id,
+              eventHandler.entities[creatorId]?.hasCardId == true else { return }
+        entity.wasShuffledIntoDeck = true
+    }
+
+    /// A card the game creates straight into SETASIDE while the board is being
+    /// built was never in the deck: E.T.C.'s sideboard and Zilliax's modules come
+    /// in this way, with their card id already revealed on our own side. The
+    /// setup branch below still writes `originalZone = .deck` for them (upstream,
+    /// left as is), so without this latch the zone sections count them as copies
+    /// that left the deck and list the sideboard as played (bug T9).
+    private func markSetAsideAtSetup(entity: Entity, value: Int) {
+        guard value == Zone.setaside.rawValue else { return }
+        entity.wasSetAsideAtSetup = true
+    }
+
     private func zoneChange(eventHandler: PowerEventHandler, id: Int, value: Int, prevValue: Int) {
         guard id > 3 else { return }
         guard let entity = eventHandler.entities[id] else { return }
-        
+
+        // Should one of those entities ever really be put into the deck, it is a
+        // copy in the deck like any other from here on.
+        if value == Zone.deck.rawValue {
+            entity.wasSetAsideAtSetup = false
+        }
+
         if entity.info.originalZone == nil {
             if prevValue != Zone.invalid.rawValue && prevValue != Zone.setaside.rawValue {
                 entity.info.originalZone = Zone(rawValue: prevValue)
@@ -1025,6 +1082,7 @@ struct TagChangeActions {
                 && (id <= maxId || eventHandler.gameEntity?[.step] == Step.invalid.rawValue
                     && entity[.zone_position] < 5) {
                 entity.info.originalZone = .deck
+                markSetAsideAtSetup(entity: entity, value: value)
                 simulateZoneChangesFromDeck(eventHandler: eventHandler, id: id, value: value,
                                             cardId: entity.info.latestCardId, maxId: maxId)
             } else {
