@@ -53,9 +53,12 @@ final class TrackerViewModel: ObservableObject {
 
     @Published private(set) var layout = TrackerLayout()
 
+    /// Same-value skip: the seven lists all publish `playerType`, so a blind
+    /// re-assignment on every refresh was seven `objectWillChange` for nothing.
     var playerType: PlayerType = .player {
         didSet {
-            for list in lists {
+            guard oldValue != playerType else { return }
+            for list in lists where list.playerType != playerType {
                 list.playerType = playerType
             }
         }
@@ -156,7 +159,7 @@ final class TrackerViewModel: ObservableObject {
         let next = TrackerLayout(
             cardHeight: cardHeight,
             barWidth: barWidth,
-            opacity: TrackerMetrics.baseOpacity(setting: Settings.trackerOpacity),
+            opacity: TrackerDiagnostics.panelOpacity(setting: Settings.trackerOpacity),
             headerHeight: headerHeight,
             topHeight: showTop ? sectionHeight(top, cardHeight, frameHeight) : 0,
             listHeight: CGFloat(cards.count) * cardHeight,

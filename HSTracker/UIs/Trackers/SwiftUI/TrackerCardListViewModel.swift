@@ -70,6 +70,17 @@ final class TrackerCardListViewModel: ObservableObject {
     @Published var showRarityColors: Bool = Settings.showRarityColors
     @Published var playerType: PlayerType = .player
     @Published var sectionHeaderHeight: CGFloat = 40
+    /// The panel base's alpha. It reaches the rows through the view model so a
+    /// change to `tracker_opacity` alone still repaints them: `updateLayout`
+    /// runs `syncAppearance()` on every refresh, and a published change is the
+    /// only thing that makes SwiftUI re-evaluate a list whose rows did not move.
+    @Published var baseOpacity: CGFloat = TrackerDiagnostics.panelOpacity(
+        setting: Settings.trackerOpacity)
+    /// Perf P2 diagnostics, carried the same way so that flipping one with
+    /// `defaults write` takes effect on the next refresh instead of a restart.
+    @Published var flattensRows: Bool = TrackerDiagnostics.flattensRows
+    @Published var drawsArt: Bool = TrackerDiagnostics.drawsArt
+    @Published var drawsTextShadow: Bool = TrackerDiagnostics.drawsTextShadow
 
     var onHover: ((Card, NSView) -> Void)?
     var onExit: ((Card) -> Void)?
@@ -82,6 +93,19 @@ final class TrackerCardListViewModel: ObservableObject {
         let nextRarity = Settings.showRarityColors
         if showRarityColors != nextRarity {
             showRarityColors = nextRarity
+        }
+        let nextOpacity = TrackerDiagnostics.panelOpacity(setting: Settings.trackerOpacity)
+        if baseOpacity != nextOpacity {
+            baseOpacity = nextOpacity
+        }
+        if flattensRows != TrackerDiagnostics.flattensRows {
+            flattensRows = TrackerDiagnostics.flattensRows
+        }
+        if drawsArt != TrackerDiagnostics.drawsArt {
+            drawsArt = TrackerDiagnostics.drawsArt
+        }
+        if drawsTextShadow != TrackerDiagnostics.drawsTextShadow {
+            drawsTextShadow = TrackerDiagnostics.drawsTextShadow
         }
     }
 

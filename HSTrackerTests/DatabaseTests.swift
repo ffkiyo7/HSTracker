@@ -7,6 +7,7 @@
 //
 
 import XCTest
+import RealmSwift
 @testable import HSTracker
 
 class DatabaseTests: HSTrackerTests {
@@ -94,5 +95,33 @@ class DatabaseTests: HSTrackerTests {
         XCTAssertEqual(alleriaPower.name, "Steady Shot", "Alleria power")
         XCTAssertEqual(alleriaPower.type, CardType.hero_power, "Alleria power")
         XCTAssertEqual(alleriaPower.playerClass, CardClass.hunter, "Alleria power playerClass")
+    }
+
+    // MARK: - Perf P1 / 3: no empty write transaction per refresh
+
+    /// `getDeck` runs on every tracker refresh and used to open a Realm write
+    /// transaction whether or not a count needed repairing.
+    func testHealthyDeckNeedsNoCardCountFix() {
+        let deck = Deck()
+        deck.cards.append(RealmCard(id: "AT_063t", count: 2))
+        deck.cards.append(RealmCard(id: "DS1h_292_H1", count: 30))
+        XCTAssertFalse(RealmHelper.needsCardCountFix(deck),
+                       "a deck with sane counts must not open a write transaction")
+    }
+
+    func testCorruptCardCountIsStillRepaired() {
+        guard let realm = try? Realm() else {
+            XCTFail("Error accessing Realm database")
+            return
+        }
+        let deck = Deck()
+        deck.cards.append(RealmCard(id: "AT_063t", count: 31))
+        XCTAssertTrue(RealmHelper.needsCardCountFix(deck))
+
+        try? realm.write { realm.add(deck) }
+        RealmHelper.validateCardCounts(deck)
+
+        XCTAssertEqual(deck.cards.first?.count, 1, "a count above 30 is still reset")
+        XCTAssertFalse(RealmHelper.needsCardCountFix(deck))
     }
 }

@@ -419,6 +419,18 @@ final class Settings {
     /// SwiftUI tracker honors it.
     @UserDefault(key: Settings.group_cards_by_zone, defaultValue: true)
     static var groupCardsByZone: Bool
+    // Perf P2 diagnostics (docs/tasks/perf-p2-vector-rows-compositing-cost.md).
+    // Deliberately not in the preferences UI: they exist so a session that
+    // drops frames can be bisected with `defaults write`, not as features.
+    /// Off falls the SwiftUI rows back to the unflattened V1 / V2 drawing.
+    @UserDefault(key: Settings.tracker_perf_flatten_rows, defaultValue: true)
+    static var trackerFlattenRows: Bool
+    @UserDefault(key: Settings.tracker_perf_no_text_shadow, defaultValue: false)
+    static var trackerNoTextShadow: Bool
+    @UserDefault(key: Settings.tracker_perf_no_card_art, defaultValue: false)
+    static var trackerNoCardArt: Bool
+    @UserDefault(key: Settings.tracker_perf_force_opaque, defaultValue: false)
+    static var trackerForceOpaquePanel: Bool
     /// Our constructed session recap. Not to be confused with upstream's
     /// `showSessionRecap`, which is the battlegrounds one.
     @UserDefault(key: Settings.show_constructed_session_recap, defaultValue: true)
@@ -747,6 +759,10 @@ extension Settings {
     static let remove_cards_from_deck = "remove_cards_from_deck"
     static let use_swiftui_tracker = "use_swiftui_tracker"
     static let group_cards_by_zone = "group_cards_by_zone"
+    static let tracker_perf_flatten_rows = "tracker_perf_flatten_rows"
+    static let tracker_perf_no_text_shadow = "tracker_perf_no_text_shadow"
+    static let tracker_perf_no_card_art = "tracker_perf_no_card_art"
+    static let tracker_perf_force_opaque = "tracker_perf_force_opaque"
     static let show_constructed_session_recap = "show_constructed_session_recap"
     static let keep_power_log = "keep_power_log"
     static let highlight_last_drawn = "highlight_last_drawn"

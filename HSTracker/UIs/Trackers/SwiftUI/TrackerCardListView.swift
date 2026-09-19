@@ -23,7 +23,11 @@ struct TrackerCardListView: View {
                         showRarityColors: viewModel.showRarityColors,
                         rowHeight: viewModel.rowHeight,
                         barWidth: viewModel.barWidth,
-                        highlightColor: row.highlight
+                        highlightColor: row.highlight,
+                        baseOpacity: viewModel.baseOpacity,
+                        flattensToBitmap: viewModel.flattensRows,
+                        drawsArt: viewModel.drawsArt,
+                        drawsTextShadow: viewModel.drawsTextShadow
                     )
                     TrackerCardRowSensor(card: row.card, viewModel: viewModel)
                 }

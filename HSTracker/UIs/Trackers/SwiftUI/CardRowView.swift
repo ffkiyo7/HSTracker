@@ -6,6 +6,11 @@
 //  read any more: cost cell, name, art fade and count box are all drawn, so
 //  the row scales to any height without stretching a 217x34 bitmap.
 //
+//  Perf P2 split the file in two: `CardRowContentView` is that drawing, byte
+//  for byte, and `CardRowView` is the wrapper that owns the tile, reads the
+//  environment and hands the render server one flat bitmap per row instead of
+//  the content's layer tree (see TrackerRowRaster.swift).
+//
 
 import AppKit
 import SwiftUI
@@ -19,14 +24,98 @@ struct CardRowView: View {
     var highlightColor: HighlightColor = .none
     /// The art's shade is the panel base, so it has to carry the panel's own
     /// alpha — otherwise a translucent panel would show a fully opaque strip
-    /// under every card name. Read here because the list view between
-    /// `TrackerView` and this one is not part of this change; it is re-read
-    /// whenever the row is rebuilt, which is what `Tracker.setOpacity()`
-    /// triggers.
-    var baseOpacity: CGFloat = TrackerMetrics.baseOpacity(setting: Settings.trackerOpacity)
+    /// under every card name. V2b read it straight from `Settings` here; Perf
+    /// P2 feeds it from `TrackerCardListViewModel` instead, so a change to
+    /// `tracker_opacity` alone publishes and the rows really do repaint. The
+    /// default is only for previews and tests.
+    var baseOpacity: CGFloat = TrackerDiagnostics.panelOpacity(setting: Settings.trackerOpacity)
+    /// Perf P2 diagnostics, stored rather than read inside `body` so that a
+    /// flipped switch yields a row value SwiftUI cannot skip, and a raster key
+    /// that cannot collide with the other setting's bitmap.
+    var flattensToBitmap: Bool = TrackerDiagnostics.flattensRows
+    var drawsArt: Bool = TrackerDiagnostics.drawsArt
+    var drawsTextShadow: Bool = TrackerDiagnostics.drawsTextShadow
 
     @SwiftUI.State private var tile: NSImage?
     @Environment(\.trackerHandSection) private var isHandSection
+    @Environment(\.displayScale) private var displayScale
+
+    var content: CardRowContentView {
+        CardRowContentView(card: card,
+                           playerType: playerType,
+                           showRarityColors: showRarityColors,
+                           rowHeight: rowHeight,
+                           barWidth: barWidth,
+                           highlightColor: highlightColor,
+                           baseOpacity: baseOpacity,
+                           isHandSection: isHandSection,
+                           drawsArt: drawsArt,
+                           drawsTextShadow: drawsTextShadow,
+                           tile: tile)
+    }
+
+    /// The whole row as one bitmap, drawn once per distinct appearance. `nil`
+    /// means the renderer could not produce one, and the vector row is drawn.
+    private var raster: NSImage? {
+        let content = self.content
+        return TrackerRowRaster.image(for: content.rasterKey(scale: rasterScale)) { content }
+    }
+
+    /// `displayScale` is 0 outside a window (previews, the metric tests); the
+    /// main screen's factor is the closest thing to what the panel will land on.
+    private var rasterScale: CGFloat {
+        displayScale >= 1 ? displayScale : (NSScreen.main?.backingScaleFactor ?? 2)
+    }
+
+    var body: some View {
+        Group {
+            if flattensToBitmap, let raster {
+                Image(nsImage: raster)
+                    .resizable()
+                    .frame(width: barWidth, height: rowHeight)
+            } else {
+                content
+            }
+        }
+        .onAppear(perform: loadTile)
+        .onChange(of: card.id) { _, _ in
+            tile = nil
+            loadTile()
+        }
+        .transaction { $0.animation = nil }
+    }
+
+    private func loadTile() {
+        if let cached = ImageUtils.cachedTile(cardId: card.id) {
+            tile = cached
+            return
+        }
+        let cardId = card.id
+        ImageUtils.tile(for: cardId) { image in
+            DispatchQueue.main.async {
+                if cardId == card.id {
+                    tile = image
+                }
+            }
+        }
+    }
+}
+
+/// The drawing itself. Pure — no `@State`, no environment — because Perf P2
+/// hands it to `ImageRenderer`, which starts from an empty environment and
+/// never runs `onAppear`.
+struct CardRowContentView: View {
+    let card: Card
+    var playerType: PlayerType = .player
+    var showRarityColors: Bool = Settings.showRarityColors
+    var rowHeight: CGFloat = TrackerMetrics.rowHeight
+    var barWidth: CGFloat = TrackerMetrics.panelWidth
+    var highlightColor: HighlightColor = .none
+    var baseOpacity: CGFloat = TrackerDiagnostics.panelOpacity(setting: Settings.trackerOpacity)
+    var isHandSection: Bool = false
+    var drawsArt: Bool = TrackerDiagnostics.drawsArt
+    var drawsTextShadow: Bool = TrackerDiagnostics.drawsTextShadow
+    var tile: NSImage?
 
     /// One reference pixel of the 171 x 21 sheet, in points.
     private var u: CGFloat { rowHeight / TrackerMetrics.rowHeight }
@@ -61,11 +150,6 @@ struct CardRowView: View {
                 .frame(height: max(TrackerBarStyle.hairline * u, 0.5))
         }
         .overlay { highlightOverlay }
-        .onAppear(perform: loadTile)
-        .onChange(of: card.id) { _, _ in
-            tile = nil
-            loadTile()
-        }
         .transaction { $0.animation = nil }
     }
 
@@ -79,7 +163,7 @@ struct CardRowView: View {
     @ViewBuilder
     private var art: some View {
         ZStack(alignment: .topLeading) {
-            if let tile {
+            if let tile, drawsArt {
                 Image(nsImage: tile)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
@@ -116,7 +200,7 @@ struct CardRowView: View {
                     .font(.custom(TrackerBarStyle.digitFontName,
                                   size: TrackerBarStyle.costFontSize * u))
                     .foregroundColor(.white)
-                    .shadow(color: .black.opacity(0.7), radius: u, y: u)
+                    .shadow(color: .black.opacity(drawsTextShadow ? 0.7 : 0), radius: u, y: u)
             }
         }
         .frame(width: costWidth, height: rowHeight)
@@ -134,8 +218,10 @@ struct CardRowView: View {
             .foregroundColor(nameColor)
             .lineLimit(1)
             .truncationMode(.tail)
-            .shadow(color: .black.opacity(0.95), radius: TrackerBarStyle.nameShadowNear * u, y: u)
-            .shadow(color: .black.opacity(0.8), radius: TrackerBarStyle.nameShadowFar * u)
+            .shadow(color: .black.opacity(drawsTextShadow ? 0.95 : 0),
+                    radius: TrackerBarStyle.nameShadowNear * u, y: u)
+            .shadow(color: .black.opacity(drawsTextShadow ? 0.8 : 0),
+                    radius: TrackerBarStyle.nameShadowFar * u)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .padding(.leading, costWidth + TrackerBarStyle.namePadLeading * u)
             .padding(.trailing, (showsCountBox ? TrackerBarStyle.namePadBoxed
@@ -252,18 +338,54 @@ struct CardRowView: View {
         return color.isEqual(NSColor.white) ? TrackerBarStyle.text : Color(nsColor: color)
     }
 
-    private func loadTile() {
-        if let cached = ImageUtils.cachedTile(cardId: card.id) {
-            tile = cached
-            return
+    // MARK: - Perf P2
+
+    /// Everything above that can change the picture, so a cached bitmap is only
+    /// reused for a row that really looks the same.
+    func rasterKey(scale: CGFloat) -> CardRowRasterKey {
+        CardRowRasterKey(cardId: card.id,
+                         name: cardName,
+                         cost: card.cost,
+                         showsCost: showsCost,
+                         count: card.count,
+                         rarity: effectiveRarity,
+                         showRarityColors: showRarityColors,
+                         dimmed: isDimmed,
+                         created: card.isCreated,
+                         countBox: showsCountBox,
+                         nameColor: Self.packed(nameColor),
+                         highlight: highlightColor.rasterToken,
+                         hasTile: drawsArt && tile != nil,
+                         rowHeight: rowHeight,
+                         barWidth: barWidth,
+                         baseOpacity: baseOpacity,
+                         scale: scale,
+                         drawsArt: drawsArt,
+                         drawsTextShadow: drawsTextShadow)
+    }
+
+    /// The resolved colour rather than the settings behind it: `textColor()`
+    /// reads four flags plus `Settings.playerInHandColor`, and a key built from
+    /// those would go stale the moment one more input is added.
+    private static func packed(_ color: Color) -> UInt32 {
+        guard let srgb = NSColor(color).usingColorSpace(.sRGB) else {
+            return 0
         }
-        let cardId = card.id
-        ImageUtils.tile(for: cardId) { image in
-            DispatchQueue.main.async {
-                if cardId == card.id {
-                    tile = image
-                }
-            }
+        let channel = { (value: CGFloat) in UInt32((max(0, min(1, value)) * 255).rounded()) }
+        return channel(srgb.redComponent) << 24
+            | channel(srgb.greenComponent) << 16
+            | channel(srgb.blueComponent) << 8
+            | channel(srgb.alphaComponent)
+    }
+}
+
+private extension HighlightColor {
+    var rasterToken: Int {
+        switch self {
+        case .none: return 0
+        case .teal: return 1
+        case .orange: return 2
+        case .green: return 3
         }
     }
 }

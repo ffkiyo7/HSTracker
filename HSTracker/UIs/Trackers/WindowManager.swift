@@ -254,8 +254,28 @@ class WindowManager {
     // Last title applied via show(); skip addWindowsItem / title writes when unchanged.
     private var appliedWindowTitles: [ObjectIdentifier: String] = [:]
 
+    // orderFront is a WindowServer transaction and contends with Hearthstone's
+    // own compositing, so a routine refresh must not issue one. Only the events
+    // that can reshuffle the on-screen order raise the generation; every window
+    // then gets exactly one orderFront on its next show().
+    static let reorderEvents = [Events.space_changed,
+                                Events.hearthstone_active,
+                                Events.hearthstone_deactived,
+                                Events.hearthstone_running,
+                                Events.hearthstone_closed]
+    private var orderFrontGeneration = 0
+    private var orderedFrontGenerations: [ObjectIdentifier: Int] = [:]
+
+    /// `isOccluded` catches a window that ended up behind another one without
+    /// any of our events firing; `attributesChanged` covers the level / style /
+    /// frame writes that can move a window in the ordering by themselves.
+    static func shouldOrderFront(isVisible: Bool, isOccluded: Bool,
+                                 attributesChanged: Bool, pendingReorder: Bool) -> Bool {
+        return !isVisible || isOccluded || attributesChanged || pendingReorder
+    }
+
     var triggers: [NSObjectProtocol] = []
-    
+
     func startManager() {
         secretTracker.isSecretPanel = true
         if triggers.count == 0 {
@@ -266,6 +286,12 @@ class WindowManager {
             for (event, trigger) in events {
                 let observer = NotificationCenter.default.addObserver(forName: NSNotification.Name(rawValue: event), object: nil, queue: OperationQueue.main) { note in
                     trigger(note)
+                }
+                triggers.append(observer)
+            }
+            for event in WindowManager.reorderEvents {
+                let observer = NotificationCenter.default.addObserver(forName: NSNotification.Name(rawValue: event), object: nil, queue: OperationQueue.main) { [weak self] _ in
+                    self?.orderFrontGeneration += 1
                 }
                 triggers.append(observer)
             }
@@ -438,13 +464,22 @@ class WindowManager {
                 }
             }
 
-            // update gui elements
+            // update gui elements. Not gated: this is also the only path that
+            // pushes the header state (hand / deck count, record) into the view
+            // model, and it costs in-process layout, not a WindowServer commit.
             controller.updateFrames()
-            
+
+            // Every write below can move the window in the WindowServer's
+            // ordering, so each one that actually changes something also earns
+            // an orderFront.
+            var attributesChanged = false
+
             // show window and set size
             if let frame = frame {
-                if frame.origin.x.isFinite && frame.origin.y.isFinite && frame.size.width.isFinite && frame.size.height.isFinite {
+                if frame.origin.x.isFinite && frame.origin.y.isFinite && frame.size.width.isFinite && frame.size.height.isFinite
+                    && window.frame != frame {
                     window.setFrame(frame, display: true, animate: false)
+                    attributesChanged = true
                 }
             }
 
@@ -460,6 +495,7 @@ class WindowManager {
             let windowLevel = NSWindow.Level(rawValue: level)
             if window.level != windowLevel {
                 window.level = windowLevel
+                attributesChanged = true
             }
 
             // if the setting is on, set the window behavior to join all workspaces
@@ -471,6 +507,7 @@ class WindowManager {
             }
             if window.collectionBehavior != collectionBehavior {
                 window.collectionBehavior = collectionBehavior
+                attributesChanged = true
             }
 
             let locked = Settings.windowsLocked || controller.alwaysLocked
@@ -484,14 +521,27 @@ class WindowManager {
             }
             if window.styleMask != styleMask {
                 window.styleMask = styleMask
+                attributesChanged = true
             }
 
-            window.orderFront(nil)
+            let windowId = ObjectIdentifier(window)
+            let pendingReorder = orderedFrontGenerations[windowId] != orderFrontGeneration
+            if WindowManager.shouldOrderFront(isVisible: window.isVisible,
+                                              isOccluded: !window.occlusionState.contains(.visible),
+                                              attributesChanged: attributesChanged,
+                                              pendingReorder: pendingReorder) {
+                window.orderFront(nil)
+                orderedFrontGenerations[windowId] = orderFrontGeneration
+            }
         } else {
             if title != nil {
                 NSApp.removeWindowsItem(window)
             }
-            window.orderOut(nil)
+            if window.isVisible {
+                window.orderOut(nil)
+            }
+            // A hidden window has to be re-fronted when it comes back.
+            orderedFrontGenerations.removeValue(forKey: ObjectIdentifier(window))
         }
     }
 }

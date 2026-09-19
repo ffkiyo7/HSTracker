@@ -87,12 +87,20 @@ struct RealmHelper {
 		return nil
 	}
 	
+	/// A count above 30 is the corruption this repairs; every other deck must
+	/// not pay for a Realm handle and an (empty) write transaction.
+	static func needsCardCountFix(_ deck: Deck) -> Bool {
+		return deck.cards.contains { $0.count > 30 }
+	}
+
 	static func validateCardCounts(_ deck: Deck) {
+		guard needsCardCountFix(deck) else { return }
+
 		guard let realm = try? Realm() else {
 			logger.error("Error accessing Realm database")
 			return
 		}
-		
+
 		do {
 			try realm.write {
 				for card in deck.cards where card.count > 30 {

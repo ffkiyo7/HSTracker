@@ -636,4 +636,71 @@ class CardZoneGroupsTests: HSTrackerTests {
         XCTAssertNil(game.currentDeck)
         XCTAssertNil(game.player.playerCardGroups, "no deck means nothing to split")
     }
+
+    // MARK: - Perf P1 / 2: one getDeckState() per refresh
+
+    /// The tracker refresh used to reach `getDeckState()` four times (three
+    /// `annotateCards` plus the sideboards Game passes separately). The
+    /// snapshot is the single entry point, so it must evaluate it once.
+    func testZoneRefreshEvaluatesTheDeckStateOnce() {
+        waitForCard("ETC_080")
+        waitForCard("BT_753")
+
+        let game = makeGame()
+        setActiveDeck(game, [("ETC_080", 1), ("BT_753", 1)])
+
+        let before = game.player.deckStateEvaluations
+        let snapshot = game.player.playerTrackerSnapshot(useZoneGroups: true)
+        XCTAssertEqual(game.player.deckStateEvaluations - before, 1,
+                       "one refresh must compute the deck state exactly once")
+        XCTAssertNotNil(snapshot.groups, "an active deck is grouped by zone")
+        XCTAssertTrue(snapshot.cards.isEmpty, "zone mode ignores the flat list")
+    }
+
+    func testFlatRefreshEvaluatesTheDeckStateOnce() {
+        waitForCard("ETC_080")
+        waitForCard("BT_753")
+
+        let game = makeGame()
+        setActiveDeck(game, [("ETC_080", 1), ("BT_753", 1)])
+
+        let before = game.player.deckStateEvaluations
+        let snapshot = game.player.playerTrackerSnapshot(useZoneGroups: false)
+        XCTAssertEqual(game.player.deckStateEvaluations - before, 1,
+                       "one refresh must compute the deck state exactly once")
+        XCTAssertNil(snapshot.groups)
+        XCTAssertFalse(snapshot.cards.isEmpty, "flat mode draws the list")
+    }
+
+    /// Without a deck there is no deck state to compute at all, and the flat
+    /// list is the one `playerCardList` used to return on that branch.
+    func testSnapshotWithoutADeckSkipsTheDeckState() {
+        let game = makeGame()
+        let before = game.player.deckStateEvaluations
+        let snapshot = game.player.playerTrackerSnapshot(useZoneGroups: true)
+        XCTAssertEqual(game.player.deckStateEvaluations - before, 0)
+        XCTAssertNil(snapshot.groups)
+        XCTAssertTrue(snapshot.sideboards.isEmpty)
+    }
+
+    /// The snapshot must draw the same thing the old accessors did.
+    func testSnapshotMatchesTheOldAccessors() {
+        waitForCard("ETC_080")
+        waitForCard("BT_753")
+
+        let game = makeGame()
+        setActiveDeck(game, [("ETC_080", 1), ("BT_753", 1)])
+        addPlayedDeckCard(game, id: 6, cardId: "ETC_080", controller: 1, originalController: 1)
+
+        guard let expected = game.player.playerCardGroups,
+              let snapshot = game.player.playerTrackerSnapshot(useZoneGroups: true).groups else {
+            return XCTFail("an active deck is grouped by zone")
+        }
+        XCTAssertEqual(totals(snapshot.deck), totals(expected.deck))
+        XCTAssertEqual(totals(snapshot.hand), totals(expected.hand))
+        XCTAssertEqual(totals(snapshot.played), totals(expected.played))
+
+        let flat = game.player.playerTrackerSnapshot(useZoneGroups: false).cards
+        XCTAssertEqual(totals(flat), totals(game.player.playerCardList))
+    }
 }

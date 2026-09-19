@@ -1743,6 +1743,7 @@
 		CAA8EA7DEF3E99A74B07BF5C /* DistressSignal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DE331D144B1F061932C7C50 /* DistressSignal.swift */; };
 		CAB1941AFC7E94E2D2F47408 /* RootOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A1F19717A4A8D185811FB9E /* RootOverlayView.swift */; };
 		C4D801A12FC0000100010002 /* TrackerBarStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010001 /* TrackerBarStyle.swift */; };
+		C4D801A12FC0000100010021 /* TrackerRowRaster.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010020 /* TrackerRowRaster.swift */; };
 		C4D801A12FC0000100010004 /* CardRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010003 /* CardRowView.swift */; };
 		C4D801A12FC0000100010009 /* TrackerCardListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010008 /* TrackerCardListViewModel.swift */; };
 		C4D801A12FC000010001000B /* TrackerCardListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC000010001000A /* TrackerCardListView.swift */; };
@@ -3790,6 +3791,7 @@
 		F7D7A3A52011B67D00E3A5F0 /* Hearthstone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Hearthstone.swift; sourceTree = "<group>"; };
 		F7D7A3AD2017B51300E3A5F0 /* dsa_pub.pem */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = dsa_pub.pem; path = HSTracker/Resources/dsa_pub.pem; sourceTree = SOURCE_ROOT; };
 		C4D801A12FC0000100010001 /* TrackerBarStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerBarStyle.swift; sourceTree = "<group>"; };
+		C4D801A12FC0000100010020 /* TrackerRowRaster.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerRowRaster.swift; sourceTree = "<group>"; };
 		C4D801A12FC0000100010003 /* CardRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardRowView.swift; sourceTree = "<group>"; };
 		C4D801A12FC0000100010008 /* TrackerCardListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerCardListViewModel.swift; sourceTree = "<group>"; };
 		C4D801A12FC000010001000A /* TrackerCardListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerCardListView.swift; sourceTree = "<group>"; };
@@ -4430,6 +4432,7 @@
 			children = (
 				C4D801A12FC0000100010003 /* CardRowView.swift */,
 				C4D801A12FC0000100010001 /* TrackerBarStyle.swift */,
+				C4D801A12FC0000100010020 /* TrackerRowRaster.swift */,
 				C4D801A12FC0000100010008 /* TrackerCardListViewModel.swift */,
 				C4D801A12FC000010001000A /* TrackerCardListView.swift */,
 				C4D801A12FC000010001000C /* TrackerSectionView.swift */,
@@ -8812,6 +8815,7 @@
 				1F966AEAB083406B7A9876F0 /* RootOverlayViewModel.swift in Sources */,
 				CAB1941AFC7E94E2D2F47408 /* RootOverlayView.swift in Sources */,
 				C4D801A12FC0000100010002 /* TrackerBarStyle.swift in Sources */,
+				C4D801A12FC0000100010021 /* TrackerRowRaster.swift in Sources */,
 				C4D801A12FC0000100010004 /* CardRowView.swift in Sources */,
 				C4D801A12FC0000100010009 /* TrackerCardListViewModel.swift in Sources */,
 				C4D801A12FC000010001000B /* TrackerCardListView.swift in Sources */,

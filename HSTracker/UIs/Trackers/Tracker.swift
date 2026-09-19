@@ -141,7 +141,7 @@ class Tracker: OverWindowController, CardCellHover {
         }
         if Settings.useSwiftUITracker {
             let host = ensureSwiftUIRoot()
-            if let playerType {
+            if let playerType, host.viewModel.playerType != playerType {
                 host.viewModel.playerType = playerType
             }
             playerSideboardsData = sideboards

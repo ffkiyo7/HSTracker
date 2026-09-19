@@ -379,6 +379,43 @@ class Game: NSObject, PowerEventHandler {
 		}
 	}
     
+    private var cachedRecordLabel: (deckId: String, label: String)?
+    private var recordLabelObserver: NSObjectProtocol?
+    private var recordLabelGameEnded = false
+
+    /// The win / loss label only moves when a game is saved or the decks are
+    /// reloaded, but it used to cost a Realm fetch plus a walk over the deck's
+    /// statistics on every 16ms refresh. Cached per deck id, dropped on
+    /// `reload_decks` and whenever the game ends (the two ways the record can
+    /// change while a tracker is on screen).
+    /// Main thread only, like the refresh that fills it.
+    private func invalidateDeckRecordLabel() {
+        cachedRecordLabel = nil
+    }
+
+    private func deckRecordLabel(for deckId: String) -> String? {
+        if recordLabelObserver == nil {
+            let observer = NotificationCenter.default.addObserver(
+                forName: NSNotification.Name(rawValue: Events.reload_decks),
+                object: nil, queue: OperationQueue.main) { [weak self] _ in
+                    self?.cachedRecordLabel = nil
+            }
+            recordLabelObserver = observer
+            observers.append(observer)
+        }
+        if recordLabelGameEnded != gameEnded {
+            recordLabelGameEnded = gameEnded
+            cachedRecordLabel = nil
+        }
+        if let cached = cachedRecordLabel, cached.deckId == deckId {
+            return cached.label
+        }
+        guard let deck = RealmHelper.getDeck(with: deckId) else { return nil }
+        let label = StatsHelper.getDeckManagerRecordLabel(deck: deck, mode: .all)
+        cachedRecordLabel = (deckId, label)
+        return label
+    }
+
     /// Only the SwiftUI tracker can draw the zone sections; the old path has no
     /// place to put them.
     private var useZoneGroups: Bool {
@@ -417,12 +454,13 @@ class Game: NSObject, PowerEventHandler {
                     return card
                 }
 
-                // Zone mode draws the groups and ignores the flat list; building
-                // both would run getDeckState() twice per refresh.
-                let groups = self.useZoneGroups ? self.player.playerCardGroups : nil
-                tracker.update(cards: groups == nil ? self.player.playerCardList : [Card](),
-                               top: top, bottom: bottom, sideboards: self.player.playerSideboardsDict,
-                               relatedCards: [], groups: groups, reset: reset)
+                // Zone mode draws the groups and ignores the flat list; one
+                // snapshot serves list, groups and sideboards off a single
+                // getDeckState().
+                let snapshot = self.player.playerTrackerSnapshot(useZoneGroups: self.useZoneGroups)
+                tracker.update(cards: snapshot.cards,
+                               top: top, bottom: bottom, sideboards: snapshot.sideboards,
+                               relatedCards: [], groups: snapshot.groups, reset: reset)
                 
                 // update card counter values
                 let gameStarted = !self.isInMenu && self.entities.count >= 67
@@ -434,10 +472,8 @@ class Game: NSObject, PowerEventHandler {
                 tracker.showGraveyard = Settings.showPlayerGraveyard
                                 
                 if let currentDeck = self.currentDeck {
-                    if let deck = RealmHelper.getDeck(with: currentDeck.id) {
-                        tracker.recordTrackerMessage = StatsHelper
-                            .getDeckManagerRecordLabel(deck: deck,
-                                                       mode: .all)
+                    if let label = self.deckRecordLabel(for: currentDeck.id) {
+                        tracker.recordTrackerMessage = label
                     }
                     tracker.playerName = currentDeck.name
                     if !currentDeck.heroId.isEmpty {
@@ -2511,6 +2547,9 @@ class Game: NSObject, PowerEventHandler {
             if !skip, let deck = RealmHelper.getDeck(with: currentDeck.id) {
                 
                 RealmHelper.addStatistics(to: deck, stats: stats)
+                // The record the tracker caches was computed before this game
+                // was saved, and nothing posts reload_decks here.
+                DispatchQueue.main.async { self.invalidateDeckRecordLabel() }
                 if Settings.autoArchiveArenaDeck &&
                     self.currentGameMode == .arena && deck.isArena && deck.arenaFinished() {
                     RealmHelper.set(deck: deck, active: false)

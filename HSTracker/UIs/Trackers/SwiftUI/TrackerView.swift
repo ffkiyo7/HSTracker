@@ -112,4 +112,21 @@ final class TrackerRootHost: NSView {
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
+
+    /// Perf P2 switch ④. `Tracker.setOpacity()` leaves the window clear on this
+    /// path so the panel can paint its own base; this makes the whole window
+    /// opaque instead, which is the only way to ask the window server to skip
+    /// blending the overlay over the game. The area the panel does not cover
+    /// goes flat dark — expected, it is a measurement mode. Applied here because
+    /// `Tracker.swift` is outside this slice; a later `setOpacity()` (the user
+    /// moving the opacity slider mid-session) puts the clear background back,
+    /// so the switch is scoped to a restart.
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard TrackerDiagnostics.forcesOpaquePanel, let window else {
+            return
+        }
+        window.backgroundColor = TrackerBarStyle.baseNS
+        window.isOpaque = true
+    }
 }

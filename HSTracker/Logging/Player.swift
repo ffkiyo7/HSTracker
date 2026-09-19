@@ -486,30 +486,65 @@ final class Player {
         }
     }
 
-    var playerCardList: [Card] {
-        let createdInHand = Settings.showPlayerGet ? createdCardsInHand : [Card]()
-        if game.currentDeck == nil {
-            return (revealedCards + createdInHand
-                + knownCardsInDeck + getPredictedCardsInDeck(hidden: true)).sortCardList()
+    /// Everything the player tracker needs out of one refresh. `getDeckState()`
+    /// walks every revealed entity, so the flat list, the zone groups and the
+    /// sideboards all have to be served from a single evaluation of it.
+    struct PlayerTrackerSnapshot {
+        let cards: [Card]
+        let groups: CardZoneGroups?
+        let sideboards: [Sideboard]
+    }
+
+    func playerTrackerSnapshot(useZoneGroups: Bool) -> PlayerTrackerSnapshot {
+        guard game.currentDeck != nil else {
+            // No deck: no deck state, no sideboards, and nothing to group.
+            return PlayerTrackerSnapshot(cards: playerCardListWithoutDeck(), groups: nil, sideboards: [])
         }
-        let sorting = game.isMulliganDone() ? CardListSorting.cost : CardListSorting.mulliganWr
         let deckState = getDeckState()
+        let sideboards = playerSideboards(from: deckState)
+        if useZoneGroups, let groups = playerCardGroups(sideboards: sideboards) {
+            return PlayerTrackerSnapshot(cards: [Card](), groups: groups, sideboards: sideboards)
+        }
+        return PlayerTrackerSnapshot(cards: playerCardList(deckState: deckState, sideboards: sideboards),
+                                     groups: nil,
+                                     sideboards: sideboards)
+    }
+
+    private func playerCardListWithoutDeck() -> [Card] {
+        let createdInHand = Settings.showPlayerGet ? createdCardsInHand : [Card]()
+        return (revealedCards + createdInHand
+            + knownCardsInDeck + getPredictedCardsInDeck(hidden: true)).sortCardList()
+    }
+
+    var playerCardList: [Card] {
+        if game.currentDeck == nil {
+            return playerCardListWithoutDeck()
+        }
+        let deckState = getDeckState()
+        return playerCardList(deckState: deckState, sideboards: playerSideboards(from: deckState))
+    }
+
+    private func playerCardList(deckState: DeckState, sideboards: [Sideboard]) -> [Card] {
+        let createdInHand = Settings.showPlayerGet ? createdCardsInHand : [Card]()
+        let sorting = game.isMulliganDone() ? CardListSorting.cost : CardListSorting.mulliganWr
         let inDeck = deckState.remainingInDeck
         let notInDeck = deckState.removedFromDeck.filter({ x in inDeck.all({ x.id != $0.id }) })
         let predictedInDeck = getPredictedCardsInDeck(hidden: false).filter({ x in inDeck.all { c in x.id != c.id } })
         if !Settings.removeCardsFromDeck {
-            return annotateCards(cards: (inDeck + predictedInDeck + notInDeck + createdInHand)).sortCardList(sorting)
+            return annotateCards(cards: (inDeck + predictedInDeck + notInDeck + createdInHand),
+                                 sideboards: sideboards).sortCardList(sorting)
         }
         if Settings.highlightCardsInHand {
             return annotateCards(cards: (inDeck + predictedInDeck + getHighlightedCardsInHand(cardsInDeck: inDeck)
-                + createdInHand)).sortCardList(sorting)
+                + createdInHand), sideboards: sideboards).sortCardList(sorting)
         }
-        return annotateCards(cards: (inDeck + predictedInDeck + createdInHand)).sortCardList(sorting)
+        return annotateCards(cards: (inDeck + predictedInDeck + createdInHand),
+                             sideboards: sideboards).sortCardList(sorting)
     }
-    
-    private func annotateCards(cards: [Card]) -> [Card] {
+
+    private func annotateCards(cards: [Card], sideboards: [Sideboard]) -> [Card] {
         // Override Zilliax 3000 cost
-        let cards = Helper.resolveZilliax3000(cards, playerSideboardsDict)
+        let cards = Helper.resolveZilliax3000(cards, sideboards)
         guard let mulliganCardStats else {
             return cards
         }
@@ -532,11 +567,10 @@ final class Player {
     }
     
     var playerSideboardsDict: [Sideboard] {
-        return getPlayerSideboards(Settings.removeCardsFromDeck)
+        return playerSideboards(from: getDeckState())
     }
-    
-    private func getPlayerSideboards(_ removeNotInSideboard: Bool) -> [Sideboard] {
-        let deckState = getDeckState()
+
+    private func playerSideboards(from deckState: DeckState) -> [Sideboard] {
         var sideboardsDict = [String: [Card]]()
         if let sideboards = deckState.remainingInSideboards {
             for sideboard in sideboards {
@@ -789,12 +823,17 @@ final class Player {
     /// `nil` means there is nothing to split (no deck known) and the caller has
     /// to keep the flat `playerCardList`.
     var playerCardGroups: CardZoneGroups? {
+        guard game.currentDeck != nil else { return nil }
+        return playerCardGroups(sideboards: playerSideboardsDict)
+    }
+
+    private func playerCardGroups(sideboards: [Sideboard]) -> CardZoneGroups? {
         guard let currentDeck = game.currentDeck else { return nil }
         let groups = zoneGroups(deckList: currentDeck.cards)
         let sorting = game.isMulliganDone() ? CardListSorting.cost : CardListSorting.mulliganWr
-        return CardZoneGroups(deck: annotateCards(cards: groups.deck).sortCardList(sorting),
-                              hand: annotateCards(cards: groups.hand).sortCardList(sorting),
-                              played: annotateCards(cards: groups.played).sortCardList(sorting))
+        return CardZoneGroups(deck: annotateCards(cards: groups.deck, sideboards: sideboards).sortCardList(sorting),
+                              hand: annotateCards(cards: groups.hand, sideboards: sideboards).sortCardList(sorting),
+                              played: annotateCards(cards: groups.played, sideboards: sideboards).sortCardList(sorting))
     }
 
     /// Zone split of the opponent's list. Only defined once the deck has been
@@ -813,7 +852,12 @@ final class Player {
         return entity.has(tag: GameTag.dungeon_passive_buff) && entity[GameTag.zone] == Zone.removedfromgame.rawValue
     }
     
+    /// Counts full `getDeckState()` evaluations so a test can assert one
+    /// refresh does exactly one.
+    private(set) var deckStateEvaluations = 0
+
     fileprivate func getDeckState() -> DeckState {
+        deckStateEvaluations += 1
         var createdCardsInDeck: [Card] = deck.filter({
             $0.hasCardId && ($0.info.created || $0.info.stolen)
         })
