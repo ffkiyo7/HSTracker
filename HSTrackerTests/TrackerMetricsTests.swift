@@ -569,6 +569,138 @@ class TrackerMetricsTests: HSTrackerTests {
         XCTAssertEqual(TrackerRowRaster.renders, 1, "four of the five had to be cache hits")
     }
 
+    // MARK: - Bug T10: a row that changed has to be drawn again
+
+    /// Hosts a live list and returns what it actually paints.
+    @MainActor
+    private func paint(_ viewModel: TrackerCardListViewModel,
+                       rows: Int,
+                       window: NSWindow,
+                       host: NSHostingView<TrackerCardListView>) -> [UInt8]? {
+        host.frame = NSRect(x: 0, y: 0,
+                            width: viewModel.barWidth,
+                            height: viewModel.rowHeight * CGFloat(max(rows, 1)))
+        window.setContentSize(host.frame.size)
+        host.layoutSubtreeIfNeeded()
+        host.displayIfNeeded()
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05))
+        host.layoutSubtreeIfNeeded()
+        host.displayIfNeeded()
+        guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else {
+            return nil
+        }
+        host.cacheDisplay(in: host.bounds, to: rep)
+        guard let image = rep.cgImage else { return nil }
+        return pixels(image)
+    }
+
+    /// Bug T10: the deck section drew `发挥优势 ×2` while its own header said the
+    /// section held three cards — one per row. The count in a row comes from
+    /// `Card`, and `Card` is a class whose `==` compares the id and nothing else,
+    /// so two refreshes of the same card look equal to SwiftUI however much the
+    /// count moved: `CardRowView.body` is skipped and the row keeps the bitmap it
+    /// was rasterised with.
+    @MainActor
+    func testACountChangeRepaintsTheRow() {
+        withFlattening(true) {
+            TrackerRowRaster.reset()
+            let viewModel = TrackerCardListViewModel()
+            viewModel.rowHeight = 21
+            viewModel.barWidth = 171
+
+            let two = sampleCard()
+            two.count = 2
+            viewModel.update(cards: [two])
+
+            let host = NSHostingView(rootView: TrackerCardListView(viewModel: viewModel))
+            host.wantsLayer = true
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 171, height: 21),
+                                  styleMask: [.borderless], backing: .buffered, defer: false)
+            window.contentView = host
+            let before = paint(viewModel, rows: 1, window: window, host: host)
+            let lookupsAfterFirst = TrackerRowRaster.lookups
+            XCTAssertGreaterThan(lookupsAfterFirst, 0, "the first pass has to rasterise the row")
+
+            let one = sampleCard()
+            one.count = 1
+            viewModel.update(cards: [one])
+            XCTAssertEqual(viewModel.rows.first?.card.count, 1, "the view model did take the change")
+            let after = paint(viewModel, rows: 1, window: window, host: host)
+
+            XCTAssertGreaterThan(TrackerRowRaster.lookups, lookupsAfterFirst,
+                                 "the row's body was skipped, so it still shows the old count")
+            guard let before, let after else {
+                return XCTFail("the hosting view painted nothing")
+            }
+            XCTAssertNotEqual(before, after, "the count box still reads 2")
+            window.contentView = nil
+        }
+    }
+
+    /// The hand section in the same screenshot said three cards and drew two.
+    /// The third card had just been drawn, i.e. a row was inserted above two
+    /// rows that were already on screen — so this feeds exactly that and checks
+    /// every stripe is painted.
+    @MainActor
+    func testARowInsertedAboveOthersLeavesNoBlankStripe() {
+        withFlattening(true) {
+            TrackerRowRaster.reset()
+            let viewModel = TrackerCardListViewModel()
+            viewModel.rowHeight = 21
+            viewModel.barWidth = 171
+            let all = rowCards(3)
+            viewModel.update(cards: [all[1], all[2]])
+
+            let host = NSHostingView(rootView: TrackerCardListView(viewModel: viewModel))
+            host.wantsLayer = true
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 171, height: 63),
+                                  styleMask: [.borderless], backing: .buffered, defer: false)
+            window.contentView = host
+            _ = paint(viewModel, rows: 2, window: window, host: host)
+
+            viewModel.update(cards: all)
+            guard let buffer = paint(viewModel, rows: 3, window: window, host: host) else {
+                return XCTFail("the hosting view painted nothing")
+            }
+            let stride = buffer.count / 3
+            for row in 0..<3 {
+                let slice = buffer[(row * stride)..<((row + 1) * stride)]
+                XCTAssertTrue(slice.contains { $0 != 0 },
+                              "row \(row) of three was left blank after the insert")
+            }
+            window.contentView = nil
+        }
+    }
+
+    /// The same skip seen from the other side: a row that is genuinely unchanged
+    /// must stay a cache hit, so the fix may not simply repaint everything.
+    @MainActor
+    func testAnUnchangedRowIsStillNotRedrawn() {
+        withFlattening(true) {
+            TrackerRowRaster.reset()
+            let viewModel = TrackerCardListViewModel()
+            viewModel.rowHeight = 21
+            viewModel.barWidth = 171
+            viewModel.update(cards: [sampleCard()])
+
+            let host = NSHostingView(rootView: TrackerCardListView(viewModel: viewModel))
+            host.wantsLayer = true
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 171, height: 21),
+                                  styleMask: [.borderless], backing: .buffered, defer: false)
+            window.contentView = host
+            _ = paint(viewModel, rows: 1, window: window, host: host)
+            let rendersAfterFirst = TrackerRowRaster.renders
+
+            for _ in 0..<3 {
+                viewModel.update(cards: [sampleCard()])
+                _ = paint(viewModel, rows: 1, window: window, host: host)
+            }
+            XCTAssertEqual(TrackerRowRaster.renders, rendersAfterFirst,
+                           "an unchanged row may be re-evaluated, but never re-rasterised")
+            window.contentView = nil
+        }
+    }
+
     /// ...and a row that did change is. Every field of the key is one of the
     /// things V1 / V2 let change a row's appearance.
     @MainActor

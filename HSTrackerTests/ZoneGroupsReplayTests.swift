@@ -293,3 +293,211 @@ class ZoneGroupsReplayTests: HSTrackerTests {
         XCTAssertEqual(counts(groups().played)["SC_010"], 1)
     }
 }
+
+/// Bug T10: the **first** game of the 2026-09-19 Power.log (12:13:00), replayed
+/// into the 12:16:10 – 12:18:32 window. That is the window the screenshot was
+/// taken in: one 发挥优势 (id 59) and one 幽灵视觉 (id 68) are in the graveyard,
+/// their second copies (id 60 / id 61) are still in the deck, and
+/// 第三道阿古斯传送门 (id 229) has been shuffled in — the three rows the deck
+/// section drew. Our side is `player = 2`, our deck is the 30 entities 51…80,
+/// all of which are revealed at some point, so the list below is the real one.
+///
+/// The task book pointed at the fourth game (12:28:39). It does not fit: there
+/// the deck section never holds 幽灵视觉 and 发挥优势 together with a portal.
+/// This one matches the screenshot card for card, headers included.
+class ZoneGroupsT10ReplayTests: HSTrackerTests {
+
+    /// Entities 51…80 of the replayed game, counted by card id.
+    private static let deckList: [(String, Int)] = [
+        ("BT_354", 1), ("CORE_BT_035", 2), ("CORE_BT_491", 2), ("DEEP_014", 1),
+        ("EDR_840", 2), ("END_007", 2), ("ETC_411", 1), ("JAIL_206", 2),
+        ("KAR_114", 1), ("NX2_033", 1), ("REV_511", 1), ("RLK_206", 2),
+        ("TIME_020", 1), ("TIME_020t1", 1), ("TIME_020t2", 1), ("TOY_645", 2),
+        ("TSC_006", 2), ("TSC_608", 2), ("TTN_841", 2), ("WW_403", 1)
+    ]
+
+    // Checkpoints inside the screenshot window, given as the block that must
+    // NOT be fed yet. The window opens right after 发挥优势 id 59 is played
+    // (12:16:10) and closes when 幽灵视觉 id 61 is drawn and played (12:18:32).
+    private static let beforeSigilPlayed =
+        "BLOCK_START BlockType=PLAY Entity=[entityName=轻蔑印记 id=72"
+    private static let beforeMultiStrikePlayed =
+        "BLOCK_START BlockType=PLAY Entity=[entityName=多重打击 id=56"
+    private static let beforeBladeDancePlayed =
+        "BLOCK_START BlockType=PLAY Entity=[entityName=刃舞 id=80"
+    private static let beforeSecondPortalPlayed =
+        "BLOCK_START BlockType=PLAY Entity=[entityName=第二道阿古斯传送门 id=136"
+    private static let beforeAxePlayed =
+        "BLOCK_START BlockType=PLAY Entity=[entityName=塞纳留斯之斧 id=70"
+    private static let beforeSpectralSightPlayed =
+        "BLOCK_START BlockType=PLAY Entity=[entityName=幽灵视觉 id=61"
+
+    private var game: Game!
+    private var parser: PowerGameStateParser!
+    private var lines = [String]()
+    private var cursor = 0
+
+    private var savedActiveDeck: String?
+    private var savedShowPlayerGet = false
+
+    override func setUp() {
+        super.setUp()
+        savedActiveDeck = Settings.activeDeck
+        savedShowPlayerGet = Settings.showPlayerGet
+        Settings.showPlayerGet = false
+
+        let launched = Date().addingTimeInterval(30)
+        while AppDelegate.instance().coreManager == nil && Date() < launched {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+        }
+        XCTAssertNotNil(AppDelegate.instance().coreManager, "the test host app never finished launching")
+
+        game = Game(hearthstoneRunState: HearthstoneRunState(isRunning: false, isActive: false))
+        parser = PowerGameStateParser(with: game)
+        // HearthMirror is not running offline; the replayed game is player 2.
+        game.player.id = 2
+        game.opponent.id = 1
+
+        loadDeck()
+        loadFixture()
+    }
+
+    override func tearDown() {
+        Settings.showPlayerGet = savedShowPlayerGet
+        Settings.activeDeck = savedActiveDeck
+        super.tearDown()
+    }
+
+    // MARK: - Harness
+
+    private func loadDeck() {
+        let deck = Deck()
+        deck.name = "bug-t10 replay"
+        deck.playerClass = .demonhunter
+        for (id, count) in Self.deckList {
+            deck.cards.append(RealmCard(id: id, count: count))
+        }
+        game.set(activeDeck: deck, autoDetected: false)
+        let deadline = Date().addingTimeInterval(5)
+        while game.currentDeck == nil && Date() < deadline {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.01))
+        }
+        XCTAssertNotNil(game.currentDeck, "the replay needs an active deck to group by zone")
+    }
+
+    private func loadFixture() {
+        guard let url = Bundle(for: ZoneGroupsT10ReplayTests.self)
+            .url(forResource: "2026-09-19-bug-t10", withExtension: "log"),
+            let content = try? String(contentsOf: url, encoding: .utf8) else {
+            XCTFail("the replay fixture is missing from the test bundle")
+            return
+        }
+        lines = content.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+        XCTAssertGreaterThan(lines.count, 10000)
+    }
+
+    private func feed(upTo marker: String) {
+        guard let stop = lines[cursor...].firstIndex(where: { $0.contains(marker) }) else {
+            XCTFail("checkpoint not found in the fixture: \(marker)")
+            return
+        }
+        while cursor < stop {
+            parser.handle(logLine: LogLine(namespace: .power, line: lines[cursor]))
+            cursor += 1
+        }
+    }
+
+    private func counts(_ cards: [Card]) -> [String: Int] {
+        var result = [String: Int]()
+        for card in cards {
+            result[card.id] = (result[card.id] ?? 0) + abs(card.count)
+        }
+        return result
+    }
+
+    private func groups(line: UInt = #line) -> CardZoneGroups {
+        guard let groups = game.player.playerCardGroups else {
+            XCTFail("zone groups are not available", line: line)
+            return CardZoneGroups(deck: [], hand: [], played: [])
+        }
+        return groups
+    }
+
+    private func handFromEntities() -> [String: Int] {
+        var result = [String: Int]()
+        for entity in game.player.hand where entity.hasCardId && Cards.by(cardId: entity.cardId) != nil {
+            result[entity.cardId] = (result[entity.cardId] ?? 0) + 1
+        }
+        return result
+    }
+
+    // MARK: - The window in the screenshot
+
+    /// The instant the screenshot was taken: 12:17:49, right before 塞纳留斯之斧
+    /// is played. This is the whole point of the replay — the numbers the panel
+    /// drew (`发挥优势 ×2`, `幽灵视觉 ×2`, a hand section of three with two rows)
+    /// are **not** what the zone split says. The split says three rows of one in
+    /// each section, which is exactly what the two section headers read, so the
+    /// disagreement is in the drawing, not in the accounting.
+    func testTheScreenshotMomentIsThreeSingleCopiesInEachSection() {
+        feed(upTo: Self.beforeAxePlayed)
+        let deck = counts(groups().deck)
+        XCTAssertEqual(deck, ["TIME_020t4": 1, "END_007": 1, "CORE_BT_491": 1],
+                       "the three rows the screenshot shows, one copy each")
+        XCTAssertEqual(groups().deck.count, 3)
+        XCTAssertEqual(groups().deck.reduce(0) { $0 + abs($1.count) }, 3,
+                       "the deck section header said (3)")
+
+        let hand = counts(groups().hand)
+        XCTAssertEqual(hand, ["NX2_033": 1, "TIME_020t1": 1, "TSC_608": 1],
+                       "无底海渊, 塞纳留斯之斧 and 巨怪塔迪乌斯 — the screenshot drew two of them")
+        XCTAssertEqual(groups().hand.reduce(0) { $0 + abs($1.count) }, 3,
+                       "the hand section header said (3)")
+    }
+
+    /// The bug: one 发挥优势 (id 59) was played at 12:16:10, so the deck section
+    /// owes exactly one — the screenshot shows two.
+    func testOnlyOnePressTheAdvantageIsLeftInTheDeck() {
+        feed(upTo: Self.beforeSpectralSightPlayed)
+        XCTAssertEqual(counts(groups().deck)["END_007"], 1,
+                       "one copy was played at 12:16:10, the other is still in the deck")
+        XCTAssertEqual(counts(groups().played)["END_007"], 1)
+    }
+
+    /// One 幽灵视觉 (id 68) was played at 12:15:19; the other (id 61) is the one
+    /// still in the deck, so the section owes one, not two.
+    func testOnlyOneSpectralSightIsLeftInTheDeck() {
+        // At the screenshot moment; by 12:18:32 the second copy has been drawn
+        // and the deck section is rightly empty of it.
+        feed(upTo: Self.beforeAxePlayed)
+        XCTAssertEqual(counts(groups().deck)["CORE_BT_491"], 1,
+                       "one copy was played at 12:15:19, the other is still in the deck")
+        XCTAssertEqual(counts(groups().played)["CORE_BT_491"], 1)
+    }
+
+    /// The hand section is the hand, all the way through the window.
+    func testHandSectionMatchesTheHandThroughTheWindow() {
+        for marker in [Self.beforeSigilPlayed, Self.beforeMultiStrikePlayed,
+                       Self.beforeBladeDancePlayed, Self.beforeSecondPortalPlayed,
+                       Self.beforeAxePlayed, Self.beforeSpectralSightPlayed] {
+            feed(upTo: marker)
+            XCTAssertEqual(counts(groups().hand), handFromEntities(),
+                           "hand section does not match the hand at \(marker)")
+        }
+    }
+
+    /// The regression guard T7 / T8 left behind, on this game's deck: no card of
+    /// the deck list may be counted in the deck section above its list count.
+    func testNoDeckListCardIsCountedAboveItsListCount() {
+        for marker in [Self.beforeSigilPlayed, Self.beforeMultiStrikePlayed,
+                       Self.beforeBladeDancePlayed, Self.beforeSecondPortalPlayed,
+                       Self.beforeAxePlayed, Self.beforeSpectralSightPlayed] {
+            feed(upTo: marker)
+            let deck = counts(groups().deck)
+            for (id, count) in Self.deckList {
+                XCTAssertLessThanOrEqual(deck[id] ?? 0, count,
+                                         "\(id) is counted above its deck list count at \(marker)")
+            }
+        }
+    }
+}

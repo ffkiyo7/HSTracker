@@ -17,6 +17,10 @@ struct TrackerCardListView: View {
         VStack(spacing: 0) {
             ForEach(viewModel.rows) { row in
                 ZStack(alignment: .topLeading) {
+                    // `.equatable()` is load bearing, not an optimisation: the
+                    // comparison SwiftUI makes on its own reads `Card`'s `==`,
+                    // which is the id alone, so a row whose count changed looked
+                    // unchanged and kept its old bitmap (bug T10).
                     CardRowView(
                         card: row.card,
                         playerType: viewModel.playerType,
@@ -29,6 +33,7 @@ struct TrackerCardListView: View {
                         drawsArt: viewModel.drawsArt,
                         drawsTextShadow: viewModel.drawsTextShadow
                     )
+                    .equatable()
                     TrackerCardRowSensor(card: row.card, viewModel: viewModel)
                 }
                 .frame(maxWidth: .infinity,

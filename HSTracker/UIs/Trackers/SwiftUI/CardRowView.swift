@@ -99,6 +99,46 @@ struct CardRowView: View {
             }
         }
     }
+
+    /// The content view with the two inputs an `==` between two view values
+    /// cannot reach — the loaded tile (`@State`) and the hand section flag
+    /// (`@Environment`) — pinned to the same value on both sides. SwiftUI
+    /// invalidates a view whose own state or read environment changed, so
+    /// leaving those two out is safe; everything else is in the key.
+    fileprivate var comparableContent: CardRowContentView {
+        CardRowContentView(card: card,
+                           playerType: playerType,
+                           showRarityColors: showRarityColors,
+                           rowHeight: rowHeight,
+                           barWidth: barWidth,
+                           highlightColor: highlightColor,
+                           baseOpacity: baseOpacity,
+                           isHandSection: false,
+                           drawsArt: drawsArt,
+                           drawsTextShadow: drawsTextShadow,
+                           tile: nil)
+    }
+}
+
+/// Bug T10: `card` is a `Card`, and `Card` is a class whose `==` compares the id
+/// and nothing else. SwiftUI decides whether to re-run a view's `body` by
+/// comparing the old and new view values, so two refreshes of the same card
+/// looked equal however much its count had moved — the row's `body` was skipped
+/// and it kept drawing the bitmap it had been rasterised with. The deck section
+/// printed `发挥优势 ×2` under a header that said the section held three cards,
+/// one per row.
+///
+/// The comparison is the raster key, i.e. the one place that already defines
+/// "everything that decides what this row looks like". Stating it again field by
+/// field would be the same trap one level down: the next appearance input would
+/// have to be remembered in two places.
+extension CardRowView: Equatable {
+    static func == (lhs: CardRowView, rhs: CardRowView) -> Bool {
+        lhs.flattensToBitmap == rhs.flattensToBitmap
+            && lhs.playerType == rhs.playerType
+            && lhs.comparableContent.rasterKey(scale: 1)
+                == rhs.comparableContent.rasterKey(scale: 1)
+    }
 }
 
 /// The drawing itself. Pure — no `@State`, no environment — because Perf P2
