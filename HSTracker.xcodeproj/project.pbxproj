@@ -332,6 +332,7 @@
 		43BECA3E9B92E42CC52AECCA /* PrisonOfYoggSaron.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE73E6BC76A626A868398762 /* PrisonOfYoggSaron.swift */; };
 		43BF754C1ECC25F7005827FF /* DeckSerializer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43BF754B1ECC25F7005827FF /* DeckSerializer.swift */; };
 		43BF754F1ECC4EB7005827FF /* Varint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43BF754E1ECC4EB7005827FF /* Varint.swift */; };
+		B8FC0F00000000000000B001 /* PlayerCardZones.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FC0F00000000000000A001 /* PlayerCardZones.swift */; };
 		B8DD0F00000000000000B001 /* RedDragonCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A001 /* RedDragonCards.swift */; };
 		B8DD0F00000000000000B002 /* RedDragonState.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A002 /* RedDragonState.swift */; };
 		B8DD0F00000000000000B003 /* RedDragonEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A003 /* RedDragonEngine.swift */; };
@@ -2232,6 +2233,7 @@
 		439C7E571C7772C000D29859 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Info.plist; path = HSTracker/Info.plist; sourceTree = "<group>"; };
 		439C7E5C1C7772C100D29859 /* HSTrackerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HSTrackerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		439C7E601C7772C100D29859 /* HSTrackerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HSTrackerTests.swift; sourceTree = "<group>"; };
+		B8FC0F00000000000000A001 /* PlayerCardZones.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerCardZones.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A001 /* RedDragonCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonCards.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A002 /* RedDragonState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonState.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A003 /* RedDragonEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonEngine.swift; sourceTree = "<group>"; };
@@ -4163,6 +4165,7 @@
 				439C7E901C777EE800D29859 /* Core */,
 				439C7E7A1C777CC000D29859 /* Database */,
 				43873CBF1CA6E68D00F01CB4 /* Debug */,
+				B8FC0F00000000000000F000 /* Fork */,
 				4323C5E31E1695DD00C97896 /* HearthMirror */,
 				B82AE5FB28BE8631004A8FE0 /* HearthMirror-version.txt */,
 				43B695551C90653A00F4D0AC /* Hearthstone */,
@@ -4182,6 +4185,14 @@
 				437B5BB11CD2437D00DE0A41 /* Utility */,
 			);
 			path = HSTracker;
+			sourceTree = "<group>";
+		};
+		B8FC0F00000000000000F000 /* Fork */ = {
+			isa = PBXGroup;
+			children = (
+				B8FC0F00000000000000A001 /* PlayerCardZones.swift */,
+			);
+			path = Fork;
 			sourceTree = "<group>";
 		};
 		B8DD0F00000000000000F000 /* RedDragon */ = {
@@ -7921,6 +7932,7 @@
 				B846CC9E2E1C217E00552F9C /* InsectClaw.swift in Sources */,
 				434910521D09773D00B22DB2 /* IBoardEntity.swift in Sources */,
 				43BDF0BE1DB89A830081964A /* WindowManager.swift in Sources */,
+				B8FC0F00000000000000B001 /* PlayerCardZones.swift in Sources */,
 				B8DD0F00000000000000B001 /* RedDragonCards.swift in Sources */,
 				B8DD0F00000000000000B002 /* RedDragonState.swift in Sources */,
 				B8DD0F00000000000000B003 /* RedDragonEngine.swift in Sources */,
