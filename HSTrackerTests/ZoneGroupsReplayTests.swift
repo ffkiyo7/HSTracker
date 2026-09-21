@@ -501,3 +501,348 @@ class ZoneGroupsT10ReplayTests: HSTrackerTests {
         }
     }
 }
+
+/// Bug T11, symptom ①: the 2026-09-20 Power.log, wild ladder, one whole game
+/// (23:35:12 → 23:51:43) fed the way the live app sees it, **reconnect and all**.
+/// Our side is `player = 2`, a 40 card Renathal deck (entities 51…93 minus the
+/// starship pieces 57/58/59, which are set aside).
+///
+/// The client drops at 23:41:57 and the server dumps a second `CREATE_GAME`
+/// with every entity re-created. `PowerGameStateParser` answers that with its
+/// own `reset()` only — `eventHandler.gameStart` is commented out there — so
+/// `Game` keeps every entity, every latched flag and every `info` field from
+/// before the drop and has the re-dump land on top. The fixture starts at the
+/// *first* `CREATE_GAME` so the replay goes through that, rather than starting
+/// clean at the second one.
+///
+/// The opponent's 爆破工头索格伦 (`WW_372`) shuffles TNT (`WW_372t`) into our
+/// deck. Two of them go off:
+///
+/// - 23:41:27, **before** the reconnect: destroys 混乱吞噬 (`TTN_932`, entity 72)
+///   out of the hand and 嫉妒乐章 (`ETC_085t`, entity 202 — a copy 罪孽交响曲
+///   shuffled in) straight out of the deck.
+/// - 23:49:03, **after** it: 情势反转 (`DAL_602`, entity 89) has just shuffled
+///   our hand back into the deck, 火焰之灾祸 (`ULD_717`, entity 67) among it;
+///   the same draw turns up TNT (entity 217) and its CASTS_WHEN_DRAWN trigger
+///   destroys 亵渎 (entity 79) out of the hand and 火焰之灾祸 straight out of the
+///   deck — `SHOW_ENTITY … zone=DECK` and `ZONE=GRAVEYARD` in the same block.
+class ZoneGroupsT11ReplayTests: HSTrackerTests {
+
+    /// The 31 of our 40 deck cards the game reveals. The rest never leaves the
+    /// deck, so it cannot move any assertion below.
+    private static let deckList: [(String, Int)] = [
+        ("BAR_910", 1), ("BOT_913", 1), ("CATA_496", 1), ("CORE_KAR_061", 1),
+        ("CORE_SCH_713", 1), ("DAL_602", 1), ("DEEP_032", 1), ("END_017", 1),
+        ("ETC_071", 1), ("ETC_080", 1), ("ETC_084", 1), ("ETC_085", 1),
+        ("GVG_108", 1), ("ICC_041", 1), ("ICC_903", 1), ("JAIL_515", 1),
+        ("LOOT_017", 1), ("MIS_027", 1), ("REV_018", 1), ("RLK_536", 1),
+        ("SCH_514", 1), ("TLC_106", 1), ("TLC_451", 1), ("TSC_908", 1),
+        ("TTN_932", 1), ("TTN_960", 1), ("ULD_003", 1), ("ULD_717", 1),
+        ("WW_0700", 1)
+    ]
+
+    /// 火焰之灾祸, the deck list card the second bomb destroys inside the deck.
+    private static let plagueOfFlames = "ULD_717"
+    /// 亵渎, the deck list card the same bomb destroys out of the hand.
+    private static let defile = "ICC_041"
+    /// 嫉妒乐章, the shuffled in copy the first bomb destroys inside the deck.
+    private static let envy = "ETC_085t"
+    /// 混乱吞噬, the deck list card the first bomb destroys out of the hand.
+    private static let chaos = "TTN_932"
+    /// TNT, shuffled into our deck by the opponent's 爆破工头索格伦.
+    private static let bomb = "WW_372t"
+
+    // Checkpoints, given as the block that must NOT be fed yet. All of them are
+    // `PowerTaskList` lines, because that is the only half `feedOne` parses.
+    private static let beforeTheFirstBomb =
+        "PowerTaskList.DebugPrintPower() - BLOCK_START BlockType=TRIGGER Entity=[entityName=TNT炸药 id=215"
+    /// The reconnect itself: the second `CREATE_GAME`. Reached from a cursor
+    /// that is already past the first one.
+    private static let beforeTheReconnect =
+        "PowerTaskList.DebugPrintPower() -     CREATE_GAME"
+    /// The first block of real play after the re-dump, 23:42:15.
+    private static let afterTheReconnect =
+        "PowerTaskList.DebugPrintPower() - BLOCK_START BlockType=PLAY Entity=[entityName=血色狂欢者 id=93"
+    private static let beforeTheBombGoesOff =
+        "PowerTaskList.DebugPrintPower() - BLOCK_START BlockType=TRIGGER Entity=[entityName=TNT炸药 id=217"
+    /// The next bomb, 23:49:12 — the first block after the one we watch, so the
+    /// block we watch is closed and its queued creation tags have been flushed.
+    private static let afterTheBombWentOff =
+        "PowerTaskList.DebugPrintPower() - BLOCK_START BlockType=TRIGGER Entity=[entityName=TNT炸药 id=219"
+
+    private var game: Game!
+    private var parser: PowerGameStateParser!
+    private var lines = [String]()
+    private var cursor = 0
+
+    private var savedActiveDeck: String?
+    private var savedShowPlayerGet = false
+
+    override func setUp() {
+        super.setUp()
+        savedActiveDeck = Settings.activeDeck
+        savedShowPlayerGet = Settings.showPlayerGet
+        Settings.showPlayerGet = false
+
+        let launched = Date().addingTimeInterval(30)
+        while AppDelegate.instance().coreManager == nil && Date() < launched {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+        }
+        XCTAssertNotNil(AppDelegate.instance().coreManager, "the test host app never finished launching")
+
+        game = Game(hearthstoneRunState: HearthstoneRunState(isRunning: false, isActive: false))
+        parser = PowerGameStateParser(with: game)
+        // HearthMirror is not running offline; the replayed game is player 2.
+        game.player.id = 2
+        game.opponent.id = 1
+
+        loadDeck()
+        loadFixture()
+    }
+
+    override func tearDown() {
+        Settings.showPlayerGet = savedShowPlayerGet
+        Settings.activeDeck = savedActiveDeck
+        super.tearDown()
+    }
+
+    // MARK: - Harness
+
+    private func loadDeck() {
+        let deck = Deck()
+        deck.name = "bug-t11 replay"
+        deck.playerClass = .warlock
+        for (id, count) in Self.deckList {
+            deck.cards.append(RealmCard(id: id, count: count))
+        }
+        game.set(activeDeck: deck, autoDetected: false)
+        let deadline = Date().addingTimeInterval(5)
+        while game.currentDeck == nil && Date() < deadline {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.01))
+        }
+        XCTAssertNotNil(game.currentDeck, "the replay needs an active deck to group by zone")
+    }
+
+    private func loadFixture() {
+        guard let url = Bundle(for: ZoneGroupsT11ReplayTests.self)
+            .url(forResource: "2026-09-20-bug-t11", withExtension: "log"),
+            let content = try? String(contentsOf: url, encoding: .utf8) else {
+            XCTFail("the replay fixture is missing from the test bundle")
+            return
+        }
+        lines = content.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+        XCTAssertGreaterThan(lines.count, 10000)
+    }
+
+    /// One line, routed the way `LogReaderManager.processLine` routes it: a
+    /// `GameState.` line goes to the power log and the choices handler and
+    /// **never** reaches `PowerGameStateParser`. Only the
+    /// `PowerTaskList.DebugPrintPower` half is parsed.
+    ///
+    /// The T6 / T10 classes above feed both halves, which is not what the app
+    /// does — and in this game it is not harmless: the GameState half writes
+    /// `FULL_ENTITY - Creating ID=<n>` where PowerTaskList writes
+    /// `FULL_ENTITY - Updating [… id=<n> …]`, and only the second form matches
+    /// `PowerGameStateParser.CreationRegex`. So the creating form leaves
+    /// `currentEntityId` on the previous entity and the whole tag block lands on
+    /// it. Here that put a stray `CREATOR` on 末日管弦家林恩 (entity 69) and
+    /// `markShuffledIntoDeck` latched a deck list card, counting it twice.
+    private func feedOne(_ line: String) {
+        let logLine = LogLine(namespace: .power, line: line)
+        guard logLine.content.hasPrefix("PowerTaskList.DebugPrintPower") else { return }
+        parser.handle(logLine: logLine)
+    }
+
+    private func feed(upTo marker: String) {
+        guard let stop = lines[cursor...].firstIndex(where: { $0.contains(marker) }) else {
+            XCTFail("checkpoint not found in the fixture: \(marker)")
+            return
+        }
+        while cursor < stop {
+            feedOne(lines[cursor])
+            cursor += 1
+        }
+    }
+
+    private func counts(_ cards: [Card]) -> [String: Int] {
+        var result = [String: Int]()
+        for card in cards {
+            result[card.id] = (result[card.id] ?? 0) + abs(card.count)
+        }
+        return result
+    }
+
+    private func groups(line: UInt = #line) -> CardZoneGroups {
+        guard let groups = game.player.playerCardGroups else {
+            XCTFail("zone groups are not available", line: line)
+            return CardZoneGroups(deck: [], hand: [], played: [])
+        }
+        return groups
+    }
+
+    private func handFromEntities() -> [String: Int] {
+        var result = [String: Int]()
+        for entity in game.player.hand where entity.hasCardId && Cards.by(cardId: entity.cardId) != nil {
+            result[entity.cardId] = (result[entity.cardId] ?? 0) + 1
+        }
+        return result
+    }
+
+    /// What our deck really holds for `cardId`: the entities sitting in the deck
+    /// zone plus the deck list copies that were never revealed. Only usable for
+    /// a card whose every copy has been revealed at some point, which is the
+    /// case for 火焰之灾祸 and 亵渎 (both drawn, both destroyed).
+    private func entitiesInDeck(_ cardId: String) -> Int {
+        return game.player.deck.filter { $0.cardId == cardId }.count
+    }
+
+    // MARK: - The reconnect
+
+    /// The first bomb, 23:41:27, **before** the drop: 嫉妒乐章 is a copy
+    /// 罪孽交响曲 shuffled in, so it is in the deck section as a created row and
+    /// has to leave it; 混乱吞噬 is a deck list card in hand and has to leave the
+    /// hand section. Both land in the played section.
+    func testTheBombBeforeTheReconnectMovesBothCards() {
+        feed(upTo: Self.beforeTheFirstBomb)
+        XCTAssertEqual(counts(groups().deck)[Self.envy], 1, "the shuffled in copy is in the deck")
+        XCTAssertEqual(counts(groups().hand)[Self.chaos], 1)
+        let envyPlayedBefore = counts(groups().played)[Self.envy] ?? 0
+
+        feed(upTo: Self.beforeTheReconnect)
+        XCTAssertNil(counts(groups().deck)[Self.envy],
+                     "a copy destroyed inside the deck may not stay in the deck section")
+        XCTAssertEqual(counts(groups().played)[Self.envy], envyPlayedBefore + 1)
+        XCTAssertNil(counts(groups().hand)[Self.chaos])
+        XCTAssertEqual(counts(groups().played)[Self.chaos], 1)
+    }
+
+    /// The drop itself. `PowerGameStateParser` answers the second `CREATE_GAME`
+    /// with its own `reset()` and nothing else, so `Game` keeps every entity and
+    /// the server's full re-dump lands on top of them. Nothing may be counted
+    /// twice, and nothing the first bomb destroyed may come back.
+    func testTheReconnectDoesNotDoubleCountOrResurrect() {
+        // The first game's own `CREATE_GAME` matches the reconnect marker too,
+        // so the cursor has to be past it before asking for the second one.
+        feed(upTo: Self.beforeTheFirstBomb)
+        feed(upTo: Self.beforeTheReconnect)
+        let deckBefore = counts(groups().deck)
+        let playedBefore = counts(groups().played)
+        XCTAssertNotNil(playedBefore[Self.envy], "the first bomb has gone off by now")
+
+        feed(upTo: Self.afterTheReconnect)
+        XCTAssertEqual(counts(groups().played), playedBefore,
+                       "the re-dump changed the played section")
+        XCTAssertNil(counts(groups().deck)[Self.envy],
+                     "the re-dump put a destroyed copy back in the deck")
+        XCTAssertEqual(counts(groups().deck)[Self.bomb], deckBefore[Self.bomb],
+                       "the shuffled in bombs were counted again")
+
+        // The re-dump may not undo what the parser latched before the drop: a
+        // destroyed card that lost `originalZone` / `originalController` would
+        // silently fall out of "left the deck" and keep its deck section row.
+        for id in [202, 72] {
+            let entity = game.entities.values.first { $0.id == id }
+            XCTAssertEqual(entity?.info.originalZone, Zone.deck, "\(id) lost its original zone")
+            XCTAssertEqual(entity?.info.originalController, game.player.id)
+            XCTAssertTrue(entity?.info.discarded ?? false, "\(id) lost its discarded flag")
+            XCTAssertFalse(entity?.info.hasOutstandingTagChanges ?? true,
+                           "\(id) is still hidden from revealedEntities")
+        }
+        XCTAssertTrue(game.entities.values.first { $0.id == 202 }?.wasShuffledIntoDeck ?? false,
+                      "the T8 latch was wiped by the re-dump")
+        XCTAssertFalse(game.entities.values.first { $0.id == 72 }?.wasShuffledIntoDeck ?? true,
+                       "the re-dump latched a deck list card")
+    }
+
+    /// The T8 latch, swept over the whole game: on our side it may only sit on
+    /// cards the deck list does not own. 情势反转 shuffles our hand back into the
+    /// deck twice in this game, which is exactly the shape T8's 执行结果 wrote
+    /// down as untested — a deck list card going back into the deck with
+    /// `info.created` already true.
+    func testTheShuffledInLatchNeverLandsOnADeckListCard() {
+        let listIds = Set(Self.deckList.map { $0.0 })
+        sweep { checkpoint in
+            let ours = game.entities.values.filter {
+                $0.wasShuffledIntoDeck && $0.info.originalController == game.player.id
+            }
+            XCTAssertTrue(ours.all { !listIds.contains($0.cardId) },
+                          "a deck list card was latched as a shuffled in copy at line \(checkpoint): "
+                            + ours.filter { listIds.contains($0.cardId) }
+                                .map { "\($0.id):\($0.cardId)" }.joined(separator: ", "))
+        }
+    }
+
+    // MARK: - Symptom ①: a card destroyed inside the deck
+
+    /// The bomb's card. Before it goes off 火焰之灾祸 is back in the deck
+    /// (情势反转 shuffled the hand in); after it, the deck section may not list
+    /// it any more and the played section owes it.
+    func testTheCardTheBombDestroysInTheDeckLeavesTheDeckSection() {
+        feed(upTo: Self.beforeTheBombGoesOff)
+        XCTAssertEqual(entitiesInDeck(Self.plagueOfFlames), 1, "情势反转 put it back in the deck")
+        XCTAssertEqual(counts(groups().deck)[Self.plagueOfFlames], 1)
+        XCTAssertNil(counts(groups().played)[Self.plagueOfFlames])
+
+        feed(upTo: Self.afterTheBombWentOff)
+        XCTAssertEqual(entitiesInDeck(Self.plagueOfFlames), 0, "the bomb destroyed it")
+        XCTAssertNil(counts(groups().deck)[Self.plagueOfFlames],
+                     "a card destroyed inside the deck may not stay in the deck section")
+        XCTAssertEqual(counts(groups().played)[Self.plagueOfFlames], 1,
+                       "it left the deck, so it belongs to the played section")
+        XCTAssertNil(counts(groups().hand)[Self.plagueOfFlames])
+    }
+
+    /// The same bomb destroys 亵渎 out of the hand. Both halves have to move in
+    /// the same refresh, or one of the two sections is left over-counting.
+    func testTheCardTheBombDestroysInTheHandLeavesTheHandSection() {
+        feed(upTo: Self.beforeTheBombGoesOff)
+        XCTAssertEqual(counts(groups().hand)[Self.defile], 1)
+
+        feed(upTo: Self.afterTheBombWentOff)
+        XCTAssertNil(counts(groups().hand)[Self.defile])
+        XCTAssertNil(counts(groups().deck)[Self.defile],
+                     "it was destroyed out of the hand, it did not go back to the deck")
+        XCTAssertEqual(counts(groups().played)[Self.defile], 1)
+    }
+
+    /// The hand section is the hand, all the way through the replayed game.
+    func testHandSectionMatchesTheHandThroughTheGame() {
+        sweep { checkpoint in
+            XCTAssertEqual(counts(groups().hand), handFromEntities(),
+                           "hand section does not match the hand at line \(checkpoint)")
+        }
+    }
+
+    /// The T7 / T8 guard on this game's deck, swept over the whole fixture
+    /// rather than at a handful of blocks: the bomb, the E.T.C. starship pieces
+    /// and 情势反转 shuffling the hand back in all move cards across the three
+    /// sections, and none of them may push a deck list card above its count.
+    func testNoDeckListCardIsCountedAboveItsListCount() {
+        let listed = Dictionary(uniqueKeysWithValues: Self.deckList)
+        sweep { checkpoint in
+            let deck = counts(groups().deck)
+            for (id, count) in listed {
+                XCTAssertLessThanOrEqual(deck[id] ?? 0, count,
+                                         "\(id) is counted above its deck list count at line \(checkpoint)")
+            }
+            XCTAssertTrue(groups().deck.all { $0.count > 0 },
+                          "a zero count row survived in the deck section at line \(checkpoint)")
+        }
+    }
+
+    /// Feeds the fixture in chunks and runs `check` at every boundary, so an
+    /// accounting slip anywhere in the game is caught, not only at the blocks
+    /// this file happens to name.
+    private func sweep(_ check: (Int) -> Void) {
+        let step = 250
+        while cursor < lines.count {
+            let stop = min(cursor + step, lines.count)
+            while cursor < stop {
+                feedOne(lines[cursor])
+                cursor += 1
+            }
+            guard game.currentDeck != nil, game.player.playerCardGroups != nil else { continue }
+            check(cursor)
+        }
+    }
+}

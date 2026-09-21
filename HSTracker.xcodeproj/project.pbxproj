@@ -345,6 +345,7 @@
 		B8DD0F00000000000000B00A /* ZoneGroupsReplayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A00A /* ZoneGroupsReplayTests.swift */; };
 		B8DD0F00000000000000B00B /* 2026-09-14-standard.log in Resources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A00B /* 2026-09-14-standard.log */; };
 		B8DD0F00000000000000B00D /* 2026-09-19-bug-t10.log in Resources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A00D /* 2026-09-19-bug-t10.log */; };
+		B8DD0F00000000000000B00E /* 2026-09-20-bug-t11.log in Resources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A00E /* 2026-09-20-bug-t11.log */; };
 		43C1C9F61E96CCDB008C20B1 /* SecretTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43640BE21E8A328700FAFD07 /* SecretTests.swift */; };
 		43C1C9F71E96CCE9008C20B1 /* AlgorithmTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CF1B5891E81426D007DCBF2 /* AlgorithmTests.swift */; };
 		43C1C9F81E96CCE9008C20B1 /* HSTrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 439C7E601C7772C100D29859 /* HSTrackerTests.swift */; };
@@ -2244,6 +2245,7 @@
 		B8DD0F00000000000000A00A /* ZoneGroupsReplayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneGroupsReplayTests.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A00B /* 2026-09-14-standard.log */ = {isa = PBXFileReference; lastKnownFileType = text; name = "2026-09-14-standard.log"; path = "Fixtures/ZoneReplay/2026-09-14-standard.log"; sourceTree = "<group>"; };
 		B8DD0F00000000000000A00D /* 2026-09-19-bug-t10.log */ = {isa = PBXFileReference; lastKnownFileType = text; name = "2026-09-19-bug-t10.log"; path = "Fixtures/ZoneReplay/2026-09-19-bug-t10.log"; sourceTree = "<group>"; };
+		B8DD0F00000000000000A00E /* 2026-09-20-bug-t11.log */ = {isa = PBXFileReference; lastKnownFileType = text; name = "2026-09-20-bug-t11.log"; path = "Fixtures/ZoneReplay/2026-09-20-bug-t11.log"; sourceTree = "<group>"; };
 		439C7E621C7772C100D29859 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		439C7E791C7779D200D29859 /* HSTracker-Bridging-Header.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "HSTracker-Bridging-Header.h"; path = "HSTracker/HSTracker-Bridging-Header.h"; sourceTree = "<group>"; };
 		439C7E7D1C777CFC00D29859 /* Deck.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Deck.swift; sourceTree = "<group>"; };
@@ -4206,6 +4208,7 @@
 				B8DD0F00000000000000A008 /* formulas.json */,
 				B8DD0F00000000000000A00B /* 2026-09-14-standard.log */,
 				B8DD0F00000000000000A00D /* 2026-09-19-bug-t10.log */,
+				B8DD0F00000000000000A00E /* 2026-09-20-bug-t11.log */,
 				439C7E601C7772C100D29859 /* HSTrackerTests.swift */,
 				1CF1B58B1E815810007DCBF2 /* LogReaderTests.swift */,
 				C94596811D174FBA008CD47A /* StatsTests.swift */,
@@ -6888,6 +6891,7 @@
 				B8DD0F00000000000000B008 /* formulas.json in Resources */,
 				B8DD0F00000000000000B00B /* 2026-09-14-standard.log in Resources */,
 				B8DD0F00000000000000B00D /* 2026-09-19-bug-t10.log in Resources */,
+				B8DD0F00000000000000B00E /* 2026-09-20-bug-t11.log in Resources */,
 				B8BA180328F113DA004D40ED /* BattlegroundsTribe.xib in Resources */,
 				B8BA180228F113B2004D40ED /* LinkOpponentDeckPanel.xib in Resources */,
 				B8BA180028F1101D004D40ED /* Assets.xcassets in Resources */,

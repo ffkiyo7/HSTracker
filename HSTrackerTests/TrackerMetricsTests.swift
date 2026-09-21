@@ -873,4 +873,194 @@ class TrackerMetricsTests: HSTrackerTests {
             XCTAssertEqual(TrackerDiagnostics.panelOpacity(setting: 0), 1, accuracy: accuracy)
         }
     }
+
+    // MARK: - Bug T11
+
+    /// Symptom ①: a card destroyed inside the deck leaves the deck section's
+    /// row list. The accounting does drop it (see `ZoneGroupsT11ReplayTests`),
+    /// so what is left to check is that the row stops being painted.
+    @MainActor
+    func testARemovedRowStopsBeingPainted() {
+        withFlattening(true) {
+            TrackerRowRaster.reset()
+            let viewModel = TrackerCardListViewModel()
+            viewModel.rowHeight = 21
+            viewModel.barWidth = 171
+            let all = rowCards(2)
+            viewModel.update(cards: all)
+
+            let host = NSHostingView(rootView: TrackerCardListView(viewModel: viewModel))
+            host.wantsLayer = true
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 171, height: 42),
+                                  styleMask: [.borderless], backing: .buffered, defer: false)
+            window.contentView = host
+            guard let both = paint(viewModel, rows: 2, window: window, host: host) else {
+                return XCTFail("the hosting view painted nothing")
+            }
+            XCTAssertTrue(both[(both.count / 2)...].contains { $0 != 0 },
+                          "the second row has to be on screen first")
+
+            viewModel.update(cards: [all[0]])
+            XCTAssertEqual(viewModel.rows.count, 1, "the view model did take the removal")
+            guard let one = paint(viewModel, rows: 1, window: window, host: host) else {
+                return XCTFail("the hosting view painted nothing")
+            }
+            XCTAssertEqual(one.count, both.count / 2,
+                           "one row left, so the list is half as tall")
+            XCTAssertEqual(one, Array(both[0..<(both.count / 2)]),
+                           "the surviving row is the first one, unchanged")
+            window.contentView = nil
+        }
+    }
+
+    /// Symptom ②: the synergy highlight. `Tracker.setSwiftUIHighlight` hands the
+    /// list a closure; the row list has to re-evaluate with it and the row has
+    /// to be drawn again with the tint.
+    @MainActor
+    func testSettingTheSynergyHighlightRepaintsTheRow() {
+        withFlattening(true) {
+            TrackerRowRaster.reset()
+            let viewModel = TrackerCardListViewModel()
+            viewModel.rowHeight = 21
+            viewModel.barWidth = 171
+            viewModel.update(cards: [sampleCard()])
+
+            let host = NSHostingView(rootView: TrackerCardListView(viewModel: viewModel))
+            host.wantsLayer = true
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 171, height: 21),
+                                  styleMask: [.borderless], backing: .buffered, defer: false)
+            window.contentView = host
+            let plain = paint(viewModel, rows: 1, window: window, host: host)
+            XCTAssertEqual(token(viewModel.rows.first?.highlight), 0)
+
+            viewModel.setHighlight { _, _ in .teal }
+            XCTAssertEqual(token(viewModel.rows.first?.highlight), 1,
+                           "the closure never reached the rows")
+            let lit = paint(viewModel, rows: 1, window: window, host: host)
+
+            guard let plain, let lit else {
+                return XCTFail("the hosting view painted nothing")
+            }
+            XCTAssertNotEqual(plain, lit, "the row was not repainted with the highlight")
+
+            viewModel.setHighlight(nil)
+            XCTAssertEqual(token(viewModel.rows.first?.highlight), 0, "clearing left the tint on")
+            let off = paint(viewModel, rows: 1, window: window, host: host)
+            XCTAssertEqual(off, plain, "clearing the highlight has to put the row back")
+            window.contentView = nil
+        }
+    }
+
+    /// The same closure through `TrackerViewModel`, i.e. the way
+    /// `Tracker.setSwiftUIHighlight` reaches the three zone sections: the
+    /// highlight has to survive the next tracker refresh, which rebuilds every
+    /// row from a fresh `[Card]`.
+    @MainActor
+    func testTheSynergyHighlightSurvivesTheNextRefresh() {
+        let viewModel = TrackerCardListViewModel()
+        let cards = rowCards(2)
+        viewModel.update(cards: cards)
+        viewModel.setHighlight { card, _ in card.id == "PERF_1" ? .teal : .none }
+        XCTAssertEqual(viewModel.rows.map { token($0.highlight) }, [0, 1])
+
+        // A refresh a moment later: same cards, new objects, as the tracker
+        // rebuilds them from the game state on every update.
+        viewModel.update(cards: rowCards(2))
+        XCTAssertEqual(viewModel.rows.map { token($0.highlight) }, [0, 1],
+                       "a refresh dropped the highlight")
+    }
+
+    /// Symptom ②, the upstream half: the closure `Tracker.highlightPlayerDeckCards`
+    /// hands to the lists comes out of `RelatedCardsManager`, which fills itself
+    /// by reflection. An empty table there would kill every highlight at once,
+    /// which is what "the synergy highlight stopped working" looks like.
+    @MainActor
+    func testTheRealSynergyClosureReachesTheRows() {
+        // `ReflectionHelper.initialize()` runs off the main queue while the test
+        // host app launches; the table is empty until it lands.
+        let launched = Date().addingTimeInterval(30)
+        while ReflectionHelper.getHighlightClasses().isEmpty && Date() < launched {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+        }
+        XCTAssertGreaterThan(ReflectionHelper.getHighlightClasses().count, 100,
+                             "reflection found next to no ICardWithHighlight")
+        let manager = RelatedCardsManager()
+        manager.reset()
+        guard let source = manager.getCardWithHighlight(CardIds.Collectible.Mage.Arcanologist) else {
+            return XCTFail("the highlight table is empty — reflection found no ICardWithHighlight")
+        }
+
+        // Out of scope, recorded here because the table is what this test reads:
+        // `ReflectionHelper.initialize()` sorts a class with an `else if` chain,
+        // so the four cards that are both ICardWithRelatedCards and
+        // ICardWithHighlight land in the related table only and never get a
+        // highlight. See the task book's 执行结果.
+        XCTAssertNil(manager.getCardWithHighlight(CardIds.Collectible.Invalid.LiftOff),
+                     "if this now resolves, ReflectionHelper was fixed — drop this assertion")
+
+        let secret = Card()
+        secret.id = "PERF_SECRET"
+        secret.name = "Counterspell"
+        secret.count = 1
+        secret.mechanics = ["SECRET"]
+        let plain = rowCards(1)[0]
+
+        let viewModel = TrackerCardListViewModel()
+        viewModel.update(cards: [secret, plain])
+        viewModel.setHighlight(source.shouldHighlight)
+        XCTAssertEqual(viewModel.rows.map { token($0.highlight) }, [1, 0],
+                       "the real closure has to tint the secret and nothing else")
+    }
+
+    /// Symptom ②, the entry point: hovering a row in the panel is what asks for
+    /// the highlight, and Perf P2 put a bitmap on top of every row. The sensor
+    /// has to still be the view under the mouse, with its tracking area.
+    @MainActor
+    func testTheHoverSensorStillCoversEveryRow() {
+        withFlattening(true) {
+            let viewModel = TrackerCardListViewModel()
+            viewModel.rowHeight = 21
+            viewModel.barWidth = 171
+            viewModel.update(cards: rowCards(2))
+
+            let host = NSHostingView(rootView: TrackerCardListView(viewModel: viewModel))
+            host.wantsLayer = true
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 171, height: 42),
+                                  styleMask: [.borderless], backing: .buffered, defer: false)
+            window.contentView = host
+            _ = paint(viewModel, rows: 2, window: window, host: host)
+
+            var sensors = [NSView]()
+            func walk(_ view: NSView) {
+                if String(describing: type(of: view)) == "Inner" {
+                    sensors.append(view)
+                }
+                view.subviews.forEach(walk)
+            }
+            walk(host)
+            XCTAssertEqual(sensors.count, 2, "one hover sensor per row")
+            for sensor in sensors {
+                XCTAssertEqual(sensor.bounds.size,
+                               NSSize(width: viewModel.barWidth, height: viewModel.rowHeight),
+                               "the sensor has to cover the whole row")
+                XCTAssertFalse(sensor.trackingAreas.isEmpty, "no tracking area, no hover")
+            }
+            for y in [10.0, 31.0] {
+                let hit = host.hitTest(NSPoint(x: 85, y: y))
+                XCTAssertEqual(hit.map { String(describing: type(of: $0)) }, "Inner",
+                               "the row bitmap is on top of the sensor at y = \(y)")
+            }
+            window.contentView = nil
+        }
+    }
+
+    private func token(_ color: HighlightColor?) -> Int {
+        switch color {
+        case .none?: return 0
+        case .teal?: return 1
+        case .orange?: return 2
+        case .green?: return 3
+        case nil: return -1
+        }
+    }
 }
