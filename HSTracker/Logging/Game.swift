@@ -5140,6 +5140,10 @@ class Game: NSObject, PowerEventHandler {
         DispatchQueue.main.async {
             if self.isTraditionalHearthstoneMatch {
                 let isFriendlyCard = state.side == PlayerSide.friendly.rawValue
+                // Bug T11 diagnostic, remove once the dead link is found.
+                if !state.cardId.isEmpty {
+                    logger.info("[T11] bigCard card=\(state.cardId) side=\(state.side) isHand=\(state.isHand)")
+                }
 
                 self.windowManager.playerTracker.highlightPlayerDeckCards(highlightSourceCardId: isFriendlyCard ? state.cardId : nil)
             }

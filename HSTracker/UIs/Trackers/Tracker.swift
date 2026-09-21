@@ -795,6 +795,9 @@ class Tracker: OverWindowController, CardCellHover {
         let game = AppDelegate.instance().coreManager.game
         let highlightSourceCard = game.relatedCardsManager.getCardWithHighlight(highlightSourceCardId)
         let fn = highlightSourceCard?.shouldHighlight
+        // Bug T11 diagnostic, remove once the dead link is found.
+        logger.info("[T11] highlight source=\(highlightSourceCardId) found=\(highlightSourceCard != nil) "
+                    + "swiftUIRoot=\(swiftUIRoot != nil)")
         if Settings.useSwiftUITracker {
             setSwiftUIHighlight(fn)
             cardsView?.shouldHighlightCard = nil
@@ -812,6 +815,14 @@ class Tracker: OverWindowController, CardCellHover {
         viewModel.deck.setHighlight(fn)
         viewModel.hand.setHighlight(fn)
         viewModel.played.setHighlight(fn)
+        if fn != nil {
+            // Bug T11 diagnostic, remove once the dead link is found.
+            let lit = [viewModel.cards, viewModel.deck, viewModel.hand, viewModel.played].map { list in
+                list.rows.filter { if case .none = $0.highlight { return false } else { return true } }.count
+            }
+            let sizes = [viewModel.cards, viewModel.deck, viewModel.hand, viewModel.played].map(\.count)
+            logger.info("[T11] lit rows cards/deck/hand/played=\(lit) of \(sizes)")
+        }
     }
         
     func hover(cell: CardBar, card: Card) {
