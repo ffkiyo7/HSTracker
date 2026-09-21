@@ -112,8 +112,6 @@ class SceneHandler {
         
         if from == .bacon {
             DispatchQueue.main.async {
-                let latencyWork = LatencyProbe.shared.mainQueueWorkStarted(.tier7UserState)
-                defer { LatencyProbe.shared.mainQueueWorkFinished(latencyWork) }
                 game.windowManager.tier7PreLobby.viewModel.invalidateUserState()
             }
         }

@@ -188,7 +188,6 @@ final class LogReaderManager {
 	
 	private func processLine(line: LogLine) {
         LatencyProbe.shared.logLineStarted(time: line.time)
-        defer { LatencyProbe.shared.logLineFinished() }
         switch line.namespace {
         case .power:
             if line.content.hasPrefix("GameState.") {
