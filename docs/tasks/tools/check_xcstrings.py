@@ -33,9 +33,16 @@ import sys
 SPEC = re.compile(r'%(?:(\d+)\$)?[-+0#]*\d*(?:\.\d+)?(?:hh|h|ll|l|q|L|z|t|j)?([@dDuUxXoOfFeEgGcCsSpaA%])')
 
 
-def canonical(data):
+def canonical(data, sep=' : ', trailing_newline=False):
     """Xcode 写 .xcstrings 的格式：2 空格缩进、" : " 分隔、不转义非 ASCII、无尾换行。"""
-    return json.dumps(data, indent=2, ensure_ascii=False, separators=(',', ' : '))
+    text = json.dumps(data, indent=2, ensure_ascii=False, separators=(',', sep))
+    return text + '\n' if trailing_newline else text
+
+
+def matches_canonical(data, text):
+    """上游有的 catalog 不是 Xcode 写的（": " 分隔、带尾换行），按文件自己的风格比。"""
+    return any(canonical(data, sep, nl) == text
+               for sep in (' : ', ': ') for nl in (False, True))
 
 
 def load(path):
@@ -99,9 +106,9 @@ def main():
             errors.append(f'E1 {path}: JSON 解析失败 —— {exc}')
             continue
 
-        if canonical(data) != text and os.path.basename(path) != 'Localizable.xcstrings':
+        if not matches_canonical(data, text) and os.path.basename(path) != 'Localizable.xcstrings':
             errors.append(f'E2 {path}: 格式偏离规范写法。'
-                          f'用 canonical() 的参数重新序列化，不要改缩进/分隔符/尾换行')
+                          f'按文件原有的分隔符/尾换行重新序列化，不要改缩进/分隔符/尾换行')
 
         strings = data.get('strings', {})
         base = None if args.coverage_only else load_baseline(args.baseline, path)

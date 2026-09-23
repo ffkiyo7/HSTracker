@@ -39,4 +39,9 @@ dev 上做过、3.6.12 没有的构建层改动，逐条对着 3.6.12 现状判�
 
 ## 执行结果
 
-（执行者追加）
+09-23 Opus 子代理完成，`dev0923` `17302764`；第一批 review（Claude + Fable 独立核对）通过。
+- 受限环境 `clean build` 过；版本不符构建报错、改回后包内 DLL 与 zip 逐字节一致；测试 151 条 149 过（签名测试预期内 + `LocalizationFormatTests` 因桌面权限弹窗读不到 catalog）。
+- BobsBuddy 1.76.10（脚本只能取最新）、HearthDb 36.6.0；版本解析改按长度字节剥前缀（1.76.10 前缀是 `0` 不是 `/`）。
+- DLL 放 `Contents/Resources/Resources/Managed/`（`MonoHelper.swift:434` 读的位置），不改 Swift；Embed 阶段因此每次构建都跑。dev 放错位置，BobsBuddy 从未加载成功。
+- 逐条处理：`990af8ec` 照搬；`33a8b001` 改写（按版本缓存 + `.partial` + 重试）；`9648aabf` 部分被上游取代，其余改写（整拷 net8.0 BCL）；`2a050460` 被取代；`5f517674` 改写；`2b8f2860` 6 处全改；`756e08a5` 改写后搬。
+- 未动：Download Mono 输出路径上游写成 `$(SRC_ROOT)`；旧卡牌缓存 `downloaded-frameworks/cards/CardDefs-249896.xml`。

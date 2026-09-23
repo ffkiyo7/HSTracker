@@ -31,4 +31,9 @@
 
 ## 执行结果
 
-（执行者追加）
+09-23 Opus 子代理完成；第一批 review（Claude + Fable 独立核对）通过。
+- 17 个 catalog 只增改 zh-Hans（key 集合、其他语言、序列化风格深比较无变化）；注入 230 / 覆盖 179（+ 迁移覆盖 17）/ 相同 440 / 跳过 170。
+- 验收命令须带 `--allow-zh-edit`：195 条 E5 都是按「以我们为准」有意覆盖上游 zh。
+- 迁走的 65 条：对上 33 条；28 条 xib 占位；4 条无对应 key（"Final"、"Latest 10 games…" ×2 上游改成 8、"Error"）。
+- 英文原文已变：`e7g-zd-YkC.title` 上游为 "Show deck name"，保留「显示套牌名称」；"Wecome" 拼写修正，译文照用。
+- 覆盖率 1035 / 1060（dev 967 / 981）；余项见 `docs/REFORK.md` S2 行。
