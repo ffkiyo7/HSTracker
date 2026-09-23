@@ -17,11 +17,11 @@ G1 不过（关掉记牌器仍卡）→ 停，改评估「冻结 3.6.9 + cherry-
 
 ## 步骤
 
-分支 `refork`，起点 = `3.6.12`（`c723bfd4`）。每步验收过了才做下一步；构建 / 测试一律用 `AGENTS.md` 的受限环境命令。
+分支 `dev0923`（worktree `.claude/worktrees/refork`），起点 = `3.6.12`（`c723bfd4`）。旧 `dev` 原样保留不改名，随时可回。每步验收过了才做下一步；构建 / 测试一律用 `AGENTS.md` 的受限环境命令。
 
 | | 内容 | 验收 |
 |---|---|---|
-| S0 | 基线：开分支，换本地 `Config.xcconfig`，原样构建 | ⬜ `BUILD SUCCEEDED`；记下上游自带测试条数与失败项（上游已自修测试 target / `ReplayUploadTests` / `DatabaseTests`；`SecretTests` 与我们 `96883c5b` 的预期是否一致要跑才知道） |
+| S0 | 基线：开分支，换本地 `Config.xcconfig`，原样构建 | ✅ 09-23：受限环境失败（wget 不在 `PATH`，S1 修）；普通环境 `BUILD SUCCEEDED`；测试 151 条 150 过，唯一失败 `OfficialBuildTests.testHostAppIsRecognizedAsOfficial`（ad-hoc 签名自编译包，预期内）；`SecretTests` 全过，`96883c5b` 不用搬 |
 | S1 | 构建层：部署目标 14.0（3.6.12 为 6 处 `10.15`，全改）、`Vendor/Managed` 固定 zip + 版本强校验、build phase 的 PATH / 条件代理、`update-managed-deps.sh`；BobsBuddy 升到 tag 要求的 **1.76.3**（dev 为 1.71.1；3.6.12 用到 `BobsBuddySimulationFailure` / Deity 接口）；HearthDb 重定版本，新建 `HearthDb-version.txt`（上游无此文件）并登记进 Resources 与 build phase inputs。`NET_VERSION` 上游已由 `mono-version.txt`（8.0.29）推出 `net8.0`，不再写死 | ⬜ 受限环境 `clean build` 过；增量构建只改 `BobsBuddy-version.txt` 时包里 DLL 跟着变 |
 | S2 | 翻译：`scripts/inject-zh-hans.py` 注入（对 3.6.12 干跑：注入 230 / 相同 440 / 分歧 179 / 无 zh 170）；`check_xcstrings.py` 加分隔符风格探测；179 条术语分歧定取舍；上游删掉的 3 个 catalog（`BattlegroundsSession` 43 / `BobsBuddyPanel` 16 / `LinkOpponentDeckPanel` 6，共 65 条 zh，文案已迁进 `Localizable.xcstrings` 新 key）脚本不注入，逐条对到新 key；上游新增 `ArenaPreferences`（无 zh）；`String.swift` 的 DEBUG 缺 key 警告（dev +16）定去留 | ⬜ 校验器通过；🖥️ 设置页中文正常 |
 | S3 | 分区数据层：`Fork/PlayerCardZones.swift`、`Entity` / `TagChangeActions` 的洗入闩、全部 fixture 和分区测试；把 `Player.game` 放宽，余下约 40 行（含 Perf P1 的 `playerTrackerSnapshot` / `playerCardList(deckState:sideboards:)` / `playerCardGroups`）一并搬出；`Card.copy()` 补拷 `enText`（`9ab2f0cd`，3.6.12 仍漏）；`RealmHelper.needsCardCountFix`（Perf P1） | ⬜ `CardZoneGroupsTests` + `ZoneGroupsReplayTests` 全绿；`Player.swift` 相对 tag 的改动 ≤15 行 |
@@ -29,7 +29,7 @@ G1 不过（关掉记牌器仍卡）→ 停，改评估「冻结 3.6.9 + cherry-
 | S5 | 刷新合并（`scheduleGuiUpdate` / `runGuiUpdate`）+ 3 处埋点 + `Utility/LatencyProbe.swift` 本体 + scheme 的 `HSTRACKER_LATENCY_PROBE` + `tracker_perf_*` 诊断键；`WindowManager.show` 同值不写（Perf P1）、`SizeHelper` AX 读挪后台 + `UnfairLock`（T3）逐段看 3.6.12 还适不适用；`ImageUtils` 的 LRU / 后台解码先看上游现状（3.6.12 仍无 LRU）再决定搬不搬，动了就顺手加负缓存 | ⬜ 与 S4 同一局复测不掉帧；悬停卡图无顿挫 |
 | S6 | 小件，逐个先查上游有没有：排队显示牌组 + 清上一局残留、局末小结、Dock 打勾 + Toast、菜单栏按 tag 定位（4.2 `35fea72a`；3.6.12 `AppDelegate` 仍 7 处 `item(withTitle:)`，中文界面失效）、`HSReplayPreferences` 标题本地化、`Power.log` 截断修复（3.6.12 已重写 `LogReader` 截断逻辑，要重做不能 apply）、Bug T1 watcher 回主线程（`ac116be0` 7 条；3.6.12 只修了高亮一条，`isViewingTeammate` `Watchers:267`、`setBaconState`、`setDeckPickerState`、`choicesVisible` 仍后台写）、默认值差异表（`show_mulligan_toast` 等）、Trackers 设置页（上游有新的 Overlay layout 页和 Related Cards 页 `a95c4b1f`，倾向用上游的） | ⬜ 每项一句话核对结论；🎮 排队 / 退出炉石各看一次 |
 | S7 | 红龙：`HSTracker/RedDragon/` + `RedDragonTests` 原样拷入，连同 `CardIds/Rogue.swift`（+13）/ `Neutral.swift`（+3）新增常量（3.6.12 全无，不带编不过） | ⬜ `RedDragonTests` 全绿 |
-| S8 | 切换：旧 `dev` → `backup/dev-pre-refork`，`refork` → `dev`；重写 `docs/upstream-merges.md` 热点表 | ⬜ `origin/dev` 指向新线 |
+| S8 | 切换：`dev0923` 推到 origin 成为工作分支（旧 `dev` 不动，作回滚点）；`AGENTS.md` 工作分支改名；重写 `docs/upstream-merges.md` 热点表 | ⬜ `origin/dev0923` 为新线 |
 
 ## 不搬的东西
 
