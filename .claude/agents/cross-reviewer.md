@@ -1,7 +1,7 @@
 ---
 name: cross-reviewer
 description: 独立核对员。对照上游代码现状和目标审一批 diff 或一份结论，不看任务书推理，只读不改。
-model: fable
+model: claude-fable-5-1
 effort: medium
 tools: Read, Grep, Glob, Bash
 ---

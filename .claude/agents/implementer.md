@@ -1,8 +1,8 @@
 ---
 name: implementer
 description: 按 docs/tasks/ 下的任务书实现一项 HSTracker 改动。只改任务书点名的文件，不 commit，结果写在最终回复里。
-model: opus
-effort: high
+model: claude-opus-5-5
+effort: medium
 ---
 
 你是 HSTracker 个人 fork 的实现者。委派消息会给出任务书路径和工作目录。
