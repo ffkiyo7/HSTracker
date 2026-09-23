@@ -47,7 +47,7 @@ G1 不过（关掉记牌器仍卡）→ 停，改评估「冻结 3.6.9 + cherry-
 1. S0–S8 全部 ✅。
 2. 🎮 收口局一次过：外观 = dev、分区账正确、不掉帧、Bug T11 两条症状复查（高亮链路已换成上游的，要重新看）。
 3. 测试全绿，条数 ≥ 上游自带 + 我们的分区 / 面板 / 红龙测试。
-4. `git diff <tag> --stat -- HSTracker` 里被我们改过的**上游文件 ≤15 个**，其余都在 `Fork/`、`RedDragon/`、`UIs/Trackers/SwiftUI/`、`UIs/SessionRecap/`。
+4. 被我们改过的上游文件不设数量门槛（原「≤15 个」是 09-21 起草时自定的，用户未定过；09-24 用户确认 fork 不回流上游，撤掉）。S8 在 `docs/upstream-merges.md` 列出 `git diff <tag> --stat -- HSTracker` 里每个上游文件与行数，改动大的（现为 `Game` / `ImageUtils` / `SizeHelper`）标为合并热点；fork 自有代码照旧放 `Fork/`、`RedDragon/`、`UIs/Trackers/SwiftUI/`、`UIs/SessionRecap/`。
 
 之后的主线：Phase 2 / V2 余项（折叠、拖拽吸附、套牌名截断）→ Phase 4 / 4.3 其余设置页 → 红龙 T2 overlay。
 T8 动效已在 dev 上做完（`UIs/Trackers/SwiftUI/` 内，S4 整目录带走），09-23 卡点 ④ 已过。
