@@ -302,7 +302,7 @@ class Game: NSObject, PowerEventHandler {
                 if self.gameEnded && Settings.clearTrackersOnGameEnd {
                     tracker.update(cards: [], top: [], bottom: [], sideboards: [], relatedCards: [],
                                    godfreyCards: self.getCardsFromEntityIds(self.opponent.getGodfreyCardIdsToDisplay()),
-                                   reset: reset)
+                                   groups: nil, reset: reset)
                 } else {
                     let cardWithRelatedCards = relatedCardsManager.getCardsOpponentMayHave(opponent, currentGameType, currentFormatType)
                     cardWithRelatedCards.forEach({
@@ -342,6 +342,7 @@ class Game: NSObject, PowerEventHandler {
                                    relatedCards: relatedCards, packageCards: packageCards,
                                    packageLabel: packageLabel,
                                    godfreyCards: self.getCardsFromEntityIds(self.opponent.getGodfreyCardIdsToDisplay()),
+                                   groups: Settings.groupCardsByZone ? self.opponent.opponentCardGroups : nil,
                                    reset: reset)
                 }
                 
@@ -367,6 +368,7 @@ class Game: NSObject, PowerEventHandler {
                 // against the canvas.
                 TrackerPanelViewModel.migratePlacementIfNeeded()
                 tracker.reloadSettings()
+                tracker.relayoutZonePanel()
                 tracker.isShown = true
             } else {
                 tracker.isShown = false
@@ -403,10 +405,13 @@ class Game: NSObject, PowerEventHandler {
                     return card
                 }
 
-                tracker.update(cards: self.player.playerCardList, top: top, bottom: bottom,
-                               sideboards: self.player.playerSideboardsDict, relatedCards: [],
+                // One getDeckState() serves the list, the zone groups and the
+                // sideboards (Perf P1).
+                let snapshot = self.player.playerTrackerSnapshot(useZoneGroups: Settings.groupCardsByZone)
+                tracker.update(cards: snapshot.cards, top: top, bottom: bottom,
+                               sideboards: snapshot.sideboards, relatedCards: [],
                                godfreyCards: self.getCardsFromEntityIds(self.player.getGodfreyCardIdsToDisplay()),
-                               reset: reset)
+                               groups: snapshot.groups, reset: reset)
                 
                 // update card counter values
                 let gameStarted = !self.isInMenu && self.entities.count >= 67
@@ -438,6 +443,7 @@ class Game: NSObject, PowerEventHandler {
 
                 TrackerPanelViewModel.migratePlacementIfNeeded()
                 tracker.reloadSettings()
+                tracker.relayoutZonePanel()
                 tracker.isShown = true
             } else {
                 tracker.isShown = false

@@ -327,6 +327,18 @@
 		B8FC0F00000000000000B001 /* PlayerCardZones.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FC0F00000000000000A001 /* PlayerCardZones.swift */; };
 		B8FC0F00000000000000B002 /* TagChangeActions+ZoneLatches.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FC0F00000000000000A002 /* TagChangeActions+ZoneLatches.swift */; };
 		B8FC0F00000000000000B003 /* RealmHelper+CardCountFix.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FC0F00000000000000A003 /* RealmHelper+CardCountFix.swift */; };
+		B8FC0F00000000000000B004 /* Settings+Tracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FC0F00000000000000A004 /* Settings+Tracker.swift */; };
+		C4D801A12FC0000100010002 /* TrackerBarStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010001 /* TrackerBarStyle.swift */; };
+		C4D801A12FC0000100010021 /* TrackerRowRaster.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010020 /* TrackerRowRaster.swift */; };
+		C4D801A12FC0000100010023 /* TrackerMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010022 /* TrackerMotion.swift */; };
+		C4D801A12FC0000100010004 /* CardRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010003 /* CardRowView.swift */; };
+		C4D801A12FC0000100010009 /* TrackerCardListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010008 /* TrackerCardListViewModel.swift */; };
+		C4D801A12FC000010001000B /* TrackerCardListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC000010001000A /* TrackerCardListView.swift */; };
+		C4D801A12FC000010001000D /* TrackerSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC000010001000C /* TrackerSectionView.swift */; };
+		C4D801A12FC0000100010011 /* TrackerHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010010 /* TrackerHeaderView.swift */; };
+		C4D801A12FC0000100010013 /* TrackerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010012 /* TrackerViewModel.swift */; };
+		C4D801A12FC0000100010015 /* TrackerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010014 /* TrackerView.swift */; };
+		C4D801A12FC0000100010031 /* TrackerPanelZone.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010030 /* TrackerPanelZone.swift */; };
 		439C7EDE1C777FA900D29859 /* ImageUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 439C7ECF1C777FA900D29859 /* ImageUtils.swift */; };
 		439DD8F41DB23212004EBE47 /* PlayerTurn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 439DD8F31DB23212004EBE47 /* PlayerTurn.swift */; };
 		439DD8F61DB2324A004EBE47 /* CardSize.swift in Sources */ = {isa = PBXBuildFile; fileRef = 439DD8F51DB2324A004EBE47 /* CardSize.swift */; };
@@ -348,6 +360,7 @@
 		43C1C9F71E96CCE9008C20B1 /* AlgorithmTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CF1B5891E81426D007DCBF2 /* AlgorithmTests.swift */; };
 		B8DD0F00000000000000B009 /* CardZoneGroupsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A009 /* CardZoneGroupsTests.swift */; };
 		B8DD0F00000000000000B00A /* ZoneGroupsReplayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A00A /* ZoneGroupsReplayTests.swift */; };
+		B8DD0F00000000000000B00C /* TrackerMetricsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A00C /* TrackerMetricsTests.swift */; };
 		B8DD0F00000000000000B00B /* 2026-09-14-standard.log in Resources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A00B /* 2026-09-14-standard.log */; };
 		B8DD0F00000000000000B00D /* 2026-09-19-bug-t10.log in Resources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A00D /* 2026-09-19-bug-t10.log */; };
 		B8DD0F00000000000000B00E /* 2026-09-20-bug-t11.log in Resources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A00E /* 2026-09-20-bug-t11.log */; };
@@ -2012,6 +2025,7 @@
 		1CF1B5891E81426D007DCBF2 /* AlgorithmTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AlgorithmTests.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A009 /* CardZoneGroupsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardZoneGroupsTests.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A00A /* ZoneGroupsReplayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneGroupsReplayTests.swift; sourceTree = "<group>"; };
+		B8DD0F00000000000000A00C /* TrackerMetricsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerMetricsTests.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A00B /* 2026-09-14-standard.log */ = {isa = PBXFileReference; lastKnownFileType = text; name = "2026-09-14-standard.log"; path = "Fixtures/ZoneReplay/2026-09-14-standard.log"; sourceTree = "<group>"; };
 		B8DD0F00000000000000A00D /* 2026-09-19-bug-t10.log */ = {isa = PBXFileReference; lastKnownFileType = text; name = "2026-09-19-bug-t10.log"; path = "Fixtures/ZoneReplay/2026-09-19-bug-t10.log"; sourceTree = "<group>"; };
 		B8DD0F00000000000000A00E /* 2026-09-20-bug-t11.log */ = {isa = PBXFileReference; lastKnownFileType = text; name = "2026-09-20-bug-t11.log"; path = "Fixtures/ZoneReplay/2026-09-20-bug-t11.log"; sourceTree = "<group>"; };
@@ -2249,6 +2263,18 @@
 		B8FC0F00000000000000A001 /* PlayerCardZones.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerCardZones.swift; sourceTree = "<group>"; };
 		B8FC0F00000000000000A002 /* TagChangeActions+ZoneLatches.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TagChangeActions+ZoneLatches.swift"; sourceTree = "<group>"; };
 		B8FC0F00000000000000A003 /* RealmHelper+CardCountFix.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RealmHelper+CardCountFix.swift"; sourceTree = "<group>"; };
+		B8FC0F00000000000000A004 /* Settings+Tracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Settings+Tracker.swift"; sourceTree = "<group>"; };
+		C4D801A12FC0000100010001 /* TrackerBarStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerBarStyle.swift; sourceTree = "<group>"; };
+		C4D801A12FC0000100010020 /* TrackerRowRaster.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerRowRaster.swift; sourceTree = "<group>"; };
+		C4D801A12FC0000100010022 /* TrackerMotion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerMotion.swift; sourceTree = "<group>"; };
+		C4D801A12FC0000100010003 /* CardRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardRowView.swift; sourceTree = "<group>"; };
+		C4D801A12FC0000100010008 /* TrackerCardListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerCardListViewModel.swift; sourceTree = "<group>"; };
+		C4D801A12FC000010001000A /* TrackerCardListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerCardListView.swift; sourceTree = "<group>"; };
+		C4D801A12FC000010001000C /* TrackerSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerSectionView.swift; sourceTree = "<group>"; };
+		C4D801A12FC0000100010010 /* TrackerHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerHeaderView.swift; sourceTree = "<group>"; };
+		C4D801A12FC0000100010012 /* TrackerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerViewModel.swift; sourceTree = "<group>"; };
+		C4D801A12FC0000100010014 /* TrackerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerView.swift; sourceTree = "<group>"; };
+		C4D801A12FC0000100010030 /* TrackerPanelZone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerPanelZone.swift; sourceTree = "<group>"; };
 		439C7ECF1C777FA900D29859 /* ImageUtils.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ImageUtils.swift; sourceTree = "<group>"; };
 		439C7ED11C777FA900D29859 /* InitialConfiguration.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = InitialConfiguration.swift; sourceTree = "<group>"; };
 		439C7ED31C777FA900D29859 /* Splashscreen.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Splashscreen.swift; sourceTree = "<group>"; };
@@ -4185,6 +4211,7 @@
 				B8FC0F00000000000000A001 /* PlayerCardZones.swift */,
 				B8FC0F00000000000000A003 /* RealmHelper+CardCountFix.swift */,
 				B8FC0F00000000000000A002 /* TagChangeActions+ZoneLatches.swift */,
+				B8FC0F00000000000000A004 /* Settings+Tracker.swift */,
 			);
 			path = Fork;
 			sourceTree = "<group>";
@@ -4195,6 +4222,7 @@
 				1CF1B5891E81426D007DCBF2 /* AlgorithmTests.swift */,
 				B8DD0F00000000000000A009 /* CardZoneGroupsTests.swift */,
 				B8DD0F00000000000000A00A /* ZoneGroupsReplayTests.swift */,
+				B8DD0F00000000000000A00C /* TrackerMetricsTests.swift */,
 				B8DD0F00000000000000A00B /* 2026-09-14-standard.log */,
 				B8DD0F00000000000000A00D /* 2026-09-19-bug-t10.log */,
 				B8DD0F00000000000000A00E /* 2026-09-20-bug-t11.log */,
@@ -4385,8 +4413,27 @@
 				B89C9893280A113A005E9315 /* AnimatedCardList.swift */,
 				43BDF0BB1DB7FB040081964A /* OverWindowController.swift */,
 				43BDF0BD1DB89A830081964A /* WindowManager.swift */,
+				C4D801A12FC0000100010007 /* SwiftUI */,
 			);
 			path = Trackers;
+			sourceTree = "<group>";
+		};
+		C4D801A12FC0000100010007 /* SwiftUI */ = {
+			isa = PBXGroup;
+			children = (
+				C4D801A12FC0000100010003 /* CardRowView.swift */,
+				C4D801A12FC0000100010001 /* TrackerBarStyle.swift */,
+				C4D801A12FC0000100010020 /* TrackerRowRaster.swift */,
+				C4D801A12FC0000100010022 /* TrackerMotion.swift */,
+				C4D801A12FC0000100010008 /* TrackerCardListViewModel.swift */,
+				C4D801A12FC000010001000A /* TrackerCardListView.swift */,
+				C4D801A12FC000010001000C /* TrackerSectionView.swift */,
+				C4D801A12FC0000100010010 /* TrackerHeaderView.swift */,
+				C4D801A12FC0000100010012 /* TrackerViewModel.swift */,
+				C4D801A12FC0000100010014 /* TrackerView.swift */,
+				C4D801A12FC0000100010030 /* TrackerPanelZone.swift */,
+			);
+			path = SwiftUI;
 			sourceTree = "<group>";
 		};
 		439C7EE71C777FCF00D29859 /* Extensions */ = {
@@ -8041,6 +8088,18 @@
 				B8FC0F00000000000000B001 /* PlayerCardZones.swift in Sources */,
 				B8FC0F00000000000000B002 /* TagChangeActions+ZoneLatches.swift in Sources */,
 				B8FC0F00000000000000B003 /* RealmHelper+CardCountFix.swift in Sources */,
+				B8FC0F00000000000000B004 /* Settings+Tracker.swift in Sources */,
+				C4D801A12FC0000100010002 /* TrackerBarStyle.swift in Sources */,
+				C4D801A12FC0000100010021 /* TrackerRowRaster.swift in Sources */,
+				C4D801A12FC0000100010023 /* TrackerMotion.swift in Sources */,
+				C4D801A12FC0000100010004 /* CardRowView.swift in Sources */,
+				C4D801A12FC0000100010009 /* TrackerCardListViewModel.swift in Sources */,
+				C4D801A12FC000010001000B /* TrackerCardListView.swift in Sources */,
+				C4D801A12FC000010001000D /* TrackerSectionView.swift in Sources */,
+				C4D801A12FC0000100010011 /* TrackerHeaderView.swift in Sources */,
+				C4D801A12FC0000100010013 /* TrackerViewModel.swift in Sources */,
+				C4D801A12FC0000100010015 /* TrackerView.swift in Sources */,
+				C4D801A12FC0000100010031 /* TrackerPanelZone.swift in Sources */,
 				B89865822D91B07200BA5649 /* UnderTheSea.swift in Sources */,
 				B864A13E24F54E1F005EA2A0 /* MinionHeroPowerTrigger.swift in Sources */,
 				B81B3D9F2D419A0500DC9EB0 /* Starport.swift in Sources */,
@@ -8819,6 +8878,7 @@
 				43C1C9F71E96CCE9008C20B1 /* AlgorithmTests.swift in Sources */,
 				B8DD0F00000000000000B009 /* CardZoneGroupsTests.swift in Sources */,
 				B8DD0F00000000000000B00A /* ZoneGroupsReplayTests.swift in Sources */,
+				B8DD0F00000000000000B00C /* TrackerMetricsTests.swift in Sources */,
 				43C1C9FD1E96CCE9008C20B1 /* DatabaseTests.swift in Sources */,
 				439BD8C91EBCD40200959F69 /* EnumTests.swift in Sources */,
 				B8AA00022C00000100000002 /* OfficialBuildTests.swift in Sources */,

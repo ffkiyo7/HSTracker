@@ -35,6 +35,9 @@ class TrackerPanelViewModel: ObservableObject {
 
     @Published var isShown = false
 
+    /// Fork: the card lists drawn inside this panel (UIs/Trackers/SwiftUI).
+    lazy var zonePanel = TrackerViewModel(playerType: playerType)
+
     // MARK: - Content
 
     @Published private(set) var cards = TrackerCardListContent()

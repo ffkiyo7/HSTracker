@@ -124,10 +124,18 @@ struct TrackerPanelView: View {
 
     private var panel: some View {
         let layout = self.layout
-        return VStack(spacing: 0) {
-            ForEach(layout.sections, id: \.kind) { section in
-                sectionView(section, layout: layout)
-                    .frame(width: layout.width, height: section.height)
+        return Group {
+            if layout.isZonePanel {
+                // Fork: TrackerPanelZone.swift.
+                TrackerZonePanelStack(viewModel: viewModel, zone: viewModel.zonePanel, layout: layout,
+                                      canvasSize: canvasSize, hoverHandler: hoverHandler)
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(layout.sections, id: \.kind) { section in
+                        sectionView(section, layout: layout)
+                            .frame(width: layout.width, height: section.height)
+                    }
+                }
             }
         }
         .frame(width: layout.width, height: layout.boxHeight,
@@ -137,7 +145,8 @@ struct TrackerPanelView: View {
         // (OverWindowController/Tracker.setOpacity). HDT has no equivalent, but
         // the setting is one HSTracker has always had, so it carries over as the
         // panel's own background rather than the window's.
-        .background(Color.black.opacity(Settings.trackerOpacity / 100.0))
+        // Fork: the zone panel paints its own base from the same setting.
+        .background(Color.black.opacity(layout.isZonePanel ? 0 : Settings.trackerOpacity / 100.0))
         .opacity(viewModel.opacity / 100.0)
         // anchor: .topLeading so the panel's corner stays on the offset origin,
         // which is what the interactive region above assumes.
@@ -255,6 +264,8 @@ struct TrackerPanelView: View {
         case .godfreyLens:
             lens(viewModel.godfreyCards,
                  label: String.localizedString("DeckLens_Label_Overdrawn", comment: ""), layout: layout)
+        case .zone:
+            EmptyView()
         }
     }
 
@@ -305,6 +316,8 @@ struct TrackerPanelLayout {
         case packageLens
         case relatedLens
         case godfreyLens
+        /// Fork: the fork's card lists and header (TrackerPanelZone.swift).
+        case zone
     }
 
     struct Section {
@@ -334,6 +347,11 @@ struct TrackerPanelLayout {
     }
 
     init(viewModel: TrackerPanelViewModel, canvasHeight: CGFloat) {
+        // Fork: TrackerPanelZone.swift.
+        if let zone = TrackerPanelLayout(zonePanelOf: viewModel, canvasHeight: canvasHeight) {
+            self = zone
+            return
+        }
         let isOpponent = viewModel.playerType == .opponent
 
         width = SizeHelper.trackerWidth
