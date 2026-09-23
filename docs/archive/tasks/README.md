@@ -1,92 +1,24 @@
 # 已完成的任务书
 
-`docs/tasks/` 只放**在做和待验**的任务书。一本书对应的切片验收通过之后就挪到这里。
+`docs/tasks/` 只放在做和待验的；验收通过就挪到这里。留档是为了回答「当初是怎么下的约束」——
+尤其几次「按任务书字面实现反而与现状不符」的 review 改动，光看代码看不出来。结论去 `docs/PLAN.md`，
+过程去 `docs/archive/progress-*.md`。
 
-结论不在这些文件里 —— 任务书写的是「要做成什么、不许碰什么」，不是「最后做成了什么」。
-想知道结果去 `docs/PLAN.md` / `docs/PROGRESS.md`，想知道过程去
-`docs/archive/progress-detail-2026-08-22.md`。**这些文件留档是为了回答「当初是怎么下的约束」**
-—— 尤其是几次「按任务书字面实现反而与现状不符」的 review 改动，光看结果代码是看不出来的。
+两条路径规则：① **归档后文件里的相对路径故意不改**（`docs/tasks/xxx.md` 现在都在这里），留档就该是当初交出去的原文；
+② `_common.md` 不归档，在做的书都引用它；只有 Phase 3 专用的 `_common-phase3.md` 跟着六本书进来了。
+例外：**事实错误改**。「深邃之王」是硬译、炉石里没有这张卡，已就地改成「下水道之王」（`JAIL_831`）；用户口中的「牛头人」= ETC（`ETC_080`）。
 
-## 归档时间
+## 批次
 
-### 第一批：2026-08-30（卡点 ① 实战通过之后一次性整理）
-
-| 归档的 | 完成于 | 状态依据 |
+| 批次 | 归档的 | 依据 |
 |---|---|---|
-| `phase0-t1` … `phase0-t5` | 2026-08-20 ~ 08-21 | Phase 0 T1–T5 全部 ✅ |
-| `phase1-t1` / `t2` / `t3` / `t4` / `t7` | 2026-08-20 ~ 08-29 | 五片均已实战（T3 / T4 / T7 在 08-30 的卡点 ① 过） |
-| `phase3-t1` … `phase3-t6` + `_common-phase3.md` | 2026-08-22 | zh-Hans 945 / 945（Phase U 补课后） |
+| 1（08-30） | `phase0-t1`…`t5`、`phase1-t1/t2/t3/t4/t7`、`phase3-t1`…`t6` + `_common-phase3.md` | Phase 0 T1–T5 ✅；Phase 1 五片卡点 ① 实战；zh-Hans 945 / 945 |
+| 2（08-30） | `phaseU-t1-outfinder-stale-tile`、`phase6-t1-queue-residue`、`build-t1-vendor-managed-deps`（`756e08a5`）、`bug-t1-viewmodel-offmain-writes`（`ac116be0`）、`bug-t2-tier7-prelobby-in-constructed`（`eb52832e`）、`bug-t3-opponent-tracker-shows-player-cards`（`999f2eee`） | 卡点 ① 那一局的五条反馈全部结案。T2 / T3 两本刻意留白（只给症状与证据），两次都被执行侧推翻了 review 的读法 —— **交叉检验要留出被推翻的余地** |
+| 3（09-03） | `phase0-t6b-shrink-refresh-cost`（`b0374928` / `c19b0bd7`）、`bug-t4-tracker-visibility-out-of-game`（`381a9c80`）、`build-t2-fix-test-target`（`10c6a812`） | T6b 值得回看它写死的判据（「补集最大就不进优化」）和第 3 步取消的理由；Bug T4 的四条副作用生出了 Bug T5 |
+| 4（09-04） | `bug-t5-tracker-visibility-consistency` | 09-03 实战「结算瞬间一起消失」 |
+| 5（09-13） | `phase1-t5-tracker-header`（`ddde2cae`）、`phase1-t6-tracker-root-layout`（`e7beb430`）、`phase4-t1-dock-menu-and-settings`（`35fea72a`）、`phase7-t1-session-recap-window`（`0af024d7`） | 卡点 ②③ + Dock + 小结窗实战通过。T6 值得回看为什么没用 `GeometryReader`（`bottomY` 要和渲染高度同源） |
+| 6（09-22） | `phase2-t1-zone-groups`（`1c44b212`）、`bug-t6`（`e9a67db6`）、`bug-t7`（`7bd3192b`）、`bug-t8` + `bug-t9`（`68ccc14e`）、`phase2-v1-vector-card-bars`（`e3797ba8`）、`phase2-v2a` + `v2b`（`1745adfa`）、`perf-p1` + `perf-p2`（`143db6f3`）、`refork-prep`（`d309a8ff` / `7c0f2390` / `892873de`）、`spike-rdr-t1-search-core`（`0a921d6b`，⏸ 暂缓） | 全部已提交；分区 / 视觉 / 掉帧的实战由 09-18～09-21 的对局覆盖（后续 Bug T10 / T11 即由此产出）。P1 末尾「🎮 实测结果」记着四条为什么没命中 |
 
-### 第二批：2026-08-30 晚（卡点 ① 那一局产出的五条反馈全部结案）
+| 7（09-23） | `phase1-t8-tracker-motion`（`2e9713b5`，卡点 ④ 通过） | 书末有 review 第一轮「两半都齐了再定」的改法，和 120 fps 录像的逐帧数据；三个时长常量没调 |
 
-| 归档的 | 完成于 | 状态依据 |
-|---|---|---|
-| `phaseU-t1-outfinder-stale-tile` | 08-30 | 卡池浮窗串卡，实战确认「串卡没了」 |
-| `phase6-t1-queue-residue` | 08-30 | 排队时显示完整牌组，实战确认 30 张全在 |
-| `build-t1-vendor-managed-deps` | 08-30 | BobsBuddy / HearthDb 制品固定进仓库（`756e08a5`） |
-| `bug-t1-viewmodel-offmain-writes` | 08-30 | 790s 主线程死锁，hang report 定位 + 实战验收（`ac116be0`） |
-| `bug-t2-tier7-prelobby-in-constructed` | 08-30 | 构筑局弹战棋浮窗，T1 的时序回归（`eb52832e`） |
-| `bug-t3-opponent-tracker-shows-player-cards` | 08-30 | 我方奇闻被算进对手牌库预测（`999f2eee`） |
-
-> **这三本 bug 书值得回看的地方是「怎么下的约束」，不是结论。** T2 / T3 两本是刻意
-> **留白写的** —— 只给症状、证据和 review 侧的待验说法，明确写「review 可能读错，
-> 独立复核后直说哪条不成立」。两次都生效了：T2 里 Codex 推翻了 review 的「最终仍会隐藏」
-> （review 漏看了 `propertyChanged` 闭包里的一层 `main.async`），T3 里 Codex 证伪了
-> 任务书给的 A / B 两条线索、查出了第三条路径。**交叉检验要留出被推翻的余地才有价值。**
-
-### 第三批：2026-09-03（Phase 0 / T6 收口 + Bug T4 结案）
-
-| 归档的 | 完成于 | 状态依据 |
-|---|---|---|
-| `phase0-t6b-shrink-refresh-cost` | 08-31 | D 段拆成 22 块 + 补集拆 RunLoop / watcher，两局 Release 取数后主动收在测量阶段（`b0374928` / `c19b0bd7`） |
-| `bug-t4-tracker-visibility-out-of-game` | 08-31 | 两个主记牌器改正向场景门，实战验收「排队只我方 / 对局双方 / 打完即消失 / 主菜单不显示」（`381a9c80`） |
-| `build-t2-fix-test-target` | 08-31 | 测试 target 救活，49 项跑起来（`10c6a812`） |
-
-### 第四批：2026-09-04（Bug T5 实战确认）
-
-| 归档的 | 完成于 | 状态依据 |
-|---|---|---|
-| `bug-t5-tracker-visibility-consistency` | 09-01 | 水晶上限 + 计数器改走 T4 对局门；09-03 用户实战确认「结算瞬间一起消失」。死掉的勾选框已在 Phase 4 撤掉（`35fea72a`） |
-
-### 第五批：2026-09-13（卡点 ②③ + Phase 4 / 4.1 + Phase 7 全部实战通过，红龙 spike 暂缓回主线）
-
-| 归档的 | 完成于 | 状态依据 |
-|---|---|---|
-| `phase1-t5-tracker-header` | 09-09 | 三行头四个数字、开局前第 3 行、对手侧右侧不透底，卡点 ② 实战通过（`ddde2cae`，亮度定稿 `f4db7c03`） |
-| `phase1-t6-tracker-root-layout` | 09-11 | 根视图 + 布局收口，卡点 ③ 实战「布局 ok」（`e7beb430`） |
-| `phase4-t1-dock-menu-and-settings` | 09-09 | Dock 打勾 + Toast，进局确认用的是那副牌，与卡点 ② 同局验（`35fea72a`） |
-| `phase7-t1-session-recap-window` | 09-11 | 局末小结弹窗，实战「对局小结做的不错」（`0af024d7`） |
-
-> T6 值得回看的是**为什么没用 `GeometryReader`**：`bottomY` 要和渲染高度同源，改由 view model 算一次；两处上游怪癖（段间 `+5` 不进预算、坟场行仍预留）是刻意照抄的，不是漏改。
-
-> T6b 值得回看的是**它自己写死的判据**（「补集最大就不进优化」「取数前写死判据，不许看完数再补」），
-> 以及第 3 步取消的理由 —— 任务书把「E2E p50 = 350ms 要压下来」写成"定死"，四轮没人回头看。
-> Bug T4 的 review 四条副作用直接生出了 Bug T5。
-
-`phase3-t1-diff-report.md` 不是任务书，是 T1 产出的「gaenyong 与我们译法不同的 77 条」对照表，
-一起放这儿。
-
-## 两条路径提醒
-
-1. **归档后的相对路径没有跟着改。** 这些文件里写的
-   `docs/tasks/_common-phase3.md`、`docs/tasks/phase1-t1-card-row.md` 之类，现在都在
-   `docs/archive/tasks/` 下。**故意不改** —— 留档就该是当初交给执行模型的那份原文，
-   改了它就不再是"当初下的约束"了。`docs/archive/*.md` 里指向这些书的链接同理。
-2. **`_common.md` 没有归档**，它还在 `docs/tasks/`：在做的书都引用它。
-   只有 Phase 3 那份专用的 `_common-phase3.md` 跟着它的六本书一起进来了。
-
-## 勘误（2026-08-30）
-
-**「深邃之王」→「下水道之王」。** 备牌那张猎人传说是 `JAIL_831`
-（`CardIds.Collectible.Hunter.KingOfTheUnderbelly`，enUS `King of the Underbelly`），
-官方简中是**「下水道之王」** —— Underbelly 指达拉然的下水道。
-「深邃之王」是我们从英文硬译出来的，炉石里根本没有这张卡（整个 `CardDefs.xml` 零命中）。
-`phase1-t3-sideboard-hover.md` 和 `../plan-detail-2026-08-22.md` 里的写法**已就地改正**。
-
-> **这一处例外于上面第 1 条。** 那条护的是「当初下的约束和措辞」；
-> 卡名写错是**事实错误**，留着只会让以后读档的人去找一张不存在的卡。
-> 相对路径不改、错的卡名改，界线就在这里。
-
-顺带记一个同源的口误：用户口中的**「牛头人」就是 ETC**
-（`ETC_080`，官方全名「乐队经理精英牛头人酋长」），不是另一张卡。
-
+`phase3-t1-diff-report.md` 不是任务书，是 gaenyong 与我们译法不同的 77 条对照表。

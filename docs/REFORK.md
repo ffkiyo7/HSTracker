@@ -28,7 +28,7 @@ G1 不过（关掉记牌器仍卡）→ 停，改评估「冻结 3.6.9 + cherry-
 | S5 | 刷新合并（`scheduleGuiUpdate` / `runGuiUpdate`）+ 3 处埋点；`ImageUtils` 的 LRU / 后台解码先看上游现状再决定搬不搬 | ⬜ 与 S4 同一局复测不掉帧；悬停卡图无顿挫 |
 | S6 | 小件，逐个先查上游有没有：排队显示牌组 + 清上一局残留、局末小结、Dock 打勾 + Toast、`Power.log` 截断修复、默认值差异表（`show_mulligan_toast` 等）、Trackers 设置页（上游有新的 Overlay layout 页，倾向用上游的） | ⬜ 每项一句话核对结论；🎮 排队 / 退出炉石各看一次 |
 | S7 | 红龙：`HSTracker/RedDragon/` + `RedDragonTests` 原样拷入 | ⬜ `RedDragonTests` 全绿 |
-| S8 | 切换：旧 `dev` → `backup/dev-pre-refork`，`refork` → `dev`；重写 `docs/upstream-merges.md` 热点表；PLAN / PROGRESS 合并成一份 | ⬜ `origin/dev` 指向新线；删 `upstream-probe` worktree |
+| S8 | 切换：旧 `dev` → `backup/dev-pre-refork`，`refork` → `dev`；重写 `docs/upstream-merges.md` 热点表（PLAN / PROGRESS 已于 09-22 合并成 `docs/PLAN.md`） | ⬜ `origin/dev` 指向新线；删 `upstream-probe` worktree |
 
 ## 不搬的东西
 
@@ -44,7 +44,8 @@ G1 不过（关掉记牌器仍卡）→ 停，改评估「冻结 3.6.9 + cherry-
 3. 测试全绿，条数 ≥ 上游自带 + 我们的分区 / 面板 / 红龙测试。
 4. `git diff <tag> --stat -- HSTracker` 里被我们改过的**上游文件 ≤15 个**，其余都在 `Fork/`、`RedDragon/`、`UIs/Trackers/SwiftUI/`、`UIs/SessionRecap/`。
 
-之后的主线：Phase 1 / T8 记牌器动效 → Phase 2 / V2 余项（折叠、套牌名截断）→ Phase 4 / 4.3 其余设置页 → 红龙 T2 overlay。
+之后的主线：Phase 2 / V2 余项（折叠、拖拽吸附、套牌名截断）→ Phase 4 / 4.3 其余设置页 → 红龙 T2 overlay。
+T8 动效已在 dev 上做完（`UIs/Trackers/SwiftUI/` 内，S4 整目录带走），等 🎮 卡点 ④。
 
 ## 未决
 
