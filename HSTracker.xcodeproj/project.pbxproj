@@ -826,6 +826,7 @@
 		B82901F52F0ED4A0002F96FB /* VolumizerBuffCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B82901F42F0ED4A0002F96FB /* VolumizerBuffCounter.swift */; };
 		B82AE5F028ADBC55004A8FE0 /* Influx.swift in Sources */ = {isa = PBXBuildFile; fileRef = B82AE5EF28ADBC54004A8FE0 /* Influx.swift */; };
 		B82AE5FD28BE8631004A8FE0 /* BobsBuddy-version.txt in Resources */ = {isa = PBXBuildFile; fileRef = B82AE5F928BE8631004A8FE0 /* BobsBuddy-version.txt */; };
+		B8A11C0D2FC000010001A005 /* HearthDb-version.txt in Resources */ = {isa = PBXBuildFile; fileRef = B8A11C0D2FC000010001A004 /* HearthDb-version.txt */; };
 		B82AE5FE28BE8631004A8FE0 /* cards-version.txt in Resources */ = {isa = PBXBuildFile; fileRef = B82AE5FA28BE8631004A8FE0 /* cards-version.txt */; };
 		B82AE5FF28BE8631004A8FE0 /* HearthMirror-version.txt in Resources */ = {isa = PBXBuildFile; fileRef = B82AE5FB28BE8631004A8FE0 /* HearthMirror-version.txt */; };
 		B82AE60028BE8631004A8FE0 /* mono-version.txt in Resources */ = {isa = PBXBuildFile; fileRef = B82AE5FC28BE8631004A8FE0 /* mono-version.txt */; };
@@ -2731,6 +2732,7 @@
 		B82901F42F0ED4A0002F96FB /* VolumizerBuffCounter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VolumizerBuffCounter.swift; sourceTree = "<group>"; };
 		B82AE5EF28ADBC54004A8FE0 /* Influx.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Influx.swift; sourceTree = "<group>"; };
 		B82AE5F928BE8631004A8FE0 /* BobsBuddy-version.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "BobsBuddy-version.txt"; sourceTree = "<group>"; };
+		B8A11C0D2FC000010001A004 /* HearthDb-version.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "HearthDb-version.txt"; sourceTree = "<group>"; };
 		B82AE5FA28BE8631004A8FE0 /* cards-version.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "cards-version.txt"; sourceTree = "<group>"; };
 		B82AE5FB28BE8631004A8FE0 /* HearthMirror-version.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "HearthMirror-version.txt"; sourceTree = "<group>"; };
 		B82AE5FC28BE8631004A8FE0 /* mono-version.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = "mono-version.txt"; sourceTree = "<group>"; };
@@ -4135,6 +4137,7 @@
 				434106A01C9868620045655A /* Assets */,
 				B82F4EAC24E3221D00905024 /* BobsBuddy */,
 				B82AE5F928BE8631004A8FE0 /* BobsBuddy-version.txt */,
+				B8A11C0D2FC000010001A004 /* HearthDb-version.txt */,
 				B82AE5FA28BE8631004A8FE0 /* cards-version.txt */,
 				439C7E901C777EE800D29859 /* Core */,
 				439C7E7A1C777CC000D29859 /* Database */,
@@ -6594,7 +6597,7 @@
 			buildConfigurationList = 439C7E701C7772C100D29859 /* Build configuration list for PBXNativeTarget "HSTracker" */;
 			buildPhases = (
 				B849674128A57C7300D90B30 /* Download Mono */,
-				B8D8859B24F4333000F2F0F2 /* Download BobsBuddy and HearthDb */,
+				B8D8859B24F4333000F2F0F2 /* Install vendored BobsBuddy and HearthDb */,
 				4C68AF242447CE5000E52834 /* Download HearthMirror */,
 				439C7E461C7772C000D29859 /* Resources */,
 				439C7E441C7772C000D29859 /* Sources */,
@@ -6604,6 +6607,7 @@
 				B86F2153255DBFFC008D522A /* Download cards XML */,
 				B8CD01032FA0000000CD0103 /* Compile CardDefs */,
 				B83355B724F89D1A0025F644 /* Embed Mono */,
+				B8A11C0D2FC000010001A006 /* Embed BobsBuddy and HearthDb */,
 				4368741F201720A800C9D1E9 /* Update version */,
 			);
 			buildRules = (
@@ -6775,6 +6779,7 @@
 				B82AE5FF28BE8631004A8FE0 /* HearthMirror-version.txt in Resources */,
 				432B5FBC1CB5373200B05D19 /* Splashscreen.xib in Resources */,
 				B82AE5FD28BE8631004A8FE0 /* BobsBuddy-version.txt in Resources */,
+				B8A11C0D2FC000010001A005 /* HearthDb-version.txt in Resources */,
 				43EECB9A1C7E3F620077AC1B /* DeckCellView.xib in Resources */,
 				B85FE9C52E53CACA001865FC /* Resources in Resources */,
 				437B5BC51CD2568E00DE0A41 /* TrackersPreferences.xib in Resources */,
@@ -6852,7 +6857,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Change SHA1 here to change the version of HearthMirror used by HSTracker\nSHA1=$(cat $SRCROOT/HSTracker/HearthMirror-version.txt)\n\nDIR=\"$SRCROOT/downloaded-frameworks/HearthMirror\"\nVERSION_FILE=\"$DIR/HearthMirror.sha1\"\nZIP_FILE=\"$DIR/HearthMirror.framework.zip\"\nDSYM_ZIP_FILE=\"$DIR/HearthMirror.framework.dSYM.zip\"\n\nif [ \"$(cat $VERSION_FILE)\" != \"$SHA1\"  ]\nthen\n    set -e\n    \n    rm -rf \"$DIR\"\n    mkdir -p \"$DIR\"\n    wget \"https://libs.hearthsim.net/hstracker/$SHA1/HearthMirror.framework.zip\" -O \"$ZIP_FILE\"\n    wget \"https://libs.hearthsim.net/hstracker/$SHA1/HearthMirror.framework.dSYM.zip\" -O \"$DSYM_ZIP_FILE\"\n    unzip -d \"$DIR\" \"$ZIP_FILE\"\n    unzip -d \"$DIR\" \"$DSYM_ZIP_FILE\"\n    echo \"$SHA1\" > \"$VERSION_FILE\"\nfi\n\n\n\n";
+			shellScript = "# Xcode.app runs build phases via launchd, whose PATH has no Homebrew wget.\nexport PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"\n\n# Change SHA1 here to change the version of HearthMirror used by HSTracker\nSHA1=$(cat $SRCROOT/HSTracker/HearthMirror-version.txt)\n\nDIR=\"$SRCROOT/downloaded-frameworks/HearthMirror\"\nVERSION_FILE=\"$DIR/HearthMirror.sha1\"\nZIP_FILE=\"$DIR/HearthMirror.framework.zip\"\nDSYM_ZIP_FILE=\"$DIR/HearthMirror.framework.dSYM.zip\"\n\nif [ \"$(cat $VERSION_FILE)\" != \"$SHA1\"  ]\nthen\n    set -e\n    \n    rm -rf \"$DIR\"\n    mkdir -p \"$DIR\"\n    wget \"https://libs.hearthsim.net/hstracker/$SHA1/HearthMirror.framework.zip\" -O \"$ZIP_FILE\"\n    wget \"https://libs.hearthsim.net/hstracker/$SHA1/HearthMirror.framework.dSYM.zip\" -O \"$DSYM_ZIP_FILE\"\n    unzip -d \"$DIR\" \"$ZIP_FILE\"\n    unzip -d \"$DIR\" \"$DSYM_ZIP_FILE\"\n    echo \"$SHA1\" > \"$VERSION_FILE\"\nfi\n\n\n\n";
 		};
 		B83355B724F89D1A0025F644 /* Embed Mono */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -6877,7 +6882,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# exit 0\n\nset -x\nset -e\n\n# The BCL assemblies go into Contents/Resources/Managed, NOT into\n# Contents/Resources/Resources/Managed: HSTracker/Resources is a folder\n# reference, and Copy Bundle Resources replaces that whole directory, so\n# anything this phase writes inside it is wiped whenever that copy re-runs.\n# The wipe is invisible to the build system - it decides this phase is\n# up to date before the copy runs - so the app would launch with an empty\n# TRUSTED_PLATFORM_ASSEMBLIES and assert on corlib. Keep this in step with\n# the search path in HSTracker/Mono/MonoHelper.swift.\n\n# Version. The runtime pack lays its BCL out under lib/net<major>.<minor>, so\n# derive that directory from mono-version.txt rather than hardcoding it: a bump\n# that is not matched here stages a runtime other than the one downloaded.\nMONO_VERSION=$(cat $SRCROOT/HSTracker/mono-version.txt)\nNET_VERSION=\"net$(echo $MONO_VERSION | cut -d. -f1,2)\"\nASSEMBLIES=\"mscorlib.dll netstandard.dll System.dll System.Collections.dll System.Collections.Concurrent.dll System.Collections.Immutable.dll System.Collections.NonGeneric.dll System.Collections.Specialized.dll System.Configuration.dll System.Core.dll System.Diagnostics.TraceSource.dll System.Diagnostics.Tracing.dll System.Linq.dll System.Linq.Expressions.dll System.Memory.dll System.Numerics.Vectors.dll System.ObjectModel.dll System.Private.Uri.dll System.Private.Xml.dll System.Reflection.Emit.dll System.Reflection.Emit.ILGeneration.dll System.Reflection.Emit.Lightweight.dll System.Reflection.Metadata.dll System.Reflection.Primitives.dll System.Runtime.dll System.Runtime.CompilerServices.Unsafe.dll System.Runtime.InteropServices.dll System.Runtime.Intrinsics.dll System.Runtime.Loader.dll System.Text.Encoding.Extensions.dll System.Text.RegularExpressions.dll System.Threading.dll System.Threading.Tasks.Parallel.dll System.Threading.Thread.dll System.Threading.ThreadPool.dll System.Xml.dll System.Xml.ReaderWriter.dll System.Xml.XmlSerializer.dll\"\n\nMONO_UNIVERSAL=$SRCROOT/downloaded-frameworks/mono/universal\nLOCATION=\"${BUILT_PRODUCTS_DIR}\"/\"${FRAMEWORKS_FOLDER_PATH}\"\nBIN_LOCATION=\"${BUILT_PRODUCTS_DIR}/${EXECUTABLE_FOLDER_PATH}\"\nmkdir -p \"${LOCATION}\"\n\n# Copy needed files\ncp $MONO_UNIVERSAL/libcoreclr.dylib \"${LOCATION}\"\ncp $MONO_UNIVERSAL/libSystem.Native.dylib \"${LOCATION}\"\n\nEMBED_ARCHES=\"osx-arm64 osx-x64\"\nfor arch in $EMBED_ARCHES ; do\n    MONO_ARCH=\"arm64\"\n    if [ \"$arch\" = \"osx-x64\" ]; then\n       MONO_ARCH=\"x64\"\n    fi\n\n    # Locations\n    MONO_LOCATION=$SRCROOT/downloaded-frameworks/mono/runtimes/${arch}/lib/${NET_VERSION}\n    MONO_NATIVE=$SRCROOT/downloaded-frameworks/mono/runtimes/${arch}/native\n\n    if [ ! -d \"${MONO_LOCATION}\" ]; then\n        echo \"error: ${MONO_LOCATION} is missing - the Download Mono phase did not extract ${MONO_VERSION} for ${arch}\"\n        exit 1\n    fi\n\n    RES_LOCATION=\"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Managed/${MONO_ARCH}\"\n\n    mkdir -p \"${RES_LOCATION}\"\n\n    cp $MONO_NATIVE/System.Private.CoreLib.dll \"${RES_LOCATION}\"\n\n    # Copy system assemblies needed\n    for assembly in $ASSEMBLIES; do cp ${MONO_LOCATION}/$assembly \"${RES_LOCATION}\"; done\n\n    # Change runtime paths\n    #install_name_tool -change /Library/Frameworks/Mono.framework/Versions/$MONO_VERSION/lib/libmonosgen-2.0.1.dylib @rpath/libmonosgen-2.0.1.dylib \"${BIN_LOCATION}/${EXECUTABLE_NAME}\"\n    #install_name_tool -change /Library/Frameworks/Mono.framework/Versions/$MONO_VERSION/lib/libsqlite3.0.dylib @rpath/libsqlite3.0.dylib \"${BIN_LOCATION}/${EXECUTABLE_NAME}\"\ndone\n";
+			shellScript = "# exit 0\n\nset -x\nset -e\n\n# The BCL assemblies go into Contents/Resources/Managed, NOT into\n# Contents/Resources/Resources/Managed: HSTracker/Resources is a folder\n# reference, and Copy Bundle Resources replaces that whole directory, so\n# anything this phase writes inside it is wiped whenever that copy re-runs.\n# The wipe is invisible to the build system - it decides this phase is\n# up to date before the copy runs - so the app would launch with an empty\n# TRUSTED_PLATFORM_ASSEMBLIES and assert on corlib. Keep this in step with\n# the search path in HSTracker/Mono/MonoHelper.swift.\n\n# Version. The runtime pack lays its BCL out under lib/net<major>.<minor>, so\n# derive that directory from mono-version.txt rather than hardcoding it: a bump\n# that is not matched here stages a runtime other than the one downloaded.\nMONO_VERSION=$(cat $SRCROOT/HSTracker/mono-version.txt)\nNET_VERSION=\"net$(echo $MONO_VERSION | cut -d. -f1,2)\"\n\nMONO_UNIVERSAL=$SRCROOT/downloaded-frameworks/mono/universal\nLOCATION=\"${BUILT_PRODUCTS_DIR}\"/\"${FRAMEWORKS_FOLDER_PATH}\"\nBIN_LOCATION=\"${BUILT_PRODUCTS_DIR}/${EXECUTABLE_FOLDER_PATH}\"\nmkdir -p \"${LOCATION}\"\n\n# Copy needed files\ncp $MONO_UNIVERSAL/libcoreclr.dylib \"${LOCATION}\"\ncp $MONO_UNIVERSAL/libSystem.Native.dylib \"${LOCATION}\"\n\nEMBED_ARCHES=\"osx-arm64 osx-x64\"\nfor arch in $EMBED_ARCHES ; do\n    MONO_ARCH=\"arm64\"\n    if [ \"$arch\" = \"osx-x64\" ]; then\n       MONO_ARCH=\"x64\"\n    fi\n\n    # Locations\n    MONO_LOCATION=$SRCROOT/downloaded-frameworks/mono/runtimes/${arch}/lib/${NET_VERSION}\n    MONO_NATIVE=$SRCROOT/downloaded-frameworks/mono/runtimes/${arch}/native\n\n    if [ ! -d \"${MONO_LOCATION}\" ]; then\n        echo \"error: ${MONO_LOCATION} is missing - the Download Mono phase did not extract ${MONO_VERSION} for ${arch}\"\n        exit 1\n    fi\n\n    RES_LOCATION=\"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Managed/${MONO_ARCH}\"\n\n    mkdir -p \"${RES_LOCATION}\"\n\n    cp $MONO_NATIVE/System.Private.CoreLib.dll \"${RES_LOCATION}\"\n\n    # The whole BCL rather than a hand-kept list: BobsBuddy is upgraded on its\n    # own schedule, and an assembly missing from a list fails only at runtime,\n    # when the simulation throws. ~17MB per arch.\n    cp \"${MONO_LOCATION}\"/*.dll \"${RES_LOCATION}\"\n\n    # Change runtime paths\n    #install_name_tool -change /Library/Frameworks/Mono.framework/Versions/$MONO_VERSION/lib/libmonosgen-2.0.1.dylib @rpath/libmonosgen-2.0.1.dylib \"${BIN_LOCATION}/${EXECUTABLE_NAME}\"\n    #install_name_tool -change /Library/Frameworks/Mono.framework/Versions/$MONO_VERSION/lib/libsqlite3.0.dylib @rpath/libsqlite3.0.dylib \"${BIN_LOCATION}/${EXECUTABLE_NAME}\"\ndone\n";
 		};
 		B849674128A57C7300D90B30 /* Download Mono */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -6897,7 +6902,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Downloads the mono runtime named in HSTracker/mono-version.txt.\n# The unzips overwrite: with -n a version bump left the previously extracted\n# runtime in place, and every build kept shipping that one instead.\nMONO_VERSION=$(cat $SRCROOT/HSTracker/mono-version.txt)\n\nDIR=\"$SRCROOT/downloaded-frameworks/mono\"\nmkdir -p $DIR\n\nwget  \"https://www.nuget.org/api/v2/package/Microsoft.NETCore.App.Runtime.Mono.osx-x64/${MONO_VERSION}\" -P \"$DIR\" -O \"$DIR/mono-${MONO_VERSION}-x64.zip\"\nunzip -o \"$DIR/mono-${MONO_VERSION}-x64.zip\" -d \"$DIR\"\n\nwget  \"https://www.nuget.org/api/v2/package/Microsoft.NETCore.App.Runtime.Mono.osx-arm64/${MONO_VERSION}\" -P \"$DIR\" -O \"$DIR/mono-${MONO_VERSION}-arm64.zip\"\nunzip -o \"$DIR/mono-${MONO_VERSION}-arm64.zip\" -d \"$DIR\"\n\n\nmkdir -p \"$DIR/universal\"\nLIBRARIES=\"libcoreclr.dylib libSystem.Native.dylib\"\nfor lib in $LIBRARIES; do\n    lipo -create \"$DIR/runtimes/osx-arm64/native/$lib\" \"$DIR/runtimes/osx-x64/native/$lib\" -output \"$DIR/universal/$lib\"\ndone\n";
+			shellScript = "# Downloads the mono runtime named in HSTracker/mono-version.txt.\n# The unzips overwrite: with -n a version bump left the previously extracted\n# runtime in place, and every build kept shipping that one instead.\n\n# Xcode.app runs build phases via launchd, whose PATH has no Homebrew wget.\nexport PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"\n\nMONO_VERSION=$(cat $SRCROOT/HSTracker/mono-version.txt)\n\nDIR=\"$SRCROOT/downloaded-frameworks/mono\"\nmkdir -p $DIR\n\nwget  \"https://www.nuget.org/api/v2/package/Microsoft.NETCore.App.Runtime.Mono.osx-x64/${MONO_VERSION}\" -P \"$DIR\" -O \"$DIR/mono-${MONO_VERSION}-x64.zip\"\nunzip -o \"$DIR/mono-${MONO_VERSION}-x64.zip\" -d \"$DIR\"\n\nwget  \"https://www.nuget.org/api/v2/package/Microsoft.NETCore.App.Runtime.Mono.osx-arm64/${MONO_VERSION}\" -P \"$DIR\" -O \"$DIR/mono-${MONO_VERSION}-arm64.zip\"\nunzip -o \"$DIR/mono-${MONO_VERSION}-arm64.zip\" -d \"$DIR\"\n\n\nmkdir -p \"$DIR/universal\"\nLIBRARIES=\"libcoreclr.dylib libSystem.Native.dylib\"\nfor lib in $LIBRARIES; do\n    lipo -create \"$DIR/runtimes/osx-arm64/native/$lib\" \"$DIR/runtimes/osx-x64/native/$lib\" -output \"$DIR/universal/$lib\"\ndone\n";
 			showEnvVarsInLog = 0;
 		};
 		B86F2153255DBFFC008D522A /* Download cards XML */ = {
@@ -6920,7 +6925,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\n\nVERSION=$(cat $SRCROOT/HSTracker/cards-version.txt)\n\n# The XML is a build input only - \"Compile CardDefs\" turns it into the\n# CardDefs.bin the app actually reads - so stage it next to the app rather\n# than inside it.\nLOCATION=\"${BUILT_PRODUCTS_DIR}\"\nmkdir -p \"${LOCATION}\"\n\nCARDDEFS=\"https://github.com/HearthSim/hsdata/raw\"\n\n# hsdata split CardDefs.xml by card set, so Battlegrounds and Mercenaries are no\n# longer in the main file. Missing CardDefs.Bacon.xml is not a cosmetic gap: the\n# BG hero and minion entities then resolve to dbfId 0 and every hsreplay lookup\n# keyed on it comes back empty. All three are compiled into one blob.\nfor NAME in CardDefs.xml CardDefs.Bacon.xml CardDefs.Lettuce.xml; do\n    echo \"Downloading $NAME\"\n    curl -fL -z \"${LOCATION}/${NAME}\" -o \"${LOCATION}/${NAME}\" \"$CARDDEFS/$VERSION/${NAME}\"\ndone\n";
+			shellScript = "set -e\n\n# github.com is the only host the build needs a proxy for, and Xcode.app runs\n# build phases via launchd without the shell's proxy variables. Set it for this\n# phase only, and only when the local proxy is actually listening.\nif nc -z 127.0.0.1 7890 2>/dev/null; then\n    export https_proxy=http://127.0.0.1:7890\nfi\n\nVERSION=$(cat $SRCROOT/HSTracker/cards-version.txt)\n\n# The XML is a build input only - \"Compile CardDefs\" turns it into the\n# CardDefs.bin the app actually reads - so stage it next to the app rather\n# than inside it.\nLOCATION=\"${BUILT_PRODUCTS_DIR}\"\n# Cached by version outside the build folder: a clean build wipes LOCATION, and\n# re-fetching ~100MB from github on every clean build is what timed out.\nCACHE=\"$SRCROOT/downloaded-frameworks/cards/$VERSION\"\nmkdir -p \"${LOCATION}\" \"${CACHE}\"\n\nCARDDEFS=\"https://github.com/HearthSim/hsdata/raw\"\n\n# hsdata split CardDefs.xml by card set, so Battlegrounds and Mercenaries are no\n# longer in the main file. Missing CardDefs.Bacon.xml is not a cosmetic gap: the\n# BG hero and minion entities then resolve to dbfId 0 and every hsreplay lookup\n# keyed on it comes back empty. All three are compiled into one blob.\nfor NAME in CardDefs.xml CardDefs.Bacon.xml CardDefs.Lettuce.xml; do\n    CACHED=\"${CACHE}/${NAME}\"\n    if [ ! -s \"${CACHED}\" ]; then\n        echo \"Downloading $NAME ($VERSION)\"\n        # .partial so an interrupted transfer never passes for a complete file.\n        curl -fL --retry 3 --retry-delay 2 --connect-timeout 20 -o \"${CACHED}.partial\" \"$CARDDEFS/$VERSION/${NAME}\"\n        mv \"${CACHED}.partial\" \"${CACHED}\"\n    else\n        echo \"Using cached $NAME ($VERSION)\"\n    fi\n    cp \"${CACHED}\" \"${LOCATION}/${NAME}\"\ndone\n";
 			showEnvVarsInLog = 0;
 		};
 		B8CD01032FA0000000CD0103 /* Compile CardDefs */ = {
@@ -6948,7 +6953,31 @@
 			shellScript = "set -e\n\n# CardDefs.xml is pinned by cards-version.txt and never changes for a given\n# build, so it is transcoded to a binary blob here instead of being parsed on\n# every launch. See HSTracker/Database/CardDefsBinary.swift.\n#\n# The blob goes straight into Contents/Resources, not into Resources/Cards:\n# HSTracker/Resources is a folder reference, and its copy replaces that whole\n# directory, so anything a script phase writes inside it can be wiped by a\n# later build.\nSOURCES=\"$SRCROOT/HSTracker/Database/CardDefsBinary.swift $SRCROOT/Tools/CardDefsCompiler/main.swift\"\nTOOL=\"${DERIVED_FILE_DIR}/CardDefsCompiler\"\nRESOURCES=\"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"\n\nmkdir -p \"${DERIVED_FILE_DIR}\" \"${RESOURCES}\"\n\nrebuild=0\n[ -x \"$TOOL\" ] || rebuild=1\nfor src in $SOURCES; do\n    [ \"$src\" -nt \"$TOOL\" ] && rebuild=1\ndone\nif [ $rebuild -eq 1 ]; then\n    echo \"Building CardDefsCompiler\"\n    xcrun --sdk macosx swiftc -O -swift-version 5 -o \"$TOOL\" $SOURCES\nfi\n\n\"$TOOL\" \"${BUILT_PRODUCTS_DIR}/CardDefs.xml\" \"${BUILT_PRODUCTS_DIR}/CardDefs.Bacon.xml\" \"${BUILT_PRODUCTS_DIR}/CardDefs.Lettuce.xml\" \"${RESOURCES}/CardDefs.bin\"\n";
 			showEnvVarsInLog = 0;
 		};
-		B8D8859B24F4333000F2F0F2 /* Download BobsBuddy and HearthDb */ = {
+		B8A11C0D2FC000010001A006 /* Embed BobsBuddy and HearthDb */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/downloaded-frameworks/managed/BobsBuddy.dll",
+				"$(SRCROOT)/downloaded-frameworks/managed/BobsBuddy.Common.dll",
+				"$(SRCROOT)/downloaded-frameworks/managed/HearthDb.dll",
+				"$(SRCROOT)/downloaded-frameworks/managed/HearthDb.xml",
+			);
+			name = "Embed BobsBuddy and HearthDb";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\n\n# MonoHelper loads BobsBuddy from Contents/Resources/Resources/Managed, inside\n# the HSTracker/Resources folder reference. Copy Bundle Resources can replace\n# that directory without this phase being told, so it declares no outputs and\n# runs on every build, after that copy.\nSOURCE=\"$SRCROOT/downloaded-frameworks/managed\"\nDESTINATION=\"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Resources/Managed\"\nmkdir -p \"$DESTINATION\"\nfor file in BobsBuddy.dll BobsBuddy.Common.dll HearthDb.dll HearthDb.xml; do\n    cp \"$SOURCE/$file\" \"$DESTINATION\"\ndone\n";
+			showEnvVarsInLog = 0;
+		};
+		B8D8859B24F4333000F2F0F2 /* Install vendored BobsBuddy and HearthDb */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -6957,18 +6986,22 @@
 			);
 			inputPaths = (
 				"$(SRCROOT)/HSTracker/BobsBuddy-version.txt",
+				"$(SRCROOT)/HSTracker/HearthDb-version.txt",
+				"$(SRCROOT)/Vendor/Managed/BobsBuddy.zip",
+				"$(SRCROOT)/Vendor/Managed/HearthDb.zip",
 			);
-			name = "Download BobsBuddy and HearthDb";
+			name = "Install vendored BobsBuddy and HearthDb";
 			outputFileListPaths = (
 			);
 			outputPaths = (
-				$SRCROOT/HSTracker/Resources/Managed/arm64/BobsBuddy.dll,
-				$SRCROOT/HSTracker/Resources/Managed/arm64/HearthDb.dll,
-				$SRCROOT/HSTracker/Resources/Managed/arm64/BobsBuddy.Common.dll,
+				"$(SRCROOT)/downloaded-frameworks/managed/BobsBuddy.dll",
+				"$(SRCROOT)/downloaded-frameworks/managed/BobsBuddy.Common.dll",
+				"$(SRCROOT)/downloaded-frameworks/managed/HearthDb.dll",
+				"$(SRCROOT)/downloaded-frameworks/managed/HearthDb.xml",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# change version here when needed\nset -e\n\nDIR=\"$SRCROOT/HSTracker/Resources/Managed\"\n\nmkdir -p $DIR/arm64\nmkdir -p $DIR/x64\n\nwget -N \"https://libs.hearthsim.net/hdt/HearthDb.zip\" -P \"$DIR\" -O \"$SRCROOT/downloaded-frameworks/HearthDb.zip\"\nwget -N \"https://libs.hearthsim.net/hdt/BobsBuddy.zip\" -P \"$DIR\" -O \"$SRCROOT/downloaded-frameworks/BobsBuddy.zip\"\n\nunzip -o \"$SRCROOT/downloaded-frameworks/HearthDb.zip\" -d \"$DIR\"\nunzip -o \"$SRCROOT/downloaded-frameworks/BobsBuddy.zip\" -d \"$DIR\"\n";
+			shellScript = "set -e\n\n# Vendored, not downloaded: libs.hearthsim.net only serves a moving \"latest\",\n# so a download can never be pinned. Upgrade with scripts/update-managed-deps.sh.\n# Staged outside HSTracker/Resources, which is a folder reference: writing into\n# it mutates what Copy Bundle Resources copies. \"Embed BobsBuddy and HearthDb\"\n# puts these into the bundle.\nBOBS_EXPECTED_VERSION=$(cat \"$SRCROOT/HSTracker/BobsBuddy-version.txt\")\nHEARTHDB_EXPECTED_VERSION=$(cat \"$SRCROOT/HSTracker/HearthDb-version.txt\")\nBOBS_ARCHIVE=\"$SRCROOT/Vendor/Managed/BobsBuddy.zip\"\nHEARTHDB_ARCHIVE=\"$SRCROOT/Vendor/Managed/HearthDb.zip\"\nDESTINATION=\"$SRCROOT/downloaded-frameworks/managed\"\nmkdir -p \"$DESTINATION\" \"$DERIVED_FILE_DIR\"\n\nSTAGING=$(mktemp -d \"$DERIVED_FILE_DIR/managed-deps.XXXXXX\")\ntrap 'rm -rf \"$STAGING\"' EXIT\nmkdir -p \"$STAGING/bobsbuddy\" \"$STAGING/hearthdb\"\nunzip -q \"$BOBS_ARCHIVE\" -d \"$STAGING/bobsbuddy\"\nunzip -q \"$HEARTHDB_ARCHIVE\" -d \"$STAGING/hearthdb\"\n\nfor file in BobsBuddy.dll BobsBuddy.Common.dll; do\n    if [ ! -f \"$STAGING/bobsbuddy/$file\" ]; then\n        echo \"error: vendored BobsBuddy.zip is missing $file\" >&2\n        exit 1\n    fi\ndone\nfor file in HearthDb.dll HearthDb.xml; do\n    if [ ! -f \"$STAGING/hearthdb/$file\" ]; then\n        echo \"error: vendored HearthDb.zip is missing $file\" >&2\n        exit 1\n    fi\ndone\n\n# Same parsing as scripts/update-managed-deps.sh; keep the two in step.\nBOBS_ACTUAL_VERSION=$(/usr/bin/strings \"$STAGING/bobsbuddy/BobsBuddy.dll\" | /usr/bin/awk '\n    BEGIN { for (i = 32; i < 127; i++) ord[sprintf(\"%c\", i)] = i }\n    /[0-9][+][0-9a-f]+$/ {\n        s = $0\n        if (ord[substr(s, 1, 1)] == length(s) - 1) s = substr(s, 2)\n        sub(/[+].*/, \"\", s)\n        if (s ~ /^[0-9]+[.][0-9]+[.][0-9]+$/) print s\n    }' | /usr/bin/sort -u)\nif [ \"$BOBS_ACTUAL_VERSION\" != \"$BOBS_EXPECTED_VERSION\" ]; then\n    echo \"error: BobsBuddy-version.txt expects $BOBS_EXPECTED_VERSION, but vendored BobsBuddy.dll is '$BOBS_ACTUAL_VERSION'\" >&2\n    exit 1\nfi\n\n# HearthDb's informational version is a useless 1.0.0; its real version is the\n# one standalone x.y.z string in the assembly.\nHEARTHDB_ACTUAL_VERSION=$(/usr/bin/strings \"$STAGING/hearthdb/HearthDb.dll\" | /usr/bin/sed -n '/^[0-9][0-9]*[.][0-9][0-9]*[.][0-9][0-9]*$/p' | /usr/bin/sort -u)\nif [ \"$HEARTHDB_ACTUAL_VERSION\" != \"$HEARTHDB_EXPECTED_VERSION\" ]; then\n    echo \"error: HearthDb-version.txt expects $HEARTHDB_EXPECTED_VERSION, but vendored HearthDb.dll is '$HEARTHDB_ACTUAL_VERSION'\" >&2\n    exit 1\nfi\n\n# cp only after every check passed, so a bad archive leaves the last good copy.\n# It also gives the outputs fresh timestamps; unzip would keep the archive's\n# older ones and the phase would never be up to date.\ncp \"$STAGING/bobsbuddy/BobsBuddy.dll\" \"$DESTINATION\"\ncp \"$STAGING/bobsbuddy/BobsBuddy.Common.dll\" \"$DESTINATION\"\ncp \"$STAGING/hearthdb/HearthDb.dll\" \"$DESTINATION\"\ncp \"$STAGING/hearthdb/HearthDb.xml\" \"$DESTINATION\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -9024,7 +9057,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = "$(SDKROOT)/usr/include/libxml2";
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
@@ -9076,7 +9109,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = "$(SDKROOT)/usr/include/libxml2";
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
@@ -9128,7 +9161,7 @@
 					"$(PROJECT_DIR)/downloaded-frameworks/mono/universal",
 					"$(SDKROOT)/usr/lib/swift",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 3.6.12;
 				OTHER_CFLAGS = "$(inherited)";
 				OTHER_CODE_SIGN_FLAGS = "--deep";
@@ -9192,7 +9225,7 @@
 					"$(PROJECT_DIR)/downloaded-frameworks/mono/universal",
 					"$(SDKROOT)/usr/lib/swift",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = 3.6.12;
 				OTHER_CODE_SIGN_FLAGS = "--deep";
 				OTHER_LDFLAGS = (
@@ -9244,7 +9277,7 @@
 					"@loader_path/../Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/downloaded-frameworks/mono/runtimes/osx-x64/native";
-				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				OTHER_SWIFT_FLAGS = "-DHSTTEST";
 				PRODUCT_BUNDLE_IDENTIFIER = net.hearthsim.hstracker.HSTrackerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -9288,7 +9321,7 @@
 					"@loader_path/../Frameworks",
 				);
 				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/downloaded-frameworks/mono/runtimes/osx-x64/native";
-				MACOSX_DEPLOYMENT_TARGET = 10.15;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				OTHER_SWIFT_FLAGS = "-DHSTTEST";
 				PRODUCT_BUNDLE_IDENTIFIER = net.hearthsim.hstracker.HSTrackerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
