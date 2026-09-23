@@ -1,6 +1,6 @@
 # HSTracker 个人分支：计划与进度
 
-最后更新 2026-09-22。本文件是唯一的计划 + 进度文档（原 `PLAN.md` / `PROGRESS.md` 全文归档在
+最后更新 2026-09-23。本文件是唯一的计划 + 进度文档（原 `PLAN.md` / `PROGRESS.md` 全文归档在
 `docs/archive/plan-2026-09-22.md` / `progress-2026-09-22.md`，决策理由、实测数据、排查经过都在那里）。
 主线换轨见 `docs/REFORK.md`；上游合并见 `docs/upstream-merges.md`；任务书在做的放 `docs/tasks/`，完成的放 `docs/archive/tasks/`。
 
@@ -33,9 +33,9 @@
 | Phase 7 局末小结窗 | ✅ | 09-11 实战；钩子 `CoreManager.appTerminated`，开关 `show_constructed_session_recap`（默认开，**设置 UI 留 4.3**） |
 | 收尾（删 `useSwiftUITracker` 与旧路径） | ❌ | 被 REFORK 取代：旧路径随重建消失 |
 | 红龙贼 combo 提示器 spike | ⏸ | T0 + T1 已提交 `0a921d6b`（`HSTracker/RedDragon/`，24 测试）；恢复点 `docs/research/red-dragon-rogue-spike.md` 第九节第 5 条；REFORK S7 原样搬 |
-| **REFORK**：在上游新画布上重建 | 🚧 | `docs/REFORK.md`，等 G2（上游 tag） |
+| **REFORK**：在上游新画布上重建 | 🚧 | `docs/REFORK.md`；G1–G3 ✅（09-23 核对 3.6.12 `c723bfd4`），S4 外壳定 A；S0 开工 |
 
-**顺序**：REFORK（等 G2）→ Phase 2 / V2 余项 → 4.3 其余设置页 → 红龙 T2 overlay。
+**顺序**：REFORK → Phase 2 / V2 余项 → 4.3 其余设置页 → 红龙 T2 overlay。
 
 ## 🎮 待你亲自看
 
@@ -53,7 +53,7 @@
 
 - **V2 余项**：折叠 / 拖拽 / 吸附共用一个鼠标模型（不锁定 + 边缘吸附 + 锚点持久化，已决 09-15，细节在 `docs/tasks/phase2-v-visual-redesign.md`）；三行头 40 → 21 实机看。
 - **卡条行高一局之内会变**（上游行为，行高按当前行数压缩）：V1 已让宽度跟着缩；是否改成固定行高 + 滚动 / 截断，用户说优先级不高。
-- **179 条 zh-Hans 术语分歧**（套牌 / 竞技模式 vs 上游）：REFORK S2 前定。
+- **179 条 zh-Hans 术语分歧**（套牌 / 竞技模式 vs 上游）：REFORK S2 前定（09-23 对 3.6.12 复核仍 179）。
 - Phase 7 要不要回看历史会话（首版没做）。
 
 ## 已知问题（未修）
@@ -82,7 +82,7 @@
 | `show_constructed_session_recap` | — | true | Phase 7 |
 | `tracker_motion`、`tracker_perf_*` | — | 诊断键，不进设置页 | T8 / Perf P2 |
 
-合并还要保住：`project.pbxproj` 的 `NET_VERSION = net8.0` 与两处 `MACOSX_DEPLOYMENT_TARGET = 14.0`；`Card.copy()` 补的 `enText` 拷贝（上游漏拷，查表拿到的卡 `enText` 为空）。
+合并还要保住：`project.pbxproj` 的 `NET_VERSION = net8.0`（3.6.12 起上游由 `mono-version.txt` 推出，同值）与 `MACOSX_DEPLOYMENT_TARGET = 14.0`（dev 4 处，另 2 处 10.12；3.6.12 为 6 处 10.15，REFORK S1 全改）；`Card.copy()` 补的 `enText` 拷贝（上游漏拷，查表拿到的卡 `enText` 为空）。
 
 ## 仍作数的决策
 
