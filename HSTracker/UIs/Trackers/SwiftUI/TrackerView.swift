@@ -71,7 +71,14 @@ struct TrackerView: View {
         // window itself is left clear on this path (Tracker.setOpacity).
         .background(TrackerBarStyle.base.opacity(layout.opacity))
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: dockedEdge)
-        .transaction { $0.animation = nil }
+        // T8: the panel's only animation. It is attached to the verdict rather
+        // than taken at mutation time, so the section frames here and the rows
+        // inside them animate on exactly the same updates — the ones
+        // `TrackerViewModel` bumped. With the switch off (or the system's
+        // "Reduce motion" on) the animation is nil *and* the verdict never
+        // bumps, so the panel behaves frame for frame as it did before T8.
+        .animation(TrackerMotion.isEnabled ? TrackerMotion.animation : nil,
+                   value: viewModel.motionGeneration)
     }
 }
 

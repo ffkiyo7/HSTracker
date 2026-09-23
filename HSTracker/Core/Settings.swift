@@ -431,6 +431,11 @@ final class Settings {
     static var trackerNoCardArt: Bool
     @UserDefault(key: Settings.tracker_perf_force_opaque, defaultValue: false)
     static var trackerForceOpaquePanel: Bool
+    /// Phase 1 / T8, same contract: off makes the SwiftUI panel jump in one
+    /// frame the way it did before the motion slice, which is both the A/B
+    /// control for 🎮 and the first bisection step if frames go missing.
+    @UserDefault(key: Settings.tracker_motion, defaultValue: true)
+    static var trackerMotion: Bool
     /// Our constructed session recap. Not to be confused with upstream's
     /// `showSessionRecap`, which is the battlegrounds one.
     @UserDefault(key: Settings.show_constructed_session_recap, defaultValue: true)
@@ -763,6 +768,7 @@ extension Settings {
     static let tracker_perf_no_text_shadow = "tracker_perf_no_text_shadow"
     static let tracker_perf_no_card_art = "tracker_perf_no_card_art"
     static let tracker_perf_force_opaque = "tracker_perf_force_opaque"
+    static let tracker_motion = "tracker_motion"
     static let show_constructed_session_recap = "show_constructed_session_recap"
     static let keep_power_log = "keep_power_log"
     static let highlight_last_drawn = "highlight_last_drawn"

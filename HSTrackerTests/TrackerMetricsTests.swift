@@ -1054,6 +1054,596 @@ class TrackerMetricsTests: HSTrackerTests {
         }
     }
 
+    // MARK: - Phase 1 / T8: motion
+
+    private func motionRows(_ rows: [(String, Int)]) -> [TrackerMotion.Row] {
+        rows.map { id, count in
+            TrackerMotion.Row(id: TrackerCardRowID(cardId: id,
+                                                   jousted: false,
+                                                   isCreated: false,
+                                                   wasDiscarded: false,
+                                                   deckListIndex: 0,
+                                                   hasIncindius: false,
+                                                   incindiusTurn: 0,
+                                                   incindiusCounter: 0),
+                              count: count)
+        }
+    }
+
+    private func animates(_ before: [(String, Int)], _ after: [(String, Int)]) -> Bool {
+        if case .animated = TrackerMotion.plan(from: motionRows(before), to: motionRows(after)) {
+            return true
+        }
+        return false
+    }
+
+    private func flashes(_ before: [(String, Int)], _ after: [(String, Int)]) -> [String] {
+        guard case .animated(let ids) = TrackerMotion.plan(from: motionRows(before),
+                                                           to: motionRows(after)) else {
+            return []
+        }
+        return ids.map(\.cardId).sorted()
+    }
+
+    /// The whole "does this refresh move?" rule, shape by shape. Only a single
+    /// card entering or leaving *this* list may animate; every bulk change is
+    /// one frame, which is what keeps thirty rows from flying at once.
+    func testOnlyASingleCardMovesTheList() {
+        // draw the last copy: the row leaves
+        XCTAssertTrue(animates([("a", 1), ("b", 1)], [("b", 1)]))
+        // draw one of two copies: the row stays and the count drops
+        XCTAssertTrue(animates([("a", 2), ("b", 1)], [("a", 1), ("b", 1)]))
+        // shuffled in / drawn into the hand section: one row arrives
+        XCTAssertTrue(animates([("b", 1)], [("a", 1), ("b", 1)]))
+        // the played section counts down from zero
+        XCTAssertTrue(animates([("a", -1)], [("a", -2)]))
+
+        // opening deal, deck swap, end of game, groupCardsByZone flipping
+        XCTAssertFalse(animates([], [("a", 1)]))
+        XCTAssertFalse(animates([("a", 1)], []))
+        XCTAssertFalse(animates([("a", 1), ("b", 1), ("c", 1)], [("c", 1)]))
+        XCTAssertFalse(animates([("a", 1)], [("x", 1), ("y", 1), ("z", 1)]))
+        // a whole two-of leaving at once is not one card
+        XCTAssertFalse(animates([("a", 2), ("b", 1)], [("b", 1)]))
+        // one out and one in on the same refresh: two cards as far as this
+        // list can tell, so it refuses rather than guess they are the same one
+        XCTAssertFalse(animates([("a", 1), ("b", 1)], [("b", 1), ("c", 1)]))
+        // a refresh that only re-tints (hover, highlightDraw) moves nothing
+        XCTAssertFalse(animates([("a", 1), ("b", 1)], [("a", 1), ("b", 1)]))
+        // reordering alone is not a card moving either
+        XCTAssertFalse(animates([("a", 1), ("b", 1)], [("b", 1), ("a", 1)]))
+    }
+
+    /// The flash marks the card that is *there* and changed; a row on its way
+    /// out is told by the collapse instead.
+    func testTheFlashMarksTheCardThatStayed() {
+        XCTAssertEqual(flashes([("a", 2), ("b", 1)], [("a", 1), ("b", 1)]), ["a"])
+        XCTAssertEqual(flashes([("b", 1)], [("a", 1), ("b", 1)]), ["a"])
+        XCTAssertEqual(flashes([("a", 1), ("b", 1)], [("b", 1)]), [])
+    }
+
+    /// Grid changes — `card_size`, a window resize, the compression step, the
+    /// opacity slider — move every row at once and may never glide.
+    func testOnlyTheHeightsMayGlide() {
+        let base = TrackerLayout(cardHeight: 21, barWidth: 171, opacity: 1,
+                                 headerHeight: 21, listHeight: 21 * 10)
+        let chrome: CGFloat = 22 + 5
+
+        var oneRowShorter = base
+        oneRowShorter.listHeight -= 21
+        XCTAssertTrue(TrackerMotion.layoutCanAnimate(from: base, to: oneRowShorter,
+                                                     sectionChrome: chrome))
+
+        var sectionAppeared = base
+        sectionAppeared.listHeight -= 21
+        sectionAppeared.handHeight = 21 + chrome
+        XCTAssertTrue(TrackerMotion.layoutCanAnimate(from: base, to: sectionAppeared,
+                                                     sectionChrome: chrome))
+
+        var resized = base
+        resized.cardHeight = 28
+        resized.barWidth = 228
+        XCTAssertFalse(TrackerMotion.layoutCanAnimate(from: base, to: resized,
+                                                      sectionChrome: chrome))
+
+        var dimmer = base
+        dimmer.opacity = 0.5
+        XCTAssertFalse(TrackerMotion.layoutCanAnimate(from: base, to: dimmer,
+                                                      sectionChrome: chrome))
+
+        var emptied = base
+        emptied.listHeight = 0
+        XCTAssertFalse(TrackerMotion.layoutCanAnimate(from: base, to: emptied,
+                                                      sectionChrome: chrome))
+    }
+
+    /// One linear animation drives the flash, so an interrupted one cannot be
+    /// left lit: every value the curve can take is bounded, and both ends are 0.
+    func testTheFlashCurveStartsAndEndsDark() {
+        XCTAssertEqual(TrackerMotion.flashOpacity(0), 0, accuracy: 0.0001)
+        XCTAssertEqual(TrackerMotion.flashOpacity(1), 0, accuracy: 0.0001)
+        XCTAssertEqual(TrackerMotion.flashOpacity(0.5), TrackerMotion.flashPeak, accuracy: 0.0001)
+        XCTAssertEqual(TrackerMotion.flashOpacity(-3), 0, accuracy: 0.0001)
+        XCTAssertEqual(TrackerMotion.flashOpacity(9), 0, accuracy: 0.0001)
+        for step in 0...20 {
+            let value = TrackerMotion.flashOpacity(CGFloat(step) / 20)
+            XCTAssertGreaterThanOrEqual(value, 0)
+            XCTAssertLessThanOrEqual(value, TrackerMotion.flashPeak)
+        }
+    }
+
+    /// Hosts a list and returns it, so a test can drive it across frames.
+    @MainActor
+    private func hostedList(_ viewModel: TrackerCardListViewModel,
+                            height: CGFloat) -> (NSWindow, NSHostingView<TrackerCardListView>) {
+        let host = NSHostingView(rootView: TrackerCardListView(viewModel: viewModel))
+        host.wantsLayer = true
+        host.frame = NSRect(x: 0, y: 0, width: viewModel.barWidth, height: height)
+        let window = NSWindow(contentRect: host.frame,
+                              styleMask: [.borderless],
+                              backing: .buffered,
+                              defer: false)
+        window.contentView = host
+        host.layoutSubtreeIfNeeded()
+        host.displayIfNeeded()
+        return (window, host)
+    }
+
+    @MainActor
+    private func pump(_ host: NSView, _ seconds: TimeInterval) {
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: seconds))
+        host.layoutSubtreeIfNeeded()
+        host.displayIfNeeded()
+    }
+
+    /// Hand a hosted panel back empty. A hosting view that is merely detached
+    /// can still be mid-animation, and a foreign frame drawn after the *next*
+    /// test's `TrackerRowRaster.reset()` would land on that test's probe.
+    @MainActor
+    private func drain(_ window: NSWindow, _ host: NSView) {
+        window.contentView = nil
+        RunLoop.current.run(until: Date(timeIntervalSinceNow:
+            TrackerMotion.duration + TrackerMotion.flashDuration + 0.1))
+    }
+
+    /// The same problem seen from the other side, for tests that cannot be
+    /// sure what ran before them: let the previous test's animations finish
+    /// before this one resets the probe.
+    @MainActor
+    private func quiesce() {
+        RunLoop.current.run(until: Date(timeIntervalSinceNow:
+            TrackerMotion.duration + TrackerMotion.flashDuration + 0.4))
+    }
+
+    /// Every hover sensor currently in the tree, innermost first.
+    private func sensors(in view: NSView) -> [NSView] {
+        var found = [NSView]()
+        func walk(_ view: NSView) {
+            if String(describing: type(of: view)) == "Inner" {
+                found.append(view)
+            }
+            view.subviews.forEach(walk)
+        }
+        walk(view)
+        return found
+    }
+
+    /// Fresh `Card` instances every call: `Card` is a class, and reusing the
+    /// same objects for the before and after of a refresh would mutate the
+    /// rows the view model is still holding.
+    private func motionCards(_ counts: [Int]) -> [Card] {
+        let cards = rowCards(counts.count)
+        for (card, count) in zip(cards, counts) {
+            card.count = count
+        }
+        return cards
+    }
+
+    /// Perf P2's account may not be paid for with motion: the bitmap a row
+    /// shows is keyed on its appearance, and neither the collapse nor the
+    /// flash is part of that appearance. So a row that is animating is scaled
+    /// and faded by the compositor, never re-rendered.
+    @MainActor
+    func testAnAnimatingRowIsNeverRedrawn() {
+        withFlattening(true) {
+            quiesce()
+            TrackerRowRaster.reset()
+            let viewModel = TrackerCardListViewModel()
+            viewModel.rowHeight = 21
+            viewModel.barWidth = 171
+            viewModel.update(cards: motionCards([1, 2, 1, 1]))
+            let (window, host) = hostedList(viewModel, height: 21 * 4)
+            pump(host, 0.05)
+            let settled = TrackerRowRaster.renders
+            XCTAssertGreaterThan(settled, 0, "nothing was rasterised; the probe is meaningless")
+
+            // one copy of a two-of drawn: the row stays, flashes, and its
+            // count box goes away — one new picture, drawn once.
+            viewModel.update(cards: motionCards([1, 1, 1, 1]))
+            viewModel.commitMotion(animates: true)
+            XCTAssertFalse(viewModel.flashing.isEmpty, "the count change has to flash")
+            var duringFlash = settled
+            for _ in 0..<5 {
+                pump(host, TrackerMotion.flashDuration / 5)
+                duringFlash = max(duringFlash, TrackerRowRaster.renders)
+            }
+            XCTAssertLessThanOrEqual(duringFlash - settled, 1,
+                                     "the flash re-rasterised rows: \(duringFlash - settled)")
+
+            // the last copy drawn: the row leaves, and a row on its way out is
+            // the bitmap it already had, scaled and faded.
+            let afterRemoval = TrackerRowRaster.renders
+            viewModel.update(cards: Array(motionCards([1, 1, 1, 1])[0..<3]))
+            viewModel.commitMotion(animates: true)
+            var duringCollapse = afterRemoval
+            for _ in 0..<5 {
+                pump(host, TrackerMotion.duration / 5)
+                duringCollapse = max(duringCollapse, TrackerRowRaster.renders)
+            }
+            XCTAssertEqual(duringCollapse, afterRemoval,
+                           "the collapse re-rasterised rows")
+            print("[t8] renders: \(settled) settled, \(duringFlash) through the flash, "
+                  + "\(duringCollapse) through the collapse")
+            drain(window, host)
+        }
+    }
+
+    /// The other half of that account: what the render server has to composite
+    /// while a row is in flight. The settled number is Perf P2's and is locked
+    /// by `testFlatteningCollapsesTheRowLayerTree`; this one is recorded so a
+    /// later change cannot quietly turn a transient cost into a standing one.
+    @MainActor
+    func testTheLayerTreeWhileARowIsInFlight() {
+        withFlattening(true) {
+            let viewModel = TrackerCardListViewModel()
+            viewModel.rowHeight = 21
+            viewModel.barWidth = 171
+            viewModel.update(cards: motionCards(Array(repeating: 1, count: 10)))
+            let (window, host) = hostedList(viewModel, height: 21 * 10)
+            pump(host, 0.05)
+
+            var settled = LayerCensus()
+            if let layer = host.layer {
+                census(of: layer, into: &settled)
+            }
+
+            viewModel.update(cards: Array(motionCards(Array(repeating: 1, count: 10))[0..<9]))
+            viewModel.commitMotion(animates: true)
+            pump(host, TrackerMotion.duration / 3)
+
+            var moving = LayerCensus()
+            if let layer = host.layer {
+                census(of: layer, into: &moving)
+            }
+            print("[t8] 10 rows settled: \(settled.description)")
+            print("[t8] 10 rows in flight: \(moving.description)")
+
+            pump(host, TrackerMotion.flashDuration + TrackerMotion.duration)
+            var again = LayerCensus()
+            if let layer = host.layer {
+                census(of: layer, into: &again)
+            }
+            print("[t8] 10 rows after landing: \(again.description)")
+            XCTAssertLessThanOrEqual(again.total, settled.total,
+                                     "the motion left layers behind: \(again.description)")
+            XCTAssertEqual(again.shadowed, settled.shadowed)
+            XCTAssertEqual(again.groupOpacity, 0,
+                           "a finished fade must not leave a group opacity layer")
+            drain(window, host)
+        }
+    }
+
+    /// Three draws inside one animation, then a fourth that puts a card back:
+    /// whatever the panel did in between, the picture it settles on is the one
+    /// it would have shown with the switch off.
+    @MainActor
+    func testAnInterruptedRunConvergesOnTheInstantPicture() {
+        withFlattening(true) {
+            let ones = Array(repeating: 1, count: 6)
+            let steps: [[Card]] = [6, 5, 4, 3, 4].map { Array(motionCards(ones)[0..<$0]) }
+
+            @MainActor
+            func run(motion: Bool, interrupt: Bool) -> [UInt8]? {
+                let key = Settings.tracker_motion
+                let previous = UserDefaults.standard.object(forKey: key)
+                UserDefaults.standard.set(motion, forKey: key)
+                defer {
+                    if let previous {
+                        UserDefaults.standard.set(previous, forKey: key)
+                    } else {
+                        UserDefaults.standard.removeObject(forKey: key)
+                    }
+                }
+                let viewModel = TrackerCardListViewModel()
+                viewModel.rowHeight = 21
+                viewModel.barWidth = 171
+                viewModel.update(cards: steps[0])
+                let (window, host) = hostedList(viewModel, height: 21 * 6)
+                pump(host, 0.05)
+                for step in steps.dropFirst() {
+                    viewModel.update(cards: step)
+                    viewModel.commitMotion(animates: true)
+                    // The interrupted run never lets one animation finish.
+                    pump(host, interrupt ? TrackerMotion.duration / 4 : 0.02)
+                }
+                pump(host, TrackerMotion.duration + TrackerMotion.flashDuration + 0.2)
+                defer { drain(window, host) }
+                XCTAssertEqual(viewModel.rows.count, 4)
+                XCTAssertTrue(viewModel.flashing.isEmpty,
+                              "a flash outlived its own duration")
+                guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else {
+                    return nil
+                }
+                host.cacheDisplay(in: host.bounds, to: rep)
+                return rep.cgImage.flatMap(pixels)
+            }
+
+            guard let still = run(motion: false, interrupt: false),
+                  let interrupted = run(motion: true, interrupt: true) else {
+                return XCTFail("the hosting view painted nothing")
+            }
+            XCTAssertEqual(interrupted, still,
+                           "a run of interrupted animations did not land on the same picture")
+        }
+    }
+
+    /// The switch, and with it "reduce motion": off, a refresh that would have
+    /// animated publishes the new rows in one go and lights nothing.
+    @MainActor
+    func testTheMotionSwitchTurnsEverythingOff() {
+        let key = Settings.tracker_motion
+        XCTAssertTrue(withDefault(key, true) { Settings.trackerMotion })
+        XCTAssertFalse(withDefault(key, false) { Settings.trackerMotion })
+        XCTAssertFalse(withDefault(key, false) { TrackerMotion.isEnabled })
+
+        withDefault(key, false) {
+            let viewModel = TrackerCardListViewModel()
+            viewModel.update(cards: motionCards([1, 1, 1]))
+            viewModel.update(cards: Array(motionCards([1, 1, 1])[0..<2]))
+            viewModel.commitMotion(animates: true)
+            XCTAssertEqual(viewModel.rows.count, 2)
+            XCTAssertTrue(viewModel.flashing.isEmpty, "the switch is off; nothing may flash")
+            XCTAssertEqual(viewModel.motionGeneration, 0,
+                           "the switch is off; the verdict may not bump either")
+        }
+    }
+
+    /// The verdict is the coordinator's, and a list holds its request until it
+    /// arrives — so a refresh the geometry refuses cannot leave a list moving.
+    @MainActor
+    func testTheListWaitsForTheVerdict() {
+        let viewModel = TrackerCardListViewModel()
+        viewModel.update(cards: motionCards([1, 1, 1]))
+        XCTAssertFalse(viewModel.wantsMotion, "a deal-in does not ask to move")
+
+        viewModel.update(cards: Array(motionCards([1, 1, 1])[0..<2]))
+        XCTAssertTrue(viewModel.wantsMotion)
+        XCTAssertEqual(viewModel.motionGeneration, 0, "nothing moves before the verdict")
+        viewModel.commitMotion(animates: false)
+        XCTAssertEqual(viewModel.motionGeneration, 0, "a refused refresh may not move")
+        XCTAssertFalse(viewModel.wantsMotion, "the verdict has to clear the request")
+        XCTAssertTrue(viewModel.flashing.isEmpty)
+
+        viewModel.update(cards: Array(motionCards([1, 1, 1])[0..<1]))
+        viewModel.commitMotion(animates: true)
+        XCTAssertEqual(viewModel.motionGeneration, 1)
+
+        viewModel.setHighlight { _, _ in .teal }
+        XCTAssertFalse(viewModel.wantsMotion, "hovering is not motion")
+    }
+
+    // MARK: - T8 review 1: the compressed panel
+
+    /// A whole panel in zone mode, sized so that `updateLayout` either does or
+    /// does not have to shrink the row grid to fit.
+    @MainActor
+    private func zonePanel(deck: Int,
+                           availableHeight: CGFloat,
+                           barWidth: CGFloat = 171) -> TrackerViewModel {
+        let viewModel = TrackerViewModel()
+        viewModel.header.lineHeight = 21
+        viewModel.header.barWidth = barWidth
+        feed(viewModel, deck: deck, availableHeight: availableHeight, barWidth: barWidth)
+        return viewModel
+    }
+
+    @MainActor
+    private func feed(_ viewModel: TrackerViewModel,
+                      deck: Int,
+                      availableHeight: CGFloat,
+                      barWidth: CGFloat = 171) {
+        let groups = CardZoneGroups(deck: motionCards(Array(repeating: 1, count: deck)),
+                                    hand: [], played: [])
+        viewModel.update(cards: [], top: [], bottom: [], relatedCards: [], groups: groups)
+        viewModel.updateLayout(availableHeight: availableHeight,
+                               panelWidth: barWidth,
+                               frameHeight: TrackerMetrics.sectionHeaderHeight(rowHeight: 21),
+                               reserveGraveyardRow: false)
+    }
+
+    @MainActor
+    private func hostedPanel(_ viewModel: TrackerViewModel,
+                             height: CGFloat,
+                             barWidth: CGFloat = 171) -> (NSWindow, NSView) {
+        let host = NSHostingView(rootView: TrackerView(viewModel: viewModel,
+                                                       topTitle: "On Top",
+                                                       bottomTitle: "On Bottom",
+                                                       relatedTitle: "Related",
+                                                       deckTitle: "Deck",
+                                                       handTitle: "Hand",
+                                                       playedTitle: "Played"))
+        host.wantsLayer = true
+        host.frame = NSRect(x: 0, y: 0, width: barWidth, height: height)
+        let window = NSWindow(contentRect: host.frame,
+                              styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = host
+        host.layoutSubtreeIfNeeded()
+        host.displayIfNeeded()
+        return (window, host)
+    }
+
+    /// The observable. One hover sensor is laid out per *displayed* row, at
+    /// that row's own height, so the sensors are a readout of what the layout
+    /// actually did this frame.
+    ///
+    /// The load-bearing half is the count: a sensor exists for a row that is
+    /// still collapsing, so `sensors > rows` means "something is in flight".
+    /// Combined with a `cardHeight` that has already moved, that is exactly the
+    /// defect — content still laid out on the old grid, frames on the new one,
+    /// i.e. the list overflowing the section box. The height check is the
+    /// weaker half (AppKit backing-aligns a representable's frame, so it is
+    /// only good to a point) and is there to catch a row left at a stale size.
+    @MainActor
+    private func gridIsWhole(_ host: NSView, _ viewModel: TrackerViewModel) -> Bool {
+        let found = sensors(in: host)
+        guard found.count == viewModel.deck.rows.count else { return false }
+        return found.allSatisfy { abs($0.bounds.height - viewModel.layout.cardHeight) < 1 }
+    }
+
+    /// Review 1. Under compression `cardHeight` is
+    /// `(availableHeight - offset) / totalCards`, so losing one row makes every
+    /// row taller. The rows may not animate through a grid change: the whole
+    /// refresh goes in one frame, both halves together.
+    @MainActor
+    func testACompressedPanelNeverFliesThroughAGridChange() {
+        withFlattening(true) {
+            // 30 rows into 320pt: the grid is compressed well below 21pt.
+            let viewModel = zonePanel(deck: 30, availableHeight: 320)
+            XCTAssertLessThan(viewModel.layout.cardHeight, 21,
+                              "the panel is not compressed; the test proves nothing")
+            let (window, host) = hostedPanel(viewModel, height: 320)
+            pump(host, 0.05)
+            XCTAssertTrue(gridIsWhole(host, viewModel))
+            let before = viewModel.motionGeneration
+            let grid = viewModel.layout.cardHeight
+
+            // one card drawn
+            feed(viewModel, deck: 29, availableHeight: 320)
+            XCTAssertGreaterThan(viewModel.layout.cardHeight, grid,
+                                 "losing a row has to move the compressed grid")
+            XCTAssertEqual(viewModel.motionGeneration, before,
+                           "a refresh that moves the grid may not animate")
+            for _ in 0..<6 {
+                pump(host, TrackerMotion.duration / 5)
+                XCTAssertTrue(gridIsWhole(host, viewModel),
+                              "a row was in flight while the grid jumped: "
+                                + "\(sensors(in: host).map(\.bounds.height)) "
+                                + "vs \(viewModel.layout.cardHeight)")
+            }
+
+            // and the other way: a card shuffled back in
+            feed(viewModel, deck: 30, availableHeight: 320)
+            XCTAssertEqual(viewModel.motionGeneration, before)
+            for _ in 0..<6 {
+                pump(host, TrackerMotion.duration / 5)
+                XCTAssertTrue(gridIsWhole(host, viewModel),
+                              "the insert flew through a grid change")
+            }
+            drain(window, host)
+        }
+    }
+
+    /// The refresh that crosses the threshold: uncompressed before, compressed
+    /// after. It moves the grid too, so it is one frame as well.
+    @MainActor
+    func testTheRefreshThatCrossesTheCompressionThresholdIsOneFrame() {
+        withFlattening(true) {
+            // The exact height at which 12 rows fit on the base grid, read off
+            // the layout itself rather than guessed: one more row then has to
+            // compress, by construction.
+            let probe = zonePanel(deck: 12, availableHeight: 10_000)
+            let exactFit = probe.layout.contentHeight
+            let viewModel = zonePanel(deck: 12, availableHeight: exactFit)
+            XCTAssertEqual(viewModel.layout.cardHeight, 21, accuracy: 0.01,
+                           "the panel starts compressed; the probe is wrong")
+            let (window, host) = hostedPanel(viewModel, height: exactFit)
+            pump(host, 0.05)
+            let before = viewModel.motionGeneration
+
+            feed(viewModel, deck: 13, availableHeight: exactFit)
+            XCTAssertLessThan(viewModel.layout.cardHeight, 21,
+                              "13 rows still fit; the threshold was not crossed")
+            XCTAssertEqual(viewModel.motionGeneration, before,
+                           "the refresh that starts compressing may not animate")
+            for _ in 0..<6 {
+                pump(host, TrackerMotion.duration / 5)
+                XCTAssertTrue(gridIsWhole(host, viewModel),
+                              "a row flew across the compression threshold")
+            }
+            drain(window, host)
+        }
+    }
+
+    /// The control, so the two tests above cannot pass by never animating at
+    /// all: the same single-card refresh on a panel with room to spare does
+    /// animate, and its grid holds still throughout.
+    @MainActor
+    func testAnUncompressedPanelStillAnimatesTheSameRefresh() {
+        withFlattening(true) {
+            let viewModel = zonePanel(deck: 8, availableHeight: 600)
+            XCTAssertEqual(viewModel.layout.cardHeight, 21, accuracy: 0.01)
+            let (window, host) = hostedPanel(viewModel, height: 600)
+            pump(host, 0.05)
+            let before = viewModel.motionGeneration
+
+            feed(viewModel, deck: 7, availableHeight: 600)
+            XCTAssertEqual(viewModel.layout.cardHeight, 21, accuracy: 0.01,
+                           "the grid must not move here")
+            XCTAssertEqual(viewModel.motionGeneration, before + 1,
+                           "an uncompressed single-card refresh has to animate")
+
+            var sawFlight = false
+            for _ in 0..<4 {
+                pump(host, TrackerMotion.duration / 5)
+                let found = sensors(in: host)
+                if found.count > viewModel.deck.rows.count {
+                    sawFlight = true
+                }
+                // the grid itself never moves while a row is in flight
+                XCTAssertTrue(found.allSatisfy { $0.bounds.height <= 21 + 1 },
+                              "a row grew past the grid: \(found.map(\.bounds.height))")
+            }
+            XCTAssertTrue(sawFlight, "nothing was ever in flight; the control is vacuous")
+
+            pump(host, TrackerMotion.duration + 0.2)
+            XCTAssertTrue(gridIsWhole(host, viewModel))
+            drain(window, host)
+        }
+    }
+
+    /// The hit area is the one part that may not keep the row's full height
+    /// while the row collapses: a leaving row would sit on top of the one
+    /// sliding up under it and answer its hover.
+    @MainActor
+    func testTheHoverSensorShrinksWithALeavingRow() {
+        withFlattening(true) {
+            let viewModel = TrackerCardListViewModel()
+            viewModel.rowHeight = 21
+            viewModel.barWidth = 171
+            viewModel.update(cards: motionCards([1, 1, 1]))
+            let (window, host) = hostedList(viewModel, height: 21 * 3)
+            pump(host, 0.05)
+            XCTAssertEqual(sensors(in: host).count, 3, "one hover sensor per row")
+            XCTAssertTrue(sensors(in: host).allSatisfy { $0.bounds.height == 21 },
+                          "a settled row's hit area covers the whole row")
+
+            viewModel.update(cards: Array(motionCards([1, 1, 1])[0..<2]))
+            viewModel.commitMotion(animates: true)
+            pump(host, TrackerMotion.duration / 2)
+            let moving = sensors(in: host)
+            XCTAssertEqual(moving.count, 3, "the leaving row is still on screen")
+            XCTAssertEqual(moving.filter { $0.bounds.height < 20 }.count, 1,
+                           "exactly the leaving row's hit area collapses: "
+                            + "\(moving.map(\.bounds.height))")
+
+            pump(host, TrackerMotion.duration + 0.2)
+            let landed = sensors(in: host)
+            XCTAssertEqual(landed.count, 2, "the leaving row's hit area outlived the row")
+            XCTAssertTrue(landed.allSatisfy { $0.bounds.height == 21 })
+            drain(window, host)
+        }
+    }
+
     private func token(_ color: HighlightColor?) -> Int {
         switch color {
         case .none?: return 0

@@ -36,7 +36,12 @@ struct TrackerSectionView: View {
                    alignment: .topLeading)
             // No background of its own: D2 gives the whole panel one base,
             // painted once in TrackerView.
-            .transaction { $0.animation = nil }
+            //
+            // T8: the section's own height is animated by `TrackerView`, with
+            // the same verdict as the rows inside it, but a section that is
+            // appearing or emptying moves by its whole chrome — clip so that a
+            // growing section cannot paint over the one below it.
+            .clipped()
         }
     }
 }

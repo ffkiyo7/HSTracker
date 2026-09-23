@@ -8,6 +8,7 @@
 
 import AppKit
 import Foundation
+import SwiftUI
 
 struct TrackerCardRowID: Hashable {
     let cardId: String
@@ -82,12 +83,36 @@ final class TrackerCardListViewModel: ObservableObject {
     @Published var drawsArt: Bool = TrackerDiagnostics.drawsArt
     @Published var drawsTextShadow: Bool = TrackerDiagnostics.drawsTextShadow
 
+    /// T8: the rows that are flashing right now, each with the generation that
+    /// lit it. The generation is the view's identity, so a row that flashes
+    /// again while it is still lit restarts the curve instead of staying put.
+    @Published private(set) var flashing: [TrackerCardRowID: Int] = [:]
+    /// T8: bumped once per refresh that is allowed to move, and read by the
+    /// view as `.animation(_:value:)`. The rows themselves are always assigned
+    /// plainly — whether that assignment animates is decided *after* it, at
+    /// `commitMotion`, because the row grid is only known once
+    /// `TrackerViewModel.updateLayout` has run (review 1).
+    @Published private(set) var motionGeneration = 0
+
     var onHover: ((Card, NSView) -> Void)?
     var onExit: ((Card) -> Void)?
 
     var count: Int { rows.count }
 
     private var highlightFn: ((Card, [Card]) -> HighlightColor)?
+    private var flashGeneration = 0
+    /// One work item for the whole list, replaced on every flash: the set can
+    /// only ever be emptied, never half-emptied, so no row can be left with a
+    /// stale overlay.
+    private var flashClear: DispatchWorkItem?
+    /// What the last `update(cards:)` asked for, waiting for the geometry half
+    /// of the answer. `TrackerViewModel.updateLayout` runs later in the same
+    /// main-thread block (`Tracker.update` then `WindowManager.show`).
+    private var pendingFlashes: Set<TrackerCardRowID>?
+
+    deinit {
+        flashClear?.cancel()
+    }
 
     func syncAppearance() {
         let nextRarity = Settings.showRarityColors
@@ -112,9 +137,66 @@ final class TrackerCardListViewModel: ObservableObject {
     func update(cards: [Card]) {
         syncAppearance()
         let next = rows(from: cards)
-        if next != rows {
+        guard next != rows else { return }
+
+        // Always a plain assignment. Nothing here knows yet whether the row
+        // grid is about to move under these rows: in the compressed state
+        // `cardHeight` is `(availableHeight - offset) / totalCards`, so losing
+        // a row makes every row taller. Deciding here and letting the geometry
+        // veto later is exactly the "one flies while the other jumps" split
+        // this file used to have.
+        switch motionPlan(for: next) {
+        case .instant:
+            pendingFlashes = nil
+            rows = next
+        case .animated(let flashes):
+            pendingFlashes = flashes
             rows = next
         }
+    }
+
+    /// The single commit point, and the *only* thing that can start a motion:
+    /// a list nobody commits for simply never animates, which is the safe
+    /// direction. `animates` is the coordinator's verdict for the whole panel;
+    /// a list that did not ask to move is unaffected either way.
+    func commitMotion(animates: Bool) {
+        guard let flashes = pendingFlashes else { return }
+        pendingFlashes = nil
+        guard animates else { return }
+        motionGeneration &+= 1
+        light(flashes)
+    }
+
+    /// Whether this list asked to move on the refresh that has not committed
+    /// yet. A plain read: the verdict clears it, not this.
+    var wantsMotion: Bool { pendingFlashes != nil }
+
+    /// A disabled switch has to behave as it did before T8, so it lands on
+    /// `.instant` here as well as at the view.
+    private func motionPlan(for next: [TrackerCardRow]) -> TrackerMotion.Plan {
+        guard TrackerMotion.isEnabled else { return .instant }
+        return TrackerMotion.plan(from: rows.map(TrackerCardListViewModel.motionRow),
+                                  to: next.map(TrackerCardListViewModel.motionRow))
+    }
+
+    private static func motionRow(_ row: TrackerCardRow) -> TrackerMotion.Row {
+        TrackerMotion.Row(id: row.id, count: row.card.count)
+    }
+
+    /// Not inside the row animation's transaction: the overlay owns its own
+    /// curve, and an implicit fade on top of it would double the timing.
+    private func light(_ flashes: Set<TrackerCardRowID>) {
+        guard !flashes.isEmpty else { return }
+        flashGeneration += 1
+        for id in flashes {
+            flashing[id] = flashGeneration
+        }
+        flashClear?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            self?.flashing = [:]
+        }
+        flashClear = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + TrackerMotion.flashDuration, execute: work)
     }
 
     func setHighlight(_ fn: ((Card, [Card]) -> HighlightColor)?) {

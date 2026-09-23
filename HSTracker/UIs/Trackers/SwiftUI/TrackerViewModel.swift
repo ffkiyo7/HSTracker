@@ -9,6 +9,7 @@
 
 import AppKit
 import Foundation
+import SwiftUI
 
 /// One frame of tracker geometry. It lives in the view model rather than in the
 /// view's `GeometryReader` because `Tracker.bottomY` (the opponent tracking
@@ -52,6 +53,12 @@ final class TrackerViewModel: ObservableObject {
     let related = TrackerCardListViewModel()
 
     @Published private(set) var layout = TrackerLayout()
+    /// T8 review 1: one verdict for the whole panel, published after both the
+    /// rows and the geometry of this refresh are known. The view animates only
+    /// the updates that bump it, so rows and section frames can no longer
+    /// disagree — under compression a single card changes `cardHeight`, and a
+    /// grid that moves means nothing moves.
+    @Published private(set) var motionGeneration = 0
 
     /// Same-value skip: the seven lists all publish `playerType`, so a blind
     /// re-assignment on every refresh was seven `objectWillChange` for nothing.
@@ -169,8 +176,27 @@ final class TrackerViewModel: ObservableObject {
             bottomHeight: showBottom ? sectionHeight(bottom, cardHeight, frameHeight) : 0,
             relatedHeight: showRelated ? sectionHeight(related, cardHeight, frameHeight) : 0
         )
+        // T8 review 1. `Tracker.update()` has already run in this same
+        // main-thread block (Game.updatePlayerTracker → WindowManager.show →
+        // updateFrames), so the rows of this refresh are in but nothing has
+        // animated yet. This is the only place that knows both halves, so it
+        // is the only place that decides — and it decides once, for the rows
+        // and the frames around them together.
+        let animates = TrackerMotion.isEnabled
+            && lists.contains { $0.wantsMotion }
+            && TrackerMotion.layoutCanAnimate(from: layout,
+                                              to: next,
+                                              sectionChrome: frameHeight + Self.sectionPadding)
         if next != layout {
             layout = next
+        }
+        if animates {
+            motionGeneration &+= 1
+        }
+        // Every list, not just the ones that moved: the verdict also clears
+        // what a refused refresh left pending.
+        for list in lists {
+            list.commitMotion(animates: animates)
         }
 
         // The header's two fixed columns are a fraction of the panel, so it
