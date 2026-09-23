@@ -10,6 +10,12 @@
             "state" : "new",
             "value" : "Item 2"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Item 2"
+          }
         }
       }
     },
@@ -54,6 +60,12 @@
           }
         },
         "th-TH" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Item 1"
+          }
+        },
+        "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Item 1"
@@ -106,6 +118,12 @@
             "state" : "translated",
             "value" : "Gitter"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discord"
+          }
         }
       }
     },
@@ -154,6 +172,12 @@
             "state" : "translated",
             "value" : "Gitter"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discord"
+          }
         }
       }
     },
@@ -164,6 +188,12 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
+            "value" : "Item 1"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
             "value" : "Item 1"
           }
         }
@@ -248,7 +278,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "使用套牌"
+            "value" : "使用卡组"
           }
         },
         "zh-Hant" : {
@@ -338,7 +368,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "使用套牌"
+            "value" : "使用卡组"
           }
         },
         "zh-Hant" : {
@@ -390,6 +420,12 @@
           }
         },
         "th-TH" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Item 2"
+          }
+        },
+        "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Item 2"
@@ -476,7 +512,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "新建套牌"
+            "value" : "新建卡组"
           }
         },
         "zh-Hant" : {
@@ -566,7 +602,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "新建套牌"
+            "value" : "新建卡组"
           }
         },
         "zh-Hant" : {
@@ -656,7 +692,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "删除套牌"
+            "value" : "删除卡组"
           }
         },
         "zh-Hant" : {
@@ -746,7 +782,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "删除套牌"
+            "value" : "删除卡组"
           }
         },
         "zh-Hant" : {
@@ -766,6 +802,12 @@
             "state" : "new",
             "value" : "Item 3"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Item 3"
+          }
         }
       }
     },
@@ -778,6 +820,12 @@
             "state" : "new",
             "value" : "Modes"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "模式"
+          }
         }
       }
     },
@@ -789,6 +837,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Modes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "模式"
           }
         }
       }
@@ -872,7 +926,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "修改套牌"
+            "value" : "修改卡组"
           }
         },
         "zh-Hant" : {
@@ -962,7 +1016,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "修改套牌"
+            "value" : "修改卡组"
           }
         },
         "zh-Hant" : {
@@ -1018,6 +1072,12 @@
             "state" : "translated",
             "value" : "Item 1"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Item 1"
+          }
         }
       }
     },
@@ -1029,6 +1089,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Export with comments"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "带注释导出"
           }
         }
       }
@@ -1258,6 +1324,12 @@
             "state" : "translated",
             "value" : "Twitter"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twitter"
+          }
         }
       }
     },
@@ -1306,6 +1378,12 @@
             "state" : "translated",
             "value" : "Twitter"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twitter"
+          }
         }
       }
     },
@@ -1350,6 +1428,12 @@
           }
         },
         "th-TH" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Item 3"
+          }
+        },
+        "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Item 3"
@@ -1436,7 +1520,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "存档"
+            "value" : "归档"
           }
         },
         "zh-Hant" : {
@@ -1526,7 +1610,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "存档"
+            "value" : "归档"
           }
         },
         "zh-Hant" : {
@@ -1572,6 +1656,12 @@
           }
         },
         "th-TH" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Text Cell"
+          }
+        },
+        "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Text Cell"
@@ -1624,6 +1714,12 @@
             "state" : "translated",
             "value" : "Delete"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除"
+          }
         }
       }
     },
@@ -1671,6 +1767,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Classes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "职业"
           }
         }
       }
@@ -1720,6 +1822,12 @@
             "state" : "translated",
             "value" : "Classes"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "职业"
+          }
         }
       }
     },
@@ -1767,6 +1875,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Edit"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "修改"
           }
         }
       }
@@ -1946,7 +2060,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "重命名套牌"
+            "value" : "重命名卡组"
           }
         },
         "zh-Hant" : {
@@ -2036,7 +2150,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "重命名套牌"
+            "value" : "重命名卡组"
           }
         },
         "zh-Hant" : {
@@ -2126,7 +2240,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "套牌管理器"
+            "value" : "卡组管理器"
           }
         },
         "zh-Hant" : {
@@ -2182,6 +2296,12 @@
             "state" : "translated",
             "value" : "Item 2"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Item 2"
+          }
         }
       }
     },
@@ -2220,6 +2340,12 @@
           }
         },
         "th-TH" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Table View Cell"
+          }
+        },
+        "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Table View Cell"
@@ -2452,6 +2578,12 @@
             "state" : "translated",
             "value" : "Item 3"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Item 3"
+          }
         }
       }
     },
@@ -2668,6 +2800,12 @@
             "state" : "translated",
             "value" : "Use"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用"
+          }
         }
       }
     },
@@ -2805,6 +2943,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Export"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导出"
           }
         }
       }
@@ -2944,6 +3088,12 @@
             "state" : "translated",
             "value" : "Text Cell"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Text Cell"
+          }
         }
       }
     },
@@ -2991,6 +3141,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rename"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重命名"
           }
         }
       }

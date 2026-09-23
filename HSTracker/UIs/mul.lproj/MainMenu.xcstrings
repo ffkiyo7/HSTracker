@@ -80,7 +80,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "套牌"
+            "value" : "卡组"
           }
         },
         "zh-Hant" : {
@@ -368,7 +368,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "检查更新…"
+            "value" : "检查更新..."
           }
         },
         "zh-Hant" : {
@@ -548,7 +548,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "修改"
+            "value" : "编辑"
           }
         },
         "zh-Hant" : {
@@ -728,7 +728,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "套牌"
+            "value" : "卡组"
           }
         },
         "zh-Hant" : {
@@ -1106,7 +1106,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "偏好设置…"
+            "value" : "设置…"
           }
         },
         "zh-Hant" : {
@@ -1253,6 +1253,12 @@
             "value" : "Last replays"
           }
         },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近回放"
+          }
+        },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
@@ -1334,7 +1340,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "撤消"
+            "value" : "撤销"
           }
         },
         "zh-Hant" : {
@@ -1784,7 +1790,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "上次回放"
+            "value" : "最近回放"
           }
         },
         "zh-Hant" : {
@@ -2144,7 +2150,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "全部显示"
+            "value" : "显示全部"
           }
         },
         "zh-Hant" : {
@@ -2234,7 +2240,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "套牌管理"
+            "value" : "卡组管理"
           }
         },
         "zh-Hant" : {
@@ -2555,6 +2561,12 @@
             "value" : "Replays"
           }
         },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回放"
+          }
+        },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
@@ -2642,7 +2654,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "全选"
+            "value" : "选择全部"
           }
         },
         "zh-Hant" : {
@@ -2732,7 +2744,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "清除记牌器"
+            "value" : "清空记牌器"
           }
         },
         "zh-Hant" : {
@@ -3182,7 +3194,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "修改"
+            "value" : "编辑"
           }
         },
         "zh-Hant" : {
@@ -3201,6 +3213,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Delete cached images..."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除缓存图片..."
           }
         }
       }
@@ -3374,7 +3392,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "拷贝"
+            "value" : "复制"
           }
         },
         "zh-Hant" : {

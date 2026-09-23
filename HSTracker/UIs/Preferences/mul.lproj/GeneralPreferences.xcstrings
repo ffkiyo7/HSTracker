@@ -80,7 +80,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "将套牌导入炉石传说时，优先使用金色卡牌"
+            "value" : "将卡组导入炉石传说时，优先使用金色卡牌"
           }
         },
         "zh-Hant" : {
@@ -501,6 +501,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Notifications are only visible if Hearthstone is not focused"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅当炉石传说不在最前时显示通知"
           }
         },
         "zh-Hant" : {
