@@ -250,6 +250,38 @@ class TrackerMetricsTests: HSTrackerTests {
         XCTAssertEqual(TrackerMetrics.baseOpacity(setting: 250), 1, accuracy: accuracy)
     }
 
+    // MARK: - Perf P1 / 1: orderFront is not part of a routine refresh
+
+    /// The refresh path runs every 16ms; nothing moved means no WindowServer
+    /// transaction.
+    func testRoutineRefreshDoesNotReorderTheWindow() {
+        XCTAssertFalse(OverlayOrderFrontGate.shouldOrderFront(isVisible: true, isOccluded: false,
+                                                              attributesChanged: false,
+                                                              pendingReorder: false))
+    }
+
+    /// The four reasons that still have to re-front the window: it is hidden,
+    /// something is covering it, one of its attributes was just rewritten, or a
+    /// Space / Hearthstone event raised the reorder generation.
+    func testEveryReorderReasonStillOrdersTheWindowFront() {
+        XCTAssertTrue(OverlayOrderFrontGate.shouldOrderFront(isVisible: false, isOccluded: false,
+                                                             attributesChanged: false, pendingReorder: false))
+        XCTAssertTrue(OverlayOrderFrontGate.shouldOrderFront(isVisible: true, isOccluded: true,
+                                                             attributesChanged: false, pendingReorder: false))
+        XCTAssertTrue(OverlayOrderFrontGate.shouldOrderFront(isVisible: true, isOccluded: false,
+                                                             attributesChanged: true, pendingReorder: false))
+        XCTAssertTrue(OverlayOrderFrontGate.shouldOrderFront(isVisible: true, isOccluded: false,
+                                                             attributesChanged: false, pendingReorder: true))
+    }
+
+    func testSpaceAndHearthstoneEventsAreReorderReasons() {
+        for event in [Events.space_changed, Events.hearthstone_active, Events.hearthstone_deactived,
+                      Events.hearthstone_running, Events.hearthstone_closed] {
+            XCTAssertTrue(OverlayOrderFrontGate.reorderEvents.contains(event),
+                          "\(event) has to force the overlays back to the front")
+        }
+    }
+
     // MARK: - Perf P1 / 4: same-value playerType
 
     /// `playerType` never changes after the tracker is built, but the assignment

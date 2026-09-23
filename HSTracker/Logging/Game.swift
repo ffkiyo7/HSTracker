@@ -39,7 +39,7 @@ class Game: NSObject, PowerEventHandler {
 	 */
     internal let windowManager = WindowManager()
 	
-    static let guiUpdateDelay: TimeInterval = 0.5
+    static let housekeepingInterval: TimeInterval = 0.25
 	
 	private let turnTimer: TurnTimer
     
@@ -217,13 +217,11 @@ class Game: NSObject, PowerEventHandler {
         return player.id > 0 && opponent.id > 0
 	}
 	
-	private var guiNeedsUpdate = false
+	private let guiRefresh = OverlayRefreshScheduler()
 	private var guiUpdateResets = false
-	private let _queue = DispatchQueue(label: "net.hearthsim.hstracker.guiupdate", attributes: [])
-	
+	private let _queue = DispatchQueue(label: "net.hearthsim.hstracker.windowpoll", attributes: [])
+
     func updateAllTrackers() {
-		SizeHelper.hearthstoneWindow.reload()
-		
 		self.updatePlayerTracker(reset: guiUpdateResets)
 		self.updateOpponentTracker(reset: guiUpdateResets)
         self.updateCardHud()
@@ -257,10 +255,8 @@ class Game: NSObject, PowerEventHandler {
     }
     
     func updateTrackers(reset: Bool = false) {
-        _queue.async {
-            self.guiNeedsUpdate = true
-            self.guiUpdateResets = reset || self.guiUpdateResets
-        }
+        LatencyProbe.shared.updateRequested()
+        guiRefresh.request(reset: reset)
     }
 	
     /// HDT's `OverlayWindow.GetCardsFromEntityIds`: the cards behind a list of
@@ -423,10 +419,9 @@ class Game: NSObject, PowerEventHandler {
                 tracker.showGraveyard = Settings.showPlayerGraveyard
                                 
                 if let currentDeck = self.currentDeck {
-                    if let deck = RealmHelper.getDeck(with: currentDeck.id) {
-                        tracker.recordMessage = StatsHelper
-                            .getDeckManagerRecordLabel(deck: deck,
-                                                       mode: .all)
+                    if let label = DeckRecordLabelCache.shared.label(for: currentDeck.id, gameEnded: self.gameEnded),
+                       tracker.recordMessage != label {
+                        tracker.recordMessage = label
                     }
                     tracker.playerName = currentDeck.name
                     if !currentDeck.heroId.isEmpty {
@@ -750,7 +745,7 @@ class Game: NSObject, PowerEventHandler {
                 counter.show()
             }
             updateExperienceOverlay()
-            guiNeedsUpdate = true
+            updateTrackers()
 
             // One pass per level gained: run the bar to full, hold it there,
             // empty it, and start the next level. Then the real fraction.
@@ -772,7 +767,7 @@ class Game: NSObject, PowerEventHandler {
         // when the player has left the hub in the meantime.
         if self.currentMode != Mode.hub {
             onExperienceCounter { $0.hide() }
-            guiNeedsUpdate = true
+            updateTrackers()
         }
     }
 
@@ -1554,6 +1549,13 @@ class Game: NSObject, PowerEventHandler {
             self.observers.append(observer)
 		}
 		
+		guiRefresh.refresh = { [weak self] reset in
+            guard let self else { return }
+            self.guiUpdateResets = reset
+            self.updateAllTrackers()
+            self.guiUpdateResets = false
+        }
+
 		// start gui updater thread
 		_queue.async {
 //			while true {
@@ -1562,42 +1564,31 @@ class Game: NSObject, PowerEventHandler {
 //			}
 		}
     }
-    
+
     deinit {
         for observer in self.observers {
             NotificationCenter.default.removeObserver(observer)
         }
     }
-    
-    private var counter = 0
-    
+
+    /// Window following and the board overlay only; refreshes are requested
+    /// through `guiRefresh`. Its own queue because reload() is four blocking
+    /// cross-process AX calls, which must neither hold up a refresh nor run on
+    /// main - so updateAllTrackers() no longer reloads, and the rect it draws
+    /// against can be up to one interval stale.
     private func internalUpdateCheck() {
-        if self.guiNeedsUpdate {
-            self.guiNeedsUpdate = false
-            self.updateAllTrackers()
-            self.guiUpdateResets = false
-            self.counter = 0
-        } else if self.counter > 3 {
-            let rect = SizeHelper.hearthstoneWindow.frame
-            // fullscreen-flag flips can leave _frame unchanged but still shift the 50px game-menu offset
-            let wasFullscreen = SizeHelper.hearthstoneWindow.isFullscreen()
-            SizeHelper.hearthstoneWindow.reload()
-            if rect != SizeHelper.hearthstoneWindow.frame || wasFullscreen != SizeHelper.hearthstoneWindow.isFullscreen() {
-                self.updateAllTrackers()
-                self.updateBattlegroundsOverlays()
-                self.updateConstructedMulliganOverlays()
-                self.updateActiveEffects()
-                self.updateMaxResourcesWidget()
-                self.updateRootOverlay()
-            }
-            self.counter = 0
-        } else {
-            self.counter += 1
+        let rect = SizeHelper.hearthstoneWindow.frame
+        // fullscreen-flag flips can leave _frame unchanged but still shift the 50px game-menu offset
+        let wasFullscreen = SizeHelper.hearthstoneWindow.isFullscreen()
+        SizeHelper.hearthstoneWindow.reload()
+        if rect != SizeHelper.hearthstoneWindow.frame || wasFullscreen != SizeHelper.hearthstoneWindow.isFullscreen() {
+            guiRefresh.request()
+            self.updateBattlegroundsOverlays()
         }
-        
+
         self.updateBoardOverlay()
 
-        _queue.asyncAfter(deadline: DispatchTime.now() + Game.guiUpdateDelay, execute: {
+        _queue.asyncAfter(deadline: DispatchTime.now() + Game.housekeepingInterval, execute: {
             self.internalUpdateCheck()
         })
     }
@@ -2359,6 +2350,8 @@ class Game: NSObject, PowerEventHandler {
             if !skip, let deck = RealmHelper.getDeck(with: currentDeck.id) {
                 
                 RealmHelper.addStatistics(to: deck, stats: stats)
+                // Nothing posts reload_decks here, and the cached record predates this game.
+                DispatchQueue.main.async { DeckRecordLabelCache.shared.invalidate() }
                 if Settings.autoArchiveArenaDeck &&
                     self.currentGameMode == .arena && deck.isArena && deck.arenaFinished() {
                     RealmHelper.set(deck: deck, active: false)

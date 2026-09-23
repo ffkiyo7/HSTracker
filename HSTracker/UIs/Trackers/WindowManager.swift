@@ -31,6 +31,8 @@ class WindowManager {
 
     private var lastCardsUpdateRequest = Date.distantPast.timeIntervalSince1970
 
+    private let orderFrontGate = OverlayOrderFrontGate()
+
 	private func setHearthstoneActive() { hearthstoneActive = true }
 	private func setHearthstoneBackground() { hearthstoneActive = false }
 
@@ -85,11 +87,18 @@ class WindowManager {
 
             // update gui elements
             controller.updateFrames()
-            
+
+            // Runs on every refresh: each write below is skipped when it would
+            // change nothing, and only one that did change something earns an
+            // orderFront (OverlayOrderFrontGate).
+            var attributesChanged = false
+
             // show window and set size
             if let frame = frame {
-                if frame.origin.x.isFinite && frame.origin.y.isFinite && frame.size.width.isFinite && frame.size.height.isFinite {
+                if frame.origin.x.isFinite && frame.origin.y.isFinite && frame.size.width.isFinite && frame.size.height.isFinite
+                    && window.frame != frame {
                     window.setFrame(frame, display: true, animate: false)
+                    attributesChanged = true
                 }
             }
 
@@ -102,30 +111,46 @@ class WindowManager {
             } else {
                 level = Int(CGWindowLevelForKey(CGWindowLevelKey.normalWindow))
             }
-            window.level = NSWindow.Level(rawValue: level)
+            let windowLevel = NSWindow.Level(rawValue: level)
+            if window.level != windowLevel {
+                window.level = windowLevel
+                attributesChanged = true
+            }
 
             // if the setting is on, set the window behavior to join all workspaces
+            let collectionBehavior: NSWindow.CollectionBehavior
             if Settings.canJoinFullscreen {
-                window.collectionBehavior = [NSWindow.CollectionBehavior.canJoinAllSpaces, NSWindow.CollectionBehavior.fullScreenAuxiliary]
+                collectionBehavior = [NSWindow.CollectionBehavior.canJoinAllSpaces, NSWindow.CollectionBehavior.fullScreenAuxiliary]
             } else {
-                window.collectionBehavior = []
+                collectionBehavior = []
+            }
+            if window.collectionBehavior != collectionBehavior {
+                window.collectionBehavior = collectionBehavior
+                attributesChanged = true
             }
 
+            // A styleMask write rebuilds the window frame with a synchronous
+            // WindowServer round trip, even when the value is the same.
             let locked = Settings.windowsLocked || controller.alwaysLocked
+            let styleMask: NSWindow.StyleMask
             if locked {
-                window.styleMask = [.borderless, .nonactivatingPanel]
+                styleMask = [.borderless, .nonactivatingPanel]
             } else {
-                window.styleMask = [.titled, .miniaturizable,
-                                    .resizable, .borderless,
-                                    .nonactivatingPanel]
+                styleMask = [.titled, .miniaturizable,
+                             .resizable, .borderless,
+                             .nonactivatingPanel]
+            }
+            if window.styleMask != styleMask {
+                window.styleMask = styleMask
+                attributesChanged = true
             }
 
-            window.orderFront(nil)
+            orderFrontGate.orderFrontIfNeeded(window, attributesChanged: attributesChanged)
         } else {
             if title != nil {
                 NSApp.removeWindowsItem(window)
             }
-            window.orderOut(nil)
+            orderFrontGate.orderOut(window)
         }
     }
 }

@@ -328,6 +328,11 @@
 		B8FC0F00000000000000B002 /* TagChangeActions+ZoneLatches.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FC0F00000000000000A002 /* TagChangeActions+ZoneLatches.swift */; };
 		B8FC0F00000000000000B003 /* RealmHelper+CardCountFix.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FC0F00000000000000A003 /* RealmHelper+CardCountFix.swift */; };
 		B8FC0F00000000000000B004 /* Settings+Tracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FC0F00000000000000A004 /* Settings+Tracker.swift */; };
+		B8FC0F00000000000000B005 /* LatencyProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FC0F00000000000000A005 /* LatencyProbe.swift */; };
+		B8FC0F00000000000000B006 /* OverlayRefreshScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FC0F00000000000000A006 /* OverlayRefreshScheduler.swift */; };
+		B8FC0F00000000000000B007 /* OverlayOrderFrontGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FC0F00000000000000A007 /* OverlayOrderFrontGate.swift */; };
+		B8FC0F00000000000000B008 /* SynchronizedLRUCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FC0F00000000000000A008 /* SynchronizedLRUCache.swift */; };
+		B8FC0F00000000000000B009 /* DeckRecordLabelCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FC0F00000000000000A009 /* DeckRecordLabelCache.swift */; };
 		C4D801A12FC0000100010002 /* TrackerBarStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010001 /* TrackerBarStyle.swift */; };
 		C4D801A12FC0000100010021 /* TrackerRowRaster.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010020 /* TrackerRowRaster.swift */; };
 		C4D801A12FC0000100010023 /* TrackerMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010022 /* TrackerMotion.swift */; };
@@ -2264,6 +2269,11 @@
 		B8FC0F00000000000000A002 /* TagChangeActions+ZoneLatches.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TagChangeActions+ZoneLatches.swift"; sourceTree = "<group>"; };
 		B8FC0F00000000000000A003 /* RealmHelper+CardCountFix.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RealmHelper+CardCountFix.swift"; sourceTree = "<group>"; };
 		B8FC0F00000000000000A004 /* Settings+Tracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Settings+Tracker.swift"; sourceTree = "<group>"; };
+		B8FC0F00000000000000A005 /* LatencyProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LatencyProbe.swift; sourceTree = "<group>"; };
+		B8FC0F00000000000000A006 /* OverlayRefreshScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayRefreshScheduler.swift; sourceTree = "<group>"; };
+		B8FC0F00000000000000A007 /* OverlayOrderFrontGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayOrderFrontGate.swift; sourceTree = "<group>"; };
+		B8FC0F00000000000000A008 /* SynchronizedLRUCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynchronizedLRUCache.swift; sourceTree = "<group>"; };
+		B8FC0F00000000000000A009 /* DeckRecordLabelCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckRecordLabelCache.swift; sourceTree = "<group>"; };
 		C4D801A12FC0000100010001 /* TrackerBarStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerBarStyle.swift; sourceTree = "<group>"; };
 		C4D801A12FC0000100010020 /* TrackerRowRaster.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerRowRaster.swift; sourceTree = "<group>"; };
 		C4D801A12FC0000100010022 /* TrackerMotion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerMotion.swift; sourceTree = "<group>"; };
@@ -4128,6 +4138,7 @@
 				B8AB59932742F94900383EC8 /* RateLimiter.swift */,
 				B8FDE9262CD99D840093BFF7 /* ReflectionHelper.swift */,
 				B8BD84562861394100F4F224 /* Regex.swift */,
+				B8FC0F00000000000000A005 /* LatencyProbe.swift */,
 				B8820CCF25603FB00072ECBC /* RemoteConfig.swift */,
 				B8832DD926057A5000646BA4 /* RepeatingTimer.swift */,
 				B8FE1F982875BD15004C397C /* SynchronizedArray.swift */,
@@ -4208,10 +4219,14 @@
 		B8FC0F00000000000000F000 /* Fork */ = {
 			isa = PBXGroup;
 			children = (
+				B8FC0F00000000000000A009 /* DeckRecordLabelCache.swift */,
+				B8FC0F00000000000000A007 /* OverlayOrderFrontGate.swift */,
+				B8FC0F00000000000000A006 /* OverlayRefreshScheduler.swift */,
 				B8FC0F00000000000000A001 /* PlayerCardZones.swift */,
 				B8FC0F00000000000000A003 /* RealmHelper+CardCountFix.swift */,
 				B8FC0F00000000000000A002 /* TagChangeActions+ZoneLatches.swift */,
 				B8FC0F00000000000000A004 /* Settings+Tracker.swift */,
+				B8FC0F00000000000000A008 /* SynchronizedLRUCache.swift */,
 			);
 			path = Fork;
 			sourceTree = "<group>";
@@ -8089,6 +8104,11 @@
 				B8FC0F00000000000000B002 /* TagChangeActions+ZoneLatches.swift in Sources */,
 				B8FC0F00000000000000B003 /* RealmHelper+CardCountFix.swift in Sources */,
 				B8FC0F00000000000000B004 /* Settings+Tracker.swift in Sources */,
+				B8FC0F00000000000000B005 /* LatencyProbe.swift in Sources */,
+				B8FC0F00000000000000B006 /* OverlayRefreshScheduler.swift in Sources */,
+				B8FC0F00000000000000B007 /* OverlayOrderFrontGate.swift in Sources */,
+				B8FC0F00000000000000B008 /* SynchronizedLRUCache.swift in Sources */,
+				B8FC0F00000000000000B009 /* DeckRecordLabelCache.swift in Sources */,
 				C4D801A12FC0000100010002 /* TrackerBarStyle.swift in Sources */,
 				C4D801A12FC0000100010021 /* TrackerRowRaster.swift in Sources */,
 				C4D801A12FC0000100010023 /* TrackerMotion.swift in Sources */,
