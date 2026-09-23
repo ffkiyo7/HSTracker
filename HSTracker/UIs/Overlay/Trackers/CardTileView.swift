@@ -422,19 +422,30 @@ final class CardTileArtCache: ObservableObject {
 
     private var requested = Set<String>()
     private var smallArt = [String: NSImage?]()
+    private let cachedTile: (String) -> NSImage?
+    private let fetchTile: (String, @escaping (NSImage?) -> Void) -> Void
+
+    init(cachedTile: @escaping (String) -> NSImage? = { ImageUtils.cachedTile(cardId: $0) },
+         fetchTile: @escaping (String, @escaping (NSImage?) -> Void) -> Void = { ImageUtils.tile(for: $0, completion: $1) }) {
+        self.cachedTile = cachedTile
+        self.fetchTile = fetchTile
+    }
 
     /// The tile crop, kicking off a fetch the first time one is asked for.
     func tile(for cardId: String) -> NSImage? {
-        if let cached = ImageUtils.cachedTile(cardId: cardId) {
+        if let cached = cachedTile(cardId) {
             return cached
         }
         guard !requested.contains(cardId) else { return nil }
         requested.insert(cardId)
         // Off the current render pass: this is called from body.
         DispatchQueue.main.async { [weak self] in
-            ImageUtils.tile(for: cardId) { image in
+            self?.fetchTile(cardId) { image in
                 guard image != nil else { return }
                 DispatchQueue.main.async {
+                    // Fork: the image cache is bounded now, so a tile that
+                    // landed may be evicted later and has to be fetchable again.
+                    self?.requested.remove(cardId)
                     self?.generation += 1
                 }
             }

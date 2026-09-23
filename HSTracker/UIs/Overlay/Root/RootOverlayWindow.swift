@@ -117,6 +117,21 @@ class RootOverlayWindow: OverWindowController {
             dismissHoverTooltips()
         }
 
+        updateClickThrough(at: viewPoint)
+    }
+
+    // Fork: `WindowManager.show` calls this on every overlay refresh, up to once
+    // a frame. The base class's `ignoresMouseEvents = Settings.windowsLocked`
+    // would undo the per-cursor switch each time, leaving the whole canvas
+    // click-through (locked) or click-eating (unlocked) until the next mouse
+    // move or the fallback timer.
+    override func updateFrames() {
+        guard let window, let hostingView else { return }
+        let windowPoint = window.convertPoint(fromScreen: NSEvent.mouseLocation)
+        updateClickThrough(at: hostingView.convert(windowPoint, from: nil))
+    }
+
+    private func updateClickThrough(at viewPoint: NSPoint) {
         guard !viewModel.interactiveRegions.isEmpty else {
             setIgnoresMouseEvents(true)
             return

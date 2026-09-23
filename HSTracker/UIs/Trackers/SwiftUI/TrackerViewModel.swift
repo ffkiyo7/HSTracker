@@ -100,11 +100,14 @@ final class TrackerViewModel: ObservableObject {
 
     private var lists: [TrackerCardListViewModel] { [cards, deck, hand, played, top, bottom, related] }
 
-    /// The synergy highlight of `TrackerCardHoverHandler`. The main list is one
-    /// list in flat mode and three in zone mode; the highlight covers whichever
-    /// is being drawn.
+    /// The synergy highlight of `TrackerCardHoverHandler`, as upstream's flat
+    /// list applies it: to the rows with copies left in the deck, handing the
+    /// closure those same rows as the deck it reasons about (e.g. Taelan
+    /// Fordring's highest cost minion). In zone mode that is the deck section
+    /// alone; the hand section would light up cards that are no longer in the
+    /// deck and hand the closure the hand as if it were the deck.
     func setHighlight(_ fn: ((Card, [Card]) -> HighlightColor)?) {
-        for list in [cards, deck, hand, played] {
+        for list in [cards, deck] {
             list.setHighlight(fn)
         }
     }

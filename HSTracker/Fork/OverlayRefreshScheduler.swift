@@ -23,8 +23,16 @@ final class OverlayRefreshScheduler {
     private var inFlight = false
 
     /// Runs on `queue` and must only enqueue its work on the main queue. Set
-    /// once, before the first request.
-    var refresh: ((_ reset: Bool) -> Void)?
+    /// once; a request that came in before it runs as soon as it is set.
+    var refresh: ((_ reset: Bool) -> Void)? {
+        didSet {
+            queue.async {
+                if self.needsUpdate {
+                    self.schedule()
+                }
+            }
+        }
+    }
 
     /// Any thread. Requests inside the window only set the flag.
     func request(reset: Bool = false) {
@@ -47,12 +55,13 @@ final class OverlayRefreshScheduler {
 
     private func run() {
         scheduled = false
-        guard needsUpdate else { return }
+        // Without `refresh` the request stays pending until it is set.
+        guard needsUpdate, let refresh else { return }
         needsUpdate = false
         let reset = resets
         resets = false
         inFlight = true
-        refresh?(reset)
+        refresh(reset)
         // `refresh` only enqueues its blocks on the main queue, which is FIFO, and
         // some of them enqueue one more level while they run: the second marker
         // lands behind those, once the refresh is really done. Holding the next

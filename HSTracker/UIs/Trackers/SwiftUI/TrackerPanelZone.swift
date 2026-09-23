@@ -77,18 +77,21 @@ extension TrackerViewModel {
 }
 
 /// The header's deck records, cached across refreshes: the relayout runs on
-/// every tracker update and `RealmHelper.getDeck` is not free.
+/// every tracker update and `RealmHelper.getDeck` is not free. Dropped together
+/// with the upstream record label (`DeckRecordLabelCache`), so the two never
+/// show different games' records.
 final class TrackerHeaderStats {
     var needsRefresh = false
-    private var gameEnded: Bool?
+    private var generation: Int?
     private var deckId: String?
     private var opponentClass: CardClass?
     private var overall: StatsDeckRecord?
     private var matchup: StatsDeckRecord?
 
     func records(game: Game) -> (overall: StatsDeckRecord?, matchupClass: CardClass?, matchup: StatsDeckRecord?) {
-        if gameEnded != game.gameEnded {
-            gameEnded = game.gameEnded
+        let generation = DeckRecordLabelCache.shared.generation(gameEnded: game.gameEnded)
+        if self.generation != generation {
+            self.generation = generation
             needsRefresh = true
         }
         guard Settings.showWinLossRatio else {

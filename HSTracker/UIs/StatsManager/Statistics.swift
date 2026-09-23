@@ -107,6 +107,7 @@ class Statistics: NSWindowController {
                 RealmHelper.removeAllGameStats(from: deck)
                 
                 DispatchQueue.main.async {
+                    DeckRecordLabelCache.shared.statisticsChanged()
                     self.statsTab!.statsTable.reloadData()
                 }
             }

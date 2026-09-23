@@ -1763,6 +1763,217 @@ class TrackerMetricsTests: HSTrackerTests {
         }
     }
 
+    // MARK: - Second review batch
+
+    /// The image cache is bounded, so a tile the rows already had can be evicted.
+    /// Remembering it as "requested" forever left those rows without art for
+    /// the rest of the session.
+    @MainActor
+    func testAnEvictedTileIsFetchedAgain() {
+        var store = [String: NSImage]()
+        var fetches = [String: [(NSImage?) -> Void]]()
+        let cache = CardTileArtCache(cachedTile: { store[$0] },
+                                     fetchTile: { cardId, done in fetches[cardId, default: []].append(done) })
+
+        XCTAssertNil(cache.tile(for: "A"))
+        drainMainQueue()
+        XCTAssertEqual(fetches["A"]?.count, 1)
+        XCTAssertNil(cache.tile(for: "A"))
+        drainMainQueue()
+        XCTAssertEqual(fetches["A"]?.count, 1, "a fetch still in flight must not be started again")
+
+        let image = NSImage(size: NSSize(width: 1, height: 1))
+        store["A"] = image
+        fetches["A"]?[0](image)
+        drainMainQueue()
+        XCTAssertTrue(cache.tile(for: "A") === image)
+
+        store["A"] = nil
+        XCTAssertNil(cache.tile(for: "A"))
+        drainMainQueue()
+        XCTAssertEqual(fetches["A"]?.count, 2, "the evicted tile was never asked for again")
+    }
+
+    /// A tile that does not exist stays asked for once: the rows redraw on every
+    /// fetch that lands, and each redraw would retry it.
+    @MainActor
+    func testAMissingTileIsNotRetriedOnEveryRedraw() {
+        var fetches = 0
+        var pending: ((NSImage?) -> Void)?
+        let cache = CardTileArtCache(cachedTile: { _ in nil },
+                                     fetchTile: { _, done in fetches += 1; pending = done })
+        XCTAssertNil(cache.tile(for: "B"))
+        drainMainQueue()
+        pending?(nil)
+        drainMainQueue()
+        XCTAssertNil(cache.tile(for: "B"))
+        drainMainQueue()
+        XCTAssertEqual(fetches, 1)
+    }
+
+    /// Upstream's flat list lights the rows still in the deck and hands the
+    /// closure those rows as the deck. In zone mode that is the deck section:
+    /// the hand and played sections stay unlit, and the closure never sees them.
+    @MainActor
+    func testZoneModeHighlightsTheDeckSectionOnly() {
+        func cards(_ prefix: String, _ counts: [Int]) -> [Card] {
+            counts.enumerated().map { index, count in
+                let card = Card()
+                card.id = "\(prefix)_\(index)"
+                card.name = card.id
+                card.count = count
+                return card
+            }
+        }
+        let deck = cards("DECK", [2, 1])
+        let hand = cards("HAND", [1, 1])
+        let played = cards("PLAYED", [-1])
+        let viewModel = TrackerViewModel(playerType: .player)
+        viewModel.update(cards: [], top: [], bottom: [], relatedCards: [],
+                         groups: CardZoneGroups(deck: deck, hand: hand, played: played))
+
+        var seenDecks = [[String]]()
+        viewModel.setHighlight { _, deckCards in
+            seenDecks.append(deckCards.map(\.id))
+            return .teal
+        }
+        XCTAssertEqual(viewModel.deck.rows.map { token($0.highlight) }, [1, 1])
+        XCTAssertEqual(viewModel.hand.rows.map { token($0.highlight) }, [0, 0],
+                       "the hand is not the deck")
+        XCTAssertEqual(viewModel.played.rows.map { token($0.highlight) }, [0])
+        XCTAssertFalse(seenDecks.isEmpty)
+        XCTAssertTrue(seenDecks.allSatisfy { $0 == ["DECK_0", "DECK_1"] },
+                      "the closure has to reason about the deck section: \(seenDecks)")
+
+        // The next refresh keeps it that way.
+        seenDecks.removeAll()
+        viewModel.update(cards: [], top: [], bottom: [], relatedCards: [],
+                         groups: CardZoneGroups(deck: cards("DECK", [2, 1]), hand: cards("HAND", [1, 1]),
+                                                played: cards("PLAYED", [-1])))
+        XCTAssertEqual(viewModel.hand.rows.map { token($0.highlight) }, [0, 0])
+        XCTAssertTrue(seenDecks.allSatisfy { $0 == ["DECK_0", "DECK_1"] })
+
+        // Flat mode: the one list, as upstream.
+        seenDecks.removeAll()
+        let flat = cards("FLAT", [1, 0, 2])
+        viewModel.update(cards: flat, top: [], bottom: [], relatedCards: [], groups: nil)
+        XCTAssertEqual(viewModel.cards.rows.map { token($0.highlight) }, [1, 0, 1])
+        XCTAssertTrue(seenDecks.allSatisfy { $0 == ["FLAT_0", "FLAT_2"] })
+    }
+
+    /// Requests inside the debounce window cost one refresh, and a reset among
+    /// them is not dropped.
+    func testRefreshRequestsCoalesce() {
+        let scheduler = OverlayRefreshScheduler()
+        let calls = Recorder<Bool>()
+        let ran = expectation(description: "refresh")
+        ran.assertForOverFulfill = false
+        scheduler.refresh = { reset in
+            calls.append(reset)
+            ran.fulfill()
+        }
+        for index in 0..<20 {
+            scheduler.request(reset: index == 7)
+        }
+        wait(for: [ran], timeout: 1)
+        spinMainRunLoop(for: 0.1)
+        XCTAssertEqual(calls.values, [true])
+    }
+
+    /// The next refresh waits for the main queue to get through the last one.
+    func testNoRefreshStartsWhileTheLastOneIsInFlight() {
+        let scheduler = OverlayRefreshScheduler()
+        let calls = Recorder<Bool>()
+        let started = DispatchSemaphore(value: 0)
+        scheduler.refresh = { reset in
+            calls.append(reset)
+            started.signal()
+        }
+        scheduler.request()
+        XCTAssertEqual(started.wait(timeout: .now() + 1), .success)
+
+        // The main thread is held here, so the markers the refresh queued behind
+        // itself cannot run.
+        scheduler.request()
+        Thread.sleep(forTimeInterval: 0.1)
+        XCTAssertEqual(calls.values.count, 1, "a refresh started on top of one still in flight")
+
+        let deadline = Date().addingTimeInterval(1)
+        while calls.values.count < 2 && Date() < deadline {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.01))
+        }
+        XCTAssertEqual(calls.values.count, 2, "the held request never ran")
+    }
+
+    func testARequestBeforeTheRefreshIsSetIsNotLost() {
+        let scheduler = OverlayRefreshScheduler()
+        scheduler.request(reset: true)
+        // Well past the debounce: the scheduled run found nothing to call.
+        Thread.sleep(forTimeInterval: 0.1)
+
+        let calls = Recorder<Bool>()
+        let ran = expectation(description: "refresh")
+        scheduler.refresh = { reset in
+            calls.append(reset)
+            ran.fulfill()
+        }
+        wait(for: [ran], timeout: 1)
+        XCTAssertEqual(calls.values, [true])
+    }
+
+    func testTheLeastRecentlyUsedEntryIsEvictedFirst() {
+        let cache = SynchronizedLRUCache<String, Int>(capacity: 3)
+        cache["a"] = 1
+        cache["b"] = 2
+        cache["c"] = 3
+        XCTAssertEqual(cache["a"], 1) // a is now the most recent
+        cache["d"] = 4
+        XCTAssertNil(cache["b"], "b was the least recently used")
+
+        cache["c"] = 30 // a write counts as a use
+        cache["e"] = 5
+        XCTAssertNil(cache["a"])
+        XCTAssertEqual(cache["d"], 4)
+        XCTAssertEqual(cache["c"], 30)
+        XCTAssertEqual(cache["e"], 5)
+
+        cache["d"] = nil
+        cache["f"] = 6
+        XCTAssertEqual(cache["c"], 30, "a removal frees a slot")
+        XCTAssertEqual(cache["e"], 5)
+        XCTAssertEqual(cache["f"], 6)
+    }
+
+    /// The upstream record label and the zone header drop at the same moments.
+    func testTheRecordCacheGenerationMovesOnEveryInvalidation() {
+        let cache = DeckRecordLabelCache()
+        let start = cache.generation(gameEnded: false)
+        XCTAssertEqual(cache.generation(gameEnded: false), start)
+        let ended = cache.generation(gameEnded: true)
+        XCTAssertNotEqual(ended, start, "a gameEnded flip")
+        cache.invalidate()
+        XCTAssertNotEqual(cache.generation(gameEnded: true), ended, "an explicit invalidation")
+    }
+
+    /// Runs what is queued on main, a few levels of `main.async` deep.
+    private func drainMainQueue() {
+        for _ in 0..<3 {
+            var done = false
+            DispatchQueue.main.async { done = true }
+            let deadline = Date().addingTimeInterval(1)
+            while !done && Date() < deadline {
+                RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.01))
+            }
+        }
+    }
+
+    private func spinMainRunLoop(for interval: TimeInterval) {
+        let deadline = Date().addingTimeInterval(interval)
+        while Date() < deadline {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.01))
+        }
+    }
+
     private func token(_ color: HighlightColor?) -> Int {
         switch color {
         case .none?: return 0
@@ -1771,5 +1982,23 @@ class TrackerMetricsTests: HSTrackerTests {
         case .green?: return 3
         case nil: return -1
         }
+    }
+}
+
+/// What a closure running on another queue saw.
+private final class Recorder<Value> {
+    private let lock = NSLock()
+    private var recorded = [Value]()
+
+    var values: [Value] {
+        lock.lock()
+        defer { lock.unlock() }
+        return recorded
+    }
+
+    func append(_ value: Value) {
+        lock.lock()
+        recorded.append(value)
+        lock.unlock()
     }
 }

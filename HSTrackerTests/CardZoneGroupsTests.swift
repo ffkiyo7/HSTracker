@@ -641,46 +641,52 @@ class CardZoneGroupsTests: HSTrackerTests {
 
     /// The tracker refresh used to reach `getDeckState()` four times (three
     /// `annotateCards` plus the sideboards Game passes separately). The
-    /// snapshot is the single entry point, so it must evaluate it once.
-    func testZoneRefreshEvaluatesTheDeckStateOnce() {
+    /// snapshot evaluates it once and hands it down; what it hands back has to
+    /// be what the separate accessors computed on their own.
+    func testZoneSnapshotCarriesTheSideboardsOfTheOldAccessor() {
         waitForCard("ETC_080")
         waitForCard("BT_753")
 
         let game = makeGame()
         setActiveDeck(game, [("ETC_080", 1), ("BT_753", 1)])
 
-        let before = game.player.deckStateEvaluations
         let snapshot = game.player.playerTrackerSnapshot(useZoneGroups: true)
-        XCTAssertEqual(game.player.deckStateEvaluations - before, 1,
-                       "one refresh must compute the deck state exactly once")
         XCTAssertNotNil(snapshot.groups, "an active deck is grouped by zone")
         XCTAssertTrue(snapshot.cards.isEmpty, "zone mode ignores the flat list")
+        XCTAssertEqual(sideboardTotals(snapshot.sideboards),
+                       sideboardTotals(game.player.playerSideboardsDict))
     }
 
-    func testFlatRefreshEvaluatesTheDeckStateOnce() {
+    func testFlatSnapshotCarriesTheSideboardsOfTheOldAccessor() {
         waitForCard("ETC_080")
         waitForCard("BT_753")
 
         let game = makeGame()
         setActiveDeck(game, [("ETC_080", 1), ("BT_753", 1)])
 
-        let before = game.player.deckStateEvaluations
         let snapshot = game.player.playerTrackerSnapshot(useZoneGroups: false)
-        XCTAssertEqual(game.player.deckStateEvaluations - before, 1,
-                       "one refresh must compute the deck state exactly once")
         XCTAssertNil(snapshot.groups)
         XCTAssertFalse(snapshot.cards.isEmpty, "flat mode draws the list")
+        XCTAssertEqual(sideboardTotals(snapshot.sideboards),
+                       sideboardTotals(game.player.playerSideboardsDict))
     }
 
-    /// Without a deck there is no deck state to compute at all, and the flat
-    /// list is the one `playerCardList` used to return on that branch.
-    func testSnapshotWithoutADeckSkipsTheDeckState() {
+    /// Without a deck there is no deck state, and the flat list is the one
+    /// `playerCardList` used to return on that branch.
+    func testSnapshotWithoutADeckHasNoGroupsOrSideboards() {
         let game = makeGame()
-        let before = game.player.deckStateEvaluations
         let snapshot = game.player.playerTrackerSnapshot(useZoneGroups: true)
-        XCTAssertEqual(game.player.deckStateEvaluations - before, 0)
         XCTAssertNil(snapshot.groups)
         XCTAssertTrue(snapshot.sideboards.isEmpty)
+        XCTAssertEqual(totals(snapshot.cards), totals(game.player.playerCardList))
+    }
+
+    private func sideboardTotals(_ sideboards: [Sideboard]) -> [String: [String: Int]] {
+        var result = [String: [String: Int]]()
+        for sideboard in sideboards {
+            result[sideboard.ownerCardId] = totals(sideboard.cards)
+        }
+        return result
     }
 
     /// The snapshot must draw the same thing the old accessors did.

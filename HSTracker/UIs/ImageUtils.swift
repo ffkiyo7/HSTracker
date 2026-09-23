@@ -162,7 +162,10 @@ struct ImageUtils {
         case .hero:
             path = Paths.heroes.appendingPathComponent("\(cardId).png")
         }
-        let missingKey = "\(type.rawValue)/\(cardId)"
+        // .cardArt / .cardArtBG are fetched in the client's language, so a 404
+        // in one says nothing about another.
+        let lang = Settings.hearthstoneLanguage?.rawValue ?? "enUS"
+        let missingKey = "\(type.rawValue)/\(lang)/\(cardId)"
         if missing[missingKey] != nil {
             completeOnMain(nil, completion: completion)
             return
@@ -197,9 +200,9 @@ struct ImageUtils {
             case .art:
                 url = artUrl256(cardId: cardId)
             case .cardArt:
-                url = artUrl(cardId: cardId, lang: Settings.hearthstoneLanguage?.rawValue ?? "enUS")
+                url = artUrl(cardId: cardId, lang: lang)
             case .cardArtBG:
-                url = artUrlBG(cardId: cardId, lang: Settings.hearthstoneLanguage?.rawValue ?? "enUS")
+                url = artUrlBG(cardId: cardId, lang: lang)
             case .hero:
                 url = heroUrl(cardId: cardId)
             }

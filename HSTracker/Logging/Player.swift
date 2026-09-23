@@ -624,9 +624,7 @@ final class Player {
         return entity.has(tag: GameTag.dungeon_passive_buff) && entity[GameTag.zone] == Zone.removedfromgame.rawValue
     }
     
-    var deckStateEvaluations = 0
     func getDeckState() -> DeckState {
-        deckStateEvaluations += 1
         var createdCardsInDeck: [Card] = deck.filter({
             $0.hasCardId && ($0.info.created || $0.info.stolen)
         })

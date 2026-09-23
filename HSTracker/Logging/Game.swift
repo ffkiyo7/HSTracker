@@ -2351,7 +2351,7 @@ class Game: NSObject, PowerEventHandler {
                 
                 RealmHelper.addStatistics(to: deck, stats: stats)
                 // Nothing posts reload_decks here, and the cached record predates this game.
-                DispatchQueue.main.async { DeckRecordLabelCache.shared.invalidate() }
+                DispatchQueue.main.async { DeckRecordLabelCache.shared.statisticsChanged() }
                 if Settings.autoArchiveArenaDeck &&
                     self.currentGameMode == .arena && deck.isArena && deck.arenaFinished() {
                     RealmHelper.set(deck: deck, active: false)
