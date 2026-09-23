@@ -26,7 +26,8 @@ struct TagChangeActions {
             switch tag {
             case .zone: 
                 self.zoneChange(eventHandler: eventHandler, id: id, value: value, prevValue: prevValue)
-            case .playstate: 
+                self.updateZoneLatches(eventHandler: eventHandler, id: id, value: value)
+            case .playstate:
                 self.playstateChange(eventHandler: eventHandler, id: id, value: value)
             case .gametag_3479:
                 self.bgsConcededChange(eventHandler: eventHandler, id: id, value: value)
@@ -58,10 +59,12 @@ struct TagChangeActions {
                 self.transformedFromCardChange(eventHandler: eventHandler, id: id, value: value)
             case .creator:
                 self.creatorChanged(eventHandler: eventHandler, id: id, value: value)
+                self.markShuffledIntoDeck(eventHandler: eventHandler, id: id)
             case .displayed_creator:
                 self.azalinaCopyCreated(eventHandler: eventHandler, id: id, value: value)
                 self.creatorChanged(eventHandler: eventHandler, id: id, value: value)
                 self.ectoplasmCreated(eventHandler: eventHandler, id: id, value: value)
+                self.markShuffledIntoDeck(eventHandler: eventHandler, id: id)
             case .whizbang_deck_id:
                 self.whizbangDeckIdChange(eventHandler: eventHandler, id: id, value: value)
             case .mulligan_state:
@@ -858,12 +861,13 @@ struct TagChangeActions {
     }
 
     private func predictFabled(_ entity: Entity) {
-        guard !entity.info.created, entity.hasCardId, let cardIds = CardIds.fabledDict[entity.cardId] else {
+        let game = AppDelegate.instance().coreManager.game
+        // Our own start of game reveals come through here too (bug T3).
+        guard entity.isControlled(by: game.opponent.id),
+              !entity.info.created, entity.hasCardId, let cardIds = CardIds.fabledDict[entity.cardId] else {
             return
         }
-        
-        let game = AppDelegate.instance().coreManager.game
-        
+
         for cardId in cardIds {
             game.opponent.predictUniqueCardInDeck(cardId: cardId, isCreated: false)
         }
@@ -1071,6 +1075,7 @@ struct TagChangeActions {
                 && (id <= maxId || eventHandler.gameEntity?[.step] == Step.invalid.rawValue
                     && entity[.zone_position] < 5) {
                 entity.info.originalZone = .deck
+                markSetAsideAtSetup(entity: entity, value: value)
                 simulateZoneChangesFromDeck(eventHandler: eventHandler, id: id, value: value,
                                             cardId: entity.info.latestCardId, maxId: maxId)
             } else {

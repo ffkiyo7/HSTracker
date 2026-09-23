@@ -130,7 +130,7 @@ final class Player {
     // not yet know which side is which.
     var deckCopiedFromEnemy: Bool { id > 0 && game.controllersWithDeckCopiedFromEnemy.contains(id) }
     fileprivate(set) var deathrattlesPlayedCount = 0
-    private let game: Game
+    let game: Game
     var lastDrawnCardId: String?
     var libramReductionCount: Int = 0
     var abyssalCurseCount: Int = 0
@@ -503,9 +503,9 @@ final class Player {
         return annotateCards(cards: (inDeck + predictedInDeck + createdInHand)).sortCardList(sorting)
     }
     
-    private func annotateCards(cards: [Card]) -> [Card] {
+    func annotateCards(cards: [Card], sideboards: [Sideboard]? = nil) -> [Card] {
         // Override Zilliax 3000 cost
-        let cards = Helper.resolveZilliax3000(cards, playerSideboardsDict)
+        let cards = Helper.resolveZilliax3000(cards, sideboards ?? playerSideboardsDict)
         guard let mulliganCardStats else {
             return cards
         }
@@ -531,8 +531,8 @@ final class Player {
         return getPlayerSideboards(Settings.removeCardsFromDeck)
     }
     
-    private func getPlayerSideboards(_ removeNotInSideboard: Bool) -> [Sideboard] {
-        let deckState = getDeckState()
+    func getPlayerSideboards(_ removeNotInSideboard: Bool, deckState: DeckState? = nil) -> [Sideboard] {
+        let deckState = deckState ?? getDeckState()
         var sideboardsDict = [String: [Card]]()
         if let sideboards = deckState.remainingInSideboards {
             for sideboard in sideboards {
@@ -624,7 +624,9 @@ final class Player {
         return entity.has(tag: GameTag.dungeon_passive_buff) && entity[GameTag.zone] == Zone.removedfromgame.rawValue
     }
     
-    fileprivate func getDeckState() -> DeckState {
+    var deckStateEvaluations = 0
+    func getDeckState() -> DeckState {
+        deckStateEvaluations += 1
         var createdCardsInDeck: [Card] = deck.filter({
             $0.hasCardId && ($0.info.created || $0.info.stolen)
         })

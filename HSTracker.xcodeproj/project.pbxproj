@@ -324,6 +324,9 @@
 		439C7ECA1C777F8900D29859 /* LogReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 439C7EAF1C777F8900D29859 /* LogReader.swift */; };
 		439C7ECB1C777F8900D29859 /* LogReaderManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 439C7EB11C777F8900D29859 /* LogReaderManager.swift */; };
 		439C7ECC1C777F8900D29859 /* Player.swift in Sources */ = {isa = PBXBuildFile; fileRef = 439C7EB31C777F8900D29859 /* Player.swift */; };
+		B8FC0F00000000000000B001 /* PlayerCardZones.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FC0F00000000000000A001 /* PlayerCardZones.swift */; };
+		B8FC0F00000000000000B002 /* TagChangeActions+ZoneLatches.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FC0F00000000000000A002 /* TagChangeActions+ZoneLatches.swift */; };
+		B8FC0F00000000000000B003 /* RealmHelper+CardCountFix.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FC0F00000000000000A003 /* RealmHelper+CardCountFix.swift */; };
 		439C7EDE1C777FA900D29859 /* ImageUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 439C7ECF1C777FA900D29859 /* ImageUtils.swift */; };
 		439DD8F41DB23212004EBE47 /* PlayerTurn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 439DD8F31DB23212004EBE47 /* PlayerTurn.swift */; };
 		439DD8F61DB2324A004EBE47 /* CardSize.swift in Sources */ = {isa = PBXBuildFile; fileRef = 439DD8F51DB2324A004EBE47 /* CardSize.swift */; };
@@ -343,6 +346,11 @@
 		43BF754F1ECC4EB7005827FF /* Varint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43BF754E1ECC4EB7005827FF /* Varint.swift */; };
 		43C1C9F61E96CCDB008C20B1 /* SecretTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43640BE21E8A328700FAFD07 /* SecretTests.swift */; };
 		43C1C9F71E96CCE9008C20B1 /* AlgorithmTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CF1B5891E81426D007DCBF2 /* AlgorithmTests.swift */; };
+		B8DD0F00000000000000B009 /* CardZoneGroupsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A009 /* CardZoneGroupsTests.swift */; };
+		B8DD0F00000000000000B00A /* ZoneGroupsReplayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A00A /* ZoneGroupsReplayTests.swift */; };
+		B8DD0F00000000000000B00B /* 2026-09-14-standard.log in Resources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A00B /* 2026-09-14-standard.log */; };
+		B8DD0F00000000000000B00D /* 2026-09-19-bug-t10.log in Resources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A00D /* 2026-09-19-bug-t10.log */; };
+		B8DD0F00000000000000B00E /* 2026-09-20-bug-t11.log in Resources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A00E /* 2026-09-20-bug-t11.log */; };
 		43C1C9F81E96CCE9008C20B1 /* HSTrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 439C7E601C7772C100D29859 /* HSTrackerTests.swift */; };
 		43C1C9F91E96CCE9008C20B1 /* LogReaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CF1B58B1E815810007DCBF2 /* LogReaderTests.swift */; };
 		43C1C9FB1E96CCE9008C20B1 /* StatsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C94596811D174FBA008CD47A /* StatsTests.swift */; };
@@ -2002,6 +2010,11 @@
 		1CCB4AEA1E8A4930003FD1AD /* LogEventHandlers.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LogEventHandlers.swift; sourceTree = "<group>"; };
 		1CE57A6FD9E979D88473F5FD /* Cremate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Cremate.swift; sourceTree = "<group>"; };
 		1CF1B5891E81426D007DCBF2 /* AlgorithmTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AlgorithmTests.swift; sourceTree = "<group>"; };
+		B8DD0F00000000000000A009 /* CardZoneGroupsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardZoneGroupsTests.swift; sourceTree = "<group>"; };
+		B8DD0F00000000000000A00A /* ZoneGroupsReplayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneGroupsReplayTests.swift; sourceTree = "<group>"; };
+		B8DD0F00000000000000A00B /* 2026-09-14-standard.log */ = {isa = PBXFileReference; lastKnownFileType = text; name = "2026-09-14-standard.log"; path = "Fixtures/ZoneReplay/2026-09-14-standard.log"; sourceTree = "<group>"; };
+		B8DD0F00000000000000A00D /* 2026-09-19-bug-t10.log */ = {isa = PBXFileReference; lastKnownFileType = text; name = "2026-09-19-bug-t10.log"; path = "Fixtures/ZoneReplay/2026-09-19-bug-t10.log"; sourceTree = "<group>"; };
+		B8DD0F00000000000000A00E /* 2026-09-20-bug-t11.log */ = {isa = PBXFileReference; lastKnownFileType = text; name = "2026-09-20-bug-t11.log"; path = "Fixtures/ZoneReplay/2026-09-20-bug-t11.log"; sourceTree = "<group>"; };
 		1CF1B58B1E815810007DCBF2 /* LogReaderTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LogReaderTests.swift; sourceTree = "<group>"; };
 		1CF204F81E83B74300037A42 /* MirrorHelper.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MirrorHelper.swift; sourceTree = "<group>"; };
 		1D0422A20A5FB8F80F170CE1 /* KaldoreiCultivator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KaldoreiCultivator.swift; sourceTree = "<group>"; };
@@ -2233,6 +2246,9 @@
 		439C7EAF1C777F8900D29859 /* LogReader.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LogReader.swift; sourceTree = "<group>"; };
 		439C7EB11C777F8900D29859 /* LogReaderManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LogReaderManager.swift; sourceTree = "<group>"; };
 		439C7EB31C777F8900D29859 /* Player.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Player.swift; sourceTree = "<group>"; };
+		B8FC0F00000000000000A001 /* PlayerCardZones.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerCardZones.swift; sourceTree = "<group>"; };
+		B8FC0F00000000000000A002 /* TagChangeActions+ZoneLatches.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TagChangeActions+ZoneLatches.swift"; sourceTree = "<group>"; };
+		B8FC0F00000000000000A003 /* RealmHelper+CardCountFix.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RealmHelper+CardCountFix.swift"; sourceTree = "<group>"; };
 		439C7ECF1C777FA900D29859 /* ImageUtils.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ImageUtils.swift; sourceTree = "<group>"; };
 		439C7ED11C777FA900D29859 /* InitialConfiguration.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = InitialConfiguration.swift; sourceTree = "<group>"; };
 		439C7ED31C777FA900D29859 /* Splashscreen.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Splashscreen.swift; sourceTree = "<group>"; };
@@ -4142,6 +4158,7 @@
 				439C7E901C777EE800D29859 /* Core */,
 				439C7E7A1C777CC000D29859 /* Database */,
 				43873CBF1CA6E68D00F01CB4 /* Debug */,
+				B8FC0F00000000000000F000 /* Fork */,
 				4323C5E31E1695DD00C97896 /* HearthMirror */,
 				B82AE5FB28BE8631004A8FE0 /* HearthMirror-version.txt */,
 				43B695551C90653A00F4D0AC /* Hearthstone */,
@@ -4162,10 +4179,25 @@
 			path = HSTracker;
 			sourceTree = "<group>";
 		};
+		B8FC0F00000000000000F000 /* Fork */ = {
+			isa = PBXGroup;
+			children = (
+				B8FC0F00000000000000A001 /* PlayerCardZones.swift */,
+				B8FC0F00000000000000A003 /* RealmHelper+CardCountFix.swift */,
+				B8FC0F00000000000000A002 /* TagChangeActions+ZoneLatches.swift */,
+			);
+			path = Fork;
+			sourceTree = "<group>";
+		};
 		439C7E5F1C7772C100D29859 /* HSTrackerTests */ = {
 			isa = PBXGroup;
 			children = (
 				1CF1B5891E81426D007DCBF2 /* AlgorithmTests.swift */,
+				B8DD0F00000000000000A009 /* CardZoneGroupsTests.swift */,
+				B8DD0F00000000000000A00A /* ZoneGroupsReplayTests.swift */,
+				B8DD0F00000000000000A00B /* 2026-09-14-standard.log */,
+				B8DD0F00000000000000A00D /* 2026-09-19-bug-t10.log */,
+				B8DD0F00000000000000A00E /* 2026-09-20-bug-t11.log */,
 				B8A1F0002FCD0000000A0000 /* LocalizationFormatTests.swift */,
 				B8A1F0102FCD0010000A0010 /* CardTooltipTests.swift */,
 				B8A1F0202FCD0020000A0020 /* CardTileThemeTests.swift */,
@@ -6803,6 +6835,9 @@
 				B85A0D56272CE24B006D2648 /* MercenariesPreferences.xib in Resources */,
 				B8FA0C0100000008000000A8 /* TheOutfinderPreferences.xib in Resources */,
 				43640BE11E89A25F00FAFD07 /* Resources in Resources */,
+				B8DD0F00000000000000B00B /* 2026-09-14-standard.log in Resources */,
+				B8DD0F00000000000000B00D /* 2026-09-19-bug-t10.log in Resources */,
+				B8DD0F00000000000000B00E /* 2026-09-20-bug-t11.log in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -8003,6 +8038,9 @@
 				B83CF375294E5048003C9062 /* BattlegroundsCompositionPopularityRowViewModel.swift in Sources */,
 				439DD8FC1DB237C0004EBE47 /* EntityInfo.swift in Sources */,
 				439C7ECC1C777F8900D29859 /* Player.swift in Sources */,
+				B8FC0F00000000000000B001 /* PlayerCardZones.swift in Sources */,
+				B8FC0F00000000000000B002 /* TagChangeActions+ZoneLatches.swift in Sources */,
+				B8FC0F00000000000000B003 /* RealmHelper+CardCountFix.swift in Sources */,
 				B89865822D91B07200BA5649 /* UnderTheSea.swift in Sources */,
 				B864A13E24F54E1F005EA2A0 /* MinionHeroPowerTrigger.swift in Sources */,
 				B81B3D9F2D419A0500DC9EB0 /* Starport.swift in Sources */,
@@ -8779,6 +8817,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				43C1C9F71E96CCE9008C20B1 /* AlgorithmTests.swift in Sources */,
+				B8DD0F00000000000000B009 /* CardZoneGroupsTests.swift in Sources */,
+				B8DD0F00000000000000B00A /* ZoneGroupsReplayTests.swift in Sources */,
 				43C1C9FD1E96CCE9008C20B1 /* DatabaseTests.swift in Sources */,
 				439BD8C91EBCD40200959F69 /* EnumTests.swift in Sources */,
 				B8AA00022C00000100000002 /* OfficialBuildTests.swift in Sources */,

@@ -88,6 +88,7 @@ struct RealmHelper {
 	}
 	
 	static func validateCardCounts(_ deck: Deck) {
+		guard needsCardCountFix(deck) else { return }
 		guard let realm = try? Realm() else {
 			logger.error("Error accessing Realm database")
 			return

@@ -25,6 +25,10 @@ class Entity {
 	
     lazy var info: EntityInfo = EntityInfo(entity: self)
 
+    // Fork zone sections: latched while parsing, see `TagChangeActions+ZoneLatches.swift`.
+    var wasShuffledIntoDeck = false
+    var wasSetAsideAtSetup = false
+
     init() {
         self.id = -1
     }
@@ -262,6 +266,8 @@ extension Entity: NSCopying {
         e.info.creatorId = info.creatorId
         e.info.cardIdBeforeReveal = info.cardIdBeforeReveal
         e.info.originalCardId = info.originalCardId
+        e.wasShuffledIntoDeck = wasShuffledIntoDeck
+        e.wasSetAsideAtSetup = wasSetAsideAtSetup
 
         return e
     }
