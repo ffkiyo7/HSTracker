@@ -77,6 +77,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
     
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         AppDelegate._instance = self
+        configureMainMenuTags()
         GameTag.initialize()
         Race.initialize()
         //setenv("CFNETWORK_DIAGNOSTICS", "3", 1)
@@ -590,7 +591,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
             // build main menu
             // ---------------
             let mainMenu = NSApplication.shared.mainMenu
-            let deckMenu = mainMenu?.item(withTitle: String.localizedString("Decks", comment: ""))
+            let deckMenu = mainMenu?.item(withTag: MainMenuTag.decks)
             deckMenu?.submenu?.removeAllItems()
             deckMenu?.submenu?.addItem(withTitle: String.localizedString("Deck Manager", comment: ""),
                                        action: #selector(AppDelegate.openDeckManager(_:)),
@@ -638,7 +639,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
             }
             
             let dockdeckMenu = self.dockMenu.item(withTag: 1)
-            
+            let activeDeckId = self.coreManager?.game.currentDeck?.id ?? Settings.activeDeck
+
             // add deck items to main and dock menu
             // ------------------------------------
             deckMenu?.submenu?.addItem(NSMenuItem.separator())
@@ -656,7 +658,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
                             .addItem(withTitle: $0.name,
                                      action: #selector(AppDelegate.playDeck(_:)),
                                      keyEquivalent: "")
-                        item.representedObject = $0
+                        item.representedObject = $0.deckId
+                        item.state = $0.deckId == activeDeckId ? .on : .off
                     })
                 classmenuitem.submenu = classsubMenu
                 deckMenu?.submenu?.addItem(classmenuitem)
@@ -665,9 +668,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
                 }
             }
             
-            let replayMenu = mainMenu?.item(withTitle: String.localizedString("Replays", comment: ""))
-            let replaysMenu = replayMenu?.submenu?.item(withTitle: String.localizedString("Last replays",
-                                                                                     comment: ""))
+            let replayMenu = mainMenu?.item(withTag: MainMenuTag.replays)
+            let replaysMenu = replayMenu?.submenu?.item(withTag: MainMenuTag.lastReplays)
             replaysMenu?.submenu?.removeAllItems()
             replaysMenu?.isEnabled = false
             if Settings.hsReplayUploadToken != nil,
@@ -704,9 +706,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
                 }
             }
             
-            let windowMenu = mainMenu?.item(withTitle: String.localizedString("Window", comment: ""))
-            let item = windowMenu?.submenu?.item(withTitle: String.localizedString("Lock windows",
-                                                                              comment: ""))
+            let windowMenu = mainMenu?.item(withTag: MainMenuTag.window)
+            let item = windowMenu?.submenu?.item(withTag: MainMenuTag.lockWindows)
             item?.title = String.localizedString(Settings.windowsLocked ?  "Unlock windows" : "Lock windows",
                                             comment: "")
         }
@@ -723,10 +724,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
     }
     
     @objc func playDeck(_ sender: NSMenuItem) {
-        if let deck = sender.representedObject as? Deck {
-            let deckId = deck.deckId
-            self.coreManager?.game.set(activeDeckId: deckId, autoDetected: false)
+        guard let deckId = sender.representedObject as? String,
+              RealmHelper.getDeck(with: deckId) != nil,
+              let coreManager else {
+            return
         }
+        markActiveDeck(deckId)
+        Toast.show(title: sender.title)
+        coreManager.game.set(activeDeckId: deckId, autoDetected: false)
     }
     
     @IBAction func openDeckManager(_ sender: AnyObject) {
@@ -784,9 +789,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
     
     @IBAction func lockWindows(_ sender: AnyObject) {
         let mainMenu = NSApplication.shared.mainMenu
-        let windowMenu = mainMenu?.item(withTitle: String.localizedString("Window", comment: ""))
-        let text = Settings.windowsLocked ? "Unlock windows" : "Lock windows"
-        let item = windowMenu?.submenu?.item(withTitle: String.localizedString(text, comment: ""))
+        let windowMenu = mainMenu?.item(withTag: MainMenuTag.window)
+        let item = windowMenu?.submenu?.item(withTag: MainMenuTag.lockWindows)
         Settings.windowsLocked = !Settings.windowsLocked
         item?.title = String.localizedString(Settings.windowsLocked ?  "Unlock windows" : "Lock windows",
                                         comment: "")

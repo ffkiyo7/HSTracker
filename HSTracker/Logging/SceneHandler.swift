@@ -127,7 +127,10 @@ class SceneHandler {
         }
         
         if from == .bacon {
-            game.windowManager.rootOverlay?.viewModel.tier7PreLobby.invalidateUserState()
+            // Fork (dev ac116be0, Bug T1): SceneWatcher's queue; userState is @Published.
+            DispatchQueue.main.async {
+                game.windowManager.rootOverlay?.viewModel.tier7PreLobby.invalidateUserState()
+            }
         }
 
         if to == .draft {

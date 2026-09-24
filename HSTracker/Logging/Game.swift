@@ -250,10 +250,6 @@ class Game: NSObject, PowerEventHandler {
                 !((Settings.hideAllWhenGameInBackground || Settings.hideAllWhenGameInBackground) && !self.hearthstoneRunState.isActive)
     }
     
-    var shouldShowTracker: Bool {
-        return ((Settings.hideAllTrackersWhenNotInGame && !self.gameEnded) || (!Settings.hideAllTrackersWhenNotInGame) || self.selfAppActive ) && ((Settings.hideAllWhenGameInBackground && self.hearthstoneRunState.isActive) || !Settings.hideAllWhenGameInBackground || self.selfAppActive)
-    }
-    
     func updateTrackers(reset: Bool = false) {
         LatencyProbe.shared.updateRequested()
         guiRefresh.request(reset: reset)
@@ -287,10 +283,9 @@ class Game: NSObject, PowerEventHandler {
             }
 
             if Settings.showOpponentTracker &&
+                self.isTrackerGameActive &&
                 (!self.isBattlegroundsMatch() && !self.isMercenariesMatch() && self.currentGameType != .gt_unknown) &&
             !(Settings.dontTrackWhileSpectating && self.spectator) &&
-                ((Settings.hideAllTrackersWhenNotInGame && !self.gameEnded)
-                    || (!Settings.hideAllTrackersWhenNotInGame) || self.selfAppActive ) &&
                 ((Settings.hideAllWhenGameInBackground &&
                     self.hearthstoneRunState.isActive) || !Settings.hideAllWhenGameInBackground || self.selfAppActive) {
                 
@@ -380,9 +375,9 @@ class Game: NSObject, PowerEventHandler {
             }
             if Settings.showPlayerTracker &&
                 !(Settings.dontTrackWhileSpectating && self.spectator) &&
-                (!self.isBattlegroundsMatch() && !self.isMercenariesMatch() && self.currentGameType != .gt_unknown) &&
-                ( (Settings.hideAllTrackersWhenNotInGame && !self.gameEnded)
-                    || (!Settings.hideAllTrackersWhenNotInGame) || self.selfAppActive ) &&
+                ((self.isTrackerGameActive &&
+                    !self.isBattlegroundsMatch() && !self.isMercenariesMatch() && self.currentGameType != .gt_unknown)
+                    || self.isDeckTrackerQueue) &&
                 ((Settings.hideAllWhenGameInBackground &&
                     self.hearthstoneRunState.isActive) || !Settings.hideAllWhenGameInBackground || self.selfAppActive) {
                 
@@ -528,7 +523,7 @@ class Game: NSObject, PowerEventHandler {
         DispatchQueue.main.async { [self] in
             guard let viewModel = windowManager.rootOverlay?.viewModel else { return }
 
-            if isInMenu || !isMulliganDone() || !shouldShowTracker {
+            if isInMenu || !isMulliganDone() || !isTrackerGameActive {
                 viewModel.playerCounters.isShown = false
                 viewModel.opponentCounters.isShown = false
             } else {
@@ -914,11 +909,14 @@ class Game: NSObject, PowerEventHandler {
         }
     }
         
+    // Fork (dev ac116be0, Bug T1): BaconWatcher calls this from its own queue,
+    // and these are @Published - written off main they contend with SwiftUI.
     func setBaconState(_ mode: SelectedBattlegroundsGameMode, _ isAnyOpen: Bool) {
-        windowManager.rootOverlay?.viewModel.tier7PreLobby.battlegroundsGameMode = mode
-        windowManager.rootOverlay?.viewModel.tier7PreLobby.isModalOpen = !queueEvents.isInQueue && isAnyOpen
-        windowManager.rootOverlay?.viewModel.battlegroundsSession.battlegroundsGameMode = mode
+        let isModalOpen = !queueEvents.isInQueue && isAnyOpen
         DispatchQueue.main.async {
+            self.windowManager.rootOverlay?.viewModel.tier7PreLobby.battlegroundsGameMode = mode
+            self.windowManager.rootOverlay?.viewModel.tier7PreLobby.isModalOpen = isModalOpen
+            self.windowManager.rootOverlay?.viewModel.battlegroundsSession.battlegroundsGameMode = mode
             self.updateTier7PreLobbyVisibility()
             self.updateBattlegroundsGuidesPreLobbyVisibility()
         }
@@ -4841,25 +4839,31 @@ class Game: NSObject, PowerEventHandler {
         }
     }
 
+    // Fork (dev ac116be0, Bug T1): the deck picker and queue watchers call these
+    // two from their own queues, and the widget's properties are @Published.
     func setDeckPickerState(_ vft: VisualsFormatType, _ decksList: [CollectionDeckBoxVisual?], _ isModalOpen: Bool) {
-        if let vm = mulliganGuidePreLobbyViewModel {
-            if vm.decksOnPage == nil || decksList != vm.decksOnPage {
-                vm.decksOnPage = decksList
+        DispatchQueue.main.async {
+            if let vm = self.mulliganGuidePreLobbyViewModel {
+                if vm.decksOnPage == nil || decksList != vm.decksOnPage {
+                    vm.decksOnPage = decksList
+                }
+                vm.visualsFormatType = vft
+                vm.isModalOpen = isModalOpen
             }
-            vm.visualsFormatType = vft
-            vm.isModalOpen = isModalOpen
-        }
 
-        if let widgetVm = windowManager.rootOverlay?.viewModel.constructedMulliganPreLobbyWidget {
-            widgetVm.isModalOpen = isModalOpen
-            widgetVm.visualsFormatType = vft
+            if let widgetVm = self.windowManager.rootOverlay?.viewModel.constructedMulliganPreLobbyWidget {
+                widgetVm.isModalOpen = isModalOpen
+                widgetVm.visualsFormatType = vft
+            }
         }
     }
 
     func setConstructedQueue(_ inQueue: Bool) {
-        mulliganGuidePreLobbyViewModel?.isInQueue = inQueue
-        if let widgetVm = windowManager.rootOverlay?.viewModel.constructedMulliganPreLobbyWidget {
-            widgetVm.isInQueue = inQueue
+        DispatchQueue.main.async {
+            self.mulliganGuidePreLobbyViewModel?.isInQueue = inQueue
+            if let widgetVm = self.windowManager.rootOverlay?.viewModel.constructedMulliganPreLobbyWidget {
+                widgetVm.isInQueue = inQueue
+            }
         }
     }
     
@@ -5404,11 +5408,11 @@ class Game: NSObject, PowerEventHandler {
         }
     }
     
-    // shouldShowTracker is folded in here because the window show/hide this
-    // replaces applied it on top of the widget's own visibility flag.
+    // The trackers' scene gate is folded in here because the window show/hide
+    // this replaces applied it on top of the widget's own visibility flag.
     func updatePlayerResorucesWidgetVisibility() {
         guard let viewModel = windowManager.rootOverlay?.viewModel else { return }
-        if isInMenu || !isMulliganDone() || !shouldShowTracker {
+        if isInMenu || !isMulliganDone() || !isTrackerGameActive {
             viewModel.playerResources.isShown = false
             viewModel.opponentResources.isShown = false
         } else {

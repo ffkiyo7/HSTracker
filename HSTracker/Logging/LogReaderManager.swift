@@ -76,7 +76,7 @@ final class LogReaderManager {
                                      startsWithFilters: ["PowerTaskList.DebugPrintPower", "GameState.", "PowerProcessor.EndCurrentTaskList"],
                                      containsFilters: ["Begin Spectating", "Start Spectator",
                                                        "End Spectator"])
-        powerLog = LogReader(info: plReader, logPath: logPath)
+        powerLog = LogReader(info: plReader, logPath: logPath, removeLogfile: !Settings.keepPowerLog)
 
         rachelle = LogReader(info: LogReaderInfo(name: .rachelle), logPath: logPath)
         arena = LogReader(info: LogReaderInfo(name: .arena), logPath: logPath)
@@ -157,7 +157,7 @@ final class LogReaderManager {
         logger.info("Stopping all trackers")
         stopped = true
         for reader in readers {
-			reader.stop(eraseLogFile: eraseLogFile)
+			reader.stop(eraseLogFile: eraseLogFile && !(reader === powerLog && Settings.keepPowerLog))
         }
         // Wait for the worker to actually leave its loop. Returning early would
         // let a freshly started manager process the same log lines in parallel

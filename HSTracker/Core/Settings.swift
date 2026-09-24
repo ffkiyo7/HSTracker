@@ -251,7 +251,8 @@ final class Settings {
     static var autoDeckDetection: Bool
     @UserDefault(key: Settings.show_experience_counter, defaultValue: true)
     static var showExperienceCounter: Bool
-    @UserDefault(key: Settings.show_mulligan_toast, defaultValue: true)
+    // Fork default (docs/PLAN.md「与上游的默认值差异」): upstream is true.
+    @UserDefault(key: Settings.show_mulligan_toast, defaultValue: false)
     static var showMulliganToast: Bool
     @UserDefault(key: Settings.show_flavor_text, defaultValue: true)
     static var showFlavorText: Bool

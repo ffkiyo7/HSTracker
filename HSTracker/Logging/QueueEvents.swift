@@ -39,13 +39,19 @@ class QueueEvents {
             // _game.metadata.enqueueTime = Date.now()
             
             logger.info("Now in queue")
+            // Fork (dev c5e125c2): the last game is otherwise only cleared when
+            // the next one starts, so the queue's deck list showed its leftovers.
+            _game.reset()
             if let deck = AppDelegate.instance().coreManager.autoDetectDeck(mode: _game.currentMode ?? .invalid) {
                 _game.set(activeDeck: deck, autoDetected: true)
             } else if Settings.autoDeckDetection {
                 _game.set(activeDeckId: nil, autoDetected: true)
+            } else {
+                _game.updateTrackers(reset: true)
             }
         } else {
             logger.info("No longer in queue")
+            _game.updateTrackers(reset: true)
         }
     }
 
