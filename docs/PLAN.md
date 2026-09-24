@@ -33,7 +33,7 @@
 | Phase 7 局末小结窗 | ✅ | 09-11 实战；钩子 `CoreManager.appTerminated`，开关 `show_constructed_session_recap`（默认开，**设置 UI 留 4.3**） |
 | 收尾（删 `useSwiftUITracker` 与旧路径） | ❌ | 被 REFORK 取代：旧路径随重建消失 |
 | 红龙贼 combo 提示器 spike | ⏸ | T0 + T1 已提交 `0a921d6b`（`HSTracker/RedDragon/`，24 测试）；恢复点 `docs/research/red-dragon-rogue-spike.md` 第九节第 5 条；REFORK S7 原样搬 |
-| **REFORK**：在上游新画布上重建 | 🚧 | `docs/REFORK.md`；G1–G3 ✅（09-23 核对 3.6.12 `c723bfd4`），S4 外壳定 A；S0 开工 |
+| **REFORK**：在上游新画布上重建 | 🚧 | `docs/REFORK.md`；新线 `dev0923`（worktree `.claude/worktrees/refork`）。S0–S2 ✅、S7 ✅；S3–S5、S6a 三批 review 过待 🎮（09-24）；S6b ⬜ 等实测后；S8 ⬜ |
 
 **顺序**：REFORK → Phase 2 / V2 余项 → 4.3 其余设置页 → 红龙 T2 overlay。
 
@@ -41,6 +41,7 @@
 
 | 项 | 看什么 | 备料 |
 |---|---|---|
+| REFORK S3–S6a（新线包） | 外观 = dev、分区账、不掉帧、锁定 / 解锁点面板与空白处、高亮只落牌库区、上游保留区块观感；排队显示 30 张、结算即隐藏、退出炉石后 `Power.log` 非 0、中文菜单「锁定窗口」/ Dock 打勾 | 一局构筑 + 排队 + 退出炉石；清单见 `docs/REFORK.md` S4–S6 行 |
 | Bug T10 | 两张的牌抽走一张后数字框 2 → 1；手牌段行数 = 段头数字 | 一局 |
 | Bug T11 | ① 再见「被炸的牌还在牌库」时记牌名 / 段数字 / 已打出段有无；② 高亮三入口（记牌器行 / 手牌 / 发现）哪个不亮 —— **上游原样包也不亮**（REFORK 未决），从上游链路查 | 一局 |
 | Phase 2 / 2.6 高亮加强 | 只能在炉石背景上看 | 弑君者之类关联卡 |
