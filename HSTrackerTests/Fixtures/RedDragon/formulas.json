@@ -1,0 +1,1925 @@
+{
+  "source": {
+    "tables": ["red-dragon-formulas-1-hires.png", "red-dragon-formulas-1.png", "red-dragon-formulas-2.png"],
+    "author": "B 站 萌萌哒的小白OwO 教学视频",
+    "transcribed": "2026-09-11",
+    "notes": [
+      "表 1 以高清图 red-dragon-formulas-1-hires.png 为准；低清图 red-dragon-formulas-1.png 是同一张表的另一个版本（不是同一次截图），两版有实质差异，差异逐行记录在 row.crossCheck 里。",
+      "低清版比高清版多一行（打/回16 的「伺骨（无骨刺目标）」），本文件收录该行并在 note 中注明只见于低清版。",
+      "高清截图右侧被视频画面边缘裁掉，打/回16 组的备注在高清版不完整，这几行的 note 采用低清版的完整文本，高清版所见记在 crossCheck.noteHires。",
+      "表 2 只有低清版（1260x641），表头行被截掉，列序按表 1 推定：水晶/费用/杂牌/特殊杂牌/伤害/一阶段/二阶段/三阶段/备注。"
+    ]
+  },
+  "concepts": {
+    "水晶数": "启动公式时的法力水晶数量。刀油削弱后引入回费随从（以前的鲍勃、现在的晦鳞巢母），水晶不足会让回费亏掉，所以单列。极限水晶启动是素材局，实战少见",
+    "费用数": "经过各种偷费后、启动前的实际可用费用。偷费 = 硬币、伺机 + 骨刺、提前步老千、步鱼屯费等",
+    "杂牌数": "不分真假杂：随从牌、偷费牌（硬币、伺机、骨刺）之外的牌统称杂牌。涉及特殊杂牌或可清杂牌时表中标注",
+    "_source": "上述三段取自 docs/research/red-dragon-rogue-spike.md 第八节转录的 red-dragon-formulas-concepts.png 原定义"
+  },
+  "conventions": {
+    "序列数字": "每张牌后面的数字 = 打完它剩余的费用（表顶注明「随从后的数字表示当前剩余费用」）",
+    "牌-目标": "带 - 的 token 是「牌-目标」，如 步-鱼之外某随、殒-舞、腾格-狐、骨-狐",
+    "杂牌数 a+b": "如 3+2 = 共 5 杂，其中 2 杂可清（见同行备注「5杂中2杂可清」）；本文件 junk 取总数，junkRaw 保留原写法",
+    "红字": "图中红色数字/文字表示该格有特殊要求，用 crystalsRed / junkRed / redInPhase 标注",
+    "水晶 /": "预启动等行水晶列写「/」，本文件 crystals=null，crystalsRaw=\"/\"",
+    "伤害空": "预启动组不给伤害，damage=null"
+  },
+  "notation": {
+    "鱼": "鲨鱼之灵",
+    "狐": "狐人老千",
+    "刀": "斯卡布斯·刀油",
+    "暗": "暗影施法者",
+    "牛": "乐队经理精英牛头人酋长（E.T.C.）",
+    "晦": "晦鳞巢母",
+    "龙": "生命的缚誓者阿莱克丝塔萨",
+    "舞": "舞动全场（ft.迦罗娜）",
+    "幻": "幻觉药水",
+    "步": "暗影步",
+    "骨": "锯齿骨刺",
+    "伺": "伺机待发",
+    "殒": "殒命暗影",
+    "币": "伪造的幸运币",
+    "杂": "任意杂牌（占位）",
+    "腾格": "腾格牌占位：能把自己场上一个随从弄走的牌（步/骨刺/致聋术/袋底藏沙/背刺等），用来腾出场上随从格子",
+    "某随": "任意随从（占位）",
+    "鱼之外某随": "除鲨鱼之灵外的任意随从（暗影步的弹回目标，占位）",
+    "帷幕": "潜伏帷幕",
+    "探底": "垂钓时光（备注中出现）",
+    "地图": "异教地图（备注中出现）",
+    "黑刀": "黑水弯刀（备注中出现）",
+    "彗": "幸运彗星 / Lucky Comet，`GDB_873`（dbfId 111292），潜行者 2 费法术：发现一张连击随从；你打出的下一张连击随从的连击效果触发两次（效果不限本回合，跨回合保留）。**本牌组（致聋双闪避）不带这张牌**",
+    "彗星": "同「彗」= 幸运彗星（`GDB_873`）",
+    "提前彗": "表 2 的组名（低清图里曾被误认成「提前弊 / 提前费」）：**上回合已经打过幸运彗星**，所以这回合打出的第一张连击随从（通常是斯卡布斯·刀油）连击触发两次 = 两层各 -2，合计 -4。这正是该组能「先刀 / 先狐再鱼」逆序启动的前提。本牌组不带幸运彗星 → 该组 18 行对本牌组不适用",
+    "彗逆序": "「彗星逆序」打法名，视频章节名之一（备注中出现）= 幸运彗星（见「彗」）+ 逆序（先刀 / 先狐再鱼）启动",
+    "快枪": "已确认：不是牌名，是「狂野西部」的关键字 Quickdraw（中文「快枪」）—— 在抽到该牌的同一回合使用时有额外效果。备注「无快枪脱水作腾格」里它是「脱水」的修饰语",
+    "脱水": "已确认 = 脱水 / Dehydrate，`WW_325`（本地 CardDefs.xml 251332 核对），萨满 3 费法术：吸血，对一个随从造成 4 点伤害；快枪：法力值消耗为（1）点。所以「快枪脱水」= 当回合抽到、按 1 费打出的脱水，4 伤足以打死 1/1 复制体或狐人老千，是一张 1 费腾格牌",
+    "_快枪脱水与本牌组的关系": "潜行者拿不到萨满的脱水，唯一来路是「持枪要挟 / Stick Up」`WW_411`（潜行者 1 费法术，发现一张另一职业的快枪牌）—— 正是 spike 三、1 里说的 win 项目 V1.4 才加进去的那张牌。同一张表在 t1-32-05 的备注里把「袋底藏沙」（`WW_403`，恶魔猎手 2 费快枪）也列为腾格牌，同样只能靠持枪要挟拿到。结论：这张公式表是给**带持枪要挟的另一版牌组**写的；本牌组（致聋双闪避）既没有持枪要挟也没有脱水，所以 t1-48-06a 备注「无快枪脱水作腾格适用上方公式」对本牌组恒成立 —— 只需标注，不需要建模脱水 / 袋底藏沙 / 快枪关键字"
+  },
+  "groups": [
+    {
+      "name": "32公式",
+      "table": 1,
+      "notes": []
+    },
+    {
+      "name": "48公式",
+      "table": 1,
+      "notes": []
+    },
+    {
+      "name": "48+公式",
+      "table": 1,
+      "notes": [
+        "实战中考虑48+前通常会先预启动，预启动后也能更轻松打出80+斩杀"
+      ]
+    },
+    {
+      "name": "打/回16",
+      "table": 1,
+      "notes": [
+        "由于7费1杂打法中二阶段有盈余费用，当杂牌有过牌时（如探底、地图、黑刀等），可以先试着找组件，如探底/黑刀抽步，地图找步+骨或步+币等，就能极限启动了qw"
+      ]
+    },
+    {
+      "name": "预启动",
+      "table": 1,
+      "notes": [
+        "打16和预启动相比，前者杂牌要求高，后者能满杂。因前者舞动需收晦，而预启动不必做1费晦，杂牌更宽松",
+        "本组三行在表里各有自己的行标签：预启动 / 无晦清杂预启动 / 缺暗(晦)预启动"
+      ]
+    },
+    {
+      "name": "无狐",
+      "table": 2,
+      "notes": [
+        "若提前步-刀，可以以给无狐打法减2费；",
+        "有骨刺对象时，「步+骨」能给以上无狐公式减2费：「刀骨鱼步刀」...如9费5杂32→7费5杂中步骨32：刀3骨3鱼3步-刀3刀1暗0刀0牛0晦4刀3舞3  鱼3刀2刀2龙1"
+      ]
+    },
+    {
+      "name": "无晦",
+      "table": 2,
+      "notes": [
+        "行标签为「无晦（详情参考老红龙）」",
+        "无晦就是老红龙打法。上面只是列举出可能用得到的典型公式。由于现在费用需求高，所以无晦通常需："
+      ]
+    },
+    {
+      "name": "无暗+无晦",
+      "table": 2,
+      "notes": []
+    },
+    {
+      "name": "无刀做无限",
+      "table": 2,
+      "notes": []
+    },
+    {
+      "name": "提前弊",
+      "table": 2,
+      "notes": [
+        "有步或伺可以给「狐起手」减费。单步给彗逆序减2费。若有第二个步在「刀鱼暗」后步狐可以再赚1费；伺机舞动给彗逆序减费视情况而定",
+        "步和伺等同清杂所以不算在以下公式杂牌数里。另外由于彗逆序中狐本身不赚费，以下公式除「狐起手」外均将狐视作杂牌",
+        "本组只有说明文字，没有公式行；组名第三个字辨认不确定（弊/费/币）",
+        "✅ 组名第三字是「彗」，即「提前彗」= **上回合已打过幸运彗星**（Lucky Comet，`GDB_873`，dbfId 111292，潜行者 2 费法术：发现一张连击随从；你打出的下一张连击随从的连击效果触发两次，效果不限本回合）。2026-09-11 用户看原图确认，此前「推定为『费』（提前偷费）」的判断作废 —— 组内说明确实在讲偷费，但组名讲的是前提条件。有幸运彗星在，本组首张斯卡布斯·刀油的连击就是两层各 -2 = -4，「彗逆序」（先刀 / 先狐再鱼）才成立。**本牌组（致聋双闪避）不带幸运彗星，本组 18 行对它不适用**；引擎不建模这张牌，按一般规则「卡表没建模的牌 = 不可打的杂牌，只占手牌格」处理。组名字段（name）保持转录原样未改"
+      ]
+    },
+    {
+      "name": "狐起手",
+      "table": 2,
+      "notes": [
+        "行标签全文：狐起手（无触发连击牌或能配合伺步减费时使用）",
+        "⚠️ 前提：已打过幸运彗星；本牌组不带（波及「彗逆序」五个组：狐起手 / 刀起手 / 无晦（狐视作杂牌）/ 打·回16（狐视作杂牌）/ 预启动（狐视作杂牌），共 18 行）。这些行把**第一张斯卡布斯·刀油**的连击当成「下两张牌各 -4」算（所以紧随其后的鱼是 0 费、暗是 1 费），而同一行里的**狐人老千**按未翻倍的 -2 算 —— 曾被推演误判为「原表的系统性算法错」（理由是刀油之前鲨鱼还没下场、t2-pre-02 是空场预启动行）。2026-09-11 用户看原图纠正：**是前提条件没进转录**。表 2 这一组的组名是「提前**彗**」= 上回合已打过幸运彗星（`GDB_873`：发现一张连击随从，你打出的下一张连击随从的连击效果触发两次，效果不限本回合），首张刀油因此双触发 -4，而狐人老千不是连击随从、不吃彗星，所以 -2 —— 两者并不矛盾，18 行全部自洽。**本牌组（致聋双闪避）不带幸运彗星，这 18 行对它不适用**，引擎也不建模这张牌（`HSTrackerTests/RedDragonTests.swift` 的重放白名单原因已按此改写）。表里没提醒的一个坑：刀油是连击不是战吼，刀之前得先垫一张牌。"
+      ]
+    },
+    {
+      "name": "刀起手",
+      "table": 2,
+      "notes": [
+        "「狐骨狐」起手可以视作清杂后的「刀起手」，当然若存在「步狐偷费」则不能等同了",
+        "行标签全文：刀起手（狐视作杂牌）",
+        "⚠️ 与「狐起手」组同一个前提：已打过幸运彗星（`GDB_873`）才有首刀 -4；本牌组不带，说明见该组 notes",
+        "⚠️ 6 费那三行（t2-daoqs-01 / 04a / 04b）序列里的「刀1」按推演应为「刀0」：暗 之后法力是 1、刀 是 1 费复制、刀油的槽此时已用完，打完只能是 0；紧随其后的「牛0」也只有从 0 出发才成立（牛 4-4=0）。同组 7 费的 t2-daoqs-03 在同一位置写「刀1牛1」是对的（多 1 费），6 费行像是从 7 费行抄下来时漏改了这一个数字；t2-daoqs-05 在同一位置写的就是「刀0」"
+      ]
+    },
+    {
+      "name": "无晦（狐视作杂牌）",
+      "table": 2,
+      "notes": []
+    },
+    {
+      "name": "打/回16（狐视作杂牌）",
+      "table": 2,
+      "notes": []
+    },
+    {
+      "name": "预启动（狐视作杂牌）",
+      "table": 2,
+      "notes": []
+    },
+    {
+      "name": "常用缺随抽随",
+      "table": 2,
+      "notes": []
+    }
+  ],
+  "rows": [
+    {
+      "id": "t1-32-01",
+      "group": "32公式",
+      "table": 1,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 8,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": null,
+      "specialJunkRaw": null,
+      "damage": 32,
+      "phases": ["鱼4狐2刀2暗1牛1刀0晦4舞4", "鱼3刀2刀2龙1暗1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":4},{"card":"狐","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"牛","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"舞","manaAfter":4}],
+        [{"card":"鱼","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"暗","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "raw": "4 | 8 | 4 |  | 32 | 鱼4狐2刀2暗1牛1刀0晦4舞4 | 鱼3刀2刀2龙1暗1龙0 |  | "
+    },
+    {
+      "id": "t1-32-02",
+      "group": "32公式",
+      "table": 1,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 7,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": "骨",
+      "specialJunkRaw": "骨",
+      "damage": 32,
+      "phases": ["鱼3狐1刀1暗0骨-狐0刀0牛0晦4刀3舞3", "鱼3刀2刀2龙1暗1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":3},{"card":"狐","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"骨","target":"狐","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":3}],
+        [{"card":"鱼","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"暗","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "raw": "4 | 7 | 4 | 骨 | 32 | 鱼3狐1刀1暗0骨-狐0刀0牛0晦4刀3舞3 | 鱼3刀2刀2龙1暗1龙0 |  | "
+    },
+    {
+      "id": "t1-32-03",
+      "group": "32公式",
+      "table": 1,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 7,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": "伺",
+      "specialJunkRaw": "伺",
+      "damage": 32,
+      "phases": ["鱼3狐1刀1暗0刀0牛0晦4伺舞3", "鱼2刀1刀1龙0刀0暗0龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":3},{"card":"狐","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"伺","manaAfter":null},{"card":"舞","manaAfter":3}],
+        [{"card":"鱼","manaAfter":2},{"card":"刀","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"龙","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"暗","manaAfter":0},{"card":"龙","manaAfter":0}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "raw": "4 | 7 | 4 | 伺 | 32 | 鱼3狐1刀1暗0刀0牛0晦4伺舞3 | 鱼2刀1刀1龙0刀0暗0龙0 |  | "
+    },
+    {
+      "id": "t1-32-04",
+      "group": "32公式",
+      "table": 1,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 6,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": "步",
+      "specialJunkRaw": "步",
+      "damage": 32,
+      "phases": ["鱼2狐0刀0牛0晦4步-刀4刀2暗1刀1舞1", "鱼1晦4牛3刀2刀2龙1幻1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":2},{"card":"狐","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"步","target":"刀","manaAfter":4},{"card":"刀","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"舞","manaAfter":1}],
+        [{"card":"鱼","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"牛","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"幻","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": "3杂能收到暗，有暗建议二阶段 鱼晦刀刀龙暗龙，手里多1龙",
+      "uncertain": [],
+      "raw": "4 | 6 | 4 | 步 | 32 | 鱼2狐0刀0牛0晦4步-刀4刀2暗1刀1舞1 | 鱼1晦4牛3刀2刀2龙1幻1龙0 |  | 3杂能收到暗，有暗建议二阶段 鱼晦刀刀龙暗龙，手里多1龙"
+    },
+    {
+      "id": "t1-32-05",
+      "group": "32公式",
+      "table": 1,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 7,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": "腾格",
+      "specialJunkRaw": "腾格（≤2费）",
+      "damage": 32,
+      "phases": ["鱼3狐1刀1暗0刀0牛0晦4 腾格-狐2 刀1舞1", "鱼1晦4刀3刀3龙2暗2龙1"],
+      "steps": [
+        [{"card":"鱼","manaAfter":3},{"card":"狐","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"腾格","target":"狐","manaAfter":2},{"card":"刀","manaAfter":1},{"card":"舞","manaAfter":1}],
+        [{"card":"鱼","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1}]
+      ],
+      "note": "腾格如骨刺、步、致聋术、袋底藏沙、背刺等",
+      "uncertain": [],
+      "raw": "4 | 7 | 4 | 腾格（≤2费） | 32 | 鱼3狐1刀1暗0刀0牛0晦4 腾格-狐2 刀1舞1 | 鱼1晦4刀3刀3龙2暗2龙1 |  | 腾格如骨刺、步、致聋术、袋底藏沙、背刺等"
+    },
+    {
+      "id": "t1-48-01",
+      "group": "48公式",
+      "table": 1,
+      "crystals": 5,
+      "crystalsRed": false,
+      "cost": 9,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": null,
+      "specialJunkRaw": null,
+      "damage": 48,
+      "phases": ["鱼5狐3刀3暗2牛2刀1晦5舞5", "鱼4刀3刀3龙2暗2龙1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":5},{"card":"狐","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"暗","manaAfter":2},{"card":"牛","manaAfter":2},{"card":"刀","manaAfter":1},{"card":"晦","manaAfter":5},{"card":"舞","manaAfter":5}],
+        [{"card":"鱼","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "raw": "5 | 9 | 4 |  | 48 | 鱼5狐3刀3暗2牛2刀1晦5舞5 | 鱼4刀3刀3龙2暗2龙1龙0 |  | "
+    },
+    {
+      "id": "t1-48-02",
+      "group": "48公式",
+      "table": 1,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 8,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": "骨",
+      "specialJunkRaw": "骨",
+      "damage": 48,
+      "phases": ["鱼4狐2刀2暗1骨-狐1刀1牛1晦5刀4舞4", "鱼4刀3刀3龙2暗2龙1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":4},{"card":"狐","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"骨","target":"狐","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"牛","manaAfter":1},{"card":"晦","manaAfter":5},{"card":"刀","manaAfter":4},{"card":"舞","manaAfter":4}],
+        [{"card":"鱼","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "inference": {
+        "水晶4与晦5冲突": "按 card-model 的「复原 = min(cur+2, maxMana)」，4 水晶时 晦 从法力 1 出发双触发只能回到 4（1→3→4），不可能是 5。而 晦5 是硬需求：改成 晦4 后整条线各数字 -1，二阶段末尾的第三张龙会落到 -1，公式不成立。所以本行的水晶列在原表里就写错了，应为 5。旁证：t1-48p-07 的一阶段与本行逐字相同（鱼4狐2刀2暗1骨-狐1刀1牛1晦5刀4舞4），而它的水晶列（高清图核对过）写的就是 5。已核对高清图 red-dragon-formulas-1-hires.png，转录成 4 没有转错，是原表错。",
+        "另一种解释": "若「币」的临时水晶会抬高本回合的复原上限（币的文本是「在本回合中，获得一个法力水晶」），4 水晶 + 1 张币也能让 晦 回到 5。本表的序列里从不出现「币」token（币都折进了「费用」列），所以公式表本身判不了这一条；建议在 Power.log 上验一次 RESOURCES / TEMP_RESOURCES / RESOURCES_USED 的实际语义。",
+        "resolvedBy": "推演器 scratchpad/sim.py + 高清图核对"
+      },
+      "raw": "4 | 8 | 4 | 骨 | 48 | 鱼4狐2刀2暗1骨-狐1刀1牛1晦5刀4舞4 | 鱼4刀3刀3龙2暗2龙1龙0 |  | "
+    },
+    {
+      "id": "t1-48-03a",
+      "group": "48公式",
+      "table": 1,
+      "crystals": 5,
+      "crystalsRed": false,
+      "cost": 8,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": "步",
+      "specialJunkRaw": "步",
+      "damage": 48,
+      "phases": ["鱼4狐2刀2暗1牛1步-狐1狐1刀1晦5舞5", "鱼4刀3刀3龙2暗2龙1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":4},{"card":"狐","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"牛","manaAfter":1},{"card":"步","target":"狐","manaAfter":1},{"card":"狐","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"晦","manaAfter":5},{"card":"舞","manaAfter":5}],
+        [{"card":"鱼","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": "同一行给了两条一阶段线，拆成 a/b；二阶段单元格合并，两条线共用。本行备注：上方公式步狐接刀，相当于把步当作币使用；下方公式晦后步，相当于把步作为腾格法术",
+      "uncertain": [],
+      "raw": "5 | 8 | 4 | 步 | 48 | 鱼4狐2刀2暗1牛1步-狐1狐1刀1晦5舞5 | 鱼4刀3刀3龙2暗2龙1龙0 |  | 上方公式步狐接刀，相当于把步当作币使用；下方公式晦后步，相当于把步作为腾格法术"
+    },
+    {
+      "id": "t1-48-03b",
+      "group": "48公式",
+      "table": 1,
+      "crystals": 5,
+      "crystalsRed": false,
+      "cost": 8,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": "步",
+      "specialJunkRaw": "步",
+      "damage": 48,
+      "phases": ["鱼4狐2刀2暗1刀1牛1晦5步-鱼之外某随5刀4舞", "鱼4刀3刀3龙2暗2龙1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":4},{"card":"狐","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"牛","manaAfter":1},{"card":"晦","manaAfter":5},{"card":"步","target":"鱼之外某随","manaAfter":5},{"card":"刀","manaAfter":4},{"card":"舞","manaAfter":null,"inferred":4}],
+        [{"card":"鱼","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": "同一行给了两条一阶段线，拆成 a/b。一阶段末尾被单元格裁掉：只看得到「…刀4舞」，舞后面的数字不可见（按同组其它行推测应为 4，未采信）。本行备注：对于下方，步可换成等同0费的腾格，如背刺、伺机+致聋术/袋底藏沙、黑刀减费后的腾格等",
+      "uncertain": ["phases[0]", "steps[0][9]"],
+      "resolved": ["steps[0][9]"],
+      "inference": {
+        "steps[0][9]": "舞 = 4。晦5 → 步（0 费，只为腾格）→5 → 刀（暗做出的 1 费复制）→4，该刀的连击在鲨鱼在场时压两层「2 槽 -2」，舞 3-4=0，所以打完仍是 4。二阶段起手「鱼4」也反向要求一阶段收在 4（鱼 1 费复制 -4 = 0）。原转录「按同组其它行推测应为 4」得到验证。"
+      },
+      "raw": "5 | 8 | 4 | 步 | 48 | 鱼4狐2刀2暗1刀1牛1晦5步-鱼之外某随5刀4舞[?] | 鱼4刀3刀3龙2暗2龙1龙0 |  | 对于下方，步可换成等同0费的腾格，如背刺、伺机+致聋术/袋底藏沙、黑刀减费后的腾格等"
+    },
+    {
+      "id": "t1-48-04",
+      "group": "48公式",
+      "table": 1,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 8,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": "殒",
+      "specialJunkRaw": "殒",
+      "damage": 48,
+      "phases": ["鱼4狐2刀2暗1牛1刀0晦4舞4", "鱼3刀2刀2龙1暗-刀1刀0殒-舞0", "刀鱼刀龙刀暗龙"],
+      "steps": [
+        [{"card":"鱼","manaAfter":4},{"card":"狐","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"牛","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"舞","manaAfter":4}],
+        [{"card":"鱼","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"暗","target":"刀","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"殒","target":"舞","manaAfter":0}],
+        [{"card":"刀","manaAfter":null},{"card":"鱼","manaAfter":null},{"card":"刀","manaAfter":null},{"card":"龙","manaAfter":null},{"card":"刀","manaAfter":null},{"card":"暗","manaAfter":null},{"card":"龙","manaAfter":null}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "crossCheck": {
+        "source": "red-dragon-formulas-1.png（低清版）",
+        "phases[2]": "刀0鱼0刀0龙0刀0暗0龙0（低清版把三阶段写成了带费用数字的完整形式，高清版是无数字的简写）"
+      },
+      "raw": "4 | 8 | 4 | 殒 | 48 | 鱼4狐2刀2暗1牛1刀0晦4舞4 | 鱼3刀2刀2龙1暗-刀1刀0殒-舞0 | 刀鱼刀龙刀暗龙 | "
+    },
+    {
+      "id": "t1-48-05",
+      "group": "48公式",
+      "table": 1,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 7,
+      "junk": 3,
+      "junkRed": true,
+      "specialJunk": "殒",
+      "specialJunkRaw": "殒",
+      "damage": 48,
+      "phases": ["鱼3狐1刀1暗0刀0牛0刀0舞0", "刀0鱼0刀0暗-刀0刀0晦4刀4殒-舞4", "鱼4刀3刀3龙2暗2龙1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":3},{"card":"狐","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"舞","manaAfter":0}],
+        [{"card":"刀","manaAfter":0},{"card":"鱼","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"暗","target":"刀","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":4},{"card":"殒","target":"舞","manaAfter":4}],
+        [{"card":"鱼","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "raw": "4 | 7 | 3(红) | 殒 | 48 | 鱼3狐1刀1暗0刀0牛0刀0舞0 | 刀0鱼0刀0暗-刀0刀0晦4刀4殒-舞4 | 鱼4刀3刀3龙2暗2龙1龙0 | "
+    },
+    {
+      "id": "t1-48-06a",
+      "group": "48公式",
+      "table": 1,
+      "crystals": 5,
+      "crystalsRed": true,
+      "cost": 7,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": ["骨", "腾格"],
+      "specialJunkRaw": "骨+腾格（≤4费）",
+      "damage": 48,
+      "phases": ["鱼3狐1刀1暗0骨-狐0刀0牛0晦4刀3舞3", "鱼3晦5刀4刀4龙3 腾格3 暗2龙1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":3},{"card":"狐","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"骨","target":"狐","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":3}],
+        [{"card":"鱼","manaAfter":3},{"card":"晦","manaAfter":5},{"card":"刀","manaAfter":4},{"card":"刀","manaAfter":4},{"card":"龙","manaAfter":3},{"card":"腾格","manaAfter":3},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": "水晶列一格两行（5/4），特殊杂牌也是两行，一阶段与二阶段单元格合并共用；拆成 a/b。本行备注：无快枪脱水作腾格适用上方公式",
+      "uncertain": [],
+      "redInPhase": ["二阶段「晦5」的 5 为红字"],
+      "raw": "5(红) | 7 | 4 | 骨+腾格（≤4费） | 48 | 鱼3狐1刀1暗0骨-狐0刀0牛0晦4刀3舞3 | 鱼3晦5刀4刀4龙3 腾格3 暗2龙1龙0 |  | 无快枪脱水作腾格适用上方公式"
+    },
+    {
+      "id": "t1-48-06b",
+      "group": "48公式",
+      "table": 1,
+      "crystals": 4,
+      "crystalsRed": true,
+      "cost": 7,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": ["骨", "腾格"],
+      "specialJunkRaw": "骨+腾格（≤2费）",
+      "damage": 48,
+      "phases": ["鱼3狐1刀1暗0骨-狐0刀0牛0晦4刀3舞3", "鱼3晦5刀4刀4龙3 腾格3 暗2龙1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":3},{"card":"狐","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"骨","target":"狐","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":3}],
+        [{"card":"鱼","manaAfter":3},{"card":"晦","manaAfter":5},{"card":"刀","manaAfter":4},{"card":"刀","manaAfter":4},{"card":"龙","manaAfter":3},{"card":"腾格","manaAfter":3},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": "与 t1-48-06a 同一表格行的下半（4 水晶 / 骨+腾格（≤2费）），一阶段、二阶段单元格合并共用",
+      "uncertain": [],
+      "inference": {
+        "水晶4与晦5冲突": "合并单元格里的二阶段是 5 水晶那一半（t1-48-06a）的。按 4 水晶推演：一阶段没问题（晦 从 0 回到 4，两种水晶同解），但二阶段 晦 从法力 2 出发只能回到 4（2→4→4），比合并单元格里的 晦5 少 1；顺着往下每个数字 -1，末尾第三张龙会落到 -1，走不完。所以 4 水晶那一半不能照抄这条二阶段，它需要一条表里没给出的替代线。",
+        "≤2费腾格解释不了这 1 费": "二阶段的腾格位置本来就有刀油剩下的 -4，≤4 费和 ≤2 费的腾格在那里都是 0 费，所以「≤2费」这个差别补不上晦少回的那 1 费；差额的来源（多一张 0 费腾格？换掉一张龙？）表里没写。",
+        "同上另一种解释": "若币的临时水晶会抬高复原上限，4 水晶 + 1 张币也能让晦回到 5，那么两半就能共用同一条二阶段。见 t1-48-02 的同名条目。"
+      },
+      "redInPhase": ["二阶段「晦5」的 5 为红字（该行水晶为 4，与合并单元格里的 晦5 不一致，源表如此）"],
+      "raw": "4(红) | 7 | 4 | 骨+腾格（≤2费） | 48 | （与上行合并）鱼3狐1刀1暗0骨-狐0刀0牛0晦4刀3舞3 | （与上行合并）鱼3晦5刀4刀4龙3 腾格3 暗2龙1龙0 |  | "
+    },
+    {
+      "id": "t1-48-07",
+      "group": "48公式",
+      "table": 1,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 7,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": ["步", "腾格"],
+      "specialJunkRaw": "步+腾格（≤2费）",
+      "damage": 48,
+      "phases": ["鱼3狐1刀1暗0刀0牛0晦4 腾格-狐2 刀1舞1", "鱼1晦4步-晦4刀3刀3龙2暗2龙1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":3},{"card":"狐","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"腾格","target":"狐","manaAfter":2},{"card":"刀","manaAfter":1},{"card":"舞","manaAfter":1}],
+        [{"card":"鱼","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"步","target":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": "步也可换成等同0费的腾格",
+      "uncertain": [],
+      "raw": "4 | 7 | 4 | 步+腾格（≤2费） | 48 | 鱼3狐1刀1暗0刀0牛0晦4 腾格-狐2 刀1舞1 | 鱼1晦4步-晦4刀3刀3龙2暗2龙1龙0 |  | 步也可换成等同0费的腾格"
+    },
+    {
+      "id": "t1-48-08",
+      "group": "48公式",
+      "table": 1,
+      "crystals": 4,
+      "crystalsRed": false,
+      "crystalsColor": "紫",
+      "cost": 7,
+      "junk": 2,
+      "junkRed": true,
+      "specialJunk": ["伺", "骨", "步"],
+      "specialJunkRaw": "伺+骨/步",
+      "damage": 48,
+      "phases": ["鱼3狐1刀1暗0刀0牛0晦4伺舞3", "鱼2晦 骨/步-晦 刀刀龙暗龙龙"],
+      "steps": [
+        [{"card":"鱼","manaAfter":3},{"card":"狐","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"伺","manaAfter":null},{"card":"舞","manaAfter":3}],
+        null
+      ],
+      "note": "腾格是步时4水晶；腾格是骨刺时5水晶；伺骨组合有目标时建议打5水晶9费4杂48",
+      "uncertain": ["steps[1]"],
+      "resolved": ["steps[1]"],
+      "expandedLines": [
+        {
+          "label": "二阶段·腾格用步（低清版第一条）",
+          "steps": [{"card":"鱼","manaAfter":2},{"card":"晦","manaAfter":4},{"card":"步","target":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+        },
+        {
+          "label": "二阶段·腾格用骨刺（低清版第二条）",
+          "steps": [{"card":"鱼","manaAfter":2},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"骨","target":"晦","manaAfter":2},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+        }
+      ],
+      "inference": {
+        "steps[1]": "高清版把二阶段压成「鱼2晦 骨/步-晦 刀刀龙暗龙龙」，低清版给了展开的两条；逐 token 推演两条都成立，见 expandedLines。两条的每一个 manaAfter 都是按 4 水晶算出来的（晦 在法力 2 时双触发复原 → min(2+2,4)=4），伤害都是 48（三次阿莱 ×16）。备注说「腾格是骨刺时 5 水晶」——按纯法力推演 5 水晶时骨刺那条也走得通（晦回到 5，之后一路多 1 费），差的那 1~2 费不出现在序列里，应当来自启动前的偷费口径，法力推演无法判定。"
+      },
+      "crossCheck": {
+        "source": "red-dragon-formulas-1.png（低清版）",
+        "specialJunkRaw": "伺+步/骨（顺序与高清版相反）",
+        "phases[1]": "低清版把二阶段展开成了两条线：鱼2晦4步-晦4刀3刀3龙2暗2龙1龙0 / 鱼2晦4刀3刀3龙2骨-晦2暗2龙1龙0",
+        "note": "伺骨在有骨刺目标且有5水晶时，建议打5水晶9费4杂48，杂牌数更宽松"
+      },
+      "raw": "4(紫) | 7 | 2(红) | 伺+骨/步 | 48 | 鱼3狐1刀1暗0刀0牛0晦4伺舞3 | 鱼2晦 骨/步-晦 刀刀龙暗龙龙 |  | 腾格是步时4水晶；腾格是骨刺时5水晶；伺骨组合有目标时建议打5水晶9费4杂48"
+    },
+    {
+      "id": "t1-48-09",
+      "group": "48公式",
+      "table": 1,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 6,
+      "junk": 3,
+      "junkRed": true,
+      "specialJunk": ["骨", "步"],
+      "specialJunkRaw": "骨步",
+      "damage": 48,
+      "phases": ["鱼2狐0刀0牛0晦4步-刀4刀2暗1刀1舞1", "鱼1晦4刀3刀3龙2骨-晦2暗2龙1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":2},{"card":"狐","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"步","target":"刀","manaAfter":4},{"card":"刀","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"舞","manaAfter":1}],
+        [{"card":"鱼","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"骨","target":"晦","manaAfter":2},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": "若6费有4杂，只能32，建议骨狐收暗，不打6费1步的牛幻32，这样手里多1龙",
+      "uncertain": [],
+      "raw": "4 | 6 | 3(红) | 骨步 | 48 | 鱼2狐0刀0牛0晦4步-刀4刀2暗1刀1舞1 | 鱼1晦4刀3刀3龙2骨-晦2暗2龙1龙0 |  | 若6费有4杂，只能32，建议骨狐收暗，不打6费1步的牛幻32，这样手里多1龙"
+    },
+    {
+      "id": "t1-48-10",
+      "group": "48公式",
+      "table": 1,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 6,
+      "junk": 3,
+      "junkRed": true,
+      "specialJunk": "步",
+      "specialJunkRaw": "双步",
+      "damage": 48,
+      "phases": ["鱼2狐0刀0牛0晦4步-刀4刀2暗1刀1舞1", "鱼1晦4步-晦4刀3刀3龙2暗2龙1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":2},{"card":"狐","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"步","target":"刀","manaAfter":4},{"card":"刀","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"舞","manaAfter":1}],
+        [{"card":"鱼","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"步","target":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "raw": "4 | 6 | 3(红) | 双步 | 48 | 鱼2狐0刀0牛0晦4步-刀4刀2暗1刀1舞1 | 鱼1晦4步-晦4刀3刀3龙2暗2龙1龙0 |  | "
+    },
+    {
+      "id": "t1-48-11",
+      "group": "48公式",
+      "table": 1,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 6,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": ["步", "殒"],
+      "specialJunkRaw": "步殒",
+      "damage": 48,
+      "phases": ["鱼2狐0刀0牛0晦4步-刀4刀2暗1刀1舞1", "鱼0晦4刀3刀3龙2殒-舞2", "鱼1晦4牛3刀2龙2幻2龙1"],
+      "steps": [
+        [{"card":"鱼","manaAfter":2},{"card":"狐","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"步","target":"刀","manaAfter":4},{"card":"刀","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"舞","manaAfter":1}],
+        [{"card":"鱼","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"殒","target":"舞","manaAfter":2}],
+        [{"card":"鱼","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"牛","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":2},{"card":"幻","manaAfter":2},{"card":"龙","manaAfter":1}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "inference": {
+        "steps[1][0]": "二阶段起手表里写「鱼0」，推演给「鱼1」。一阶段最后一张刀（1 费复制）压下两层「2 槽 -2」，舞 只用掉每层第 1 槽，第 2 槽留给二阶段的鱼 → 鱼（舞弹回的 1 费牌）1-4=0 费 → 打完仍是 1。旁证：t1-48p-01 的一阶段与本行逐字相同，它的二阶段起手写的就是「鱼1」。判为原表笔误（高清图核对过，转录没错）。往下 晦4 刀3 刀3 龙2 殒-舞2、三阶段 鱼1晦4牛3刀2龙2幻2龙1 全部对得上，伤害 48 一致。"
+      },
+      "raw": "4 | 6 | 4 | 步殒 | 48 | 鱼2狐0刀0牛0晦4步-刀4刀2暗1刀1舞1 | 鱼0晦4刀3刀3龙2殒-舞2 | 鱼1晦4牛3刀2龙2幻2龙1 | "
+    },
+    {
+      "id": "t1-48-12",
+      "group": "48公式",
+      "table": 1,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 6,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": ["伺", "殒"],
+      "specialJunkRaw": "伺殒",
+      "damage": 48,
+      "phases": ["鱼2狐0刀0牛0晦4伺舞3", "鱼2刀1暗0刀0晦4刀4殒-舞4", "鱼4刀3刀3龙2暗2龙1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":2},{"card":"狐","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"伺","manaAfter":null},{"card":"舞","manaAfter":3}],
+        [{"card":"鱼","manaAfter":2},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":4},{"card":"殒","target":"舞","manaAfter":4}],
+        [{"card":"鱼","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "raw": "4 | 6 | 4 | 伺殒 | 48 | 鱼2狐0刀0牛0晦4伺舞3 | 鱼2刀1暗0刀0晦4刀4殒-舞4 | 鱼4刀3刀3龙2暗2龙1龙0 | "
+    },
+    {
+      "id": "t1-48-13a",
+      "group": "48公式",
+      "table": 1,
+      "crystals": 5,
+      "crystalsRed": false,
+      "cost": 8,
+      "junk": 1,
+      "junkRed": false,
+      "specialJunk": "腾格",
+      "specialJunkRaw": "骨/步之外腾格（≤4费）",
+      "damage": 48,
+      "phases": ["鱼4狐2刀2暗1牛1刀0晦4舞4", "鱼3晦5刀4刀4龙3 腾格3 暗2龙1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":4},{"card":"狐","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"牛","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"舞","manaAfter":4}],
+        [{"card":"鱼","manaAfter":3},{"card":"晦","manaAfter":5},{"card":"刀","manaAfter":4},{"card":"刀","manaAfter":4},{"card":"龙","manaAfter":3},{"card":"腾格","manaAfter":3},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": "同一表格行的上半（5 水晶）；一阶段单元格与下半合并，二阶段各有一行。二阶段被单元格裁掉，只看得到「…暗2龙1龙」，末尾的 0 是按 t1-48-06 同文本补的",
+      "uncertain": ["phases[1]", "steps[1][8]"],
+      "resolved": ["steps[1][8]"],
+      "inference": {
+        "steps[1][8]": "末尾龙 = 0，原转录补的 0 得到验证。二阶段 龙3（9 费吃两层刀油共 -8）→ 腾格（≤4 费，被剩下的 -4 抹平）3 → 暗（1 费复制，-4 抹平）2，暗在鲨鱼下双触发，进手两张 1 费龙 → 龙1 龙0，正好花完。三次阿莱 ×16 = 48，与伤害列一致。"
+      },
+      "redInPhase": ["二阶段「晦5」的 5 为红字"],
+      "raw": "5 | 8 | 1 | 骨/步之外腾格（≤4费） | 48 | 鱼4狐2刀2暗1牛1刀0晦4舞4 | 鱼3晦5刀4刀4龙3 腾格3 暗2龙1龙[0?] |  | "
+    },
+    {
+      "id": "t1-48-13b",
+      "group": "48公式",
+      "table": 1,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 8,
+      "junk": 1,
+      "junkRed": false,
+      "specialJunk": "腾格",
+      "specialJunkRaw": "骨/步之外腾格（≤2费）",
+      "damage": 48,
+      "phases": ["鱼4狐2刀2暗1牛1刀0晦4舞4", "鱼3刀2刀2龙1暗1晦4 腾格2 龙1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":4},{"card":"狐","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"牛","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"舞","manaAfter":4}],
+        [{"card":"鱼","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"暗","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"腾格","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": "同一表格行的下半（4 水晶），一阶段与上半合并共用",
+      "uncertain": [],
+      "raw": "4 | 8 | 1 | 骨/步之外腾格（≤2费） | 48 | （与上行合并）鱼4狐2刀2暗1牛1刀0晦4舞4 | 鱼3刀2刀2龙1暗1晦4 腾格2 龙1龙0 |  | "
+    },
+    {
+      "id": "t1-48p-01",
+      "group": "48+公式",
+      "table": 1,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 6,
+      "junk": 3,
+      "junkRed": true,
+      "specialJunk": ["步", "殒"],
+      "specialJunkRaw": "步殒",
+      "damage": 64,
+      "phases": ["鱼2狐0刀0牛0晦4步-刀4刀2暗1刀1舞1", "鱼1晦4刀3刀3龙2殒-舞2", "鱼1晦4龙3暗2龙1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":2},{"card":"狐","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"步","target":"刀","manaAfter":4},{"card":"刀","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"舞","manaAfter":1}],
+        [{"card":"鱼","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"殒","target":"舞","manaAfter":2}],
+        [{"card":"鱼","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"龙","manaAfter":3},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "raw": "4 | 6 | 4 | 步殒 | 64 | 鱼2狐0刀0牛0晦4步-刀4刀2暗1刀1舞1 | 鱼1晦4刀3刀3龙2殒-舞2 | 鱼1晦4龙3暗2龙1龙0 | "
+    },
+    {
+      "id": "t1-48p-02",
+      "group": "48+公式",
+      "table": 1,
+      "crystals": 6,
+      "crystalsRed": false,
+      "cost": 10,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": "殒",
+      "specialJunkRaw": "殒",
+      "damage": 64,
+      "phases": ["鱼6狐4刀4暗3牛3刀2晦6舞6", "鱼5刀4刀4龙3殒-舞3", "刀2鱼2龙2刀1暗1龙1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":6},{"card":"狐","manaAfter":4},{"card":"刀","manaAfter":4},{"card":"暗","manaAfter":3},{"card":"牛","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"晦","manaAfter":6},{"card":"舞","manaAfter":6}],
+        [{"card":"鱼","manaAfter":5},{"card":"刀","manaAfter":4},{"card":"刀","manaAfter":4},{"card":"龙","manaAfter":3},{"card":"殒","target":"舞","manaAfter":3}],
+        [{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"龙","manaAfter":2},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":1},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "raw": "5 | 10 | 4 | 殒 | 64 | 鱼6狐4刀4暗3牛3刀2晦6舞6 | 鱼5刀4刀4龙3殒-舞3 | 刀2鱼2龙2刀1暗1龙1龙0 | "
+    },
+    {
+      "id": "t1-48p-03",
+      "group": "48+公式",
+      "table": 1,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 7,
+      "junk": 1,
+      "junkRed": true,
+      "specialJunk": "殒",
+      "specialJunkRaw": "殒",
+      "damage": 64,
+      "phases": ["鱼3狐1刀1暗0刀0牛0晦4舞1", "刀0鱼0晦4刀3刀3龙2殒-舞2", "鱼1晦4龙3暗2龙1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":3},{"card":"狐","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"舞","manaAfter":1}],
+        [{"card":"刀","manaAfter":0},{"card":"鱼","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"殒","target":"舞","manaAfter":2}],
+        [{"card":"鱼","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"龙","manaAfter":3},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "raw": "4 | 7 | 1(红) | 殒 | 64 | 鱼3狐1刀1暗0刀0牛0晦4舞1 | 刀0鱼0晦4刀3刀3龙2殒-舞2 | 鱼1晦4龙3暗2龙1龙0 | "
+    },
+    {
+      "id": "t1-48p-04",
+      "group": "48+公式",
+      "table": 1,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 7,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": ["骨", "殒"],
+      "specialJunkRaw": "骨殒",
+      "damage": 64,
+      "phases": ["鱼3狐1刀1暗0骨-狐0刀0牛0晦4刀3舞3", "鱼3刀2刀2龙1殒-舞1", "刀0鱼0晦4龙3暗2龙1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":3},{"card":"狐","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"骨","target":"狐","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":3}],
+        [{"card":"鱼","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"殒","target":"舞","manaAfter":1}],
+        [{"card":"刀","manaAfter":0},{"card":"鱼","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"龙","manaAfter":3},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": "4杂会爆末位刀油，所以打不了80",
+      "uncertain": [],
+      "raw": "4 | 7 | 3 | 骨殒 | 64 | 鱼3狐1刀1暗0骨-狐0刀0牛0晦4刀3舞3 | 鱼3刀2刀2龙1殒-舞1 | 刀0鱼0晦4龙3暗2龙1龙0 | 4杂会爆末位刀油，所以打不了80"
+    },
+    {
+      "id": "t1-48p-05",
+      "group": "48+公式",
+      "table": 1,
+      "crystals": 5,
+      "crystalsRed": false,
+      "cost": 7,
+      "junk": 2,
+      "junkRed": true,
+      "specialJunk": ["伺", "殒"],
+      "specialJunkRaw": "伺殒",
+      "damage": 80,
+      "phases": ["鱼3狐1刀1暗0刀0牛0晦4伺舞3", "鱼2晦5刀4刀4龙3暗3刀2殒-舞2", "鱼2晦5龙4龙3暗2龙1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":3},{"card":"狐","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"伺","manaAfter":null},{"card":"舞","manaAfter":3}],
+        [{"card":"鱼","manaAfter":2},{"card":"晦","manaAfter":5},{"card":"刀","manaAfter":4},{"card":"刀","manaAfter":4},{"card":"龙","manaAfter":3},{"card":"暗","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"殒","target":"舞","manaAfter":2}],
+        [{"card":"鱼","manaAfter":2},{"card":"晦","manaAfter":5},{"card":"龙","manaAfter":4},{"card":"龙","manaAfter":3},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "raw": "4 | 7 | 4 | 伺殒 | 80 | 鱼3狐1刀1暗0刀0牛0晦4伺舞3 | 鱼2晦5刀4刀4龙3暗3刀2殒-舞2 | 鱼2晦5龙4龙3暗2龙1龙0 | "
+    },
+    {
+      "id": "t1-48p-06",
+      "group": "48+公式",
+      "table": 1,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 7,
+      "junk": 2,
+      "junkRed": true,
+      "specialJunk": ["步", "殒"],
+      "specialJunkRaw": "步殒",
+      "damage": 80,
+      "phases": ["鱼3狐1刀1暗0刀0牛0晦4步-鱼之外某随4刀3舞", "鱼3刀2刀2龙1暗1晦4刀3殒-舞3", "鱼3龙2龙1晦4龙3暗2龙1"],
+      "steps": [
+        [{"card":"鱼","manaAfter":3},{"card":"狐","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"步","target":"鱼之外某随","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":null,"inferred":3}],
+        [{"card":"鱼","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"暗","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"殒","target":"舞","manaAfter":3}],
+        [{"card":"鱼","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"龙","manaAfter":3},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1}]
+      ],
+      "note": null,
+      "uncertain": ["phases[0]", "steps[0][9]"],
+      "resolved": ["steps[0][9]"],
+      "inference": {
+        "steps[0][9]": "舞 = 3。与 t1-48-03b 同理：刀3（1 费复制）压两层「2 槽 -2」，舞 3-4=0，打完仍 3。按 3 推下去，二阶段（鱼3刀2刀2龙1暗1晦4刀3殒-舞3）与三阶段（鱼3龙2龙1晦4龙3暗2龙1）每一个数字都对得上，伤害正好 80，全行自洽。"
+      },
+      "redInPhase": ["一阶段「步-鱼之外某随」为红字"],
+      "raw": "4 | 7 | 3(红) | 步殒 | 80 | 鱼3狐1刀1暗0刀0牛0晦4步-鱼之外某随4刀3舞[?] | 鱼3刀2刀2龙1暗1晦4刀3殒-舞3 | 鱼3龙2龙1晦4龙3暗2龙1 | "
+    },
+    {
+      "id": "t1-48p-07",
+      "group": "48+公式",
+      "table": 1,
+      "crystals": 5,
+      "crystalsRed": false,
+      "cost": 8,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": ["骨", "殒"],
+      "specialJunkRaw": "骨殒",
+      "damage": 80,
+      "phases": ["鱼4狐2刀2暗1骨-狐1刀1牛1晦5刀4舞4", "鱼4刀3刀3龙2暗2晦5龙4殒-舞1", "刀0鱼0晦4龙3暗2龙1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":4},{"card":"狐","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"骨","target":"狐","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"牛","manaAfter":1},{"card":"晦","manaAfter":5},{"card":"刀","manaAfter":4},{"card":"舞","manaAfter":4}],
+        [{"card":"鱼","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"暗","manaAfter":2},{"card":"晦","manaAfter":5},{"card":"龙","manaAfter":4},{"card":"殒","target":"舞","manaAfter":1}],
+        [{"card":"刀","manaAfter":0},{"card":"鱼","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"龙","manaAfter":3},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "raw": "4 | 8 | 4 | 骨殒 | 80 | 鱼4狐2刀2暗1骨-狐1刀1牛1晦5刀4舞4 | 鱼4刀3刀3龙2暗2晦5龙4殒-舞1 | 刀0鱼0晦4龙3暗2龙1龙0 | "
+    },
+    {
+      "id": "t1-48p-08",
+      "group": "48+公式",
+      "table": 1,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 7,
+      "junk": 3,
+      "junkRed": true,
+      "specialJunk": ["骨", "殒"],
+      "specialJunkRaw": "骨殒",
+      "damage": 80,
+      "phases": ["鱼3狐1刀1暗0骨-狐0刀0牛0晦4刀3舞3", "鱼3刀2刀2龙1暗1晦4刀3殒舞3", "鱼3龙2龙1晦4龙3暗2龙1"],
+      "steps": [
+        [{"card":"鱼","manaAfter":3},{"card":"狐","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"骨","target":"狐","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":3}],
+        [{"card":"鱼","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"暗","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"殒","manaAfter":null},{"card":"舞","manaAfter":3}],
+        [{"card":"鱼","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"龙","manaAfter":3},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1}]
+      ],
+      "note": "二阶段原文写作「殒舞3」，殒与舞之间没有连字符（高清、低清两版一致），对照 t1-48p-06 应为「殒-舞3」，疑为原表笔误",
+      "uncertain": [],
+      "inference": {
+        "殒舞3": "确认是「殒-舞3」的漏字符，推演给出了硬证据。① 读作单 token「殒-舞」（殒已变形成舞、费用 = 舞的 3 费）：3-4=0，法力停在 3；随后三阶段起手的鱼是舞弹回的 1 费牌，再吃掉刀油剩下的 -4 → 0 费 → 鱼3，与表一致，全行 80 伤自洽。② 读作两个 token「殒」+「舞」：殒 先吃掉刀油两层各 1 槽，舞 再吃掉剩下的槽，法力同样停在 3，但两层槽全部用光，三阶段起手的鱼要自付 1 费 → 鱼2，与表里的「鱼3」对不上；而且一阶段已经把唯一那张舞打掉了，手里根本没有第二张舞可打（边牌只有 1 张舞）。③ 旁证：t2-wuhu-11 的二阶段与本行逐字相同，写的就是「殒-舞3」。",
+        "resolved": true
+      },
+      "raw": "4 | 7 | 3 | 骨殒 | 80 | 鱼3狐1刀1暗0骨-狐0刀0牛0晦4刀3舞3 | 鱼3刀2刀2龙1暗1晦4刀3殒舞3 | 鱼3龙2龙1晦4龙3暗2龙1 | "
+    },
+    {
+      "id": "t1-16-01",
+      "group": "打/回16",
+      "table": 1,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 8,
+      "junk": 3,
+      "junkRed": false,
+      "specialJunk": null,
+      "specialJunkRaw": null,
+      "damage": 16,
+      "phases": ["鱼4狐2刀2暗1牛1刀0晦4舞4", "鱼3牛2刀1刀1龙0幻0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":4},{"card":"狐","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"牛","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"舞","manaAfter":4}],
+        [{"card":"鱼","manaAfter":3},{"card":"牛","manaAfter":2},{"card":"刀","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"龙","manaAfter":0},{"card":"幻","manaAfter":0}]
+      ],
+      "note": "32不够斩杀时考虑这样打16并回手一套，下回合打高斩杀",
+      "uncertain": [],
+      "crossCheck": {
+        "source": "red-dragon-formulas-1-hires.png（高清版）",
+        "noteHires": "高清截图右侧被画面边缘裁掉，只看得到「32不够斩杀时考虑这样打」，note 采用低清版完整文本"
+      },
+      "raw": "4 | 8 | 3 |  | 16 | 鱼4狐2刀2暗1牛1刀0晦4舞4 | 鱼3牛2刀1刀1龙0幻0 |  | 32不够斩杀时考虑这样打16并回手一套，下回合打高斩杀"
+    },
+    {
+      "id": "t1-16-02a",
+      "group": "打/回16",
+      "table": 1,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 7,
+      "junk": 1,
+      "junkRed": true,
+      "specialJunk": null,
+      "specialJunkRaw": null,
+      "damage": 16,
+      "phases": ["鱼3狐1刀1暗0刀0牛0晦4舞1", "刀0鱼0晦4刀3刀3龙2暗2"],
+      "steps": [
+        [{"card":"鱼","manaAfter":3},{"card":"狐","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"舞","manaAfter":1}],
+        [{"card":"刀","manaAfter":0},{"card":"鱼","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"暗","manaAfter":2}]
+      ],
+      "note": "打完余2费（如闪避...）；手里有2龙",
+      "uncertain": [],
+      "raw": "4 | 7 | 1(红) |  | 16 | 鱼3狐1刀1暗0刀0牛0晦4舞1 | 刀0鱼0晦4刀3刀3龙2暗2 |  | 打完余2费（如闪避...）；手里有2龙"
+    },
+    {
+      "id": "t1-16-02b",
+      "group": "打/回16",
+      "table": 1,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 7,
+      "junk": 1,
+      "junkRed": true,
+      "specialJunk": null,
+      "specialJunkRaw": null,
+      "damage": 16,
+      "phases": ["鱼3狐1刀1暗0刀0牛0晦4舞1", "刀0鱼0晦4牛3刀2刀2龙1幻1"],
+      "steps": [
+        [{"card":"鱼","manaAfter":3},{"card":"狐","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"舞","manaAfter":1}],
+        [{"card":"刀","manaAfter":0},{"card":"鱼","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"牛","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"幻","manaAfter":1}]
+      ],
+      "note": "打完余1费；回手一套",
+      "uncertain": [],
+      "raw": "4 | 7 | 1(红) |  | 16 | （与上行合并）鱼3狐1刀1暗0刀0牛0晦4舞1 | 刀0鱼0晦4牛3刀2刀2龙1幻1 |  | 打完余1费；回手一套"
+    },
+    {
+      "id": "t1-16-03a",
+      "group": "打/回16",
+      "table": 1,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 6,
+      "junk": 3,
+      "junkRed": true,
+      "specialJunk": ["伺", "骨"],
+      "specialJunkRaw": "伺骨（无骨刺目标）",
+      "damage": 16,
+      "phases": ["鱼2狐0刀0牛0晦4伺骨-狐4暗1刀0舞0", "刀0鱼0晦4刀3刀3龙2暗2"],
+      "steps": [
+        [{"card":"鱼","manaAfter":2},{"card":"狐","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"伺","manaAfter":null},{"card":"骨","target":"狐","manaAfter":4},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"舞","manaAfter":0}],
+        [{"card":"刀","manaAfter":0},{"card":"鱼","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"暗","manaAfter":2}]
+      ],
+      "note": "适用于启动前无骨刺目标时，其余同上",
+      "uncertain": [],
+      "onlyIn": "red-dragon-formulas-1.png（低清版）——高清版没有这一行，整行数据来自低清截图，可信度低于其它表 1 行",
+      "raw": "4 | 6 | 3(红) | 伺骨（无骨刺目标） | 16 | 鱼2狐0刀0牛0晦4伺骨-狐4暗1刀0舞0 | 刀0鱼0晦4刀3刀3龙2暗2 |  | 适用于启动前无骨刺目标时，其余同上"
+    },
+    {
+      "id": "t1-16-03b",
+      "group": "打/回16",
+      "table": 1,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 6,
+      "junk": 3,
+      "junkRed": true,
+      "specialJunk": ["伺", "骨"],
+      "specialJunkRaw": "伺骨（无骨刺目标）",
+      "damage": 16,
+      "phases": ["鱼2狐0刀0牛0晦4伺骨-狐4暗1刀0舞0", "刀0鱼0晦4牛3刀2刀2龙1幻1"],
+      "steps": [
+        [{"card":"鱼","manaAfter":2},{"card":"狐","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"伺","manaAfter":null},{"card":"骨","target":"狐","manaAfter":4},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"舞","manaAfter":0}],
+        [{"card":"刀","manaAfter":0},{"card":"鱼","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"牛","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"幻","manaAfter":1}]
+      ],
+      "note": "与 t1-16-03a 同一表格行的第二条二阶段线；备注单元格合并",
+      "uncertain": [],
+      "onlyIn": "red-dragon-formulas-1.png（低清版）——高清版没有这一行",
+      "raw": "4 | 6 | 3(红) | 伺骨（无骨刺目标） | 16 | （与上行合并）鱼2狐0刀0牛0晦4伺骨-狐4暗1刀0舞0 | 刀0鱼0晦4牛3刀2刀2龙1幻1 |  | （与上行合并）"
+    },
+    {
+      "id": "t1-pre-01",
+      "group": "预启动",
+      "table": 1,
+      "rowLabel": "预启动",
+      "crystals": null,
+      "crystalsRaw": "/",
+      "crystalsRed": false,
+      "cost": 7,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": "腾格",
+      "specialJunkRaw": "腾格",
+      "damage": null,
+      "phases": ["鱼3狐1刀1暗0刀0牛0晦4 腾格-狐 刀幻（杂）"],
+      "steps": [null],
+      "note": "若无腾格法术，就没法下晦做1费晦（参考下方）",
+      "uncertain": ["steps"],
+      "resolved": ["steps"],
+      "expandedLines": [
+        {
+          "label": "腾格按 2 费（与 t1-32-05「腾格-狐2」同口径）",
+          "steps": [{"card":"鱼","manaAfter":3},{"card":"狐","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"腾格","target":"狐","manaAfter":2},{"card":"刀","manaAfter":1},{"card":"幻","manaAfter":1},{"card":"杂","manaAfter":1}]
+        }
+      ],
+      "inference": {
+        "steps": "晦4 之后表里不再给数字，推演补齐：晦 触发时刀油的槽已用完，所以腾格按印刷价付（≤2 费的腾格 → 4-2=2，与同前缀的 t1-32-05「腾格-狐2」完全一致）；刀 是暗做出的 1 费复制 → 1，它的连击在鲨鱼下压两层「2 槽 -2」；幻 4-4=0 → 1；末尾那张杂用掉两层剩下的槽，≤4 费也是 0 → 1。腾格若换成 0 费的步，整条线各数字 +2。",
+        "水晶": "水晶列写「/」，但晦 在法力 0 时双触发只回到 4，说明这一行是按 4 水晶写的（5 水晶也会得到 4，6 水晶才会变成 6）。"
+      },
+      "raw": "/ | 7 | 4 | 腾格 |  | 鱼3狐1刀1暗0刀0牛0晦4 腾格-狐 刀幻（杂） |  |  | 若无腾格法术，就没法下晦做1费晦（参考下方）"
+    },
+    {
+      "id": "t1-pre-02",
+      "group": "预启动",
+      "table": 1,
+      "rowLabel": "无晦清杂预启动",
+      "crystals": null,
+      "crystalsRaw": "/",
+      "crystalsRed": false,
+      "cost": 7,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": null,
+      "specialJunkRaw": null,
+      "damage": null,
+      "phases": ["鱼3狐1刀1暗0刀牛刀杂幻"],
+      "steps": [
+        [{"card":"鱼","manaAfter":3},{"card":"狐","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":null},{"card":"牛","manaAfter":null},{"card":"刀","manaAfter":null},{"card":"杂","manaAfter":null},{"card":"幻","manaAfter":null}]
+      ],
+      "note": "若无需清杂或可能被卡格，可不下第3个刀；下回合担心格子问题牛拿舞，担心费用问题牛拿龙",
+      "uncertain": [],
+      "crossCheck": {
+        "source": "red-dragon-formulas-1.png（低清版）",
+        "note": "低清版备注是两行、内容更长：「4杂时收不到牛，只能牛拿龙幻，下回合鱼刀刀龙暗龙龙；若无需清杂或可能被卡格，可不下第3个刀」/「3杂时能收到牛，下回合担心格子问题牛拿舞，担心费用问题牛拿龙」"
+      },
+      "raw": "/ | 7 | 4 |  |  | 鱼3狐1刀1暗0刀牛刀杂幻 |  |  | 若无需清杂或可能被卡格，可不下第3个刀；下回合担心格子问题牛拿舞，担心费用问题牛拿龙"
+    },
+    {
+      "id": "t1-pre-03",
+      "group": "预启动",
+      "table": 1,
+      "rowLabel": "缺暗(晦)预启动",
+      "crystals": null,
+      "crystalsRaw": "/",
+      "crystalsRed": false,
+      "cost": 6,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": null,
+      "specialJunkRaw": null,
+      "damage": null,
+      "phases": ["鱼2狐0刀0牛0(晦4)幻0", "下回合不卡格能4费48：鱼牛刀暗刀晦刀舞 鱼刀刀龙暗龙龙"],
+      "steps": [
+        [{"card":"鱼","manaAfter":2},{"card":"狐","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4,"optional":true},{"card":"幻","manaAfter":0}],
+        null
+      ],
+      "note": "没下晦也不影响；缺暗也指有暗但费不够打出，此时暗视作杂牌",
+      "uncertain": ["steps[1]"],
+      "inference": {
+        "steps[1]": "散文格，不做展开，只做推演验证。「下回合不卡格能4费48：鱼牛刀暗刀晦刀舞 / 鱼刀刀龙暗龙龙」在「4 水晶 + 4 费 + 上回合幻做出的 1 费复制体（鱼/牛/刀/晦）+ 本回合原版 5 费暗」这一组前提下逐 token 成立：一阶段 鱼3 牛2 刀1 暗0 刀0 晦4 刀4 舞4，二阶段 鱼4 刀3 刀3 龙2 暗2 龙1 龙0，正好花光，阿莱三次 ×16 = 48。关键是 暗 用原版 5 费（被首张刀的两层 -4 压到 1），其余全是幻做出的 1 费复制体 —— 这也解释了本行一阶段为什么必须以 幻 收尾。"
+      },
+      "raw": "/ | 6 | 4 |  |  | 鱼2狐0刀0牛0(晦4)幻0 | 下回合不卡格能4费48：鱼牛刀暗刀晦刀舞 鱼刀刀龙暗龙龙 |  | 没下晦也不影响；缺暗也指有暗但费不够打出，此时暗视作杂牌"
+    },
+    {
+      "id": "t2-wuhu-01",
+      "group": "无狐",
+      "table": 2,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 9,
+      "junk": 5,
+      "junkRed": false,
+      "specialJunk": null,
+      "specialJunkRaw": null,
+      "damage": 32,
+      "phases": ["鱼5刀1暗0刀0牛0晦4刀3舞3", "鱼3刀2刀2龙1暗1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":5},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":3}],
+        [{"card":"鱼","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"暗","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "raw": "4 | 9 | 5 |  | 32 | 鱼5刀1暗0刀0牛0晦4刀3舞3 | 鱼3刀2刀2龙1暗1龙0 |  | "
+    },
+    {
+      "id": "t2-wuhu-02",
+      "group": "无狐",
+      "table": 2,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 8,
+      "junk": 5,
+      "junkRed": false,
+      "specialJunk": "步",
+      "specialJunkRaw": "步",
+      "damage": 32,
+      "phases": ["鱼4刀0牛0晦4步-刀4刀2暗1刀1舞1", "鱼1晦4牛3刀2刀2龙1幻1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":4},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"步","target":"刀","manaAfter":4},{"card":"刀","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"舞","manaAfter":1}],
+        [{"card":"鱼","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"牛","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"幻","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": "4杂时舞能收到暗，二阶段可以鱼晦刀刀龙暗龙",
+      "uncertain": [],
+      "raw": "4 | 8 | 5 | 步 | 32 | 鱼4刀0牛0晦4步-刀4刀2暗1刀1舞1 | 鱼1晦4牛3刀2刀2龙1幻1龙0 |  | 4杂时舞能收到暗，二阶段可以鱼晦刀刀龙暗龙"
+    },
+    {
+      "id": "t2-wuhu-03",
+      "group": "无狐",
+      "table": 2,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 9,
+      "junk": 5,
+      "junkRaw": "3+2",
+      "junkRed": false,
+      "specialJunk": ["骨", "步"],
+      "specialJunkRaw": "骨/步",
+      "damage": 48,
+      "phases": ["鱼5刀1暗0刀0牛0晦4（杂≤1费）刀3（杂）舞3", "鱼3晦4刀3刀3龙2骨-晦2暗2龙1龙0"],
+      "steps": [
+        null,
+        [{"card":"鱼","manaAfter":3},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"骨","target":"晦","manaAfter":2},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": "5杂中2杂可清，二阶段晦回费爆费了，一阶段晦后可清杂（≤1费），还能通过「刀杂舞」清杂",
+      "uncertain": ["steps[0]"],
+      "resolved": ["steps[0]"],
+      "expandedLines": [
+        {
+          "label": "一阶段·不打两张括号杂（表里印的数字就是这一条）",
+          "steps": [{"card":"鱼","manaAfter":5},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":3}]
+        },
+        {
+          "label": "一阶段·两张括号杂都清（第一张 1 费自付、第二张吃刀油槽）",
+          "steps": [{"card":"鱼","manaAfter":5},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"杂","manaAfter":3,"note":"≤1费，晦后刀油槽已空，按印刷价付"},{"card":"刀","manaAfter":2},{"card":"杂","manaAfter":2,"note":"吃掉刀油两层各 1 槽，≤4费即 0 费"},{"card":"舞","manaAfter":2}]
+        }
+      ],
+      "inference": {
+        "steps[0]": "两个括号里的杂是可选插入。表里印的 刀3 / 舞3 以及二阶段起手 鱼3 只有在「都不打」时才对得上：不打时舞用掉刀油两层的第 1 槽、二阶段的鱼用第 2 槽（1 费复制 -4 = 0）→ 鱼3。若把第二张杂也清掉，它会占掉舞本来要用的那个槽，二阶段的鱼就得自付 1 费，整条二阶段各数字 -1（鱼2 晦4 …），末尾会差 1 费。所以「5杂中2杂可清」和表里印的数字是两条线，不是同一条。",
+        "晦4红字": "红字的「晦4」= 复原被水晶上限截断（4 水晶，法力 2 时双触发 min(2+2,4)=4，第二次白给），与备注「二阶段晦回费爆费了」一致。"
+      },
+      "redInPhase": ["二阶段「晦4」的 4 为红字"],
+      "raw": "4 | 9 | 3+2 | 骨/步 | 48 | 鱼5刀1暗0刀0牛0晦4（杂≤1费）刀3（杂）舞3 | 鱼3晦4刀3刀3龙2骨-晦2暗2龙1龙0 |  | 5杂中2杂可清，二阶段晦回费爆费了，一阶段晦后可清杂（≤1费），还能通过「刀杂舞」清杂"
+    },
+    {
+      "id": "t2-wuhu-04a",
+      "group": "无狐",
+      "table": 2,
+      "crystals": 5,
+      "crystalsRed": false,
+      "cost": 9,
+      "junk": 4,
+      "junkRaw": "3+1",
+      "junkRed": false,
+      "specialJunk": "腾格",
+      "specialJunkRaw": "骨/步之外腾格（≤2费）",
+      "damage": 48,
+      "phases": ["鱼5刀1暗0刀0牛0晦4刀3杂3舞3", "鱼2晦5刀4刀4龙3 腾格3 暗2龙1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":5},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"杂","manaAfter":3},{"card":"舞","manaAfter":3}],
+        [{"card":"鱼","manaAfter":2},{"card":"晦","manaAfter":5},{"card":"刀","manaAfter":4},{"card":"刀","manaAfter":4},{"card":"龙","manaAfter":3},{"card":"腾格","manaAfter":3},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": "同一表格行的上半（5 水晶 / 3+1 杂）；备注单元格合并：4杂中1杂可清需5水晶，不清杂是4水晶",
+      "uncertain": [],
+      "raw": "5 | 9 | 3+1 | 骨/步之外腾格（≤2费） | 48 | 鱼5刀1暗0刀0牛0晦4刀3杂3舞3 | 鱼2晦5刀4刀4龙3 腾格3 暗2龙1龙0 |  | 4杂中1杂可清需5水晶，不清杂是4水晶"
+    },
+    {
+      "id": "t2-wuhu-04b",
+      "group": "无狐",
+      "table": 2,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 9,
+      "junk": 3,
+      "junkRaw": "3",
+      "junkRed": false,
+      "specialJunk": "腾格",
+      "specialJunkRaw": "骨/步之外腾格（≤2费）",
+      "damage": 48,
+      "phases": ["鱼5刀1暗0刀0牛0晦4刀3舞3", "鱼3刀2刀2龙1暗1晦4 腾格2 龙1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":5},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":3}],
+        [{"card":"鱼","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"暗","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"腾格","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": "同一表格行的下半（4 水晶 / 3 杂），备注与上半合并",
+      "uncertain": [],
+      "raw": "4 | 9 | 3 | 骨/步之外腾格（≤2费） | 48 | 鱼5刀1暗0刀0牛0晦4刀3舞3 | 鱼3刀2刀2龙1暗1晦4 腾格2 龙1龙0 |  | （与上行合并）"
+    },
+    {
+      "id": "t2-wuhu-05",
+      "group": "无狐",
+      "table": 2,
+      "crystals": 5,
+      "crystalsRed": false,
+      "cost": 9,
+      "junk": 4,
+      "junkRaw": "3+1",
+      "junkRed": false,
+      "specialJunk": "腾格",
+      "specialJunkRaw": "骨/步之外腾格（≤4费）",
+      "damage": 48,
+      "phases": ["鱼5刀1暗0刀0牛0晦4刀3杂3舞3", "鱼2晦5刀4刀4龙3 腾格3 暗2龙1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":5},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"杂","manaAfter":3},{"card":"舞","manaAfter":3}],
+        [{"card":"鱼","manaAfter":2},{"card":"晦","manaAfter":5},{"card":"刀","manaAfter":4},{"card":"刀","manaAfter":4},{"card":"龙","manaAfter":3},{"card":"腾格","manaAfter":3},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": "4杂中1杂可清",
+      "uncertain": [],
+      "raw": "5 | 9 | 3+1 | 骨/步之外腾格（≤4费） | 48 | 鱼5刀1暗0刀0牛0晦4刀3杂3舞3 | 鱼2晦5刀4刀4龙3 腾格3 暗2龙1龙0 |  | 4杂中1杂可清"
+    },
+    {
+      "id": "t2-wuhu-06",
+      "group": "无狐",
+      "table": 2,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 9,
+      "junk": 5,
+      "junkRed": false,
+      "specialJunk": ["步", "骨"],
+      "specialJunkRaw": "步骨",
+      "damage": 48,
+      "phases": ["鱼5刀1暗0刀0牛0晦4步-晦4刀3舞3", "鱼3晦4刀3刀3龙2骨-晦2暗2龙1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":5},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"步","target":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":3}],
+        [{"card":"鱼","manaAfter":3},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"骨","target":"晦","manaAfter":2},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "redInPhase": ["二阶段「晦4」的 4 为红字"],
+      "raw": "4 | 9 | 5 | 步骨 | 48 | 鱼5刀1暗0刀0牛0晦4步-晦4刀3舞3 | 鱼3晦4刀3刀3龙2骨-晦2暗2龙1龙0 |  | "
+    },
+    {
+      "id": "t2-wuhu-07",
+      "group": "无狐",
+      "table": 2,
+      "crystals": 5,
+      "crystalsRed": false,
+      "cost": 10,
+      "junk": 5,
+      "junkRed": false,
+      "specialJunk": null,
+      "specialJunkRaw": null,
+      "damage": 48,
+      "phases": ["鱼6刀2暗1刀1牛1晦5刀4舞4", "鱼4刀3刀3龙2暗2龙1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":6},{"card":"刀","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"牛","manaAfter":1},{"card":"晦","manaAfter":5},{"card":"刀","manaAfter":4},{"card":"舞","manaAfter":4}],
+        [{"card":"鱼","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "raw": "5 | 10 | 5 |  | 48 | 鱼6刀2暗1刀1牛1晦5刀4舞4 | 鱼4刀3刀3龙2暗2龙1龙0 |  | "
+    },
+    {
+      "id": "t2-wuhu-08",
+      "group": "无狐",
+      "table": 2,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 10,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": null,
+      "specialJunkRaw": null,
+      "damage": 48,
+      "phases": ["鱼6刀2暗1牛1刀0晦4刀4舞4", "鱼4刀3刀3龙2暗2龙1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":6},{"card":"刀","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"牛","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":4},{"card":"舞","manaAfter":4}],
+        [{"card":"鱼","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "raw": "4 | 10 | 4 |  | 48 | 鱼6刀2暗1牛1刀0晦4刀4舞4 | 鱼4刀3刀3龙2暗2龙1龙0 |  | "
+    },
+    {
+      "id": "t2-wuhu-09",
+      "group": "无狐",
+      "table": 2,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 9,
+      "junk": 3,
+      "junkRed": false,
+      "specialJunk": "殒",
+      "specialJunkRaw": "殒",
+      "damage": 64,
+      "phases": ["鱼5刀1暗0刀0牛0晦4刀3舞3", "鱼3刀2刀2龙1暗1晦4殒-舞1", "刀0鱼0晦4龙3龙2龙1暗0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":5},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":3}],
+        [{"card":"鱼","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"暗","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"殒","target":"舞","manaAfter":1}],
+        [{"card":"刀","manaAfter":0},{"card":"鱼","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"龙","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"暗","manaAfter":0}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "raw": "4 | 9 | 3 | 殒 | 64 | 鱼5刀1暗0刀0牛0晦4刀3舞3 | 鱼3刀2刀2龙1暗1晦4殒-舞1 | 刀0鱼0晦4龙3龙2龙1暗0 | "
+    },
+    {
+      "id": "t2-wuhu-10",
+      "group": "无狐",
+      "table": 2,
+      "crystals": 5,
+      "crystalsRed": false,
+      "cost": 10,
+      "junk": 3,
+      "junkRed": false,
+      "specialJunk": "殒",
+      "specialJunkRaw": "殒",
+      "damage": 80,
+      "phases": ["鱼6刀2暗1刀1牛1晦5刀4舞4", "鱼4刀3刀3龙2暗2晦5龙4殒-舞1", "刀0鱼0晦4龙3龙2暗1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":6},{"card":"刀","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"牛","manaAfter":1},{"card":"晦","manaAfter":5},{"card":"刀","manaAfter":4},{"card":"舞","manaAfter":4}],
+        [{"card":"鱼","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"暗","manaAfter":2},{"card":"晦","manaAfter":5},{"card":"龙","manaAfter":4},{"card":"殒","target":"舞","manaAfter":1}],
+        [{"card":"刀","manaAfter":0},{"card":"鱼","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"龙","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": "二阶段暗后需先晦再龙，否则殒-舞收不到晦",
+      "uncertain": [],
+      "raw": "5 | 10 | 3 | 殒 | 80 | 鱼6刀2暗1刀1牛1晦5刀4舞4 | 鱼4刀3刀3龙2暗2晦5龙4殒-舞1 | 刀0鱼0晦4龙3龙2暗1龙0 | 二阶段暗后需先晦再龙，否则殒-舞收不到晦"
+    },
+    {
+      "id": "t2-wuhu-11",
+      "group": "无狐",
+      "table": 2,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 9,
+      "junk": 2,
+      "junkRed": false,
+      "specialJunk": "殒",
+      "specialJunkRaw": "殒",
+      "damage": 80,
+      "phases": ["鱼5刀1暗0刀0牛0晦4刀3舞3", "鱼3刀2刀2龙1暗1晦4刀3殒-舞3", "鱼3龙2龙1晦4龙3暗2龙1"],
+      "steps": [
+        [{"card":"鱼","manaAfter":5},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":3}],
+        [{"card":"鱼","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"暗","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"殒","target":"舞","manaAfter":3}],
+        [{"card":"鱼","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"龙","manaAfter":3},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "raw": "4 | 9 | 2 | 殒 | 80 | 鱼5刀1暗0刀0牛0晦4刀3舞3 | 鱼3刀2刀2龙1暗1晦4刀3殒-舞3 | 鱼3龙2龙1晦4龙3暗2龙1 | "
+    },
+    {
+      "id": "t2-wuhui-01",
+      "group": "无晦",
+      "table": 2,
+      "crystals": null,
+      "crystalsRaw": "/",
+      "crystalsRed": false,
+      "cost": 9,
+      "junk": 2,
+      "junkRed": false,
+      "junkColor": "紫",
+      "specialJunk": null,
+      "specialJunkRaw": null,
+      "damage": 32,
+      "phases": ["鱼5狐3刀3暗2刀2牛2刀2舞2", "刀2鱼2刀2刀2龙1暗1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":5},{"card":"狐","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"暗","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"牛","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"舞","manaAfter":2}],
+        [{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"暗","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "raw": "/ | 9 | 2(紫) |  | 32 | 鱼5狐3刀3暗2刀2牛2刀2舞2 | 刀2鱼2刀2刀2龙1暗1龙0 |  | "
+    },
+    {
+      "id": "t2-wuhui-02",
+      "group": "无晦",
+      "table": 2,
+      "crystals": null,
+      "crystalsRaw": "/",
+      "crystalsRed": false,
+      "cost": 11,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": null,
+      "specialJunkRaw": null,
+      "damage": 48,
+      "phases": ["鱼7狐5刀5暗4刀4牛4刀4舞4", "鱼4刀3刀3龙2暗2龙1龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":7},{"card":"狐","manaAfter":5},{"card":"刀","manaAfter":5},{"card":"暗","manaAfter":4},{"card":"刀","manaAfter":4},{"card":"牛","manaAfter":4},{"card":"刀","manaAfter":4},{"card":"舞","manaAfter":4}],
+        [{"card":"鱼","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "raw": "/ | 11 | 4 |  | 48 | 鱼7狐5刀5暗4刀4牛4刀4舞4 | 鱼4刀3刀3龙2暗2龙1龙0 |  | "
+    },
+    {
+      "id": "t2-wuhui-03",
+      "group": "无晦",
+      "table": 2,
+      "crystals": null,
+      "crystalsRaw": "/",
+      "crystalsRed": false,
+      "cost": 8,
+      "junk": 2,
+      "junkRed": false,
+      "specialJunk": "殒",
+      "specialJunkRaw": "殒",
+      "damage": 32,
+      "phases": ["鱼4狐2刀2暗1刀1牛1刀1舞1", "刀1鱼1刀1暗1刀1牛1刀1殒-舞1", "刀1鱼1刀1刀1龙0刀0幻0龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":4},{"card":"狐","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"牛","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"舞","manaAfter":1}],
+        [{"card":"刀","manaAfter":1},{"card":"鱼","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"牛","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"殒","target":"舞","manaAfter":1}],
+        [{"card":"刀","manaAfter":1},{"card":"鱼","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"龙","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"幻","manaAfter":0},{"card":"龙","manaAfter":0}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "raw": "/ | 8 | 2 | 殒 | 32 | 鱼4狐2刀2暗1刀1牛1刀1舞1 | 刀1鱼1刀1暗1刀1牛1刀1殒-舞1 | 刀1鱼1刀1刀1龙0刀0幻0龙0 | "
+    },
+    {
+      "id": "t2-wuhui-04",
+      "group": "无晦",
+      "table": 2,
+      "crystals": null,
+      "crystalsRaw": "/",
+      "crystalsRed": false,
+      "cost": 9,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": "殒",
+      "specialJunkRaw": "殒",
+      "damage": 48,
+      "phases": ["鱼5狐3刀3暗2刀2牛2刀2舞2", "鱼2刀1暗1刀1刀1龙0刀0殒-舞0", "刀0鱼0刀0龙0刀0暗0龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":5},{"card":"狐","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"暗","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"牛","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"舞","manaAfter":2}],
+        [{"card":"鱼","manaAfter":2},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"龙","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"殒","target":"舞","manaAfter":0}],
+        [{"card":"刀","manaAfter":0},{"card":"鱼","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"龙","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"暗","manaAfter":0},{"card":"龙","manaAfter":0}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "raw": "/ | 9 | 4 | 殒 | 48 | 鱼5狐3刀3暗2刀2牛2刀2舞2 | 鱼2刀1暗1刀1刀1龙0刀0殒-舞0 | 刀0鱼0刀0龙0刀0暗0龙0 | "
+    },
+    {
+      "id": "t2-wuan-01",
+      "group": "无暗+无晦",
+      "table": 2,
+      "crystals": null,
+      "crystalsRaw": "/",
+      "crystalsRed": false,
+      "cost": 10,
+      "junk": 2,
+      "junkRed": false,
+      "specialJunk": "步",
+      "specialJunkRaw": "步",
+      "damage": 32,
+      "phases": ["鱼6狐4刀4牛4幻4牛3步-刀3刀2刀2龙1舞1", "刀0鱼0龙0"],
+      "steps": [
+        [{"card":"鱼","manaAfter":6},{"card":"狐","manaAfter":4},{"card":"刀","manaAfter":4},{"card":"牛","manaAfter":4},{"card":"幻","manaAfter":4},{"card":"牛","manaAfter":3},{"card":"步","target":"刀","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"舞","manaAfter":1}],
+        [{"card":"刀","manaAfter":0},{"card":"鱼","manaAfter":0},{"card":"龙","manaAfter":0}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "raw": "/ | 10 | 2 | 步 | 32 | 鱼6狐4刀4牛4幻4牛3步-刀3刀2刀2龙1舞1 | 刀0鱼0龙0 |  | "
+    },
+    {
+      "id": "t2-wuan-02",
+      "group": "无暗+无晦",
+      "table": 2,
+      "crystals": null,
+      "crystalsRaw": "/",
+      "crystalsRed": false,
+      "cost": 8,
+      "junk": 5,
+      "junkRed": false,
+      "specialJunk": "步",
+      "specialJunkRaw": "步",
+      "damage": 16,
+      "phases": ["鱼4狐2刀2牛2幻2步-刀2刀1刀1龙0+杂（如闪避）"],
+      "steps": [null],
+      "note": null,
+      "uncertain": ["steps"],
+      "resolved": ["steps"],
+      "expandedLines": [
+        {
+          "label": "一阶段（唯一一条；末尾杂 0 费）",
+          "steps": [{"card":"鱼","manaAfter":4},{"card":"狐","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"牛","manaAfter":2},{"card":"幻","manaAfter":2},{"card":"步","target":"刀","manaAfter":2},{"card":"刀","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"龙","manaAfter":0},{"card":"杂","manaAfter":0}]
+        }
+      ],
+      "inference": {
+        "steps": "表里的数字本身已经完整（鱼4狐2刀2牛2幻2步-刀2刀1刀1龙0），逐 token 推演全部成立：狐 在鲨鱼下双触发给刀 -4 → 刀 0 费；幻 4-4=0 把场上四个随从复制成 1 费进手；步-刀 腾一格；随后两张 1 费刀复制各花 1、0；龙（牛发现的 9 费原版）9-8=0。末尾「+杂（如闪避）」= 用刀油最后一个槽白打一张 ≤4 费杂牌，费用不变，仍是 0。伤害 = 阿莱一次 ×2（鲨鱼）= 16，与伤害列一致。"
+      },
+      "raw": "/ | 8 | 5 | 步 | 16 | 鱼4狐2刀2牛2幻2步-刀2刀1刀1龙0+杂（如闪避） |  |  | "
+    },
+    {
+      "id": "t2-wudao-01",
+      "group": "无刀做无限",
+      "table": 2,
+      "crystals": null,
+      "crystalsRaw": "/",
+      "crystalsRed": false,
+      "cost": null,
+      "costRaw": "/",
+      "junk": null,
+      "junkRaw": "/",
+      "junkRed": false,
+      "specialJunk": "步",
+      "specialJunkRaw": "步",
+      "damage": null,
+      "phases": ["一阶段:鱼 暗-鱼 步-暗  二阶段:鱼 牛（幻 龙） 三阶段:鱼 暗-鱼 晦 幻 暗-暗  四阶段:鱼（晦）龙暗-龙   开始无限"],
+      "steps": [null],
+      "note": "费用太高一般用不到",
+      "uncertain": ["phases[0]", "steps", "note"],
+      "inference": {
+        "steps": "散文格，不展开，只做推演说明。这条线没有刀油 → 全程没有任何减费层，每张牌都按印刷价付：一阶段 鱼4 + 暗5 + 步0 = 9 费（步-暗 把暗弹回手里变 3 费）；二阶段 1 费鱼复制 + 牛4 = 5 费；三、四阶段再各叠一次鱼/暗/晦/幻。这正好解释备注「费用太高一般用不到」。",
+        "机制": "每一阶段都以「鱼」开头 = 场上同时叠多条鲨鱼之灵，靠 1 费鱼复制不断加光环。这条线成不成立完全取决于 card-model 第三部分待核 #13「两条鲨鱼同时在场，战吼触发几次」（乘 = 4 次 / 加 = 3 次 / 仍是 2 次）：按「乘」它能滚成无限，按「仍是 2 次」这条线没有意义。这是本表里唯一一条对该待核项敏感的公式。"
+      },
+      "raw": "/ | / | / | 步 | / | 一阶段:鱼 暗-鱼 步-暗  二阶段:鱼 牛（幻 龙） 三阶段:鱼 暗-鱼 晦 幻 暗-暗  四阶段:鱼（晦）龙暗-龙   开始无限  备注，费用太高一般用不到",
+      "transcriptionNote": "整行是一个横跨一~三阶段列的合并单元格，字号最小、低清下最难辨认；行内自带「四阶段」和「开始无限」，与其它行的三段结构不同。「备注，费用太高一般用不到」处于三阶段/备注列交界，前缀「备注」是否属于单元格内容不确定"
+    },
+    {
+      "id": "t2-huqs-01",
+      "group": "狐起手",
+      "table": 2,
+      "crystals": 6,
+      "crystalsRed": false,
+      "cost": 8,
+      "junk": 3,
+      "junkRed": true,
+      "specialJunk": null,
+      "specialJunkRaw": null,
+      "damage": 32,
+      "phases": ["狐6刀4鱼4暗3刀2牛2晦6舞3", "鱼2刀1刀1龙0刀0暗0龙0"],
+      "steps": [
+        [{"card":"狐","manaAfter":6},{"card":"刀","manaAfter":4},{"card":"鱼","manaAfter":4},{"card":"暗","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"牛","manaAfter":2},{"card":"晦","manaAfter":6},{"card":"舞","manaAfter":3}],
+        [{"card":"鱼","manaAfter":2},{"card":"刀","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"龙","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"暗","manaAfter":0},{"card":"龙","manaAfter":0}]
+      ],
+      "note": "步/伺均能为启动减2费",
+      "uncertain": [],
+      "raw": "6 | 8 | 3(红) |  | 32 | 狐6刀4鱼4暗3刀2牛2晦6舞3 | 鱼2刀1刀1龙0刀0暗0龙0 |  | 步/伺均能为启动减2费"
+    },
+    {
+      "id": "t2-huqs-02",
+      "group": "狐起手",
+      "table": 2,
+      "crystals": 5,
+      "crystalsRed": false,
+      "cost": 7,
+      "junk": 1,
+      "junkRed": true,
+      "specialJunk": null,
+      "specialJunkRaw": null,
+      "damage": 32,
+      "phases": ["狐5刀3鱼3暗2刀1牛1晦5舞2", "鱼1晦4刀3刀3龙2暗2龙1"],
+      "steps": [
+        [{"card":"狐","manaAfter":5},{"card":"刀","manaAfter":3},{"card":"鱼","manaAfter":3},{"card":"暗","manaAfter":2},{"card":"刀","manaAfter":1},{"card":"牛","manaAfter":1},{"card":"晦","manaAfter":5},{"card":"舞","manaAfter":2}],
+        [{"card":"鱼","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1}]
+      ],
+      "note": "步能为启动减2费，伺机能减1费",
+      "uncertain": [],
+      "raw": "5 | 7 | 1(红) |  | 32 | 狐5刀3鱼3暗2刀1牛1晦5舞2 | 鱼1晦4刀3刀3龙2暗2龙1 |  | 步能为启动减2费，伺机能减1费"
+    },
+    {
+      "id": "t2-huqs-03",
+      "group": "狐起手",
+      "table": 2,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 6,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": "骨",
+      "specialJunkRaw": "骨",
+      "damage": 32,
+      "phases": ["狐4骨-狐2刀2鱼2暗1刀0牛0晦4刀3舞3", "鱼3刀2刀2龙1暗1龙0"],
+      "steps": [
+        [{"card":"狐","manaAfter":4},{"card":"骨","target":"狐","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":3}],
+        [{"card":"鱼","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"暗","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": "步能为启动减2费（狐2步-狐2刀2鱼2暗1刀0牛0晦4骨-狐2刀2舞2  鱼2晦4刀3刀3龙2暗2龙1）",
+      "uncertain": [],
+      "raw": "4 | 6 | 4 | 骨 | 32 | 狐4骨-狐2刀2鱼2暗1刀0牛0晦4刀3舞3 | 鱼3刀2刀2龙1暗1龙0 |  | 步能为启动减2费（狐2步-狐2刀2鱼2暗1刀0牛0晦4骨-狐2刀2舞2  鱼2晦4刀3刀3龙2暗2龙1）"
+    },
+    {
+      "id": "t2-huqs-04a",
+      "group": "狐起手",
+      "table": 2,
+      "crystals": 5,
+      "crystalsRed": true,
+      "cost": 6,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": ["骨", "腾格"],
+      "specialJunkRaw": "骨+腾格（≤4费）",
+      "damage": 48,
+      "phases": ["狐4骨-狐2刀2鱼2暗1刀0牛0晦4刀3舞3", "鱼3晦5刀4刀4龙3 腾格3 暗2龙1龙0"],
+      "steps": [
+        [{"card":"狐","manaAfter":4},{"card":"骨","target":"狐","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":3}],
+        [{"card":"鱼","manaAfter":3},{"card":"晦","manaAfter":5},{"card":"刀","manaAfter":4},{"card":"刀","manaAfter":4},{"card":"龙","manaAfter":3},{"card":"腾格","manaAfter":3},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": "步能为启动减2费（同上）",
+      "uncertain": [],
+      "redInPhase": ["二阶段「晦5」的 5 为红字"],
+      "raw": "5(红) | 6 | 4 | 骨+腾格（≤4费） | 48 | （与下行合并）狐4骨-狐2刀2鱼2暗1刀0牛0晦4刀3舞3 | 鱼3晦5刀4刀4龙3 腾格3 暗2龙1龙0 |  | 步能为启动减2费（同上）"
+    },
+    {
+      "id": "t2-huqs-04b",
+      "group": "狐起手",
+      "table": 2,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 6,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": ["骨", "腾格"],
+      "specialJunkRaw": "骨+腾格（≤2费）",
+      "damage": 48,
+      "phases": ["狐4骨-狐2刀2鱼2暗1刀0牛0晦4刀3舞3", "鱼3刀2刀2龙1暗1晦4 腾格2 龙1龙0"],
+      "steps": [
+        [{"card":"狐","manaAfter":4},{"card":"骨","target":"狐","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":3}],
+        [{"card":"鱼","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"暗","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"腾格","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": "若为5水晶，步就能为启动减2费（同上）",
+      "uncertain": [],
+      "raw": "4 | 6 | 4 | 骨+腾格（≤2费） | 48 | （与上行合并）狐4骨-狐2刀2鱼2暗1刀0牛0晦4刀3舞3 | 鱼3刀2刀2龙1暗1晦4 腾格2 龙1龙0 |  | 若为5水晶，步就能为启动减2费（同上）"
+    },
+    {
+      "id": "t2-huqs-05",
+      "group": "狐起手",
+      "table": 2,
+      "crystals": 5,
+      "crystalsRed": false,
+      "cost": 7,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": "骨",
+      "specialJunkRaw": "骨",
+      "damage": 48,
+      "phases": ["狐5骨-狐3刀3鱼3暗2刀1牛1晦5刀4舞4", "鱼4刀3刀3龙2暗2龙1龙0"],
+      "steps": [
+        [{"card":"狐","manaAfter":5},{"card":"骨","target":"狐","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"鱼","manaAfter":3},{"card":"暗","manaAfter":2},{"card":"刀","manaAfter":1},{"card":"牛","manaAfter":1},{"card":"晦","manaAfter":5},{"card":"刀","manaAfter":4},{"card":"舞","manaAfter":4}],
+        [{"card":"鱼","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": "步能为启动减2费（同上）",
+      "uncertain": [],
+      "raw": "5 | 7 | 4 | 骨 | 48 | 狐5骨-狐3刀3鱼3暗2刀1牛1晦5刀4舞4 | 鱼4刀3刀3龙2暗2龙1龙0 |  | 步能为启动减2费（同上）"
+    },
+    {
+      "id": "t2-daoqs-01",
+      "group": "刀起手",
+      "table": 2,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 6,
+      "junk": 5,
+      "junkRed": false,
+      "specialJunk": null,
+      "specialJunkRaw": null,
+      "damage": 32,
+      "phases": ["刀2鱼2暗1刀1牛0晦4刀3舞3", "鱼3刀2刀2龙1暗1龙0"],
+      "steps": [
+        [{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":3}],
+        [{"card":"鱼","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"暗","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "raw": "4 | 6 | 5 |  | 32 | 刀2鱼2暗1刀1牛0晦4刀3舞3 | 鱼3刀2刀2龙1暗1龙0 |  | "
+    },
+    {
+      "id": "t2-daoqs-02",
+      "group": "刀起手",
+      "table": 2,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 6,
+      "junk": 5,
+      "junkRaw": "3+2",
+      "junkRed": true,
+      "specialJunk": ["骨", "步"],
+      "specialJunkRaw": "骨/步",
+      "damage": 48,
+      "phases": ["刀2鱼2暗1刀1牛0晦4（杂≤1费）刀3（杂）舞3", "鱼3晦4刀3刀3龙2骨-晦2暗2龙1龙0"],
+      "steps": [
+        null,
+        [{"card":"鱼","manaAfter":3},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"骨","target":"晦","manaAfter":2},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": "5杂中2杂可清，二阶段晦回费爆费了，一阶段晦后可清杂（≤1费），以及「刀杂舞」清杂",
+      "uncertain": ["steps[0]"],
+      "resolved": ["steps[0]"],
+      "expandedLines": [
+        {
+          "label": "一阶段·不打两张括号杂（注意：「刀1」按推演应为「刀0」，见 inference）",
+          "steps": [{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":3}]
+        }
+      ],
+      "inference": {
+        "steps[0]": "与 t2-wuhu-03 同构：两个括号杂是可选插入，表里印的 刀3/舞3 与二阶段起手 鱼3 对应「都不打」那条线。另外第 4 个 token 表里写「刀1」在算术上不成立 —— 暗 之后法力是 1、刀 是 1 费复制、此时刀油的槽已用完，打完只能是 0；后面紧跟的「牛0」也只有从 0 出发（牛 4-4=0）才对。同组 t2-daoqs-05 在同一位置写的就是「刀0」。",
+        "首刀减费": "本行属「彗逆序」组，**前提是上回合已打过幸运彗星**（`GDB_873`）：第一张刀油的连击双触发 = 两层各 -2 = -4（所以鱼 0 费、暗 1 费），狐人老千不是连击随从、不吃彗星，仍是 -2 —— 两者并不矛盾，本行自洽。（此前把它判成「原表算错」是因为前提条件没进转录，2026-09-11 用户看图纠正。）**本牌组不带幸运彗星，本行不适用**，引擎不建模这张牌。上面的 expandedLines 按「有彗星」的口径复现。"
+      },
+      "redInPhase": ["二阶段「晦4」的 4 为红字"],
+      "raw": "4 | 6 | 3+2(红) | 骨/步 | 48 | 刀2鱼2暗1刀1牛0晦4（杂≤1费）刀3（杂）舞3 | 鱼3晦4刀3刀3龙2骨-晦2暗2龙1龙0 |  | 5杂中2杂可清，二阶段晦回费爆费了，一阶段晦后可清杂（≤1费），以及「刀杂舞」清杂"
+    },
+    {
+      "id": "t2-daoqs-03",
+      "group": "刀起手",
+      "table": 2,
+      "crystals": 5,
+      "crystalsRed": false,
+      "cost": 7,
+      "junk": 5,
+      "junkRed": false,
+      "specialJunk": null,
+      "specialJunkRaw": null,
+      "damage": 48,
+      "phases": ["刀3鱼3暗2刀1牛1晦5刀4舞4", "鱼4刀3刀3龙2暗2龙1龙0"],
+      "steps": [
+        [{"card":"刀","manaAfter":3},{"card":"鱼","manaAfter":3},{"card":"暗","manaAfter":2},{"card":"刀","manaAfter":1},{"card":"牛","manaAfter":1},{"card":"晦","manaAfter":5},{"card":"刀","manaAfter":4},{"card":"舞","manaAfter":4}],
+        [{"card":"鱼","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "raw": "5 | 7 | 5 |  | 48 | 刀3鱼3暗2刀1牛1晦5刀4舞4 | 鱼4刀3刀3龙2暗2龙1龙0 |  | "
+    },
+    {
+      "id": "t2-daoqs-04a",
+      "group": "刀起手",
+      "table": 2,
+      "crystals": 5,
+      "crystalsRed": true,
+      "cost": 6,
+      "junk": 4,
+      "junkRaw": "3+1",
+      "junkRed": true,
+      "specialJunk": "腾格",
+      "specialJunkRaw": "骨/步之外腾格（≤2费）",
+      "damage": 48,
+      "phases": ["刀2鱼2暗1刀1牛0晦4刀3杂3舞3", "鱼2晦5刀4刀4龙3 腾格3 暗2龙1龙0"],
+      "steps": [
+        [{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"杂","manaAfter":3},{"card":"舞","manaAfter":3}],
+        [{"card":"鱼","manaAfter":2},{"card":"晦","manaAfter":5},{"card":"刀","manaAfter":4},{"card":"刀","manaAfter":4},{"card":"龙","manaAfter":3},{"card":"腾格","manaAfter":3},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": "4杂中1杂可清",
+      "uncertain": [],
+      "redInPhase": ["二阶段「晦5」的 5 为红字"],
+      "raw": "5(红) | 6 | 3+1(红) | 骨/步之外腾格（≤2费） | 48 | 刀2鱼2暗1刀1牛0晦4刀3杂3舞3 | 鱼2晦5刀4刀4龙3 腾格3 暗2龙1龙0 |  | 4杂中1杂可清"
+    },
+    {
+      "id": "t2-daoqs-04b",
+      "group": "刀起手",
+      "table": 2,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 6,
+      "junk": 3,
+      "junkRed": true,
+      "specialJunk": "腾格",
+      "specialJunkRaw": "骨/步之外腾格（≤2费）",
+      "damage": 48,
+      "phases": ["刀2鱼2暗1刀1牛0晦4刀3舞3", "鱼3刀2刀2龙1暗1晦4 腾格2 龙1龙0"],
+      "steps": [
+        [{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":3}],
+        [{"card":"鱼","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"暗","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"腾格","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": "特殊杂牌单元格与 t2-daoqs-04a 合并",
+      "uncertain": [],
+      "raw": "4 | 6 | 3(红) | 骨/步之外腾格（≤2费） | 48 | 刀2鱼2暗1刀1牛0晦4刀3舞3 | 鱼3刀2刀2龙1暗1晦4 腾格2 龙1龙0 |  | "
+    },
+    {
+      "id": "t2-daoqs-05",
+      "group": "刀起手",
+      "table": 2,
+      "crystals": 5,
+      "crystalsRed": true,
+      "cost": 6,
+      "junk": 4,
+      "junkRaw": "3+1",
+      "junkRed": true,
+      "specialJunk": "腾格",
+      "specialJunkRaw": "骨/步之外腾格（≤4费）",
+      "damage": 48,
+      "phases": ["刀2鱼2暗1刀0牛0晦4刀3杂3舞3", "鱼2晦5刀4刀4龙3 腾格3 暗2龙1龙0"],
+      "steps": [
+        [{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"杂","manaAfter":3},{"card":"舞","manaAfter":3}],
+        [{"card":"鱼","manaAfter":2},{"card":"晦","manaAfter":5},{"card":"刀","manaAfter":4},{"card":"刀","manaAfter":4},{"card":"龙","manaAfter":3},{"card":"腾格","manaAfter":3},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": "4杂中1杂可清",
+      "uncertain": [],
+      "redInPhase": ["二阶段「晦5」的 5 为红字"],
+      "raw": "5(红) | 6 | 3+1(红) | 骨/步之外腾格（≤4费） | 48 | 刀2鱼2暗1刀0牛0晦4刀3杂3舞3 | 鱼2晦5刀4刀4龙3 腾格3 暗2龙1龙0 |  | 4杂中1杂可清"
+    },
+    {
+      "id": "t2-wuhui2-01",
+      "group": "无晦（狐视作杂牌）",
+      "table": 2,
+      "crystals": null,
+      "crystalsRaw": "/",
+      "crystalsRed": false,
+      "cost": 8,
+      "junk": 3,
+      "junkRed": false,
+      "specialJunk": null,
+      "specialJunkRaw": null,
+      "damage": 32,
+      "phases": ["（狐6）刀4鱼4暗3刀2牛2刀2舞2", "鱼2刀1刀1龙0刀0暗0龙0"],
+      "steps": [
+        [{"card":"狐","manaAfter":6,"optional":true},{"card":"刀","manaAfter":4},{"card":"鱼","manaAfter":4},{"card":"暗","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"牛","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"舞","manaAfter":2}],
+        [{"card":"鱼","manaAfter":2},{"card":"刀","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"龙","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"暗","manaAfter":0},{"card":"龙","manaAfter":0}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "raw": "/ | 8 | 3 |  | 32 | （狐6）刀4鱼4暗3刀2牛2刀2舞2 | 鱼2刀1刀1龙0刀0暗0龙0 |  | "
+    },
+    {
+      "id": "t2-wuhui2-02",
+      "group": "无晦（狐视作杂牌）",
+      "table": 2,
+      "crystals": null,
+      "crystalsRaw": "/",
+      "crystalsRed": false,
+      "cost": 10,
+      "junk": 5,
+      "junkRed": false,
+      "specialJunk": null,
+      "specialJunkRaw": null,
+      "damage": 48,
+      "phases": ["（狐8）刀6鱼6暗5刀4牛4刀4舞4", "鱼4刀3刀3龙2暗2龙1龙0"],
+      "steps": [
+        [{"card":"狐","manaAfter":8,"optional":true},{"card":"刀","manaAfter":6},{"card":"鱼","manaAfter":6},{"card":"暗","manaAfter":5},{"card":"刀","manaAfter":4},{"card":"牛","manaAfter":4},{"card":"刀","manaAfter":4},{"card":"舞","manaAfter":4}],
+        [{"card":"鱼","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+      ],
+      "note": null,
+      "uncertain": [],
+      "raw": "/ | 10 | 5 |  | 48 | （狐8）刀6鱼6暗5刀4牛4刀4舞4 | 鱼4刀3刀3龙2暗2龙1龙0 |  | "
+    },
+    {
+      "id": "t2-16-01a",
+      "group": "打/回16（狐视作杂牌）",
+      "table": 2,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 6,
+      "junk": 2,
+      "junkRed": true,
+      "specialJunk": null,
+      "specialJunkRaw": null,
+      "damage": 16,
+      "phases": ["（狐4）刀2鱼2暗1刀0牛0晦4舞1", "刀0鱼0晦4刀3刀3龙2暗2"],
+      "steps": [
+        [{"card":"狐","manaAfter":4,"optional":true},{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"舞","manaAfter":1}],
+        [{"card":"刀","manaAfter":0},{"card":"鱼","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"暗","manaAfter":2}]
+      ],
+      "note": "有无狐均可，有伺步能配合狐减费",
+      "uncertain": [],
+      "raw": "4 | 6 | 2(红) |  | 16 | （狐4）刀2鱼2暗1刀0牛0晦4舞1 | 刀0鱼0晦4刀3刀3龙2暗2 |  | 有无狐均可，有伺步能配合狐减费"
+    },
+    {
+      "id": "t2-16-01b",
+      "group": "打/回16（狐视作杂牌）",
+      "table": 2,
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 6,
+      "junk": 2,
+      "junkRed": true,
+      "specialJunk": null,
+      "specialJunkRaw": null,
+      "damage": 16,
+      "phases": ["（狐4）刀2鱼2暗1刀0牛0晦4舞1", "刀0鱼0晦4牛3刀2刀2龙1幻1"],
+      "steps": [
+        [{"card":"狐","manaAfter":4,"optional":true},{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"舞","manaAfter":1}],
+        [{"card":"刀","manaAfter":0},{"card":"鱼","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"牛","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"幻","manaAfter":1}]
+      ],
+      "note": "与 t2-16-01a 同一表格行的第二条二阶段线；其余单元格合并",
+      "uncertain": [],
+      "raw": "4 | 6 | 2(红) |  | 16 | （与上行合并） | 刀0鱼0晦4牛3刀2刀2龙1幻1 |  | （与上行合并）"
+    },
+    {
+      "id": "t2-pre-01",
+      "group": "预启动（狐视作杂牌）",
+      "table": 2,
+      "crystals": null,
+      "crystalsRaw": "/",
+      "crystalsRed": false,
+      "cost": 6,
+      "junk": 5,
+      "junkRaw": "3+2",
+      "junkRed": false,
+      "specialJunk": null,
+      "specialJunkRaw": null,
+      "damage": null,
+      "phases": ["刀2鱼2暗1刀0牛0晦4（杂≤3费）刀（杂）幻"],
+      "steps": [null],
+      "note": "5杂中2杂可清",
+      "uncertain": ["steps"],
+      "resolved": ["steps"],
+      "expandedLines": [
+        {
+          "label": "一阶段（杂取 3 费上限时正好花光；按表的「首刀 -4」算法复现）",
+          "steps": [{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"杂","manaAfter":1,"note":"≤3费，晦后刀油槽已空，按印刷价付"},{"card":"刀","manaAfter":0},{"card":"杂","manaAfter":0,"note":"吃刀油槽，0 费"},{"card":"幻","manaAfter":0}]
+        }
+      ],
+      "inference": {
+        "steps": "晦4 之后表里不给数字，推演补齐：晦 结算时刀油的槽刚好用完，所以第一张杂按印刷价付 —— 「≤3费」这个限制正是这么来的（4-3=1）；接着 刀（1 费复制）→0 并压两层「2 槽 -2」，第二张杂和 幻（4-4=0）各吃一个槽，全程 0 费，一阶段正好花光。若第一张杂超过 3 费，后面的刀就下不出来，这条线断掉。",
+        "首刀减费": "同 t2-daoqs-02：本组的前提是上回合已打过幸运彗星（`GDB_873`），首刀连击双触发 -4，狐不吃彗星仍 -2，本行自洽。本牌组不带幸运彗星 → 不适用、不建模，见组级说明。"
+      },
+      "raw": "/ | 6 | 3+2 |  |  | 刀2鱼2暗1刀0牛0晦4（杂≤3费）刀（杂）幻 |  |  | 5杂中2杂可清"
+    },
+    {
+      "id": "t2-pre-02",
+      "group": "预启动（狐视作杂牌）",
+      "table": 2,
+      "crystals": null,
+      "crystalsRaw": "/",
+      "crystalsRed": false,
+      "cost": 6,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": null,
+      "specialJunkRaw": null,
+      "damage": null,
+      "phases": ["（狐4）刀2鱼2暗1刀0牛0刀0（杂）幻0"],
+      "steps": [null],
+      "note": null,
+      "uncertain": ["steps"],
+      "resolved": ["steps"],
+      "expandedLines": [
+        {
+          "label": "一阶段（括号里的狐可下可不下；按表的「首刀 -4」算法复现）",
+          "steps": [{"card":"狐","manaAfter":4,"optional":true},{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"杂","manaAfter":0,"note":"吃刀油槽，0 费"},{"card":"幻","manaAfter":0}]
+        }
+      ],
+      "inference": {
+        "steps": "表里除括号杂之外每个数字都已给出，推演逐一成立；唯一要补的是括号里那张杂：它在最后一张刀之后打，吃掉刀油两层里各一个槽，≤4 费即 0 费，所以法力停在 0，接着 幻 也被剩下的槽抹平（4-4=0）→ 幻0，与表一致。",
+        "首刀减费": "本行是预启动（回合开始时场上是空的，不可能有鲨鱼），却同样出现「狐给刀 -2、刀给鱼 -4」—— 这恰恰说明首刀的 -4 不是鲨鱼给的，而是**上回合打过的幸运彗星**（`GDB_873`，效果不限本回合）给的，正是组名「提前彗」的意思。狐人老千不是连击随从，不吃彗星，所以仍是 -2，两者不矛盾。本牌组不带幸运彗星 → 本行不适用、不建模。"
+      },
+      "raw": "/ | 6 | 4 |  |  | （狐4）刀2鱼2暗1刀0牛0刀0（杂）幻0 |  |  | "
+    },
+    {
+      "id": "t2-chou-01",
+      "group": "常用缺随抽随",
+      "table": 2,
+      "rowLabel": "缺暗牛晦中2个",
+      "crystals": 5,
+      "crystalsRed": false,
+      "cost": 9,
+      "junk": 2,
+      "junkRed": true,
+      "specialJunk": "帷幕",
+      "specialJunkRaw": "帷幕",
+      "damage": 32,
+      "phases": ["鱼5狐3刀3帷幕3暗2刀1牛1晦5舞2", "鱼1晦4刀3刀3龙2暗2龙1"],
+      "steps": [
+        [{"card":"鱼","manaAfter":5},{"card":"狐","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"帷幕","manaAfter":3},{"card":"暗","manaAfter":2},{"card":"刀","manaAfter":1},{"card":"牛","manaAfter":1},{"card":"晦","manaAfter":5},{"card":"舞","manaAfter":2}],
+        [{"card":"鱼","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1}]
+      ],
+      "note": "1）常用于裸鱼启动；2）若杂牌超过2，一阶段晦后有5费可以去找腾格清杂牌启动\n3）可以配合伺机（伺舞）、骨刺（晦后骨狐刀舞）或暗影步（晦后腾格刀舞）等减费",
+      "uncertain": [],
+      "redInPhase": ["一阶段末尾「舞2」为红字"],
+      "raw": "缺暗牛晦中2个 | 5 | 9 | 2(红) | 帷幕 | 32 | 鱼5狐3刀3帷幕3暗2刀1牛1晦5舞2 | 鱼1晦4刀3刀3龙2暗2龙1 |  | 1）常用于裸鱼启动；2）若杂牌超过2，一阶段晦后有5费可以去找腾格清杂牌启动 / 3）可以配合伺机（伺舞）、骨刺（晦后骨狐刀舞）或暗影步（晦后腾格刀舞）等减费"
+    }
+  ]
+}
