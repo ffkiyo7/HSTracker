@@ -166,14 +166,13 @@ struct TrackerPanelView: View {
         let box = layout.boxHeight * scale
         let width = layout.width * scale
         return ZStack(alignment: .bottomTrailing) {
-            Rectangle()
-                .fill(Color(hex: "#4C0000FF"))
+            // Fork: an outline rather than HDT's wash - OverlayMovableOutline.
+            OverlayMovableOutline()
                 .frame(width: width, height: box)
                 .gesture(dragGesture)
             // The bottom-right corner, which HDT treats as the resize grip: a
             // mouse-down within 30pt of it resizes instead of moving.
-            Rectangle()
-                .fill(Color.white.opacity(0.35))
+            OverlayResizeGrip()
                 .frame(width: TrackerPanelLayout.resizeGripSize,
                        height: TrackerPanelLayout.resizeGripSize)
                 .gesture(resizeGesture)

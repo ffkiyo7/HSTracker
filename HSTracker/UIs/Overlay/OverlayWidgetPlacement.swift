@@ -210,9 +210,7 @@ struct OverlayWidgetMovableBox: View {
     }
 
     var body: some View {
-        Rectangle()
-            // HDT's #4C0000FF, the same wash it puts over a movable deck stack.
-            .fill(Color(hex: "#4C0000FF"))
+        OverlayMovableOutline()
             .frame(width: frame.width, height: frame.height)
             .offset(x: frame.minX, y: frame.minY)
             .gesture(
@@ -234,5 +232,42 @@ struct OverlayWidgetMovableBox: View {
     private var interactiveRegion: CGRect {
         CGRect(x: frame.minX * canvasScale, y: frame.minY * canvasScale,
                width: frame.width * canvasScale, height: frame.height * canvasScale)
+    }
+}
+
+/// Fork: what marks a movable element while the overlay is unlocked. HDT's
+/// `#4C0000FF` wash sat on top of the element and tinted everything under it
+/// blue, so the element being placed could not be read; an outline leaves it
+/// as it is. The whole rect still takes the drag.
+struct OverlayMovableOutline: View {
+    static let color = Color(hex: "#FF4DA6FF")
+
+    var body: some View {
+        Rectangle()
+            .strokeBorder(Self.color, lineWidth: 2)
+            .shadow(color: .black.opacity(0.9), radius: 1)
+            .contentShape(Rectangle())
+    }
+}
+
+/// Fork: the resize grip's corner, drawn as three diagonal strokes instead of a
+/// filled square over the content. The whole frame it is given takes the drag.
+struct OverlayResizeGrip: View {
+    var body: some View {
+        GripLines()
+            .stroke(OverlayMovableOutline.color, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+            .shadow(color: .black.opacity(0.9), radius: 1)
+            .contentShape(Rectangle())
+    }
+
+    private struct GripLines: Shape {
+        func path(in rect: CGRect) -> Path {
+            var path = Path()
+            for inset: CGFloat in [8, 14, 20] {
+                path.move(to: CGPoint(x: rect.maxX - inset, y: rect.maxY - 3))
+                path.addLine(to: CGPoint(x: rect.maxX - 3, y: rect.maxY - inset))
+            }
+            return path
+        }
     }
 }

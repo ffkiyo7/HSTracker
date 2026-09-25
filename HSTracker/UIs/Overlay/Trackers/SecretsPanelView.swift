@@ -78,16 +78,15 @@ struct SecretsPanelView: View {
         let box = boxHeight * scale
         let boxWidth = width * scale
         return ZStack(alignment: .bottomTrailing) {
-            Rectangle()
-                .fill(Color(hex: "#4C0000FF"))
+            OverlayMovableOutline()
                 .frame(width: boxWidth, height: box)
                 .gesture(dragGesture)
-            Rectangle()
-                .fill(Color.white.opacity(0.35))
+            OverlayResizeGrip()
                 .frame(width: TrackerPanelLayout.resizeGripSize,
                        height: TrackerPanelLayout.resizeGripSize)
                 .gesture(
-                    DragGesture(minimumDistance: 1)
+                    // Fork: canvas space, as TrackerPanelView.dragGesture.
+                    DragGesture(minimumDistance: 1, coordinateSpace: .rootOverlayCanvas)
                         .onChanged { viewModel.resize(translation: $0.translation, canvasSize: canvasSize) }
                         .onEnded { _ in viewModel.endDrag() }
                 )
@@ -97,7 +96,7 @@ struct SecretsPanelView: View {
     }
 
     private var dragGesture: some Gesture {
-        DragGesture(minimumDistance: 1)
+        DragGesture(minimumDistance: 1, coordinateSpace: .rootOverlayCanvas)
             .onChanged { value in
                 guard !isLocked else { return }
                 viewModel.drag(translation: value.translation, canvasSize: canvasSize)

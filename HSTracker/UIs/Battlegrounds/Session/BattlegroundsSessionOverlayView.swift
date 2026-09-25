@@ -97,7 +97,16 @@ struct BattlegroundsSessionOverlayView: View {
             // (OverlayWindow.Initialize.cs). It is what says the panel can be
             // dragged at all - without it this was the one movable element on
             // the canvas with no sign that it was.
-            .overlay(isLocked ? nil : Color(hex: "#4C0000FF"))
+            // Fork: an outline rather than the wash (OverlayMovableOutline), sized
+            // to the scaled panel - an overlay after .scaleEffect is laid out at
+            // the unscaled size.
+            .overlay(alignment: .topLeading) {
+                if !isLocked {
+                    OverlayMovableOutline()
+                        .frame(width: viewModel.panelSize.width * CGFloat(viewModel.scaling),
+                               height: viewModel.panelSize.height * CGFloat(viewModel.scaling))
+                }
+            }
             .offset(x: originX, y: originY)
             .gesture(dragGesture, including: isLocked ? .none : .all)
     }
@@ -105,8 +114,9 @@ struct BattlegroundsSessionOverlayView: View {
     // HDT only moves overlay elements while the overlay is unlocked
     // (_uiMovable, toggled from the same place HSTracker toggles
     // Settings.windowsLocked), and saves the config on mouse up.
+    // Fork: canvas space, as TrackerPanelView.dragGesture.
     private var dragGesture: some Gesture {
-        DragGesture(minimumDistance: 1)
+        DragGesture(minimumDistance: 1, coordinateSpace: .rootOverlayCanvas)
             .onChanged { value in
                 guard !isLocked else { return }
                 viewModel.drag(translation: value.translation, canvasSize: canvasSize)
