@@ -21,6 +21,12 @@ class RootOverlayWindow: OverWindowController {
     private var hoveredTooltip: OverlayTooltip?
     private weak var hoveredView: CardHoverNSView?
 
+    // Fork: unlocking moves the canvas's children, never the window. The
+    // unlocked styleMask `WindowManager.show` would give it adds a title bar,
+    // and a titled window gets pushed below the menu bar, so every refresh saw
+    // a frame mismatch and set the frame again.
+    override var alwaysLocked: Bool { true }
+
     override func windowDidLoad() {
         super.windowDidLoad()
         hostingView = NSHostingView(rootView: RootOverlayView(viewModel: viewModel))

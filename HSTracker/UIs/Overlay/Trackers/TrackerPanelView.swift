@@ -185,8 +185,11 @@ struct TrackerPanelView: View {
     // HDT only moves overlay elements while the overlay is unlocked (_uiMovable,
     // toggled from the same place HSTracker toggles Settings.windowsLocked), and
     // saves the config on mouse up.
+    // Fork: read in the canvas's space. The default `.local` space is the box's
+    // own, which the drag itself moves, so each step undid part of the last one
+    // and the panel jittered between two positions.
     private var dragGesture: some Gesture {
-        DragGesture(minimumDistance: 1)
+        DragGesture(minimumDistance: 1, coordinateSpace: .rootOverlayCanvas)
             .onChanged { value in
                 guard !isLocked else { return }
                 viewModel.drag(translation: value.translation, canvasSize: canvasSize)
@@ -197,7 +200,7 @@ struct TrackerPanelView: View {
     /// The grip only ever changes the height, and HDT clamps it at 5% of the
     /// client (`OverlayWindow.Input.cs`).
     private var resizeGesture: some Gesture {
-        DragGesture(minimumDistance: 1)
+        DragGesture(minimumDistance: 1, coordinateSpace: .rootOverlayCanvas)
             .onChanged { viewModel.resize(translation: $0.translation, canvasSize: canvasSize) }
             .onEnded { _ in viewModel.endDrag() }
     }
