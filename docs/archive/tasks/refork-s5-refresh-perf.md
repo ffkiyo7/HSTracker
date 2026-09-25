@@ -32,4 +32,8 @@ dev 上相关提交：`7617b8ad`（刷新合并 `scheduleGuiUpdate` / `runGuiUpd
 
 ## 执行结果
 
-（执行者追加）
+09-24 Opus 子代理完成，`dev0923` `cc0fa753`；第二批 review 后修复见 `refork-batch2-fixes.md`；09-26 实测不掉帧、悬停卡图无顿挫。
+- 测试 257 条只挂 `OfficialBuildTests`。
+- 逐提交结论：`7617b8ad` 改写进 `Fork/OverlayRefreshScheduler.swift`（3.6.12 仍 500ms 轮询）；`9f81e56c` 一并搬（窗口轮询 0.25s，上游约 2s、dev 0.1s）；`4e5dc8f8` / `e59d60e5` / `7c0f2390` 搬终态（`Utility/LatencyProbe.swift`、scheme `HSTRACKER_LATENCY_PROBE`、3 处埋点）；`7ae582f4` / `b0374928` 不搬（dev 已撤回）；`ce4f0523` 搬（`SizeHelper` 加锁 + 读挪后台）；`f3d81021` 搬并加 404 负缓存（`Fork/SynchronizedLRUCache.swift`，每缓存 256 项）；`143db6f3` 余部：`WindowManager.show` 同值不写（`Fork/OverlayOrderFrontGate.swift`）、`Fork/DeckRecordLabelCache.swift`。
+- 探针：Debug 从 scheme 默认开；Release `open --env HSTRACKER_LATENCY_PROBE=1 <app>`，每 30s 写 `[latency]` 到 `~/Library/Logs/HSTracker/hstracker.log`。
+- 执行者提的风险（刷新频率上限约 60 次 / 秒放大上游 `updateFrames` 重置点击穿透）经 review 确认，修在 `d589ff8a`。

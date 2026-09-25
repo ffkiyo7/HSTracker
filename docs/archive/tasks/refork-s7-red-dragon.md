@@ -27,4 +27,6 @@ dev 上的红龙搜索核心（`HSTracker/RedDragon/`）与其测试、fixture �
 
 ## 执行结果
 
-（执行者追加）
+09-24 `dev0923` `aae3f397`：9 个文件与 dev 逐字节相同，未用 `CardIds`（REFORK 原写需补常量有误）。全套 289 条，`RedDragonTests` 24 条全绿。
+- 执行者那一轮全套跑了 7 小时未结束（采样在 `testSearchReachesTableDamage` 的搜索里），由 Claude 停掉接手；次晨单条 162s、全套 4 分钟正常，未复现。
+- 09-26 另一轮全套里该条 480s 失败（23 行全 `budgetExceeded`），当时炉石开着、负载 5–6.5：预算按线程 CPU 秒计，忙时落能效核 → 不稳定测试，改法归 S6b。

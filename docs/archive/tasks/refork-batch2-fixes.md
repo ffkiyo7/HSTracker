@@ -32,4 +32,12 @@
 
 ## 执行结果
 
-（执行者追加）
+09-24 Opus 子代理完成，`dev0923` `d589ff8a`；测试 265 条只挂 `OfficialBuildTests`（新增 8 条）。09-26 实测锁定 / 解锁点击正常、高亮只落牌库区。
+1. `CardTileArtCache` 取到图后从 `requested` 移除（取失败的仍不重试）。
+2. `TrackerViewModel.setHighlight` 只发给 `cards` + `deck`；分区模式下手里生成的牌不亮（与平铺开 `showPlayerGet` 时略异）。
+3. `RootOverlayWindow` 覆写 `updateFrames()`，按光标与 `interactiveRegions` 重算点击穿透。
+4. `DeckRecordLabelCache` 加失效计数 + `statisticsChanged()`，写 / 删统计都走它；`TrackerHeaderStats` 改看同一计数。
+5. 调度器 `refresh` 未设时保留待办，`didSet` 补排。
+6. 负缓存 key 带客户端语言。
+7. 删 `Player.deckStateEvaluations`，3 条测试改为比对快照与旧入口（「一次刷新只算一次 deck state」不再有测试守护）。
+- 未修（上游）：卡图磁盘缓存路径不分语言。

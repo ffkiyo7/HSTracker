@@ -34,4 +34,7 @@ dev 上下面这些修复 / 小功能，逐项先看 3.6.12 有没有已经解�
 
 ## 执行结果
 
-（执行者追加）
+09-24 Opus 子代理完成，`dev0923` `8a86299d`；第三批 review（Claude + Fable + Codex）无必修；09-26 实测：排队显示我方记牌器、结算即隐藏、Dock 打勾 + Toast、中文菜单「解锁窗口」可用、退出炉石后 `Power.log` 84MB（非 0）。
+- 测试 289 条，失败 = `OfficialBuildTests` + `LocalizationFormatTests`（测试宿主无桌面权限）。
+- 结论：排队 / 清残留、场景门改写搬入（`Fork/Game+TrackerGate.swift`，删 `shouldShowTracker`）；T1 只改 `setBaconState` / `setDeckPickerState` + `setConstructedQueue` / `SceneHandler.invalidateUserState` 三处，`isViewingTeammate` / `choicesVisible` / discover 3.6.12 已自带；Power.log 改在 `LogReaderManager`（新键 `keep_power_log` 默认 true，`LogReader` 未动）；菜单 tag 与 Dock 打勾在 `Fork/AppDelegate+MainMenu.swift`（主菜单与 Dock 两处都打勾）；`HSReplayPreferences` 标题本地化；`show_mulligan_toast` 默认 false。
+- 余项归 S6b（见 `docs/REFORK.md` S6 行）：`clearTrackersOnGameEnd` 死分支、`hide_all_trackers_when_not_in_game` 复选框无读者、菜单勾选不随自动识别更新、3.6.12 arena `Watchers.swift:217` `main.sync`、`QueueWatcher.stop()` 不发退出事件致 `isInQueue` 可能卡 true、`DeckManager.swift:663/664/709` 仍按标题找菜单项。

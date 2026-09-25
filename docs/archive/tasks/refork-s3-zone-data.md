@@ -34,4 +34,9 @@ dev 上相关提交：`1c44b212`（T1 分区）、`e9a67db6` / `7bd3192b` / `68c
 
 ## 执行结果
 
-（执行者追加）
+09-23 Opus 子代理完成，`dev0923` `687aa134`；09-24 第二批 review（Claude + Fable + Codex）过，09-26 实测分区张数与 dev 一致。
+- 受限环境 `clean build` 过；测试 202 条只挂 `OfficialBuildTests`。`CardZoneGroupsTests` 27 条、回放 21 条全绿。
+- 上游文件：`Player.swift` 14 行（第二批修复删掉测试计数器后 12 行）、`TagChangeActions` 15、`Entity` 6、`Card` 1、`RealmHelper` 1；分区逻辑在 `HSTracker/Fork/`。
+- `enText` 拷贝与 Bug T3 奇闻修复在 3.6.12 上重写；T3 无测试（dev 也没有）。
+- 执行者报的「测试写真实 Realm」是误报：`HSTrackerTests.setUp` 设了 `inMemoryIdentifier`。
+- 发现未修（上游）：`DynamicEntity.init` 丢 `extraInfo`；`getPlayerSideboards` 对局部副本 append 不回写。`playerCardList(deckState:sideboards:)` 是上游 `Player.playerCardList` 的副本，注明需同步。

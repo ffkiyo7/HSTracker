@@ -20,5 +20,7 @@
 | 6（09-22） | `phase2-t1-zone-groups`（`1c44b212`）、`bug-t6`（`e9a67db6`）、`bug-t7`（`7bd3192b`）、`bug-t8` + `bug-t9`（`68ccc14e`）、`phase2-v1-vector-card-bars`（`e3797ba8`）、`phase2-v2a` + `v2b`（`1745adfa`）、`perf-p1` + `perf-p2`（`143db6f3`）、`refork-prep`（`d309a8ff` / `7c0f2390` / `892873de`）、`spike-rdr-t1-search-core`（`0a921d6b`，⏸ 暂缓） | 全部已提交；分区 / 视觉 / 掉帧的实战由 09-18～09-21 的对局覆盖（后续 Bug T10 / T11 即由此产出）。P1 末尾「🎮 实测结果」记着四条为什么没命中 |
 
 | 7（09-23） | `phase1-t8-tracker-motion`（`2e9713b5`，卡点 ④ 通过） | 书末有 review 第一轮「两半都齐了再定」的改法，和 120 fps 录像的逐帧数据；三个时长常量没调 |
+| 8（09-23，补登） | `refork-s1-build-layer`（`dev0923` `17302764`）、`refork-s2-l10n`（`3883c940`） | REFORK 第一批 review 过（Claude + Fable）。S1 书末记着 dev 的 BobsBuddy 从未加载成功（DLL 放错位置） |
+| 9（09-26） | `refork-s3-zone-data`（`687aa134`）、`refork-s5-refresh-perf`（`cc0fa753`）、`refork-batch2-fixes`（`d589ff8a`）、`refork-s6a-small-fixes`（`8a86299d`）、`refork-s7-red-dragon`（`aae3f397`） | 均在 `dev0923`；第二 / 三批 review（Claude + Fable + Codex）+ 09-26 实测。`batch2-fixes` 值得回看：两条真 bug（LRU 淘汰后永久缺图、高亮落到手牌区）是不看任务书的 Codex 挖出来的 |
 
 `phase3-t1-diff-report.md` 不是任务书，是 gaenyong 与我们译法不同的 77 条对照表。

@@ -35,4 +35,8 @@ dev 的 `HSTracker/UIs/Trackers/SwiftUI/` 整目录与 `HSTrackerTests/TrackerMe
 
 ## 执行结果
 
-（执行者追加）
+09-24 Opus 子代理完成，`dev0923` `8c2a4081`；测试 254 条只挂 `OfficialBuildTests`（`TrackerMetricsTests` 52 条）；第二批 review 修复见已归档的 `refork-batch2-fixes.md`。
+- 外壳：上游原样保留位置 / 大小 / 缩放 / 透明度 / 排序、拖拽缩放、`InteractiveRegion` / `HoverRegion`、坟场详情、link-deck 提示、悬停卡图与高亮链路；换成我们的一整块 `TrackerView`（我方标题 / 战绩 / 牌库顶底 / 卡表 / 计数器，对手卡表 / 计数器 / 相关牌），放在被替换段里排序最前那段的位置。接入在 `UIs/Trackers/SwiftUI/TrackerPanelZone.swift`。
+- 上游文件：`TrackerPanelViewModel` +3、`TrackerPanelView` +23 / −5、`Game` +10 / −4；`Localizable` 只新增 5 key。
+- 09-26 实测：外观与 dev 基本一致、不掉帧、悬停不卡、协同高亮正常（灵力瓜 / 调酒师鲍勃不亮是上游没写规则）。发现并转出：备牌段整块画出 + 悬停浮出丢失（`Tracker.swift` 里的 `8dcf2f47` 漏搬）、抽牌概率 / 坟场计数多画两行（用户定照 dev 隐藏）、对手英雄条不在行网格 → S6b；解锁后标题栏 + 拖动闪烁 → `refork-bug-unlocked-overlay.md`；解锁蓝框染色 → `refork-unlocked-box-outline.md`。
+- 待复测：解锁拖动 / 缩放（上两本修完后）。
