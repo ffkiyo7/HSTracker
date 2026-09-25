@@ -33,7 +33,7 @@ G1 不过（关掉记牌器仍卡）→ 停，改评估「冻结 3.6.9 + cherry-
 
 ## 不搬的东西
 
-- `Tracker.swift` / `CardHud.swift` 里的记牌器窗口层改动（上游已删文件）；`WindowManager` / `SizeHelper` 的窗口层改动随之作废，但其中的性能改动归 S5 逐段核对。**勘误（09-26 实测发现）**：这两个文件里不全是窗口层，`8dcf2f47` 备牌悬停浮出（ETC / 深邃之王，按 `ownerCardId` 通用匹配）是功能，被一并漏掉，新线反而画出了上游的整块备牌段；归 S6b 重做（分区模式不画备牌段 + 悬停本体经 `TrackerCardHoverHandler` 浮出，即 dev `0f1beb5a` 记过的「接进上游相关牌框架」）。其余 10 个提交在逐条核对
+- `Tracker.swift` / `CardHud.swift` 里的记牌器窗口层改动（上游已删文件）；`WindowManager` / `SizeHelper` 的窗口层改动随之作废，但其中的性能改动归 S5 逐段核对。**勘误（09-26 实测发现）**：这两个文件里不全是窗口层，`8dcf2f47` 备牌悬停浮出（ETC / 深邃之王，按 `ownerCardId` 通用匹配）是功能，被一并漏掉，新线反而画出了上游的整块备牌段；归 S6b 重做（分区模式不画备牌段 + 悬停本体经 `TrackerCardHoverHandler` 浮出，即 dev `0f1beb5a` 记过的「接进上游相关牌框架」）。09-26 核对员逐条查完 11 个提交（全部只动 `Tracker.swift`）：真正丢的只有 `8dcf2f47` 一组三件——悬停浮出、分区模式不画备牌段、按 `deckbuildingCard.id == ownerCardId` 通用匹配（新线上游 `TrackerPanelViewModel.sideboardBoxes` 硬编码 ETC + 深邃之王，基里亚斯组件不显示）、有备牌时备牌优先于相关牌；另 3 处与旧线的差：① 旧 SwiftUI 路径无条件隐藏抽牌概率 / 坟场计数，新线按设置照画（`showPlayerDrawChance` 默认 true，多一行）；② 对手英雄条高 `width*34/217` 不在行网格上（`1745adfa` 要求 = 行高）；③ 协同高亮只落牌库区（`d589ff8a` 有意收窄）。①② 归 S6b
 - `useSwiftUITracker` 开关和 AppKit 旧路径；Phase 5「计数器可拖动」（上游 `0b8dfd16` 已做）
 - BLACK_MARKET 崩溃修复、翻译回退修复（上游 `f5641f98` / `a2ac19fc` 已做且更完整）；`Mode.fromMirror` + `EnumTests.testModeFromMirrorToleratesUnknownOrdinals`（上游 `Mode.allCases[safeIndex:]` 已覆盖，拷测试会红）
 - Tier7 pre-lobby 旁路修复 `eb52832e`（3.6.12 已删该文件，由 `Game.updateTier7PreLobbyVisibility()` 接管）
