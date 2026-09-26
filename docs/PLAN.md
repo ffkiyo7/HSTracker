@@ -98,7 +98,8 @@
 
 ## 操作备忘
 
-- Debug 包：`open ~/Library/Developer/Xcode/DerivedData/HSTracker-cgfkydaatbcvlygsoujdqwiezsjx/Build/Products/Debug/HSTracker.app`
+- Debug 包（旧线 `dev`）：`open ~/Library/Developer/Xcode/DerivedData/HSTracker-cgfkydaatbcvlygsoujdqwiezsjx/Build/Products/Debug/HSTracker.app`
+- Debug 包（新线 `dev0923`，worktree）：`open ~/Library/Developer/Xcode/DerivedData/HSTracker-gpzxozpoxxwadygwnfkovyqpczcw/Build/Products/Debug/HSTracker.app`；交测前看二进制时间 ≥ HEAD 提交时间，不然在 worktree 里增量 build 一次
 - 掉帧分析 `docs/tasks/tools/frame_gaps.py`，跨录像对比必须加 `--busy`。
 - 素材：改动前基线 `~/Movies/2026-08-20 22-21-48.mp4`；Release 对照 `~/Movies/2026-08-21 00-07-23.mp4`；掉帧对照组（HSTracker 未启动）`~/Movies/2026-08-21 00-04-08.mp4`；T5 后 `~/Movies/2026-08-22 00-31-43.mp4`；探针 dump `~/Desktop/dev/HSTracker-ab/logs/probe-2026-08-30-release-t6.txt`（现行基线）、`probe-2026-08-31-release-t6b*.txt`。
 - 环境：`brew install wget`（两个 build phase 依赖）；`Config.xcconfig` 本地签名 + `skip-worktree`，换机器重做；SwiftLint 故意不装；git 身份 repo-local；增量包可直接交测。
