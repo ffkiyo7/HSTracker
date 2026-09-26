@@ -27,15 +27,15 @@
 | Phase U / U2 / U3 合上游 3.6.7 / 3.6.8 / 3.6.9 | ✅ | `docs/upstream-merges.md` |
 | Phase 2 分区 + 视觉重做 | 🚧 | T1 分区 `1c44b212`；Bug T6 `e9a67db6` / T7 `7bd3192b` / T8+T9 `68ccc14e` / T10 `04dae47a` / T11 护栏 `f8fa4c86`；V1 `e3797ba8`；V2a+V2b `1745adfa`；Perf P1+P2 `143db6f3`。**余：V2 折叠 + 拖拽吸附 + 套牌名截断、2.6 高亮加强、2.7 已打出段图标** |
 | Phase 3 简体中文 | ✅ | 945 / 945；动 `.xcstrings` 必须过 `docs/tasks/tools/check_xcstrings.py --baseline <ref>` |
-| Phase 4 设置 + Dock | 🟡 | 4.1 Dock 打勾 + Toast、4.2 菜单栏改 tag 定位 ✅ `35fea72a`；4.3 只做了 Trackers 一页（🖥️ 待看），其余 8 页 ⬜。REFORK 后倾向用上游新的 Overlay layout 页 |
+| Phase 4 设置 + Dock | 🟡 | 4.1 Dock 打勾 + Toast、4.2 菜单栏改 tag 定位 ✅ `35fea72a`（S6a 已搬新线）；4.3 **其余 8 页 ❌ 撤**：上游 3.6.13 把设置窗改成侧栏分组 + 搜索并新增 Counters 页（见 REFORK「上游 3.6.13 评估」），合入后只补 fork 自有开关（`keep_power_log` / `show_constructed_session_recap` / 分区）进 Trackers 页 |
 | Phase 5 计数器可拖动 | ❌ | 上游 `0b8dfd16` 已做，REFORK 不搬 |
 | Phase 6 排队显示牌组 | ✅ | 08-30 实战；入口 `Game.isDeckTrackerQueue`（Bug T4 补 `isInMenu` 门） |
 | Phase 7 局末小结窗 | ✅ | 09-11 实战；钩子 `CoreManager.appTerminated`，开关 `show_constructed_session_recap`（默认开，**设置 UI 留 4.3**） |
 | 收尾（删 `useSwiftUITracker` 与旧路径） | ❌ | 被 REFORK 取代：旧路径随重建消失 |
 | 红龙贼 combo 提示器 spike | ⏸ | T0 + T1 已提交 `0a921d6b`（`HSTracker/RedDragon/`，24 测试）；恢复点 `docs/research/red-dragon-rogue-spike.md` 第九节第 5 条；REFORK S7 原样搬 |
-| **REFORK**：在上游新画布上重建 | 🚧 | `docs/REFORK.md`；新线 `dev0923`（worktree `.claude/worktrees/refork`）。S0–S3、S5、S6a、S7 ✅（09-26 实测）；S4 🎮 剩解锁拖动复测（解锁 bug `ab723fda` + 描边 `5ff7f87c`）；S6b ⬜ 待办已列在 REFORK；S8 ⬜ |
+| **REFORK**：在上游新画布上重建 | 🚧 | `docs/REFORK.md`；新线 `dev0923`（worktree `.claude/worktrees/refork`）。S0–S3、S5、S6a、S7 ✅（09-26 实测）；S4 🎮 剩解锁拖动复测（解锁 bug `ab723fda` + 描边 `5ff7f87c`，09-26 review 过）；S6b ⬜ 待办已列在 REFORK；S8 ⬜。**上游 3.6.13**（09-24）已评估：增量、干跑 3 处冲突，走 merge，时机等用户定 |
 
-**顺序**：REFORK → Phase 2 / V2 余项 → 4.3 其余设置页 → 红龙 T2 overlay。
+**顺序**：REFORK（含合 3.6.13）→ Phase 2 / V2 余项 → 4.3 fork 开关补进上游设置页 → 红龙 T2 overlay。
 
 ## 🎮 待你亲自看
 
@@ -52,6 +52,7 @@
 
 ## 等你定
 
+- **3.6.13 合入时机**：S8 切换前合（少一轮实测，归因差）还是先解锁复测 → S8 → 再合（多一轮实测，归因清楚）。细节在 `docs/REFORK.md`「上游 3.6.13 评估」。
 - **V2 余项**：折叠 / 拖拽 / 吸附共用一个鼠标模型（不锁定 + 边缘吸附 + 锚点持久化，已决 09-15，细节在 `docs/tasks/phase2-v-visual-redesign.md`）；三行头 40 → 21 实机看。
 - **卡条行高一局之内会变**（上游行为，行高按当前行数压缩）：V1 已让宽度跟着缩；是否改成固定行高 + 滚动 / 截断，用户说优先级不高。
 - Phase 7 要不要回看历史会话（首版没做）。
@@ -62,6 +63,7 @@
 |---|---|---|
 | Discover 开着时悬停记牌器，OutFinder 池消失 | 备牌浮窗与 OutFinder 共用 `RelatedCardsTooltipPanel.shared`；`DiscoverStateWatcher` 只在状态变化时回调 | REFORK S4 接上游悬停路由时解决 |
 | 段头折叠箭头只画不点 | V2a 画了 chevron，折叠未实现 | V2 余项 |
+| 3.6.12 新增 `Watchers.swift:217` arena `main.sync`，停日志读取时主线程最多卡 5s | 上游问题，3.6.13 未改 | S6b |
 | 「只换顺序 + 一次张数变化」的刷新会滑一下重排 | T8 判定只看 id 和张数 | 🎮 后看要不要收 |
 | 坏 tile 反复重试下载（`ETC_206e` / `EDR_979e2`） | `ImageUtils` 没有负缓存 | 谁动 `ImageUtils` 顺手加 |
 | `.activateIgnoringOtherApps` 被 macOS 14 忽略 | `AppDelegate.swift:257`、`NSAlert.swift:28`、`CoreManager.swift:446` | 留意 alert 会不会被压在炉石后面 |

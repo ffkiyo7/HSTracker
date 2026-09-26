@@ -32,3 +32,4 @@
 2. 蓝色：HDT `OverlayWindow.Input.cs` `UnlockUi` 的 `#4C0000FF`（WPF ARGB，30% 蓝），本仓库 `Color(hex:)` 同样按 ARGB 解析，非 bug；但盖在内容上不可用，另开 `refork-unlocked-box-outline.md`。
 3. 闪烁：主因是 `TrackerPanelView` 拖动 / 缩放手势用随框 `.offset` 移动的 `.local` 坐标，每步抵消上一步，框在两个位置间跳 → 改 `.rootOverlayCanvas`；次因（推断，未打日志）是带标题栏的窗口被压到菜单栏下，每次刷新 frame 不等都 `setFrame`，去掉标题栏即消失。
 - 同病未修：`SecretsPanelView`、`BattlegroundsSessionOverlayView` → 已在 `5ff7f87c` 一并改。
+- 09-26 review（Claude 读 diff）：`alwaysLocked` 只进 `WindowManager.show:134` 的 styleMask 分支，点击穿透仍由 `updateFrames` 覆写按光标决定；无必修，等 🎮。

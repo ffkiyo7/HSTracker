@@ -33,6 +33,8 @@ G1 不过（关掉记牌器仍卡）→ 停，改评估「冻结 3.6.9 + cherry-
 
 ### 解锁相关（09-26 实测发现，已修待复测）
 
+两个提交 09-26 我亲自读过 diff（共 6 文件 +69 / −17）：`alwaysLocked` 只进 `WindowManager.show:134` 的 styleMask 分支，不碰鼠标事件；`.rootOverlayCanvas` 是上游 `RootOverlayView:75` 已有的命名空间；描边 / 把手都带 `contentShape`，可点范围不变。无必修，只等 🎮。
+
 - 🎮 **解锁 bug** `ab723fda`（任务书 `docs/tasks/refork-bug-unlocked-overlay.md`）：解锁后整屏 overlay 带「Window」标题栏并被压到菜单栏下、拖动记牌器闪烁——上游 3.6.12 原有（`RootOverlayWindow` 未覆写 `alwaysLocked`；`TrackerPanelView` 拖动手势用随框移动的 `.local` 坐标，每步抵消上一步），S5 高频刷新放大；修法 `alwaysLocked = true` + 手势改 `.rootOverlayCanvas`；测试 289 条只挂签名 1 条。
 - 🎮 **可移动框改描边** `5ff7f87c`（任务书 `docs/tasks/refork-unlocked-box-outline.md`）：蓝色半透明框是 HDT `#4C0000FF`（ARGB，30% 蓝）的可移动框，照 HDT 盖在内容上把记牌器整块染蓝，用户实测「不适合给人用」→ 改为天蓝 2pt 内描边 + 右下斜线缩放把手（共用 `OverlayMovableOutline` / `OverlayResizeGrip`，记牌器 / 奥秘 / 计数器等 / 战棋复盘四处），奥秘（`SecretsPanelView.swift` ~:90/100）与战棋复盘（`BattlegroundsSessionOverlayView.swift:109`，只静态确认）面板手势同改画布坐标。待定：内描边压住面板最外圈 2pt，可改外描边。
 
@@ -45,6 +47,29 @@ G1 不过（关掉记牌器仍卡）→ 停，改评估「冻结 3.6.9 + cherry-
 - 09-26 实测反馈：「高亮手牌」在分区模式下是否强制关（现有开关可关，按 cardId 匹配，复制到手里的同名牌也会让牌库行亮，上游 / dev 同）。
 - review 余项：`clearTrackersOnGameEnd` 已成死分支（场景门在 `gameEnded` 时先隐藏）与 `hide_all_trackers_when_not_in_game` 复选框无读者 → 设置页撤控件；菜单勾选只在 `playDeck` 更新（清空卡组 / 自动识别不同步，dev 同）；3.6.12 新增 `Watchers.swift:217` arena `main.sync`，停日志读取时主线程最多卡 5s（上游问题，dev 无此代码）；战棋 `setBaconState` 在对局中读 `isInQueue`（上游原有）。
 - `RedDragonTests.testSearchReachesTableDamage` 负载下不稳定（见 S7 行）。
+
+## 上游 3.6.13 评估（09-26，tag `41f89c04`，09-24 发布）
+
+新线基座是 3.6.12，3.6.13 是增量（110 文件 +4377 / −520，无 overlay 重写），**走 merge 而不是再开分支**，手册 `docs/upstream-merges.md`。干跑 `git merge-tree --write-tree dev0923 3.6.13` 只 3 处冲突：
+
+| 冲突 | 怎么解 |
+|---|---|
+| `project.pbxproj` | 上游删了 `Preferences` Swift 包（`Package.resolved` −9），新增 `PreferencesWindowController` / `PreferencePane` / `CountersPreferences` / `BoardOrderView(Model)` / `RewoundEntityCreationFilter` 等文件登记；我们的登记照 §1 规则合 |
+| `BobsBuddy-version.txt` | 上游 1.76.3 → **1.78.2**（Volumizer 增益），我们固定 1.76.10；按 §2.2 用 `scripts/update-managed-deps.sh` 重新 vendor，HearthDb 一起换 |
+| `LogReaderManager.swift` | 上游加 `logPath` / `ignoredTimeRanges` / `requestStop()` + `processLine` 开头的 rewind 跳过；我们加 `removeLogfile: !Settings.keepPowerLog`、`stop` 的 `keepPowerLog` 例外、`LatencyProbe.logLineStarted`。两边都留，探针放在 rewind 跳过之后（跳过的行不算延迟） |
+
+自动合并但双方都改过、要人工过的：`Game.swift`（上游 +123：`gameTime == nil` 门加在 `updateOpponentTracker` / `updatePlayerTracker` 开头 —— 正是我们 S4 传分区的三处；`reset(updateUI:)`；`boardOrderCounter`；战棋 minion pool）、`TagChangeActions.swift`（上游删 `drBoomsMonsterRebornHealth`、`zoneChange` 里加 `updateBoardOrder`；我们在同一 `case .zone` 后加 `updateZoneLatches`，顺序不冲突）、`Entity.swift`（`copy()` 上游加 `boardOrder`，我们加两个闩）、`AppDelegate.swift`（上游 `MonoHelper.start()` 后台起 BobsBuddy + 设置窗改 groups 初始化；我们的菜单 tag / Dock 在别处）、`Localizable.xcstrings`（上游 +675 行）。
+
+要重点核的：**rewind**（`fba088ca` / `eb4deaad` / `577e5b25`）会 `reset(updateUI: false)` 后重读日志，我们的 `wasShuffledIntoDeck` / `wasSetAsideAtSetup` 闩挂在 `Entity` 上，随 `entities` 清空一起重建，理论上无事，但要一局带 rewind（半稳定传送门）实测或看 `RewoundEntityCreationFilterTests` 能否加分区断言。`HearthMirror-version.txt` 变了 → 必须 `clean build`。
+
+对我们计划的影响：
+- **Phase 4 / 4.3 基本被上游做掉**：设置窗改成侧栏分组 + 搜索（`PreferencesWindowController` 471 行新写，`ccc9e8c4`），新增 Counters 页（每个计数器 总是 / 从不 / 相关时 显示，`f7fde96e`）。4.3「其余 8 页」撤，Trackers 页只补 fork 自有开关（`keep_power_log`、`show_constructed_session_recap`、分区开关）。
+- 翻译：`Localizable` 新增 13 key（全有 zh-Hans）+ 改 1；`TrackersPreferences.xcstrings` 新增 2 key（有 zh）。**上游这版自带 zh-Hans**，合完只需 `check_xcstrings.py --baseline dev0923 --allow-zh-edit` 确认没被还原。
+- S6b 的 `Watchers.swift:217` arena `main.sync` 上游未改，仍留 S6b。
+- 上游 `883be52e` BobsBuddy 改后台启动（`MonoHelper.isReady`），我们 S1 的 DLL 路径 `Contents/Resources/Resources/Managed/` 不受影响（`MonoHelper.load()` 路径未动）。
+- 新功能顺带得到：场上随从入场序号（`show_board_entry_order`，构筑可用）、启动更快（`ReflectionHelper` 读 Swift 元数据 `a7447ac7`）、rewind 不闪。战棋部分（minion pool / Dark Paradox / Duos）只静态确认。
+
+**时机（等用户定）**：① S8 切换前先合（一次 clean build + 一局实测把解锁复测和 3.6.13 一起验，代价是解锁复测若出问题不好归因）；② 先 🎮 解锁复测 → S8 切换 → 再合 3.6.13 作为新线第一次 merge（归因清楚，多一轮实测）。
 
 ## 不搬的东西
 
