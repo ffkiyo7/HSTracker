@@ -1,6 +1,6 @@
 # HSTracker 个人分支：计划与进度
 
-最后更新 2026-09-26。本文件是唯一的计划 + 进度文档（原 `PLAN.md` / `PROGRESS.md` 全文归档在
+最后更新 2026-09-27。本文件是唯一的计划 + 进度文档（原 `PLAN.md` / `PROGRESS.md` 全文归档在
 `docs/archive/plan-2026-09-22.md` / `progress-2026-09-22.md`，决策理由、实测数据、排查经过都在那里）。
 主线换轨见 `docs/REFORK.md`；上游合并见 `docs/upstream-merges.md`；任务书在做的放 `docs/tasks/`，完成的放 `docs/archive/tasks/`。
 
@@ -33,7 +33,7 @@
 | Phase 7 局末小结窗 | ✅ | 09-11 实战；钩子 `CoreManager.appTerminated`，开关 `show_constructed_session_recap`（默认开，**设置 UI 留 4.3**） |
 | 收尾（删 `useSwiftUITracker` 与旧路径） | ❌ | 被 REFORK 取代：旧路径随重建消失 |
 | 红龙贼 combo 提示器 spike | ⏸ | T0 + T1 已提交 `0a921d6b`（`HSTracker/RedDragon/`，24 测试）；恢复点 `docs/research/red-dragon-rogue-spike.md` 第九节第 5 条；REFORK S7 原样搬 |
-| **REFORK**：在上游新画布上重建 | 🚧 | `docs/REFORK.md`；新线 `dev0923`（worktree `.claude/worktrees/refork`）。S0–S3、S5、S6a、S7 ✅（09-26 实测）；S4 🎮 剩解锁拖动复测（解锁 bug `ab723fda` + 描边 `5ff7f87c`，09-26 review 过）；S6b ⬜ 待办已列在 REFORK；S8 ⬜。**上游 3.6.13**（09-24）已评估：增量、干跑 3 处冲突，走 merge，时机等用户定 |
+| **REFORK**：在上游新画布上重建 | 🚧 | `docs/REFORK.md`；新线 `dev0923`（worktree `.claude/worktrees/refork`）。S0–S5、S6a、S7 ✅（09-26 实测，S4 的解锁复测 09-27 过）；S6b ⬜ 待办已列在 REFORK；S8 ⬜。**上游 3.6.13**（09-24）已评估：增量、干跑 3 处冲突，走 merge，时机等用户定 |
 
 **顺序**：REFORK（含合 3.6.13）→ Phase 2 / V2 余项 → 4.3 fork 开关补进上游设置页 → 红龙 T2 overlay。
 
@@ -41,7 +41,6 @@
 
 | 项 | 看什么 | 备料 |
 |---|---|---|
-| REFORK 解锁复测（新线包） | 菜单「窗口 → 解锁窗口」后：无「Window」标题栏、overlay 贴齐炉石顶边；记牌器 / 奥秘 / 计数器只见天蓝描边不染色；拖动与右下缩放不闪、松手位置保持；再锁定后点击穿透、悬停出卡图 | 一局构筑；清单见 `docs/REFORK.md`「解锁相关」 |
 | Bug T10 | 两张的牌抽走一张后数字框 2 → 1；手牌段行数 = 段头数字 | 一局 |
 | Bug T11 | ① 再见「被炸的牌还在牌库」时记牌名 / 段数字 / 已打出段有无；② 高亮三入口（记牌器行 / 手牌 / 发现）哪个不亮 —— **上游原样包也不亮**（REFORK 未决），从上游链路查；09-26 新线实测记牌器行高亮正常（S4 接上了上游只发布没人用的 `deckHighlight`），手牌 / 发现两入口未单独看 | 一局 |
 | Phase 2 / 2.6 高亮加强 | 只能在炉石背景上看 | 弑君者之类关联卡 |
@@ -52,7 +51,7 @@
 
 ## 等你定
 
-- **3.6.13 合入时机**：S8 切换前合（少一轮实测，归因差）还是先解锁复测 → S8 → 再合（多一轮实测，归因清楚）。细节在 `docs/REFORK.md`「上游 3.6.13 评估」。
+- **3.6.13 合入时机**：S8 切换前合，还是先 S8 再合作为新线第一次 merge。细节在 `docs/REFORK.md`「上游 3.6.13 评估」。
 - **V2 余项**：折叠 / 拖拽 / 吸附共用一个鼠标模型（不锁定 + 边缘吸附 + 锚点持久化，已决 09-15，细节在 `docs/tasks/phase2-v-visual-redesign.md`）；三行头 40 → 21 实机看。
 - **卡条行高一局之内会变**（上游行为，行高按当前行数压缩）：V1 已让宽度跟着缩；是否改成固定行高 + 滚动 / 截断，用户说优先级不高。
 - Phase 7 要不要回看历史会话（首版没做）。

@@ -33,4 +33,5 @@
 - 奥秘、战棋复盘手势改 `.rootOverlayCanvas`；战棋复盘描边尺寸改取 `panelSize × scaling`（原染色层写在 `.scaleEffect` 后，缩放 ≠ 1 时对不上）。
 - 测试 289 条挂 2：`OfficialBuildTests` + `RedDragonTests.testSearchReachesTableDamage`（负载下 CPU 秒预算不稳定，见 `docs/REFORK.md` S7 行，与本改动无关）。
 - 待定：描边画在框内 2pt 会压住面板最外圈，可改外描边。
-- 09-26 review（Claude 读 diff）：四处共用一份样式；描边与把手都带 `contentShape(Rectangle())`，可点范围与原来的实心块一致；战棋复盘描边按 `panelSize × scaling` 取尺寸正确。无必修，等 🎮。
+- 09-26 review（Claude 读 diff）：四处共用一份样式；描边与把手都带 `contentShape(Rectangle())`，可点范围与原来的实心块一致；战棋复盘描边按 `panelSize × scaling` 取尺寸正确。无必修。
+- 09-27 🎮 通过：描边不染色、内容可读、拖动缩放不闪。内描边压外圈 2pt 用户未提，不改。
