@@ -42,6 +42,10 @@ class QueueEvents {
             // Fork (dev c5e125c2): the last game is otherwise only cleared when
             // the next one starts, so the queue's deck list showed its leftovers.
             _game.reset()
+            // Upstream 3.6.13 clears gameTime in reset() and the trackers draw
+            // nothing until the next log line; the queue's deck list must not
+            // wait for one, so restore the launch-time sentinel.
+            _game.gameTime = LogDate(date: Date.distantPast)
             if let deck = AppDelegate.instance().coreManager.autoDetectDeck(mode: _game.currentMode ?? .invalid) {
                 _game.set(activeDeck: deck, autoDetected: true)
             } else if Settings.autoDeckDetection {

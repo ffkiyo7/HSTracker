@@ -100,7 +100,26 @@ latest 低于上游声明、下载失败、HearthDb 大版本跳变 → 停下�
 
 上游 3.6.11 之后把 overlay 重写成单一 SwiftUI 画布并删了 `Tracker.swift` / `CardHud.swift`，旧线的记牌器窗口层改动整体作废。
 不合并，从 `3.6.12`（`c723bfd4`）开 `dev0923`，按 `docs/REFORK.md` S0–S8 只搬值得留的东西；每步的取舍、勘误、上游 bug 都记在那里。
-新线第一次 merge 将是 3.6.13（评估见 `docs/REFORK.md`「上游 3.6.13 评估」：干跑 3 处冲突 —— `project.pbxproj` / `BobsBuddy-version.txt` / `LogReaderManager.swift`）。
+新线第一次 merge 是下面的 U4。
+
+### U4 — 3.6.13（2026-09-29，merge commit `merge: 合入 upstream 3.6.13`，上游 `c723bfd4..41f89c04`，28 commits）
+
+**上游更新一览**：设置窗重写为侧栏分组 + 搜索（`ccc9e8c4`，删 `Preferences` Swift 包）、Counters 页（`f7fde96e`）、rewind（`fba088ca` / `eb4deaad` / `577e5b25`：`Game.reset(updateUI:)`、`gameTime` 门、`LogReaderManager.ignoredTimeRanges`）、场上入场序号（`6265a8dd`）、战棋 minion pool（`7122ec44`，要新 HearthMirror）、BobsBuddy 后台启动（`883be52e`）、Swift 元数据反射（`a7447ac7`）、BobsBuddy 1.78.2。评估原文在 `docs/archive/upstream-3.6.13-eval.md`。
+
+**冲突与处理**（干跑说的 3 处 + 被迫改的 1 处）：
+- `project.pbxproj`：`MACOSX_DEPLOYMENT_TARGET` 保我们的 14.0（上游只动了 6 处 10.15 里的 2 处，合完 6 处全 14.0）；`MARKETING_VERSION = 3.6.13` 取上游；`Preferences` 包连 `Package.resolved`（−9 行）一起收；上游新增 / 删除的 swift 逐个 grep 过登记；fork 新登记 `Fork/HearthMirrorMinionPoolShim.swift` 4 处。
+- `BobsBuddy-version.txt`：上游 1.78.2；`scripts/update-managed-deps.sh --apply 1.81.1 36.6.0` vendor 到 **1.81.1**（latest 高于上游声明，§2.2 允许），HearthDb 仍 36.6.0。
+- `LogReaderManager.swift`：两边都留，`LatencyProbe.logLineStarted` 放 rewind 跳过之后（跳过的行不算延迟）。
+- **`HearthMirror-version.txt`**（自动合上但构建不过）：上游 pin `1a6012b5`，`libs.hearthsim.net/hstracker/1a6012b5…/HearthMirror.framework.zip` **404**（09-29 01:43 实测；`912e88ea` / `fd281351` 均 200），HearthMirror 闭源无法自建 → 留 3.6.12 的 `912e88ea`，加 `Fork/HearthMirrorMinionPoolShim.swift` 顶上 `MirrorBattlegroundsMinionPool` / `…Entry` / `HearthMirror.getBattlegroundsMinionPool()`（返回 nil，`BattlegroundsDb.tryLoadMinionPool` 走上游自己的 fallback）。Codex 核过：Swift extension 不生成 ObjC selector，真框架回来不会撞。**撤法**：版本文件改回 `1a6012b545ba7af09afc14da3cd8286986c996f1`、删 shim + pbxproj 4 处、`clean build`。
+
+**手工复核的自动合并**：`Game.swift`（fork hunk 84/77 行与合前逐行相同）、`TagChangeActions.swift` 10/5、`Entity.swift` 6/0、`AppDelegate.swift` 19/15、`Settings.swift` 2/1，numstat 全部与合前一致。唯一的语义冲突：上游 `gameTime == nil` 门在 `updatePlayerTracker` 开头、`reset()` 把它置 nil，而 fork 的 `QueueEvents` 排队时 `reset()` 再画牌组 → 排队牌组要等下一条日志才画。补丁：`QueueEvents.swift` 在 `reset()` 后 `gameTime = LogDate(date: Date.distantPast)`（上游自己启动时的哨兵值）。其余 `reset()` 调用（`Gameplay.Start`、rewind 的 `reset(updateUI: false)`）本来就等日志重放，不动。
+xcstrings：`check_xcstrings.py --baseline 3.6.13 --allow-zh-edit` 只报我们 18 个自有 key（`session_recap_*` / `vs`），上游没还原我们的 zh 覆盖；`--baseline dev0923` 的 E4 全是上游自己改的其他语言译文，不是我们动的。默认值差异表逐条 grep 过：`show_mulligan_toast` false、`group_cards_by_zone` true、`show_constructed_session_recap` true、`Card.copy()` 的 `enText`、6 处 14.0 都在。
+
+**构建 / 测试**：受限环境 `clean build` 过（HearthMirror 缓存被第一次失败的 phase `rm -rf` 掉后重下 `912e88ea`）；`test -skip-testing:HSTrackerTests/LocalizationFormatTests` **324 条只挂签名 1 条**（合前 295）。Codex（gpt-6-astra）读 staged diff：除「未 stage」外无发现。
+
+**白得与风险**：白得 = 入场序号、启动更快、rewind 不闪、Counters 页、Phase 4.3 被上游做掉。风险 = 战棋 minion pool 在本 fork 不生效直到 shim 撤掉（用户不玩战棋，只静态确认）；rewind 后分区闩理论上随 `entities` 重建，未实测。
+
+**待验**：🎮 一局排队看牌组是否立刻显示（`QueueEvents` 补丁）；🎮 一局带半稳定传送门（rewind）看分区不乱；🖥️ 定期 `curl -I` 上面那个 URL，200 就按撤法撤 shim。
 
 ---
 

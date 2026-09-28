@@ -15,8 +15,8 @@
 | 简体中文没翻全 | ✅ 945 / 945 |
 | 设置粗糙、Dock 菜单没反应 | 🟡 Dock ✅；设置只重做了 Trackers 一页 |
 
-分支 `dev0923`，基座上游 **3.6.12**（`c723bfd4`，2026-09-23 REFORK 换轨）；旧线 `dev`（基座 3.6.9）冻结作回滚点。`master` 是上游纯镜像。
-测试：基线 **295 条，只挂签名 1 条**（`OfficialBuildTests.testHostAppIsRecognizedAsOfficial`，自编译包预期内；`b12ead8c`，2026-09-28，受限环境）。
+分支 `dev0923`，基座上游 **3.6.13**（`41f89c04`，2026-09-29 Phase U4 合入；09-23 REFORK 从 3.6.12 换轨）；旧线 `dev`（基座 3.6.9）冻结作回滚点。`master` 是上游纯镜像（已 ff 到 3.6.13）。
+测试：基线 **324 条，只挂签名 1 条**（`OfficialBuildTests.testHostAppIsRecognizedAsOfficial`，自编译包预期内；U4 合并，2026-09-29，受限环境，`-skip-testing:HSTrackerTests/LocalizationFormatTests`）。
 
 ## 阶段总览
 
@@ -24,7 +24,7 @@
 |---|---|---|
 | Phase 0 地基（驱动循环 / 窗口层 / 部署目标 14.0） | ✅ T0–T6 | T6 于 08-31 收在测量阶段，不做延迟优化 |
 | Phase 1 SwiftUI 记牌器 | ✅ 8 / 8 | T1–T7 实战（卡点 ①②③）；T8 动效 `2e9713b5`，09-23 卡点 ④ 通过（120 fps 录像零掉帧；数据在 `docs/archive/tasks/phase1-t8-tracker-motion.md`） |
-| Phase U / U2 / U3 合上游 3.6.7 / 3.6.8 / 3.6.9 | ✅ | `docs/upstream-merges.md` |
+| Phase U / U2 / U3 / U4 合上游 3.6.7 / 3.6.8 / 3.6.9 / 3.6.13 | ✅ | `docs/upstream-merges.md`；U4 09-29：HearthMirror 留 `912e88ea` + `Fork/HearthMirrorMinionPoolShim.swift`（上游 pin 的 `1a6012b5` CDN 404），撤法在 §4 U4 |
 | Phase 2 分区 + 视觉重做 | 🚧 | T1 分区 `1c44b212`；Bug T6 `e9a67db6` / T7 `7bd3192b` / T8+T9 `68ccc14e` / T10 `04dae47a` / T11 护栏 `f8fa4c86`；V1 `e3797ba8`；V2a+V2b `1745adfa`；Perf P1+P2 `143db6f3`。**余：V2 折叠 + 拖拽吸附 + 套牌名截断、2.6 高亮加强、2.7 已打出段图标** |
 | Phase 3 简体中文 | ✅ | 945 / 945；动 `.xcstrings` 必须过 `docs/tasks/tools/check_xcstrings.py --baseline <ref>` |
 | Phase 4 设置 + Dock | 🟡 | 4.1 Dock 打勾 + Toast、4.2 菜单栏改 tag 定位 ✅ `35fea72a`（S6a 已搬新线）；4.3 **其余 8 页 ❌ 撤**：上游 3.6.13 把设置窗改成侧栏分组 + 搜索并新增 Counters 页（见 REFORK「上游 3.6.13 评估」），合入后只补 fork 自有开关（`keep_power_log` / `show_constructed_session_recap` / 分区）进 Trackers 页 |
@@ -33,15 +33,17 @@
 | Phase 7 局末小结窗 | ✅ | 09-11 实战；钩子 `CoreManager.appTerminated`，开关 `show_constructed_session_recap`（默认开，**设置 UI 留 4.3**） |
 | 收尾（删 `useSwiftUITracker` 与旧路径） | ❌ | 被 REFORK 取代：旧路径随重建消失 |
 | 红龙贼 combo 提示器 spike | ⏸ | T0 + T1 已提交 `0a921d6b`（`HSTracker/RedDragon/`，24 测试）；恢复点 `docs/research/red-dragon-rogue-spike.md` 第九节第 5 条；REFORK S7 原样搬 |
-| **REFORK**：在上游新画布上重建 | 🚧 | `docs/REFORK.md`；新线 `dev0923`（worktree `.claude/worktrees/refork`）。S0–S5、S6a、S7 ✅（09-26 实测，S4 的解锁复测 09-27 过）；S6b 🎮 09-28 四本一批（`a8e59f43` / `2618be4b` / `b12ead8c`）同日实测过，09-29 Codex 事后核对打回小结窗两条必修已修待实测（`docs/tasks/refork-s6b-fixes.md`），余项在 REFORK「S6b 余项」；S8 ✅ 09-29：文档 / `AGENTS.md` / 代理定义 / 注入脚本搬上新线，`upstream-merges.md` 热点表按新线重写，`dev0923` 推到 origin。**下一步合 3.6.13**（用户 09-29 定顺序：先 S8 再合）。**上游 3.6.13**（09-24）已评估：增量、干跑 3 处冲突，走 merge，时机等用户定 |
+| **REFORK**：在上游新画布上重建 | 🚧 | `docs/REFORK.md`；新线 `dev0923`（worktree `.claude/worktrees/refork`）。S0–S5、S6a、S7 ✅（09-26 实测，S4 的解锁复测 09-27 过）；S6b 🎮 09-28 四本一批（`a8e59f43` / `2618be4b` / `b12ead8c`）同日实测过，09-29 Codex 事后核对打回小结窗两条必修已修待实测（`docs/tasks/refork-s6b-fixes.md`），余项在 REFORK「S6b 余项」；S8 ✅ 09-29：文档 / `AGENTS.md` / 代理定义 / 注入脚本搬上新线，`upstream-merges.md` 热点表按新线重写，`dev0923` 推到 origin；3.6.13 ✅ 09-29 合入（Phase U4）。**余：S6b 🎮 + U4 🎮** |
 
-**顺序**：REFORK（含合 3.6.13）→ Phase 2 / V2 余项 → 4.3 fork 开关补进上游设置页 → 红龙 T2 overlay。
+**顺序**：REFORK 余项（S6b / U4 🎮）→ Phase 2 / V2 余项 → 4.3 fork 开关补进上游设置页（3.6.13 已合，可做）→ 红龙 T2 overlay。
 
 ## 🎮 待你亲自看
 
 | 项 | 看什么 | 备料 |
 |---|---|---|
 | S6b 修复（小结窗） | 开「随炉石退出」→ 打一局退出炉石出小结 → 重开炉石 → 关旧小结，HSTracker 不退出；小结明细行时间 = 开局时间 | 一局；`docs/tasks/refork-s6b-fixes.md` |
+| U4 合并（3.6.13） | ① 排队时牌组立刻显示（`QueueEvents` 补 `gameTime` 哨兵）；② 一局带半稳定传送门（rewind）后分区不乱、不闪 | 两局；细节 `docs/upstream-merges.md` §4 U4 |
+| 🖥️ HearthMirror `1a6012b5` 上线 | `curl -I https://libs.hearthsim.net/hstracker/1a6012b545ba7af09afc14da3cd8286986c996f1/HearthMirror.framework.zip` 变 200 就撤 shim（撤法在 §4 U4） | 不开炉石 |
 | 🖥️ `LocalizationFormatTests` 挂住 | 受限环境跑 `xcodebuild test` 时到这组就不动（>10 分钟），疑似桌面访问授权弹窗；你在本机跑一次 `-only-testing:HSTrackerTests/LocalizationFormatTests` 看有没有弹窗，点允许 | 不开炉石 |
 | Bug T10 | 两张的牌抽走一张后数字框 2 → 1；手牌段行数 = 段头数字 | 一局 |
 | Bug T11 | ① 再见「被炸的牌还在牌库」时记牌名 / 段数字 / 已打出段有无；② 高亮三入口（记牌器行 / 手牌 / 发现）哪个不亮 —— **上游原样包也不亮**（REFORK 未决），从上游链路查；09-26 新线实测记牌器行高亮正常（S4 接上了上游只发布没人用的 `deckHighlight`），手牌 / 发现两入口未单独看 | 一局 |
@@ -103,6 +105,7 @@
 - S8 后主仓库还停在旧线 `dev`：切过去要先删 worktree 再 checkout（`git worktree remove .claude/worktrees/refork && git checkout dev0923`），之后 Debug 包就在主仓库那个 DerivedData 目录。
 - 掉帧分析 `docs/tasks/tools/frame_gaps.py`，跨录像对比必须加 `--busy`。
 - 素材：改动前基线 `~/Movies/2026-08-20 22-21-48.mp4`；Release 对照 `~/Movies/2026-08-21 00-07-23.mp4`；掉帧对照组（HSTracker 未启动）`~/Movies/2026-08-21 00-04-08.mp4`；T5 后 `~/Movies/2026-08-22 00-31-43.mp4`；探针 dump `~/Desktop/dev/HSTracker-ab/logs/probe-2026-08-30-release-t6.txt`（现行基线）、`probe-2026-08-31-release-t6b*.txt`。
+- HearthMirror 闭源，只能从 `libs.hearthsim.net/hstracker/<sha>/` 拿；上游 pin 的 sha 404 时留上一版 + `Fork/` shim（U4 先例），Download 阶段失败会先 `rm -rf` 缓存，重跑前别慌。
 - 环境：`brew install wget`（两个 build phase 依赖）；`Config.xcconfig` 本地签名 + `skip-worktree`，换机器重做；SwiftLint 故意不装；git 身份 repo-local；增量包可直接交测。
 - 沙箱首次跑测试会因 swiftpm 缓存无权失败，本机权限重跑；`DatabaseTests` 断言英文用 `card.enText`。
 - Release 包只写 `~/Library/Logs/HSTracker/hstracker.log`；首次从 `Build/Products/Release` 启动被 AppMover 模态框挡住，点 Don't Move。排查渲染前确认包内有 `Contents/Resources/CardDefs.bin`、`Contents/Resources/Managed/`。
