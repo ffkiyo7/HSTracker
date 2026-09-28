@@ -541,14 +541,17 @@ class RedDragonTests: HSTrackerTests {
 
     private static var replayPassed: [RDReplayReport] = []
 
+    // 空载 Debug 实测（09-28）49 行最多 255,446 个状态（t1-48p-07，7.3s）；取约 1.6 倍余量，≈ 旧 12s CPU 预算空载时的展开量
+    private static let searchStateCap = 400_000
+
     // MARK: - 3. 搜索
 
     func testSearchReachesTableDamage() {
         var config = RedDragonConfig()
-        // 测试跑的是 Debug（-Onone）宿主，同一份代码比 -O 慢约 12 倍
-        // （scratchpad 基准：-O 全 48 行平均 0.29s / 最慢 0.62s，-Onone 平均 3.5s / 最慢 5.8s）。
-        // 生产路径（T2）跑 Release，默认预算 1s 就够；这里放到 12s 只为让 Debug 也能跑完。
-        config.cpuBudget = 12.0
+        // 测试跑 Debug（-Onone），比生产路径的 -O 慢约 12 倍。线程 CPU 秒在机器忙时（多落能效核）
+        // 干的活变少，09-26 一次 480s 全行 budgetExceeded；预算改按展开状态数，CPU 预算放大到不会先触发。
+        config.cpuBudget = 600
+        config.maxStatesExpanded = RedDragonTests.searchStateCap
         var times: [(String, Double, Int, Int, String, Int)] = []
         var failures: [String] = []
         var checked = 0
@@ -568,6 +571,9 @@ class RedDragonTests: HSTrackerTests {
                 failures.append("\(row.id) 搜索 \(result.maxDamage) < 表 \(damage)"
                                 + "（\(result.termination.rawValue)）")
             }
+            // 撞到状态数上限单独报：是搜索退化（状态膨胀）还是 cap 定小了，别和伤害不足混在一起
+            XCTAssertNotEqual(result.termination, .budgetExceeded,
+                              "\(row.id) 展开 \(result.statesExpanded) 态撞到上限 \(RedDragonTests.searchStateCap)")
             // 返回的每条线都必须能重放
             if let chosen = result.chosenLine {
                 XCTAssertNotNil(RDReplay.validate(chosen.actions, from: root,
@@ -581,16 +587,16 @@ class RedDragonTests: HSTrackerTests {
             }
         }
 
-        let sorted = times.sorted { $0.1 > $1.1 }
-        print("== 搜索：\(checked) 行，CPU 时间前十")
+        let sorted = times.sorted { $0.3 > $1.3 }
+        print("== 搜索：\(checked) 行，状态数前十二（上限 \(RedDragonTests.searchStateCap)）")
         for t in sorted.prefix(12) {
             print(String(format: "   %-14s %.3fs  伤害 %3d  状态 %7d  深度 %2d  %@",
                          (t.0 as NSString).utf8String!, t.1, t.2, t.3, t.5, t.4))
         }
         let total = times.reduce(0.0) { $0 + $1.1 }
-        print(String(format: "   合计 %.2fs 平均 %.3fs 超 1s 的行 %d",
+        print(String(format: "   合计 %.2fs 平均 %.3fs 超 1s 的行 %d 最多状态 %d",
                      total, total / Double(max(1, times.count)),
-                     times.filter { $0.1 > 1.0 }.count))
+                     times.filter { $0.1 > 1.0 }.count, sorted.first?.3 ?? 0))
         for f in failures { print("   ⚠️ \(f)") }
         XCTAssertTrue(failures.isEmpty, failures.joined(separator: "; "))
     }
