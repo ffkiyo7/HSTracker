@@ -24,3 +24,12 @@ CPU 预算放到不会先触发。cap 取多少要有依据（空载跑一次记
 ## 验收
 
 - 受限环境 `test` 里 `RedDragonTests` 24 条全绿，连跑两次结果一致；报告 cap 值、每条改动的理由、两次时长。
+
+## 执行结果
+
+✅ 09-28 Opus 子代理完成，`dev0923` `b12ead8c`；Claude 加了一条断言。只改 `RedDragonTests.swift`。
+- `searchStateCap = 400_000`：空载 Debug 实测 49 行最多 255,446 态（t1-48p-07，7.3 CPU 秒），约 1.6 倍余量，≈ 旧 12s CPU 预算空载时的展开量。`cpuBudget` 放到 600 只作兜底。
+- 每行加 `XCTAssertNotEqual(result.termination, .budgetExceeded)`（核对员建议）：撞顶单独报，不与伤害不达表混。
+- 另三条带 `cpuBudget` 的测试没改：`testDeterminism` 本来就按状态数；两条缺件测试只展开 2–3 态即 `exhausted`，结论不靠截断。
+- 三次跑（改前 / 改后两次 + 加断言后一次）24 条全绿，约 161–163s，与改前持平；49 行全 `reachedUpperBound`。
+- 本体发现未动：`findMissingPieces` 子搜索的 `per` 预算仍按 CPU 秒，测试走不到；T2 时一起看。

@@ -28,3 +28,13 @@
 
 - 上面五项各自的清单（key → 译文）；校验器输出；受限环境 `clean build` 过（`.xcstrings` 编进包）；`test` 里 `LocalizationFormatTests` 若因桌面权限失败单独说明。
 - 🖥️（由人做）：设置 → 记牌器页、Overlay layout 页中文各看一遍。
+
+## 执行结果
+
+09-28 Opus 子代理完成，`dev0923` `2618be4b`（与 S6b-2 同一提交）；校验器改动在主仓库 `dev`。脚本比对：5 个 catalog 0 删 key、其它语言 0 变动。待 🖥️。
+1. Localizable 8 条：Arenasmith（品牌名照旧）/ 由 %@ 抽到 / 墓地 / 场上没有随从 / 悬浮窗布局 / 分区顺序： / 奥秘助手 / 畸变怪（取卡牌数据 zhCN）。
+2. TrackersPreferences 5 条：留牌指南统一「起手留牌指南」（沿 `Mulligan*` 已有译法，不用旧设置页的「起手换牌指南」）。
+3. 「套牌」→「卡组」9 处 + `session_recap_unknown_deck`。
+4. 补 `Archive` / `Unarchive`（`DeckManager.swift:826` 在用）；`Free` / `Tier 7 Mode` 新线无引用，不补。
+5. 校验器 E2 改按 baseline 该文件风格比，`--self-test` 5 条过；`--baseline HEAD --allow-zh-edit` + 13 个 `--allow-new-key` 通过，1066 / 1078。
+- 剩 12 条无 zh：11 条符号 key + `BE`，不补。`gV2-en-Cel.title`「启用起手留牌指南G-V2」是上游占位文案照译。

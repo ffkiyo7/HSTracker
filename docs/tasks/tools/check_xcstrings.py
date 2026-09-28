@@ -5,10 +5,13 @@
     python3 docs/tasks/tools/check_xcstrings.py            # 对比 HEAD 校验全部 .xcstrings
     python3 docs/tasks/tools/check_xcstrings.py --baseline <git-ref>
     python3 docs/tasks/tools/check_xcstrings.py --coverage-only
+    python3 docs/tasks/tools/check_xcstrings.py --self-test      # 只跑校验器自测
 
 校验项（任一失败 → 退出码 1）：
   E1  文件不是合法 JSON
-  E2  文件格式偏离 Xcode 的规范写法（见 canonical() —— 保证 diff 只有真实改动）
+  E2  文件格式偏离规范写法（见 canonical() —— 保证 diff 只有真实改动）。
+      风格（分隔符 + 尾换行）按 baseline 里该文件的风格比，被换了就报；
+      baseline 没有该文件或它本身不规范时，四种风格任一即过
   E3  相对 baseline 增加或删除了 key
   E4  相对 baseline 改动了 zh-Hans 以外的任何语言
   E5  相对 baseline 改动或删除了已存在的 zh-Hans 译文（只允许**补空缺**；
@@ -39,10 +42,30 @@ def canonical(data, sep=' : ', trailing_newline=False):
     return text + '\n' if trailing_newline else text
 
 
-def matches_canonical(data, text):
-    """上游有的 catalog 不是 Xcode 写的（": " 分隔、带尾换行），按文件自己的风格比。"""
-    return any(canonical(data, sep, nl) == text
-               for sep in (' : ', ': ') for nl in (False, True))
+STYLES = [(sep, nl) for sep in (' : ', ': ') for nl in (False, True)]
+
+
+def style_of(data, text):
+    """上游有的 catalog 不是 Xcode 写的（": " 分隔、带尾换行）；返回 text 所用的风格，不规范则 None。"""
+    return next((s for s in STYLES if canonical(data, *s) == text), None)
+
+
+def format_error(path, data, text, base_data=None, base_text=None):
+    """E2：有 baseline 时按它的风格比，否则四种风格任一即过。"""
+    want = style_of(base_data, base_text) if base_data is not None and base_text is not None else None
+    if want is None:
+        if style_of(data, text) is None:
+            return (f'E2 {path}: 格式偏离规范写法。'
+                    f'按文件原有的分隔符/尾换行重新序列化，不要改缩进/分隔符/尾换行')
+        return None
+    if canonical(data, *want) == text:
+        return None
+    got = style_of(data, text)
+    if got is None:
+        return (f'E2 {path}: 格式偏离规范写法（baseline 风格：分隔符 {want[0]!r}，尾换行 {want[1]}）。'
+                f'按文件原有的分隔符/尾换行重新序列化，不要改缩进/分隔符/尾换行')
+    return (f'E2 {path}: 格式风格被换了 —— baseline 分隔符 {want[0]!r}、尾换行 {want[1]}，'
+            f'现在分隔符 {got[0]!r}、尾换行 {got[1]}')
 
 
 def load(path):
@@ -52,11 +75,36 @@ def load(path):
 
 
 def load_baseline(ref, path):
+    """返回 (text, data)；baseline 里没有该文件则 (None, None)。"""
     try:
         blob = subprocess.run(['git', 'show', f'{ref}:{path}'], capture_output=True, check=True).stdout
     except subprocess.CalledProcessError:
-        return None
-    return json.loads(blob.decode('utf-8'), object_pairs_hook=collections.OrderedDict)
+        return None, None
+    text = blob.decode('utf-8')
+    return text, json.loads(text, object_pairs_hook=collections.OrderedDict)
+
+
+def self_test():
+    data = collections.OrderedDict([
+        ('sourceLanguage', 'en'),
+        ('strings', collections.OrderedDict([('k', collections.OrderedDict([('comment', '卡组')]))])),
+        ('version', '1.0'),
+    ])
+    xcode, upstream = canonical(data, ' : ', False), canonical(data, ': ', True)
+    cases = [
+        ('风格与 baseline 一致', format_error('t', data, upstream, data, upstream), False),
+        ('风格被换（": "+尾换行 → " : "+无尾换行）', format_error('t', data, xcode, data, upstream), True),
+        ('只去掉尾换行', format_error('t', data, upstream.rstrip('\n'), data, upstream), True),
+        ('无 baseline 时任一风格即过', format_error('t', data, xcode), False),
+        ('无 baseline 时不规范仍报', format_error('t', data, xcode.replace('  ', '    ')), True),
+    ]
+    failed = 0
+    for name, err, expect_err in cases:
+        ok = (err is not None) == expect_err
+        failed += not ok
+        print(f'  {"✓" if ok else "✗"} {name}' + ('' if ok else f' —— got {err!r}'))
+    print('\n✓ 自测通过' if not failed else f'\n✗ 自测 {failed} 项失败')
+    return 1 if failed else 0
 
 
 def unit(entry, lang):
@@ -90,7 +138,10 @@ def main():
                     help='允许修改已存在的 zh-Hans 译文（仅采纳 gaenyong 差异译法的任务需要）')
     ap.add_argument('--allow-new-key', action='append', default=[], metavar='KEY',
                     help='允许新增的 key，可重复。只给 T3 补的 Archive / Unarchive 用')
+    ap.add_argument('--self-test', action='store_true', help='只跑校验器自测')
     args = ap.parse_args()
+    if args.self_test:
+        return self_test()
 
     errors, warnings, rows = [], [], []
     paths = sorted(p for p in glob.glob('**/*.xcstrings', recursive=True)
@@ -106,12 +157,14 @@ def main():
             errors.append(f'E1 {path}: JSON 解析失败 —— {exc}')
             continue
 
-        if not matches_canonical(data, text) and os.path.basename(path) != 'Localizable.xcstrings':
-            errors.append(f'E2 {path}: 格式偏离规范写法。'
-                          f'按文件原有的分隔符/尾换行重新序列化，不要改缩进/分隔符/尾换行')
+        base_text, base = (None, None) if args.coverage_only else load_baseline(args.baseline, path)
+
+        if os.path.basename(path) != 'Localizable.xcstrings':
+            err = format_error(path, data, text, base, base_text)
+            if err:
+                errors.append(err)
 
         strings = data.get('strings', {})
-        base = None if args.coverage_only else load_baseline(args.baseline, path)
 
         total = missing = 0
         for key, entry in strings.items():

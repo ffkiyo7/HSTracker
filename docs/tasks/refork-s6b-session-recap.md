@@ -27,3 +27,11 @@ dev 的 Phase 7 局末小结（炉石退出时弹独立小窗，列本次会话�
 - 受限环境 `clean build` 过；`test` 除 `OfficialBuildTests.testHostAppIsRecognizedAsOfficial`（及若因桌面权限失败的 `LocalizationFormatTests`）外全绿，报告总条数。
 - 报告：文件清单与行数；与 dev 的差异（若有）；`pbxproj` 登记的 `grep -c` 结果。
 - 🎮（由人做）：打一局后退出炉石，弹小结窗，局数 / 胜负 / 套牌行正确，「打开统计」能开；0 局退出不弹。
+
+## 执行结果
+
+09-28 Opus 子代理完成，`dev0923` `2618be4b`（与 S6b-3 同一提交）；Claude 读 diff + Fable 核对员过。测试 295 条只挂签名 1 条。待 🎮。
+- `UIs/SessionRecap/` 三文件与 dev 逐字节相同；`CoreManager` 三处钩子、`RealmHelper.getStatistics(since:)` 与 `0af024d7` hunk 一致；`0af024d7` 之后无后续修补。
+- 开关放 `Fork/Settings+Fork.swift`（与 `keep_power_log` 同处，上游 `Settings.swift` 零改动）；pbxproj 沿用 dev 的 ID，三个文件名 `grep -c` 各 4。
+- 退出时序核对员看过：`quitWhenHearthstoneCloses` 为真时只在 `!recapShown` 才立刻 terminate，关窗后 `onClose` 再 terminate；炉石重开再关时旧窗先 `onClose = nil` 再 close，不会双重 terminate。
+- 11 个 `session_recap_*` key 原样拷入；`session_recap_unknown_deck` 随 S6b-3 改「未知卡组」。设置 UI 仍无（等 3.6.13 合入后进上游设置页）。

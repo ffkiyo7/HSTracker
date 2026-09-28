@@ -33,3 +33,11 @@ S4 把我们的分区列表接进上游 `TrackerPanelView`（接入点 `UIs/Trac
 - 受限环境 `clean build` 过；`test` 除 `OfficialBuildTests.testHostAppIsRecognizedAsOfficial`（及若因桌面权限失败的 `LocalizationFormatTests`）外全绿，报告总条数；`RedDragonTests.testSearchReachesTableDamage` 负载下会超时，挂了单独说明。
 - 报告：三项各自的落点与上游文件改动行数；分区关闭时哪些代码路径证明没变。
 - 🎮（由人做）：一局带 ETC 或深邃之王的构筑：备牌段不出现，悬停本体浮出备牌；面板底部没有抽牌概率 / 坟场两行；对手英雄条与卡条同高。
+
+## 执行结果
+
+09-28 Opus 子代理完成，`dev0923` `a8e59f43`；Claude 读 diff + Fable 核对员「可提交、无必修」。测试 295 条只挂签名 1 条，`TrackerMetricsTests` +6。待 🎮。
+- 落点：`TrackerPanelZone.swift`（fork，+59 / −53）：`zonePlan` 只留对手英雄条；`sideboardCards(for:)` 按 `deckbuildingCard.id == ownerCardId`；`showSideboardTooltip` 复用 `tooltipGridCards`，定位逐项照抄上游 `setRelatedCardsTooltip`。上游 `TrackerCardHoverHandler.swift` 只加 4 行（`tooltipDisplay` 里备牌先返回），`TrackerPanelViewModel` / `TrackerPanelView` 0 行。
+- 线程：备牌快照由 `Game.updatePlayerTracker` 的 main block 经上游 `update` 写入；读在 `DelayedTooltip.onTimer`（主线程，非主线程 `fatalError`）。
+- 分区关闭时：`TrackerPanelLayout(zonePanelOf:)` 返回 nil、`sideboardCards` 首条 guard 返回 nil → 全走上游路径。
+- 已知：英雄条取基准行高 `TrackerMetrics.rowHeight`（与三行头同网格），面板压缩时会比卡条略高；备牌浮窗不受「显示相关牌」开关管（dev 同）；「备牌优先」只靠提前返回的位置，测试是结构性证明。
