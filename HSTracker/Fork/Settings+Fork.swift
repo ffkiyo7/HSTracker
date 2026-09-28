@@ -16,4 +16,11 @@ extension Settings {
     /// offline (red dragon fixtures). Other logs are still cleaned up.
     @UserDefault(key: Settings.keep_power_log, defaultValue: true)
     static var keepPowerLog: Bool
+
+    static let show_constructed_session_recap = "show_constructed_session_recap"
+
+    /// Our constructed session recap. Not to be confused with upstream's
+    /// `showSessionRecap`, which is the battlegrounds one.
+    @UserDefault(key: Settings.show_constructed_session_recap, defaultValue: true)
+    static var showConstructedSessionRecap: Bool
 }

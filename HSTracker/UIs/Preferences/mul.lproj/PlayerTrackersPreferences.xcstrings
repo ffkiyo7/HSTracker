@@ -368,7 +368,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "显示套牌名称"
+            "value" : "显示卡组名称"
           }
         },
         "zh-Hant" : {

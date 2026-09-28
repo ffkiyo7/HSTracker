@@ -305,6 +305,12 @@
             "state" : "translated",
             "value" : "Aberration"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "畸变怪"
+          }
         }
       }
     },
@@ -1018,6 +1024,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "總是發送"
+          }
+        }
+      }
+    },
+    "Archive" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Archive"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "归档"
           }
         }
       }
@@ -2943,7 +2966,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "与套牌中卡牌有增益效果"
+            "value" : "与卡组中卡牌有增益效果"
           }
         },
         "zh-Hant" : {
@@ -4382,6 +4405,12 @@
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arenasmith"
+          }
+        },
+        "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Arenasmith"
@@ -10997,6 +11026,12 @@
             "state" : "translated",
             "value" : "Drawn by %@"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "由 %@ 抽到"
+          }
         }
       }
     },
@@ -15089,7 +15124,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "套牌胜率"
+            "value" : "卡组胜率"
           }
         }
       }
@@ -17182,7 +17217,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "套牌名称"
+            "value" : "卡组名称"
           }
         },
         "zh-Hant" : {
@@ -17336,6 +17371,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Graveyard"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "墓地"
           }
         }
       }
@@ -18039,7 +18080,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "查找当前环境套牌"
+            "value" : "查找当前环境卡组"
           }
         }
       }
@@ -25822,6 +25863,12 @@
             "state" : "translated",
             "value" : "No minions on board"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "场上没有随从"
+          }
         }
       }
     },
@@ -26487,7 +26534,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "显示套牌中的卡牌联动"
+            "value" : "显示卡组中的卡牌联动"
           }
         },
         "zh-Hant" : {
@@ -27482,7 +27529,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "套牌位置垂直居中"
+            "value" : "卡组位置垂直居中"
           }
         },
         "zh-Hant" : {
@@ -28436,6 +28483,12 @@
             "state" : "translated",
             "value" : "Overlay layout"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "悬浮窗布局"
+          }
         }
       }
     },
@@ -28446,6 +28499,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Section order:"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分区顺序："
           }
         }
       }
@@ -30271,6 +30330,12 @@
             "state" : "translated",
             "value" : "Secret helper"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "奥秘助手"
+          }
         }
       }
     },
@@ -30477,6 +30542,193 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "伺服器錯誤"
+          }
+        }
+      }
+    },
+    "session_recap_close" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭"
+          }
+        }
+      }
+    },
+    "session_recap_draw" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Draw"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "平"
+          }
+        }
+      }
+    },
+    "session_recap_duration_hours" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$d h %2$d min"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$d 小时 %2$d 分"
+          }
+        }
+      }
+    },
+    "session_recap_duration_minutes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d min"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d 分"
+          }
+        }
+      }
+    },
+    "session_recap_loss" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loss"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "负"
+          }
+        }
+      }
+    },
+    "session_recap_open_stats" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open statistics"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开统计"
+          }
+        }
+      }
+    },
+    "session_recap_title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Session recap"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本次小结"
+          }
+        }
+      }
+    },
+    "session_recap_total" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d games this session"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本次 %d 局"
+          }
+        }
+      }
+    },
+    "session_recap_turns" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d turns"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d 回合"
+          }
+        }
+      }
+    },
+    "session_recap_unknown_deck" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unknown deck"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未知卡组"
+          }
+        }
+      }
+    },
+    "session_recap_win" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Win"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "胜"
           }
         }
       }
@@ -34469,6 +34721,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "奥丹姆奇兵"
+          }
+        }
+      }
+    },
+    "Unarchive" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Unarchive"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消归档"
           }
         }
       }

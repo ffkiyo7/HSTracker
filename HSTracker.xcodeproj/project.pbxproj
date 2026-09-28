@@ -347,6 +347,9 @@
 		C4D801A12FC0000100010013 /* TrackerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010012 /* TrackerViewModel.swift */; };
 		C4D801A12FC0000100010015 /* TrackerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010014 /* TrackerView.swift */; };
 		C4D801A12FC0000100010031 /* TrackerPanelZone.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010030 /* TrackerPanelZone.swift */; };
+		C4D801A12FC0000100010018 /* SessionRecap.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010017 /* SessionRecap.swift */; };
+		C4D801A12FC000010001001A /* SessionRecapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC0000100010019 /* SessionRecapView.swift */; };
+		C4D801A12FC000010001001C /* SessionRecapWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D801A12FC000010001001B /* SessionRecapWindowController.swift */; };
 		439C7EDE1C777FA900D29859 /* ImageUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 439C7ECF1C777FA900D29859 /* ImageUtils.swift */; };
 		439DD8F41DB23212004EBE47 /* PlayerTurn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 439DD8F31DB23212004EBE47 /* PlayerTurn.swift */; };
 		439DD8F61DB2324A004EBE47 /* CardSize.swift in Sources */ = {isa = PBXBuildFile; fileRef = 439DD8F51DB2324A004EBE47 /* CardSize.swift */; };
@@ -2306,6 +2309,9 @@
 		C4D801A12FC0000100010010 /* TrackerHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerHeaderView.swift; sourceTree = "<group>"; };
 		C4D801A12FC0000100010012 /* TrackerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerViewModel.swift; sourceTree = "<group>"; };
 		C4D801A12FC0000100010014 /* TrackerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerView.swift; sourceTree = "<group>"; };
+		C4D801A12FC0000100010017 /* SessionRecap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionRecap.swift; sourceTree = "<group>"; };
+		C4D801A12FC0000100010019 /* SessionRecapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionRecapView.swift; sourceTree = "<group>"; };
+		C4D801A12FC000010001001B /* SessionRecapWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionRecapWindowController.swift; sourceTree = "<group>"; };
 		C4D801A12FC0000100010030 /* TrackerPanelZone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerPanelZone.swift; sourceTree = "<group>"; };
 		439C7ECF1C777FA900D29859 /* ImageUtils.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ImageUtils.swift; sourceTree = "<group>"; };
 		439C7ED11C777FA900D29859 /* InitialConfiguration.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = InitialConfiguration.swift; sourceTree = "<group>"; };
@@ -4452,6 +4458,7 @@
 				439C7ECF1C777FA900D29859 /* ImageUtils.swift */,
 				B8C1F1BD295553F7001E078C /* MainMenu.xib */,
 				436032991C7B4C34005F1893 /* Preferences */,
+				C4D801A12FC0000100010016 /* SessionRecap */,
 				C99C0C961D0A6062000DD6FB /* StatsManager */,
 				B804FC332944416A00F74CD9 /* TextButton.swift */,
 				433554591D65940300277B27 /* Toast */,
@@ -4490,6 +4497,16 @@
 				C4D801A12FC0000100010030 /* TrackerPanelZone.swift */,
 			);
 			path = SwiftUI;
+			sourceTree = "<group>";
+		};
+		C4D801A12FC0000100010016 /* SessionRecap */ = {
+			isa = PBXGroup;
+			children = (
+				C4D801A12FC0000100010017 /* SessionRecap.swift */,
+				C4D801A12FC0000100010019 /* SessionRecapView.swift */,
+				C4D801A12FC000010001001B /* SessionRecapWindowController.swift */,
+			);
+			path = SessionRecap;
 			sourceTree = "<group>";
 		};
 		439C7EE71C777FCF00D29859 /* Extensions */ = {
@@ -8171,6 +8188,9 @@
 				C4D801A12FC0000100010013 /* TrackerViewModel.swift in Sources */,
 				C4D801A12FC0000100010015 /* TrackerView.swift in Sources */,
 				C4D801A12FC0000100010031 /* TrackerPanelZone.swift in Sources */,
+				C4D801A12FC0000100010018 /* SessionRecap.swift in Sources */,
+				C4D801A12FC000010001001A /* SessionRecapView.swift in Sources */,
+				C4D801A12FC000010001001C /* SessionRecapWindowController.swift in Sources */,
 				B89865822D91B07200BA5649 /* UnderTheSea.swift in Sources */,
 				B864A13E24F54E1F005EA2A0 /* MinionHeroPowerTrigger.swift in Sources */,
 				B81B3D9F2D419A0500DC9EB0 /* Starport.swift in Sources */,
