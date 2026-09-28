@@ -33,7 +33,7 @@
 | Phase 7 局末小结窗 | ✅ | 09-11 实战；钩子 `CoreManager.appTerminated`，开关 `show_constructed_session_recap`（默认开，**设置 UI 留 4.3**） |
 | 收尾（删 `useSwiftUITracker` 与旧路径） | ❌ | 被 REFORK 取代：旧路径随重建消失 |
 | 红龙贼 combo 提示器 spike | ⏸ | T0 + T1 已提交 `0a921d6b`（`HSTracker/RedDragon/`，24 测试）；恢复点 `docs/research/red-dragon-rogue-spike.md` 第九节第 5 条；REFORK S7 原样搬 |
-| **REFORK**：在上游新画布上重建 | 🚧 | `docs/REFORK.md`；新线 `dev0923`（worktree `.claude/worktrees/refork`）。S0–S5、S6a、S7 ✅（09-26 实测，S4 的解锁复测 09-27 过）；S6b ✅ 09-28 四本一批（`a8e59f43` / `2618be4b` / `b12ead8c`）同日实测过，余项在 REFORK「S6b 余项」；S8 ✅ 09-29：文档 / `AGENTS.md` / 代理定义 / 注入脚本搬上新线，`upstream-merges.md` 热点表按新线重写，`dev0923` 推到 origin。**下一步合 3.6.13**（用户 09-29 定顺序：先 S8 再合）。**上游 3.6.13**（09-24）已评估：增量、干跑 3 处冲突，走 merge，时机等用户定 |
+| **REFORK**：在上游新画布上重建 | 🚧 | `docs/REFORK.md`；新线 `dev0923`（worktree `.claude/worktrees/refork`）。S0–S5、S6a、S7 ✅（09-26 实测，S4 的解锁复测 09-27 过）；S6b 🎮 09-28 四本一批（`a8e59f43` / `2618be4b` / `b12ead8c`）同日实测过，09-29 Codex 事后核对打回小结窗两条必修已修待实测（`docs/tasks/refork-s6b-fixes.md`），余项在 REFORK「S6b 余项」；S8 ✅ 09-29：文档 / `AGENTS.md` / 代理定义 / 注入脚本搬上新线，`upstream-merges.md` 热点表按新线重写，`dev0923` 推到 origin。**下一步合 3.6.13**（用户 09-29 定顺序：先 S8 再合）。**上游 3.6.13**（09-24）已评估：增量、干跑 3 处冲突，走 merge，时机等用户定 |
 
 **顺序**：REFORK（含合 3.6.13）→ Phase 2 / V2 余项 → 4.3 fork 开关补进上游设置页 → 红龙 T2 overlay。
 
@@ -41,6 +41,8 @@
 
 | 项 | 看什么 | 备料 |
 |---|---|---|
+| S6b 修复（小结窗） | 开「随炉石退出」→ 打一局退出炉石出小结 → 重开炉石 → 关旧小结，HSTracker 不退出；小结明细行时间 = 开局时间 | 一局；`docs/tasks/refork-s6b-fixes.md` |
+| 🖥️ `LocalizationFormatTests` 挂住 | 受限环境跑 `xcodebuild test` 时到这组就不动（>10 分钟），疑似桌面访问授权弹窗；你在本机跑一次 `-only-testing:HSTrackerTests/LocalizationFormatTests` 看有没有弹窗，点允许 | 不开炉石 |
 | Bug T10 | 两张的牌抽走一张后数字框 2 → 1；手牌段行数 = 段头数字 | 一局 |
 | Bug T11 | ① 再见「被炸的牌还在牌库」时记牌名 / 段数字 / 已打出段有无；② 高亮三入口（记牌器行 / 手牌 / 发现）哪个不亮 —— **上游原样包也不亮**（REFORK 未决），从上游链路查；09-26 新线实测记牌器行高亮正常（S4 接上了上游只发布没人用的 `deckHighlight`），手牌 / 发现两入口未单独看 | 一局 |
 | Phase 2 / 2.6 高亮加强 | 只能在炉石背景上看 | 弑君者之类关联卡 |
