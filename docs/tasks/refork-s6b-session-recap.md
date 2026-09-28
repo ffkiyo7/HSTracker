@@ -18,7 +18,7 @@ dev 的 Phase 7 局末小结（炉石退出时弹独立小窗，列本次会话�
 
 ## 约束
 
-- `.xcstrings` 例外：只允许往 `Translations/macOS/Localizable.xcstrings` 加 dev 里的 11 个 `session_recap_*` key（en + zh-Hans 原样拷），不动其它 key。改完跑 `python3 docs/tasks/tools/check_xcstrings.py --baseline HEAD`，报告输出。
+- `.xcstrings` 例外：只允许往 `Translations/macOS/Localizable.xcstrings` 加 dev 里的 11 个 `session_recap_*` key（en + zh-Hans 原样拷），不动其它 key。改完在 worktree 根目录跑主仓库的校验器（主仓库路径 = `git worktree list` 第一行）：`python3 <主仓库>/docs/tasks/tools/check_xcstrings.py --baseline HEAD`，报告输出。
 - 3.6.12 的 `CoreManager.appTerminated` 与 dev 基座同形（`quitWhenHearthstoneCloses` 分支），照 dev 的做法改；若发现上游这段已变，以新线现状为准重新落地，不 apply 旧 diff。
 - 小结窗是普通 `NSWindow`，不挂 overlay 画布，不受 `RootOverlayWindow` 的 `alwaysLocked` / 点击穿透影响。
 
