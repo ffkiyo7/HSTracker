@@ -41,3 +41,4 @@ S4 把我们的分区列表接进上游 `TrackerPanelView`（接入点 `UIs/Trac
 - 线程：备牌快照由 `Game.updatePlayerTracker` 的 main block 经上游 `update` 写入；读在 `DelayedTooltip.onTimer`（主线程，非主线程 `fatalError`）。
 - 分区关闭时：`TrackerPanelLayout(zonePanelOf:)` 返回 nil、`sideboardCards` 首条 guard 返回 nil → 全走上游路径。
 - 已知：英雄条取基准行高 `TrackerMetrics.rowHeight`（与三行头同网格），面板压缩时会比卡条略高；备牌浮窗不受「显示相关牌」开关管（dev 同）；「备牌优先」只靠提前返回的位置，测试是结构性证明。
+- 09-28 🎮 通过（用户）：备牌悬停、无抽牌概率 / 坟场行、英雄条同高均可接受。

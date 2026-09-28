@@ -35,3 +35,4 @@ dev 的 Phase 7 局末小结（炉石退出时弹独立小窗，列本次会话�
 - 开关放 `Fork/Settings+Fork.swift`（与 `keep_power_log` 同处，上游 `Settings.swift` 零改动）；pbxproj 沿用 dev 的 ID，三个文件名 `grep -c` 各 4。
 - 退出时序核对员看过：`quitWhenHearthstoneCloses` 为真时只在 `!recapShown` 才立刻 terminate，关窗后 `onClose` 再 terminate；炉石重开再关时旧窗先 `onClose = nil` 再 close，不会双重 terminate。
 - 11 个 `session_recap_*` key 原样拷入；`session_recap_unknown_deck` 随 S6b-3 改「未知卡组」。设置 UI 仍无（等 3.6.13 合入后进上游设置页）。
+- 09-28 🎮 通过（用户）：退出炉石弹小结窗，0 局不弹。

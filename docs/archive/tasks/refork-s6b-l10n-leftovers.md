@@ -38,3 +38,4 @@
 4. 补 `Archive` / `Unarchive`（`DeckManager.swift:826` 在用）；`Free` / `Tier 7 Mode` 新线无引用，不补。
 5. 校验器 E2 改按 baseline 该文件风格比，`--self-test` 5 条过；`--baseline HEAD --allow-zh-edit` + 13 个 `--allow-new-key` 通过，1066 / 1078。
 - 剩 12 条无 zh：11 条符号 key + `BE`，不补。`gV2-en-Cel.title`「启用起手留牌指南G-V2」是上游占位文案照译。
+- 09-28 🖥️ 通过（用户）：记牌器页 / Overlay layout 页中文。
