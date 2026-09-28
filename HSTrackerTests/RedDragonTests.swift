@@ -571,9 +571,13 @@ class RedDragonTests: HSTrackerTests {
                 failures.append("\(row.id) 搜索 \(result.maxDamage) < 表 \(damage)"
                                 + "（\(result.termination.rawValue)）")
             }
-            // 撞到状态数上限单独报：是搜索退化（状态膨胀）还是 cap 定小了，别和伤害不足混在一起
+            // 撞预算单独报：是搜索退化（状态膨胀）还是 cap 定小了，别和伤害不足混在一起。
+            // 状态上限和 CPU 兜底都记成 budgetExceeded，靠状态数与 CPU 秒区分
             XCTAssertNotEqual(result.termination, .budgetExceeded,
-                              "\(row.id) 展开 \(result.statesExpanded) 态撞到上限 \(RedDragonTests.searchStateCap)")
+                              "\(row.id) \(result.termination.rawValue)：展开 \(result.statesExpanded) 态"
+                              + "（上限 \(RedDragonTests.searchStateCap)），CPU "
+                              + String(format: "%.1fs", result.cpuTime)
+                              + "（预算 \(Int(config.cpuBudget))s）")
             // 返回的每条线都必须能重放
             if let chosen = result.chosenLine {
                 XCTAssertNotNil(RDReplay.validate(chosen.actions, from: root,

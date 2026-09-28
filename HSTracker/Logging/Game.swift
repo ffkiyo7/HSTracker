@@ -1942,8 +1942,12 @@ class Game: NSObject, PowerEventHandler {
 		
         updateTrackers(reset: true)
 
-        self.startTime = Date()
-        
+        // Fork: the log line's time, so a game already under way when HSTracker
+        // starts keeps its real start (session recap). LogDate assumes today's
+        // date, so a line replayed across midnight lands in the future - then
+        // fall back to now, as upstream always did.
+        self.startTime = min(timestamp.date, Date())
+
         Influx.breadcrumb(eventName: "match_start", 
                           withProperties: ["gameMode": "\(self.currentGameMode)",
                                            "gameType": "\(self.currentGameType)",

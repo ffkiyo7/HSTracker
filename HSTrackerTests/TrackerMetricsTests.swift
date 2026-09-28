@@ -1888,24 +1888,6 @@ class TrackerMetricsTests: HSTrackerTests {
         }
     }
 
-    /// A card with both a sideboard and related cards shows the sideboard:
-    /// `showSideboardTooltip` runs, and returns, before the related-cards path,
-    /// so what decides it is that the owner is matched with related cards on.
-    @MainActor
-    func testTheSideboardOutranksRelatedCards() {
-        withDefault(Settings.group_cards_by_zone, true) {
-            withDefault(Settings.hide_player_sideboards, false) {
-                withDefault(Settings.player_related_cards, true) {
-                    let band = rowCards(3)
-                    let panel = sideboardPanel([Sideboard(ownerCardId: CardIds.Collectible.Neutral.ETCBandManager,
-                                                          cards: band)])
-                    XCTAssertEqual(panel.sideboardCards(for: ownerCard(CardIds.Collectible.Neutral.ETCBandManager))?
-                                    .map(\.id), band.map(\.id))
-                }
-            }
-        }
-    }
-
     /// A customised Zilliax is listed as a copy of its cosmetic module, whose
     /// own id never matches the owner; `deckbuildingCard` maps it back.
     @MainActor

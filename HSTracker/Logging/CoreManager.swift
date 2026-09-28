@@ -428,6 +428,7 @@ final class CoreManager: NSObject {
             self.startTracking()
             self.game.setHearthstoneRunning(flag: true)
             SessionRecap.beginSession()
+            SessionRecapWindowController.sessionDidBegin()
             Watchers.experienceWatcher.run()
             NotificationCenter.default.post(name: Notification.Name(rawValue: Events.hearthstone_running), object: nil)
         }

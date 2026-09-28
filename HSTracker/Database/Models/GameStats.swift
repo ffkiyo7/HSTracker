@@ -152,6 +152,8 @@ class InternalGameStats {
         gameStats.stars = stars
         gameStats.wasConceded = wasConceded
         gameStats.turns = turns
+        gameStats.startTime = startTime
+        gameStats.endTime = endTime
         gameStats.scenarioId = scenarioId
         gameStats.serverInfo = serverInfo
         gameStats.season = season

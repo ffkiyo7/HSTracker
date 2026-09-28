@@ -43,6 +43,14 @@ final class SessionRecapWindowController: NSWindowController, NSWindowDelegate {
         return true
     }
 
+    /// Hearthstone is back: a recap left open from the last session stays on
+    /// screen, but the quit it carried belonged to that session, so closing it
+    /// now only closes the window.
+    static func sessionDidBegin() {
+        assertMainThread()
+        retained?.onClose = nil
+    }
+
     private convenience init(summary: SessionRecapSummary, onClose: @escaping () -> Void) {
         let height = min(SessionRecapView.preferredHeight(for: summary),
                          (NSScreen.main?.visibleFrame.height ?? 900) * 0.8)
