@@ -1710,8 +1710,8 @@ class TrackerMetricsTests: HSTrackerTests {
 
                 let layout = TrackerPanelLayout(viewModel: panel, canvasHeight: canvas.height)
                 XCTAssertTrue(layout.isZonePanel)
-                XCTAssertEqual(layout.sections.map(\.kind),
-                               [.zone, .deckPanel(.drawChances), .deckPanel(.graveyard)])
+                XCTAssertEqual(layout.sections.map(\.kind), [.zone],
+                               "S6b: no draw chances or graveyard counter under the block, as on dev")
                 XCTAssertEqual(layout.width,
                                TrackerMetrics.panelWidth(windowWidth: canvas.width, windowHeight: canvas.height,
                                                          cardSize: Settings.cardSize),
@@ -1726,8 +1726,6 @@ class TrackerMetricsTests: HSTrackerTests {
                                accuracy: accuracy)
                 // Upstream's frames are drawn at the panel's width.
                 XCTAssertEqual(layout.smallFrameHeight, layout.width * 40 / 217, accuracy: accuracy)
-                XCTAssertNotNil(layout.offset(of: .deckPanel(.graveyard), centered: false),
-                                "the graveyard counter's hover region needs its offset")
 
                 withDefault(Settings.group_cards_by_zone, false) {
                     panel.relayoutZonePanel()
@@ -1759,6 +1757,176 @@ class TrackerMetricsTests: HSTrackerTests {
                 XCTAssertEqual(layout.sections.first?.kind, .deckPanel(.deckTitle))
                 XCTAssertEqual(layout.sections.dropFirst().first?.kind, .zone)
                 XCTAssertEqual(panel.zonePanel.cards.rows.count, 5, "no linked deck: the flat list")
+            }
+        }
+    }
+
+    // MARK: - REFORK S6b: panel leftovers
+
+    /// Draw chances, the graveyard counter and the sideboard band stay out of
+    /// the zone panel whatever their settings say; only the block (and the
+    /// opponent's hero bar) is left.
+    @MainActor
+    func testTheZonePanelDrawsNoDrawChancesGraveyardOrSideboards() {
+        withDefault(Settings.group_cards_by_zone, true) {
+            withDefault(Settings.player_draw_chance, true) {
+                withDefault(Settings.opponent_draw_chance, true) {
+                    withDefault(Settings.hide_player_sideboards, false) {
+                        withDefault(Settings.show_opponent_class, false) {
+                            let canvas = CGSize(width: 1920, height: 1080)
+                            for playerType in [PlayerType.player, .opponent] {
+                                let panel = TrackerPanelViewModel(playerType: playerType)
+                                panel.height = 60
+                                panel.scaling = 100
+                                panel.panelOrder = DeckPanel.order(for: playerType)
+                                panel.showGraveyard = true
+                                let sideboards = [Sideboard(ownerCardId: CardIds.Collectible.Neutral.ETCBandManager,
+                                                            cards: rowCards(3))]
+                                panel.update(cards: rowCards(5), top: [], bottom: [], sideboards: sideboards,
+                                             relatedCards: [], groups: nil)
+                                XCTAssertGreaterThan(panel.sideboardCardCount, 0,
+                                                     "upstream would draw its band; the test proves nothing")
+                                panel.relayoutZonePanel(canvasSize: canvas)
+
+                                let layout = TrackerPanelLayout(viewModel: panel, canvasHeight: canvas.height)
+                                XCTAssertEqual(layout.sections.map(\.kind), [.zone], "\(playerType)")
+                                XCTAssertNil(layout.offset(of: .deckPanel(.graveyard), centered: false),
+                                             "no counter, so no graveyard details hover region")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// The opponent's hero bar is one card row tall, on the same grid as the
+    /// header lines (dev 1745adfa), not upstream's 34 / 217 frame.
+    @MainActor
+    func testTheOpponentHeroBarIsOneRowTall() {
+        withDefault(Settings.group_cards_by_zone, true) {
+            withDefault(Settings.show_opponent_class, true) {
+                let canvas = CGSize(width: 1920, height: 1080)
+                let panel = TrackerPanelViewModel(playerType: .opponent)
+                panel.height = 60
+                panel.scaling = 100
+                panel.panelOrder = DeckPanel.defaultOpponentOrder
+                panel.playerClassId = "HERO_01"
+                panel.update(cards: rowCards(5), top: [], bottom: [], sideboards: [], relatedCards: [],
+                             groups: nil)
+                panel.relayoutZonePanel(canvasSize: canvas)
+
+                let layout = TrackerPanelLayout(viewModel: panel, canvasHeight: canvas.height)
+                let rowHeight = TrackerMetrics.rowHeight(panelWidth: layout.width)
+                XCTAssertEqual(layout.sections.first?.kind, .deckPanel(.deckTitle))
+                XCTAssertEqual(layout.sections.first?.height ?? 0, rowHeight, accuracy: accuracy)
+                XCTAssertEqual(panel.zonePanel.shell?.heroHeight ?? 0, rowHeight, accuracy: accuracy)
+                XCTAssertEqual(panel.zonePanel.header.lineHeight, rowHeight, accuracy: accuracy,
+                               "the bar and the header lines share one grid")
+            }
+        }
+    }
+
+    private func sideboardPanel(_ sideboards: [Sideboard]) -> TrackerPanelViewModel {
+        let panel = TrackerPanelViewModel(playerType: .player)
+        panel.update(cards: [], top: [], bottom: [], sideboards: sideboards, relatedCards: [], groups: nil)
+        return panel
+    }
+
+    private func ownerCard(_ id: String) -> Card {
+        let card = Card()
+        card.id = id
+        card.count = 1
+        return card
+    }
+
+    /// Hovering a sideboard owner finds its sideboard by `ownerCardId`, for any
+    /// owner rather than the two upstream's band hard-codes, and only in the
+    /// zone panel.
+    @MainActor
+    func testASideboardIsFoundByItsOwner() {
+        withDefault(Settings.hide_player_sideboards, false) {
+            let band = rowCards(3)
+            let other = rowCards(2)
+            let panel = sideboardPanel([
+                Sideboard(ownerCardId: CardIds.Collectible.Neutral.ETCBandManager, cards: band),
+                Sideboard(ownerCardId: "SOME_FUTURE_OWNER", cards: other),
+                Sideboard(ownerCardId: CardIds.Collectible.Hunter.KingOfTheUnderbelly, cards: [])
+            ])
+            withDefault(Settings.group_cards_by_zone, true) {
+                XCTAssertEqual(panel.sideboardCards(for: ownerCard(CardIds.Collectible.Neutral.ETCBandManager))?
+                                .map(\.id), band.map(\.id))
+                XCTAssertEqual(panel.sideboardCards(for: ownerCard("SOME_FUTURE_OWNER"))?.map(\.id),
+                               other.map(\.id), "any owner id matches, not just E.T.C. and the King")
+                XCTAssertNil(panel.sideboardCards(for: ownerCard(CardIds.Collectible.Hunter.KingOfTheUnderbelly)),
+                             "an empty sideboard shows nothing")
+                XCTAssertNil(panel.sideboardCards(for: ownerCard("PERF_0")))
+
+                let opponent = TrackerPanelViewModel(playerType: .opponent)
+                opponent.update(cards: [], top: [], bottom: [],
+                                sideboards: [Sideboard(ownerCardId: "SOME_FUTURE_OWNER", cards: other)],
+                                relatedCards: [], groups: nil)
+                XCTAssertNil(opponent.sideboardCards(for: ownerCard("SOME_FUTURE_OWNER")))
+            }
+            withDefault(Settings.group_cards_by_zone, false) {
+                XCTAssertNil(panel.sideboardCards(for: ownerCard(CardIds.Collectible.Neutral.ETCBandManager)),
+                             "zones off: upstream's band shows the sideboard, the hover stays upstream's")
+            }
+        }
+    }
+
+    /// `hide_player_sideboards` turns the whole hover off, and the related
+    /// cards get the grid back.
+    @MainActor
+    func testHidingSideboardsTurnsTheHoverOff() {
+        withDefault(Settings.group_cards_by_zone, true) {
+            withDefault(Settings.hide_player_sideboards, true) {
+                let panel = sideboardPanel([Sideboard(ownerCardId: CardIds.Collectible.Neutral.ETCBandManager,
+                                                      cards: rowCards(3))])
+                XCTAssertNil(panel.sideboardCards(for: ownerCard(CardIds.Collectible.Neutral.ETCBandManager)))
+            }
+        }
+    }
+
+    /// A card with both a sideboard and related cards shows the sideboard:
+    /// `showSideboardTooltip` runs, and returns, before the related-cards path,
+    /// so what decides it is that the owner is matched with related cards on.
+    @MainActor
+    func testTheSideboardOutranksRelatedCards() {
+        withDefault(Settings.group_cards_by_zone, true) {
+            withDefault(Settings.hide_player_sideboards, false) {
+                withDefault(Settings.player_related_cards, true) {
+                    let band = rowCards(3)
+                    let panel = sideboardPanel([Sideboard(ownerCardId: CardIds.Collectible.Neutral.ETCBandManager,
+                                                          cards: band)])
+                    XCTAssertEqual(panel.sideboardCards(for: ownerCard(CardIds.Collectible.Neutral.ETCBandManager))?
+                                    .map(\.id), band.map(\.id))
+                }
+            }
+        }
+    }
+
+    /// A customised Zilliax is listed as a copy of its cosmetic module, whose
+    /// own id never matches the owner; `deckbuildingCard` maps it back.
+    @MainActor
+    func testACustomisedZilliaxFindsItsSideboard() {
+        let deadline = Date().addingTimeInterval(60)
+        while Cards.any(byId: "TOY_330t10") == nil && Date() < deadline {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+        }
+        guard let module = Cards.any(byId: "TOY_330t10")?.copy(),
+              Cards.by(cardId: CardIds.Collectible.Neutral.ZilliaxDeluxe3000) != nil else {
+            return XCTFail("the card database never loaded Zilliax")
+        }
+        XCTAssertTrue(module.zilliaxCustomizableCosmeticModule,
+                      "TOY_330t10 is no longer flagged as a Zilliax cosmetic module")
+        withDefault(Settings.group_cards_by_zone, true) {
+            withDefault(Settings.hide_player_sideboards, false) {
+                let modules = rowCards(2)
+                let panel = sideboardPanel([Sideboard(ownerCardId: CardIds.Collectible.Neutral.ZilliaxDeluxe3000,
+                                                      cards: modules)])
+                XCTAssertNotEqual(module.id, CardIds.Collectible.Neutral.ZilliaxDeluxe3000)
+                XCTAssertEqual(panel.sideboardCards(for: module)?.map(\.id), modules.map(\.id))
             }
         }
     }

@@ -91,6 +91,10 @@ class TrackerCardHoverHandler: NSObject, ObservableObject, TrackerRowHoverTarget
         // same CardTooltip control - so it is placed against the render's frame
         // rather than against the row.
         let anchor = TrackerRowCardPreview.frame(card: card, rowFrame: cellOnScreen)
+        // Fork: a sideboard owner's sideboard outranks its related cards (TrackerPanelZone.swift).
+        if showSideboardTooltip(card: card, anchor: anchor) {
+            return
+        }
         if playerType == .opponent {
             if Settings.showOpponentRelatedCards {
                 setRelatedCardsTooltip(game.opponent, card.id, anchor)

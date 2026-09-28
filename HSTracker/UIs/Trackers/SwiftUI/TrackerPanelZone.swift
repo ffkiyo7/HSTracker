@@ -10,10 +10,11 @@
 //  What the fork block (`TrackerView`) replaces: the player's deck title, wins,
 //  top / bottom lenses, card list and card counter, and the opponent's card
 //  list, card counter and related-cards lens. It sits where the first of those
-//  is in the panel order. Everything else upstream draws — the opponent's hero
-//  bar, draw chances, the graveyard counter, sideboards, the arena package and
-//  Godfrey lenses — stays upstream's view, sized to the fork's panel width, and
-//  its rows share the fork's row grid.
+//  is in the panel order. The opponent's hero bar and the arena package and
+//  Godfrey lenses stay upstream's views, sized to the fork's panel width, and
+//  their rows share the fork's row grid. Draw chances, the graveyard counter
+//  and the sideboard band are not drawn, as on dev; a sideboard is shown by
+//  hovering its owner's row instead (`showSideboardTooltip`).
 //
 
 import AppKit
@@ -58,7 +59,8 @@ private struct TrackerZoneFrames {
         self.width = width
         small = width * 40 / 217
         big = width * 71 / 217
-        hero = width * 34 / 217
+        // The hero bar is one card row, like each header line (dev 1745adfa).
+        hero = TrackerMetrics.rowHeight(panelWidth: width)
         fitScale = width / max(SizeHelper.trackerWidth, 1)
     }
 
@@ -216,26 +218,11 @@ extension TrackerPanelViewModel {
                 }
                 continue
             }
-            switch panel {
-            case .deckTitle:
-                if Settings.showOpponentClassInTracker && playerClassId != nil {
-                    plan.append((.deckPanel(panel), frames.hero, 0))
-                }
-            case .sideboards:
-                if !isOpponent && !Settings.hidePlayerSideboards && sideboardCardCount > 0 {
-                    plan.append((.deckPanel(panel), frames.small * CGFloat(sideboardBoxCount), sideboardCardCount))
-                }
-            case .drawChances:
-                let shown = isOpponent ? Settings.showOpponentDrawChance : Settings.showPlayerDrawChance
-                if shown {
-                    plan.append((.deckPanel(panel), isOpponent ? frames.big : frames.small, 0))
-                }
-            case .graveyard:
-                if showGraveyard {
-                    plan.append((.deckPanel(panel), frames.small, 0))
-                }
-            default:
-                break
+            // Draw chances, the graveyard counter and the sideboard band are
+            // left out whatever their settings say (user, 09-26): the graveyard
+            // details go with the counter, since it is their hover region.
+            if panel == .deckTitle && Settings.showOpponentClassInTracker && playerClassId != nil {
+                plan.append((.deckPanel(panel), frames.hero, 0))
             }
         }
         if !placed {
@@ -365,30 +352,6 @@ struct TrackerZonePanelStack: View {
             CardTileView(card: heroCard, playerType: .hero,
                          playerName: viewModel.playerName,
                          rowHeight: zone.shell?.heroHeight ?? section.height)
-        case .deckPanel(.drawChances):
-            if viewModel.playerType == .opponent {
-                TrackerOpponentDrawChanceView(drawChance1: viewModel.drawChance1,
-                                              drawChance2: viewModel.drawChance2,
-                                              handChance1: viewModel.opponentHandChance1,
-                                              handChance2: viewModel.opponentHandChance2,
-                                              height: layout.bigFrameHeight)
-            } else {
-                TrackerPlayerDrawChanceView(drawChance1: viewModel.drawChance1,
-                                            drawChance2: viewModel.drawChance2,
-                                            height: layout.smallFrameHeight)
-            }
-        case .deckPanel(.graveyard):
-            TrackerGraveyardCounterView(minions: viewModel.graveyardMinionCount,
-                                        murlocs: viewModel.graveyardMurlocCount,
-                                        height: layout.smallFrameHeight)
-        case .deckPanel(.sideboards):
-            fitted(TrackerSideboardsView(sideboards: viewModel.sideboards,
-                                         playerType: viewModel.playerType,
-                                         cardHeight: layout.cardHeight / fitScale,
-                                         frameHeight: layout.smallFrameHeight / fitScale,
-                                         reset: viewModel.sideboardsReset,
-                                         hoverKind: hoverKind),
-                   height: section.height)
         case .packageLens:
             lens(viewModel.packageCards, label: viewModel.packageLabel,
                  icon: .arenasmith, isPremium: true, height: section.height)
@@ -430,5 +393,56 @@ struct TrackerZonePanelStack: View {
             card?.cost = -1
         }
         return card
+    }
+}
+
+// MARK: - Sideboards on hover (dev 8dcf2f47)
+
+extension TrackerPanelViewModel {
+    /// The sideboard a hovered row's card carries, from the snapshot the last
+    /// tracker update stored. Any owner matches, not just the two upstream's
+    /// band knows: a customised Zilliax is listed as a copy of its cosmetic
+    /// module, which `deckbuildingCard` maps back to the owner id.
+    func sideboardCards(for card: Card) -> [Card]? {
+        guard Settings.groupCardsByZone, playerType == .player, !Settings.hidePlayerSideboards else {
+            return nil
+        }
+        let ownerId = card.deckbuildingCard.id
+        guard let sideboard = sideboards.first(where: { $0.ownerCardId == ownerId }),
+              !sideboard.cards.isEmpty else {
+            return nil
+        }
+        return sideboard.cards
+    }
+}
+
+extension TrackerCardHoverHandler {
+    /// Shows the hovered card's sideboard in the related-cards grid, which it
+    /// takes over when the card has both. `false` leaves the grid to upstream.
+    /// Main thread: called from the hover's `DelayedTooltip`, and reads what
+    /// `Game.updatePlayerTracker`'s main block stored.
+    func showSideboardTooltip(card: Card, anchor rect: NSRect) -> Bool {
+        let game = AppDelegate.instance().coreManager.game
+        guard playerType == .player,
+              let cards = game.windowManager.rootOverlay?.viewModel.playerTracker.sideboardCards(for: card) else {
+            return false
+        }
+        let tooltipGridCards = game.windowManager.tooltipGridCards
+        tooltipGridCards.setCardIdsFromCards(cards)
+        tooltipGridCards.setTitle(card.name)
+        tooltipGridCards.setScale(1)
+        tooltipGridCards.setPoolStatistics(nil, relatedCardsSummary: nil, hasLargePool: false)
+        RelatedCardsRightClickMonitor.shared.clearHoveredLargePool()
+
+        // Placed as `setRelatedCardsTooltip` places the related cards.
+        let hearthstoneRect = SizeHelper.hearthstoneWindow.frame
+        let width = CGFloat(tooltipGridCards.gridWidth)
+        let height = CGFloat(tooltipGridCards.gridHeight)
+        let screen = NSScreen.screens.first { $0.frame.intersects(rect) } ?? NSScreen.main
+        let maxY = screen?.frame.maxY ?? hearthstoneRect.maxY
+        let y = rect.minY + height > maxY ? maxY - height : rect.minY
+        let x = rect.minX < hearthstoneRect.midX ? rect.maxX : rect.minX - width
+        tooltipGridCards.show(frame: NSRect(x: x, y: y, width: width, height: height))
+        return true
     }
 }
