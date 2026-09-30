@@ -33,7 +33,7 @@
 | Phase 7 局末小结窗 | ✅ | 09-11 实战；钩子 `CoreManager.appTerminated`，开关 `show_constructed_session_recap`（默认开，**设置 UI 留 4.3**） |
 | 收尾（删 `useSwiftUITracker` 与旧路径） | ❌ | 被 REFORK 取代：旧路径随重建消失 |
 | 红龙贼 combo 提示器 spike | ⏸ | T0 + T1 已提交 `0a921d6b`（`HSTracker/RedDragon/`，24 测试）；恢复点 `docs/research/red-dragon-rogue-spike.md` 第九节第 5 条；REFORK S7 原样搬 |
-| **REFORK**：在上游新画布上重建 | 🚧 | `docs/REFORK.md`；新线 `dev0923`（worktree `.claude/worktrees/refork`）。S0–S5、S6a、S7 ✅（09-26 实测，S4 的解锁复测 09-27 过）；S6b 🎮 09-28 四本一批（`a8e59f43` / `2618be4b` / `b12ead8c`）同日实测过，09-29 Codex 事后核对打回小结窗两条必修已修待实测（`docs/tasks/refork-s6b-fixes.md`），余项在 REFORK「S6b 余项」；S8 ✅ 09-29：文档 / `AGENTS.md` / 代理定义 / 注入脚本搬上新线，`upstream-merges.md` 热点表按新线重写，`dev0923` 推到 origin；3.6.13 ✅ 09-29 合入（Phase U4）。**余：S6b 🎮 + U4 🎮** |
+| **REFORK**：在上游新画布上重建 | 🚧 | `docs/REFORK.md`；新线 `dev0923`（09-30 起主仓库直接 checkout）。S0–S5、S6a、S7 ✅（09-26 实测，S4 的解锁复测 09-27 过）；S6b 🎮 09-28 四本一批（`a8e59f43` / `2618be4b` / `b12ead8c`）同日实测过，09-29 Codex 事后核对打回小结窗两条必修已修待实测（`docs/tasks/refork-s6b-fixes.md`），余项在 REFORK「S6b 余项」；S8 ✅ 09-29：文档 / `AGENTS.md` / 代理定义 / 注入脚本搬上新线，`upstream-merges.md` 热点表按新线重写，`dev0923` 推到 origin；3.6.13 ✅ 09-29 合入（Phase U4）。**余：S6b 🎮 + U4 🎮** |
 
 **顺序**：REFORK 余项（S6b / U4 🎮）→ Phase 2 / V2 余项 → 4.3 fork 开关补进上游设置页（3.6.13 已合，可做）→ 红龙 T2 overlay。
 
@@ -101,8 +101,8 @@
 
 ## 操作备忘
 
-- Debug 包：DerivedData 目录按 `.xcodeproj` 路径分——主仓库 `HSTracker-cgfkydaatbcvlygsoujdqwiezsjx`、worktree `.claude/worktrees/refork` 是 `HSTracker-gpzxozpoxxwadygwnfkovyqpczcw`；`open ~/Library/Developer/Xcode/DerivedData/<目录>/Build/Products/Debug/HSTracker.app`。交测前看 `Contents/MacOS/HSTracker.debug.dylib` 的时间 ≥ HEAD 提交时间（Xcode 把代码放 debug dylib，主可执行文件只是壳），不然增量 build 一次。
-- S8 后主仓库还停在旧线 `dev`：切过去要先删 worktree 再 checkout（`git worktree remove .claude/worktrees/refork && git checkout dev0923`），之后 Debug 包就在主仓库那个 DerivedData 目录。
+- Debug 包：`open ~/Library/Developer/Xcode/DerivedData/HSTracker-cgfkydaatbcvlygsoujdqwiezsjx/Build/Products/Debug/HSTracker.app`（DerivedData 目录按 `.xcodeproj` 路径分；worktree 时期的 `HSTracker-gpzxozpoxxwadygwnfkovyqpczcw` 已是旧包，别再开）。交测前看 `Contents/MacOS/HSTracker.debug.dylib` 的时间 ≥ HEAD 提交时间（Xcode 把代码放 debug dylib，主可执行文件只是壳），不然增量 build 一次。
+- 09-30 主仓库已切到 `dev0923`，worktree `.claude/worktrees/refork` 已删。回旧线：`git checkout dev`（本地 `dev` 比 `origin/dev` 多 33 个未推的 commit，回滚点只在本机）。
 - 掉帧分析 `docs/tasks/tools/frame_gaps.py`，跨录像对比必须加 `--busy`。
 - 素材：改动前基线 `~/Movies/2026-08-20 22-21-48.mp4`；Release 对照 `~/Movies/2026-08-21 00-07-23.mp4`；掉帧对照组（HSTracker 未启动）`~/Movies/2026-08-21 00-04-08.mp4`；T5 后 `~/Movies/2026-08-22 00-31-43.mp4`；探针 dump `~/Desktop/dev/HSTracker-ab/logs/probe-2026-08-30-release-t6.txt`（现行基线）、`probe-2026-08-31-release-t6b*.txt`。
 - HearthMirror 闭源，只能从 `libs.hearthsim.net/hstracker/<sha>/` 拿；上游 pin 的 sha 404 时留上一版 + `Fork/` shim（U4 先例），Download 阶段失败会先 `rm -rf` 缓存，重跑前别慌。
