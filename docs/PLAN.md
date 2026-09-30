@@ -102,7 +102,7 @@
 ## 操作备忘
 
 - Debug 包：`open ~/Library/Developer/Xcode/DerivedData/HSTracker-cgfkydaatbcvlygsoujdqwiezsjx/Build/Products/Debug/HSTracker.app`（DerivedData 目录按 `.xcodeproj` 路径分；worktree 时期的 `HSTracker-gpzxozpoxxwadygwnfkovyqpczcw` 已是旧包，别再开）。交测前看 `Contents/MacOS/HSTracker.debug.dylib` 的时间 ≥ HEAD 提交时间（Xcode 把代码放 debug dylib，主可执行文件只是壳），不然增量 build 一次。
-- 09-30 主仓库已切到 `dev0923`，worktree `.claude/worktrees/refork` 已删。回旧线：`git checkout dev`（本地 `dev` 比 `origin/dev` 多 33 个未推的 commit，回滚点只在本机）。
+- 09-30 主仓库已切到 `dev0923`，worktree `.claude/worktrees/refork` 已删。回旧线：`git checkout dev`（`dev` 已于 09-30 推到 origin，`647c310d`，远端也有回滚点）。
 - 掉帧分析 `docs/tasks/tools/frame_gaps.py`，跨录像对比必须加 `--busy`。
 - 素材：改动前基线 `~/Movies/2026-08-20 22-21-48.mp4`；Release 对照 `~/Movies/2026-08-21 00-07-23.mp4`；掉帧对照组（HSTracker 未启动）`~/Movies/2026-08-21 00-04-08.mp4`；T5 后 `~/Movies/2026-08-22 00-31-43.mp4`；探针 dump `~/Desktop/dev/HSTracker-ab/logs/probe-2026-08-30-release-t6.txt`（现行基线）、`probe-2026-08-31-release-t6b*.txt`。
 - HearthMirror 闭源，只能从 `libs.hearthsim.net/hstracker/<sha>/` 拿；上游 pin 的 sha 404 时留上一版 + `Fork/` shim（U4 先例），Download 阶段失败会先 `rm -rf` 缓存，重跑前别慌。
