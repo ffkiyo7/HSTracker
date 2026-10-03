@@ -32,10 +32,11 @@
 | Phase 6 排队显示牌组 | ✅ | 08-30 实战；入口 `Game.isDeckTrackerQueue`（Bug T4 补 `isInMenu` 门） |
 | Phase 7 局末小结窗 | ✅ | 09-11 实战；钩子 `CoreManager.appTerminated`，开关 `show_constructed_session_recap`（默认开，**设置 UI 留 4.3**） |
 | 收尾（删 `useSwiftUITracker` 与旧路径） | ❌ | 被 REFORK 取代：旧路径随重建消失 |
-| 红龙贼 combo 提示器 spike | ⏸ | T0 + T1 已提交 `0a921d6b`（`HSTracker/RedDragon/`，24 测试）；恢复点 `docs/research/red-dragon-rogue-spike.md` 第九节第 5 条；REFORK S7 原样搬 |
+| 红龙贼 combo 提示器 | 🚧 | T0 + T1 已提交 `0a921d6b`（`HSTracker/RedDragon/`，24 测试），REFORK S7 原样搬。10-04 用户提前恢复，T2 拆三本串行：T2a 公式表全量验证 + 齐件 / 缺件分组（`docs/tasks/rdr-t2a-formula-audit.md`）→ T2b 接对局数据 + 开关（`rdr-t2b-live-data.md`）→ T2c overlay + 设置页（`rdr-t2c-overlay.md`）；每本 Opus 实现、我读 diff + 本机 Codex review 后提交，最后出效果图 artifact 给用户验收 |
 | **REFORK**：在上游新画布上重建 | 🚧 | `docs/REFORK.md`；新线 `dev0923`（09-30 起主仓库直接 checkout）。S0–S5、S6a、S7 ✅（09-26 实测，S4 的解锁复测 09-27 过）；S6b ✅ 09-28 四本一批（`a8e59f43` / `2618be4b` / `b12ead8c`）同日实测过，09-29 Codex 打回小结窗两条必修 `7312c31c` 修复、09-30 实测过；S8 ✅ 09-29：文档 / `AGENTS.md` / 代理定义 / 注入脚本搬上新线，`upstream-merges.md` 热点表按新线重写，`dev0923` 推到 origin；3.6.13 ✅ 09-29 合入（Phase U4），09-30 实测过（排队牌组、rewind 分区）。**余：REFORK「S6b 余项」（Trackers 设置页 = 4.3）+「回到主线的标准」第 2 条收口局** |
 
-**顺序**：Phase 2 / V2 余项 → 4.3 fork 开关补进上游设置页（3.6.13 已合，可做）→ 红龙 T2 overlay。
+**顺序**：红龙 T2a → T2b → T2c（10-04 用户提前）→ Phase 2 / V2 余项 → 4.3 fork 开关补进上游设置页（3.6.13 已合，可做）。
+用户验收原话（10-04）：引擎验证截图内全部公式，可反推、无错漏；齐件 / 缺件分开算；设置里可热开启；overlay 不卡顿、符合设计语言、不与已有组件冲突。
 
 ## 🎮 待你亲自看
 
