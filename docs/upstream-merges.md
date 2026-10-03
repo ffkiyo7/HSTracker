@@ -119,7 +119,7 @@ xcstrings：`check_xcstrings.py --baseline 3.6.13 --allow-zh-edit` 只报我们 
 
 **白得与风险**：白得 = 入场序号、启动更快、rewind 不闪、Counters 页、Phase 4.3 被上游做掉。风险 = 战棋 minion pool 在本 fork 不生效直到 shim 撤掉（用户不玩战棋，只静态确认）；rewind 后分区闩理论上随 `entities` 重建，未实测。
 
-**待验**：🎮 一局排队看牌组是否立刻显示（`QueueEvents` 补丁）；🎮 一局带半稳定传送门（rewind）看分区不乱；🖥️ 定期 `curl -I` 上面那个 URL，200 就按撤法撤 shim。
+**实测**：✅ 09-30 用户实测两项通过（排队时牌组立刻显示；一局带半稳定传送门（rewind）分区不乱）。**待验**：🖥️ 定期 `curl -I` 上面那个 URL，200 就按撤法撤 shim。
 
 ---
 

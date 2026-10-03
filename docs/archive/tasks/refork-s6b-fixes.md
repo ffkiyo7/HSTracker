@@ -39,4 +39,5 @@
 - 历史数据：老记录的 `startTime` / `endTime` 都是存盘时刻，无法追溯；小结不受影响（会话起点只在内存里，装新版必重启），统计窗「平均时长」被老数据拉低，新记录起正确。
 - 顺带：删掉名不副实的 `testTheSideboardOutranksRelatedCards`（要验优先级得开真窗口，不为可测性改产品代码）；红龙撞顶断言提示带 termination / 状态数 / CPU 秒。
 - 未动：`toGameStats()` 还有 `playerHero` / `coin` / `rank` 等没拷（`playerHero` 只影响小结「未知卡组」组的职业图标，该组只在卡组名为空时出现）。
+- 09-30 用户实测通过（随炉石退出 → 重开炉石 → 关旧小结，HSTracker 不退出）。
 - 测试：`LocalizationFormatTests` 本次在受限环境**挂住超过 10 分钟**（实现者与我各试一次），推测测试宿主读 `~/Desktop` 下的 catalog 触发桌面访问授权（ad-hoc 签名的宿主每次重建都换身份）；其余用 `-skip-testing:HSTrackerTests/LocalizationFormatTests` 跑。
