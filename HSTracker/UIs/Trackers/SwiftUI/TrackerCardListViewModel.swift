@@ -19,6 +19,9 @@ struct TrackerCardRowID: Hashable {
     let hasIncindius: Bool
     let incindiusTurn: Int
     let incindiusCounter: Int
+    /// 2.7: copies of one card in the played section are split by where they
+    /// ended up, so the status is part of which row this is.
+    var zoneStatus: CardZoneStatus = .none
     // A created copy in hand and one in the deck can produce two identical
     // keys; ForEach needs distinct ids, so repeats are numbered.
     var occurrence: Int = 0
@@ -33,7 +36,8 @@ struct TrackerCardRowID: Hashable {
             deckListIndex: card.deckListIndex,
             hasIncindius: incindius != nil,
             incindiusTurn: incindius?.turnPlayed ?? 0,
-            incindiusCounter: incindius?.counter ?? 0
+            incindiusCounter: incindius?.counter ?? 0,
+            zoneStatus: card.zoneStatus
         )
     }
 }

@@ -50,6 +50,8 @@ struct CardRowRasterKey: Hashable {
     var showRarityColors: Bool
     var dimmed: Bool
     var created: Bool
+    /// `CardZoneStatus.rawValue`: the skull / burned icon (2.7).
+    var status: Int
     var countBox: Bool
     /// The resolved name colour, packed, rather than the settings behind it:
     /// `Card.textColor()` reads four of them plus a user-chosen colour.

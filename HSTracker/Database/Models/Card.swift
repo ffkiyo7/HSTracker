@@ -276,6 +276,7 @@ final class Card {
     var isStolen = false
     var isCreated = false
     var wasDiscarded = false
+    var zoneStatus = CardZoneStatus.none
     var extraInfo: (any ICardExtraInfo)?
     var highlightDraw = false
     var highlightInHand = false
@@ -477,6 +478,7 @@ extension Card: NSCopying {
         copy.isStolen = self.isStolen
         copy.isCreated = self.isCreated
         copy.wasDiscarded = self.wasDiscarded
+        copy.zoneStatus = self.zoneStatus
         copy.highlightDraw = self.highlightDraw
         copy.highlightInHand = self.highlightInHand
         copy.highlightFrame = self.highlightFrame

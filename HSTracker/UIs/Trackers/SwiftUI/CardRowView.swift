@@ -169,17 +169,22 @@ struct CardRowContentView: View {
     private var isDimmed: Bool {
         (card.count <= 0 || card.jousted) && playerType != .cardList && playerType != .editDeck
     }
+    private var iconWidth: CGFloat { boxWidth }
+    /// 2.7: the trailing strip, count (or star) first, then the gift, then the
+    /// status, as Firestone lays it out.
+    private var stripWidth: CGFloat {
+        (showsCountBox ? boxWidth : 0)
+            + (card.isCreated ? iconWidth : 0)
+            + (card.zoneStatus != .none ? iconWidth : 0)
+    }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             art
             costCell
             name
-            if showsCountBox {
-                countBox
-            }
-            if card.isCreated {
-                createdMark
+            if stripWidth > 0 {
+                iconStrip
             }
         }
         .frame(width: barWidth, height: rowHeight, alignment: .topLeading)
@@ -264,17 +269,50 @@ struct CardRowContentView: View {
                     radius: TrackerBarStyle.nameShadowFar * u)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .padding(.leading, costWidth + TrackerBarStyle.namePadLeading * u)
-            .padding(.trailing, (showsCountBox ? TrackerBarStyle.namePadBoxed
-                                               : TrackerBarStyle.namePadTrailing) * u)
+            .padding(.trailing, stripWidth > 0
+                     ? stripWidth + (TrackerBarStyle.namePadBoxed - TrackerBarStyle.boxWidth) * u
+                     : TrackerBarStyle.namePadTrailing * u)
             .frame(width: barWidth, height: rowHeight)
             .opacity(isDimmed ? TrackerBarStyle.dimContent : 1)
     }
 
+    /// The trailing strip on the count box's shade. The count and its shade dim
+    /// with the row as they always did; the gift and status icons do not, since
+    /// on a played row — dimmed by definition — they are the whole message.
+    private var iconStrip: some View {
+        HStack(spacing: 0) {
+            if showsCountBox {
+                countCell
+                    .opacity(isDimmed ? TrackerBarStyle.dimContent : 1)
+            }
+            if card.isCreated {
+                TrackerGift()
+                    .fill(TrackerBarStyle.gold)
+                    .frame(width: TrackerBarStyle.rowIconSize * u,
+                           height: TrackerBarStyle.rowIconSize * u)
+                    .frame(width: iconWidth, height: rowHeight)
+            }
+            if card.zoneStatus != .none {
+                statusIcon
+                    .frame(width: TrackerBarStyle.rowIconSize * u,
+                           height: TrackerBarStyle.rowIconSize * u)
+                    .frame(width: iconWidth, height: rowHeight)
+            }
+        }
+        .frame(width: stripWidth, height: rowHeight)
+        .background(TrackerBarStyle.countBox.opacity(isDimmed ? TrackerBarStyle.dimContent : 1))
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(TrackerBarStyle.line)
+                .frame(width: max(TrackerBarStyle.hairline * u, 0.5))
+        }
+        .frame(width: barWidth, height: rowHeight, alignment: .trailing)
+    }
+
     /// Copies > 1 print the number; a single legendary prints a star, as on the
     /// theme path where `icon_legendary.png` stood in for a count.
-    private var countBox: some View {
+    private var countCell: some View {
         ZStack {
-            TrackerBarStyle.countBox
             if absCount > 1 {
                 Text("\(absCount)")
                     .font(.custom(TrackerBarStyle.digitFontName,
@@ -283,33 +321,23 @@ struct CardRowContentView: View {
             } else {
                 TrackerStar()
                     .fill(TrackerBarStyle.star)
-                    .frame(width: TrackerBarStyle.starSize * u,
-                           height: TrackerBarStyle.starSize * u)
+                    .frame(width: TrackerBarStyle.rowIconSize * u,
+                           height: TrackerBarStyle.rowIconSize * u)
             }
         }
         .frame(width: boxWidth, height: rowHeight)
-        .overlay(alignment: .leading) {
-            Rectangle()
-                .fill(TrackerBarStyle.line)
-                .frame(width: max(TrackerBarStyle.hairline * u, 0.5))
-        }
-        .frame(width: barWidth, height: rowHeight, alignment: .trailing)
-        .opacity(isDimmed ? TrackerBarStyle.dimContent : 1)
     }
 
-    /// `icon_created.png`'s replacement: a gold notch in the cost cell's
-    /// leading corner. It sits outside the name box, so a gift never costs the
-    /// card name any width.
-    private var createdMark: some View {
-        Path { path in
-            let side = TrackerBarStyle.createdMark * u
-            path.move(to: .zero)
-            path.addLine(to: CGPoint(x: side, y: 0))
-            path.addLine(to: CGPoint(x: 0, y: side))
-            path.closeSubpath()
+    @ViewBuilder
+    private var statusIcon: some View {
+        switch card.zoneStatus {
+        case .graveyard:
+            TrackerSkull().fill(TrackerBarStyle.skull, style: FillStyle(eoFill: true))
+        case .burned:
+            TrackerFlame().fill(TrackerBarStyle.flame, style: FillStyle(eoFill: true))
+        case .none:
+            EmptyView()
         }
-        .fill(TrackerBarStyle.gold)
-        .frame(width: barWidth, height: rowHeight, alignment: .topLeading)
     }
 
     /// Related-card highlight (teal / orange / green). The theme path laid a
@@ -392,6 +420,7 @@ struct CardRowContentView: View {
                          showRarityColors: showRarityColors,
                          dimmed: isDimmed,
                          created: card.isCreated,
+                         status: card.zoneStatus.rawValue,
                          countBox: showsCountBox,
                          nameColor: Self.packed(nameColor),
                          highlight: highlightColor.rasterToken,

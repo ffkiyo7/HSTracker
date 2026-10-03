@@ -23,6 +23,9 @@ enum TrackerBarStyle {
     static let text = Color(red: 0xF4 / 255, green: 0xEA / 255, blue: 0xD4 / 255)
     static let countBox = Color.black.opacity(0.5)
     static let star = Color(red: 0xFF / 255, green: 0xB6 / 255, blue: 0x41 / 255)
+    /// 2.7 status icons: bone for the graveyard, ember for a burned copy.
+    static let skull = Color(red: 0xE8 / 255, green: 0xDF / 255, blue: 0xCC / 255)
+    static let flame = Color(red: 0xFF / 255, green: 0x6B / 255, blue: 0x2C / 255)
 
     /// Cost cell, tinted by rarity (D2 chose these for colour-blind separation).
     static func cost(_ rarity: Rarity) -> Color {
@@ -49,13 +52,14 @@ enum TrackerBarStyle {
     static let namePadLeading: CGFloat = 6
     static let namePadTrailing: CGFloat = 8
     static let namePadBoxed: CGFloat = 24
+    /// One cell of the trailing strip — count, gift or status alike (2.7).
     static let boxWidth: CGFloat = 20
     static let hairline: CGFloat = 1
     static let nameFontSize: CGFloat = 10
     static let costFontSize: CGFloat = 12
     static let countFontSize: CGFloat = 11
-    static let createdMark: CGFloat = 6
-    static let starSize: CGFloat = 10
+    /// Every icon in the trailing strip: the legendary star, gift, skull, flame.
+    static let rowIconSize: CGFloat = 11
     /// D3-b (`.D` / `.D.fe75` in the sheet): the art runs from the cost cell's
     /// trailing edge to the end of the bar — 149 of the 171 reference pixels —
     /// and the panel base lies over it, solid for the first tenth and gone by
@@ -125,6 +129,87 @@ struct TrackerStar: Shape {
                 path.addLine(to: point)
             }
         }
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// The 2.7 row icons are drawn in a unit square centred in their frame, so
+/// the three share one grid and scale with the row.
+private struct UnitSquare {
+    let origin: CGPoint
+    let side: CGFloat
+
+    init(_ rect: CGRect) {
+        side = min(rect.width, rect.height)
+        origin = CGPoint(x: rect.midX - side / 2, y: rect.midY - side / 2)
+    }
+
+    func callAsFunction(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+        CGPoint(x: origin.x + x * side, y: origin.y + y * side)
+    }
+
+    func rect(_ x: CGFloat, _ y: CGFloat, _ width: CGFloat, _ height: CGFloat) -> CGRect {
+        CGRect(origin: self(x, y), size: CGSize(width: width * side, height: height * side))
+    }
+}
+
+/// Gift: a lid and a box split by the ribbon, with the bow's two loops.
+struct TrackerGift: Shape {
+    func path(in rect: CGRect) -> Path {
+        let u = UnitSquare(rect)
+        var path = Path()
+        path.addEllipse(in: u.rect(0.18, 0.02, 0.30, 0.25))
+        path.addEllipse(in: u.rect(0.52, 0.02, 0.30, 0.25))
+        path.addRect(u.rect(0.00, 0.30, 0.42, 0.20))
+        path.addRect(u.rect(0.58, 0.30, 0.42, 0.20))
+        path.addRect(u.rect(0.08, 0.54, 0.34, 0.46))
+        path.addRect(u.rect(0.58, 0.54, 0.34, 0.46))
+        return path
+    }
+}
+
+/// Skull: cranium and jaw as one outline; eyes, nose and teeth are holes, so
+/// fill it with `eoFill`.
+struct TrackerSkull: Shape {
+    func path(in rect: CGRect) -> Path {
+        let u = UnitSquare(rect)
+        var path = Path()
+        path.move(to: u(0.30, 0.97))
+        // 120° to 60° the long way round is the top of the cranium; the line
+        // up to its start is the jaw's leading edge.
+        path.addRelativeArc(center: u(0.5, 0.42), radius: 0.40 * u.side,
+                            startAngle: .degrees(120), delta: .degrees(300))
+        path.addLine(to: u(0.70, 0.97))
+        path.closeSubpath()
+        path.addEllipse(in: u.rect(0.24, 0.34, 0.20, 0.22))
+        path.addEllipse(in: u.rect(0.56, 0.34, 0.20, 0.22))
+        path.move(to: u(0.50, 0.60))
+        path.addLine(to: u(0.45, 0.70))
+        path.addLine(to: u(0.55, 0.70))
+        path.closeSubpath()
+        path.addRect(u.rect(0.41, 0.83, 0.05, 0.10))
+        path.addRect(u.rect(0.54, 0.83, 0.05, 0.10))
+        return path
+    }
+}
+
+/// Burned: a flame with a hollow core, so fill it with `eoFill`.
+struct TrackerFlame: Shape {
+    func path(in rect: CGRect) -> Path {
+        let u = UnitSquare(rect)
+        var path = Path()
+        path.move(to: u(0.50, 0.00))
+        path.addCurve(to: u(0.86, 0.62), control1: u(0.62, 0.22), control2: u(0.90, 0.38))
+        path.addCurve(to: u(0.50, 1.00), control1: u(0.84, 0.86), control2: u(0.68, 1.00))
+        path.addCurve(to: u(0.14, 0.62), control1: u(0.32, 1.00), control2: u(0.16, 0.86))
+        path.addCurve(to: u(0.50, 0.00), control1: u(0.12, 0.40), control2: u(0.40, 0.30))
+        path.closeSubpath()
+        path.move(to: u(0.50, 0.50))
+        path.addCurve(to: u(0.66, 0.78), control1: u(0.58, 0.62), control2: u(0.68, 0.68))
+        path.addCurve(to: u(0.50, 0.92), control1: u(0.64, 0.88), control2: u(0.58, 0.92))
+        path.addCurve(to: u(0.34, 0.78), control1: u(0.42, 0.92), control2: u(0.36, 0.88))
+        path.addCurve(to: u(0.50, 0.50), control1: u(0.32, 0.68), control2: u(0.44, 0.60))
         path.closeSubpath()
         return path
     }

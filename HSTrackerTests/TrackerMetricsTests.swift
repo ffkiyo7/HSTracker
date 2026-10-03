@@ -2124,6 +2124,75 @@ class TrackerMetricsTests: HSTrackerTests {
         }
     }
 
+    // MARK: - Phase 2 / 2.7: trailing status icons
+
+    private func playedCard(gift: Bool, status: CardZoneStatus) -> Card {
+        let card = sampleCard()
+        card.count = -1
+        card.rarity = .rare
+        card.isCreated = gift
+        card.zoneStatus = status
+        return card
+    }
+
+    /// A gift or a status is a different picture, so it has to be a different
+    /// bitmap and a different row value — otherwise the row keeps the icon it
+    /// was first drawn with (Perf P2's key, bug T10's `==`).
+    @MainActor
+    func testEveryIconChangeIsANewRasterKey() {
+        var keys = Set<CardRowRasterKey>()
+        var rows = [CardRowView]()
+        for gift in [false, true] {
+            for status in [CardZoneStatus.none, .graveyard, .burned] {
+                let card = playedCard(gift: gift, status: status)
+                keys.insert(CardRowContentView(card: card, rowHeight: 21, barWidth: 171)
+                    .rasterKey(scale: 2))
+                rows.append(CardRowView(card: card, rowHeight: 21, barWidth: 171))
+            }
+        }
+        XCTAssertEqual(keys.count, 6, "gift x status is six distinct pictures")
+        for (i, lhs) in rows.enumerated() {
+            for (j, rhs) in rows.enumerated() where i != j {
+                XCTAssertFalse(lhs == rhs, "rows \(i) and \(j) look different but compare equal")
+            }
+        }
+    }
+
+    /// The icons are really drawn: each one changes the picture, inside the
+    /// row's own frame.
+    @MainActor
+    func testStatusIconsAreDrawn() {
+        func image(_ card: Card) -> [UInt8]? {
+            guard let rendered = render(CardRowContentView(card: card, rowHeight: 21, barWidth: 171,
+                                                           drawsArt: false),
+                                        scale: 2) else { return nil }
+            XCTAssertEqual(rendered.width, 342)
+            XCTAssertEqual(rendered.height, 42)
+            return pixels(rendered)
+        }
+        guard let plain = image(playedCard(gift: false, status: .none)),
+              let skull = image(playedCard(gift: false, status: .graveyard)),
+              let burned = image(playedCard(gift: false, status: .burned)),
+              let gift = image(playedCard(gift: true, status: .none)) else {
+            return XCTFail("the renderer produced nothing")
+        }
+        XCTAssertNotEqual(plain, skull)
+        XCTAssertNotEqual(plain, burned)
+        XCTAssertNotEqual(skull, burned)
+        XCTAssertNotEqual(plain, gift)
+    }
+
+    /// Two rows of one card that differ only in where the copies ended up are
+    /// two rows, not one row and its repeat.
+    func testRowsOfOneCardSplitByStatusHaveTheirOwnIds() {
+        let viewModel = TrackerCardListViewModel()
+        viewModel.update(cards: [playedCard(gift: false, status: .graveyard),
+                                 playedCard(gift: false, status: .burned)])
+        XCTAssertEqual(viewModel.rows.count, 2)
+        XCTAssertNotEqual(viewModel.rows[0].id, viewModel.rows[1].id)
+        XCTAssertEqual(viewModel.rows.map { $0.id.occurrence }, [0, 0])
+    }
+
     private func token(_ color: HighlightColor?) -> Int {
         switch color {
         case .none?: return 0

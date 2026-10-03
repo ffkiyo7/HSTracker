@@ -830,6 +830,77 @@ class ZoneGroupsT11ReplayTests: HSTrackerTests {
         }
     }
 
+    // MARK: - Phase 2 / 2.7: gifts and status icons
+
+    private func rows(_ cards: [Card], _ cardId: String) -> [Card] {
+        return cards.filter { $0.id == cardId }
+    }
+
+    /// Everything the two bombs destroy left without being played, from the
+    /// hand or straight out of the deck, so each of them carries the burned
+    /// icon — and 嫉妒乐章, a copy shuffled in, the gift as well.
+    func testWhatTheBombsDestroyedIsBurned() {
+        feed(upTo: Self.beforeTheFirstBomb)
+        feed(upTo: Self.beforeTheReconnect)
+        let chaos = rows(groups().played, Self.chaos)
+        XCTAssertEqual(chaos.map { $0.zoneStatus }, [.burned], "混乱吞噬 was destroyed out of the hand")
+        XCTAssertEqual(chaos.map { $0.isCreated }, [false], "it is a deck list card")
+        XCTAssertTrue(rows(groups().played, Self.envy).contains { $0.isCreated && $0.zoneStatus == .burned },
+                      "嫉妒乐章 was shuffled in and destroyed inside the deck")
+
+        feed(upTo: Self.beforeTheBombGoesOff)
+        feed(upTo: Self.afterTheBombWentOff)
+        XCTAssertEqual(rows(groups().played, Self.plagueOfFlames).map { $0.zoneStatus }, [.burned],
+                       "火焰之灾祸 was destroyed inside the deck")
+        XCTAssertEqual(rows(groups().played, Self.defile).map { $0.zoneStatus }, [.burned],
+                       "亵渎 was destroyed out of the hand")
+    }
+
+    /// Round 3 #3, on the real log: 恶魔计划 (entity 66) replaces 海中向导芬利爵士
+    /// (TSC_908, entity 74, a deck list card) in our hand at fixture line 7564.
+    /// 74 goes HAND → SETASIDE and stays there (the reconnect re-dump at 19829
+    /// still has it set aside), while the bomb's victims go HAND → SETASIDE →
+    /// GRAVEYARD (72: 16605 → 16610; 79: 38548 → 38553). The replaced card stays in the played section
+    /// with no status; the one that replaced it (NX2_050, entity 167) is a gift
+    /// in hand.
+    func testACardReplacedInHandHasNoStatus() {
+        feed(upTo: "23:38:36.9136870 PowerTaskList.DebugPrintPower() - BLOCK_START")
+        XCTAssertTrue(game.entities[74]?.isInSetAside ?? false, "74 was set aside by the replacement")
+        let finley = rows(groups().played, "TSC_908")
+        XCTAssertEqual(finley.map { $0.zoneStatus }, [.none], "a replaced card was not thrown away")
+        XCTAssertEqual(finley.map { $0.isCreated }, [false])
+        XCTAssertTrue(rows(groups().hand, "NX2_050").allSatisfy { $0.isCreated },
+                      "the demon that replaced it was made in hand")
+    }
+
+    /// Swept over the whole game: a card created into our hand and played
+    /// out of it is in the played section as a gift, however many times the
+    /// board changed since. Before 2.7 it vanished once played.
+    func testCardsCreatedIntoTheHandAndPlayedAreInThePlayedSection() {
+        var seen = 0
+        sweep { checkpoint in
+            var expected = [String: Int]()
+            let playedIds = Set(game.player.cardsPlayedThisMatch.map { $0.id })
+            for id in playedIds {
+                guard let entity = game.entities[id], entity.info.originalZone == .hand,
+                      entity.info.originalController == game.player.id,
+                      !entity.isInHand, !entity.isInDeck,
+                      entity[.copied_from_entity_id] == 0,
+                      Cards.by(cardId: entity.cardId) != nil else { continue }
+                expected[entity.cardId, default: 0] += 1
+            }
+            let played = groups().played
+            for (cardId, count) in expected {
+                let gifts = rows(played, cardId).filter { $0.isCreated }.reduce(0) { $0 + abs($1.count) }
+                XCTAssertGreaterThanOrEqual(gifts, count,
+                                            "\(cardId) was made in hand and played, at line \(checkpoint)")
+            }
+            XCTAssertTrue(played.all { $0.count < 0 }, "a played row lost its copies at line \(checkpoint)")
+            seen = max(seen, expected.values.reduce(0, +))
+        }
+        XCTAssertGreaterThan(seen, 0, "the game never played a card made in hand, the sweep proved nothing")
+    }
+
     /// Feeds the fixture in chunks and runs `check` at every boundary, so an
     /// accounting slip anywhere in the game is caught, not only at the blocks
     /// this file happens to name.

@@ -584,13 +584,19 @@ class CardZoneGroupsTests: HSTrackerTests {
         guard let groups = game.player.playerCardGroups else {
             return XCTFail("an active deck is grouped by zone")
         }
-        XCTAssertEqual(totals(groups.played), ["ETC_080": 1],
-                       "only E.T.C. was played out of the deck list")
-        for sideboardCard in ["TOY_644", "JAIL_205"] {
-            XCTAssertNil(totals(groups.deck)[sideboardCard])
-            XCTAssertNil(totals(groups.hand)[sideboardCard])
-            XCTAssertNil(totals(groups.played)[sideboardCard])
-        }
+        // 2.7 round 3: the pick went through our hand and was played, so it is
+        // a gift in the played section like any other. What T9 keeps out is the
+        // sideboard itself — the cards set aside at setup that never were in
+        // hand, JAIL_205 here and the TOY_644 original (id 34).
+        XCTAssertEqual(totals(groups.played), ["ETC_080": 1, "TOY_644": 1],
+                       "E.T.C. out of the deck list, and the pick played from hand")
+        XCTAssertTrue(groups.played.contains { $0.id == "TOY_644" && $0.isCreated },
+                      "the pick is a gift")
+        XCTAssertNil(totals(groups.deck)["TOY_644"])
+        XCTAssertNil(totals(groups.hand)["TOY_644"])
+        XCTAssertNil(totals(groups.deck)["JAIL_205"])
+        XCTAssertNil(totals(groups.hand)["JAIL_205"])
+        XCTAssertNil(totals(groups.played)["JAIL_205"])
     }
 
     /// The same for Zilliax: its modules are created set aside at setup as well,
@@ -708,5 +714,467 @@ class CardZoneGroupsTests: HSTrackerTests {
 
         let flat = game.player.playerTrackerSnapshot(useZoneGroups: false).cards
         XCTAssertEqual(totals(flat), totals(game.player.playerCardList))
+    }
+
+    // MARK: - Phase 2 / 2.7: gifts and where a played copy ended up
+
+    private func state(_ card: Card) -> CardZoneRowState {
+        return CardZoneRowState(gift: card.isCreated, status: card.zoneStatus)
+    }
+
+    /// Rows of one card: every state at most once, and the copies per state.
+    private func rowStates(_ cards: [Card], _ cardId: String,
+                           line: UInt = #line) -> [CardZoneRowState: Int] {
+        var result = [CardZoneRowState: Int]()
+        for card in cards where card.id == cardId {
+            XCTAssertNil(result[state(card)], "\(cardId) has two rows in the same state", line: line)
+            result[state(card)] = abs(card.count)
+        }
+        return result
+    }
+
+    private let graveyard = CardZoneRowState(gift: false, status: .graveyard)
+    private let burned = CardZoneRowState(gift: false, status: .burned)
+
+    /// Two copies in the graveyard and one burned are two rows, each counting
+    /// only its own copies; together they are still the three that left.
+    func testPlayedCopiesAreSplitByWhereTheyEndedUp() {
+        let groups = CardZoneGroups.make(deckList: [card("A", 3)],
+                                         knownInDeck: [],
+                                         predictedInDeck: [],
+                                         cardsInHand: [],
+                                         leftDeck: [card("A", 3)],
+                                         inHandFromDeck: [:],
+                                         playedStates: ["A": [graveyard: 2, burned: 1]])
+
+        XCTAssertEqual(rowStates(groups.played, "A"), [graveyard: 2, burned: 1])
+        XCTAssertTrue(groups.played.all { $0.count < 0 }, "played rows stay dark")
+        assertNoCardIsLost(groups, known: ["A": 3])
+    }
+
+    /// The breakdown can split the copies, never change how many there are.
+    func testTheBreakdownCannotAddOrDropCopies() {
+        let groups = CardZoneGroups.make(deckList: [card("A", 2), card("B", 2)],
+                                         knownInDeck: [],
+                                         predictedInDeck: [],
+                                         cardsInHand: [],
+                                         leftDeck: [card("A", 2), card("B", 2)],
+                                         inHandFromDeck: [:],
+                                         playedStates: ["A": [graveyard: 5], "B": [burned: 1]])
+
+        XCTAssertEqual(rowStates(groups.played, "A"), [graveyard: 2])
+        XCTAssertEqual(rowStates(groups.played, "B"), [burned: 1, .plain: 1])
+        assertNoCardIsLost(groups, known: ["A": 2, "B": 2])
+    }
+
+    /// A copy shuffled in on top of the list's own is a gift, so it is a row of
+    /// its own in the deck section; the section still holds all three.
+    func testAShuffledInCopyIsAGiftRowInTheDeckSection() {
+        let groups = CardZoneGroups.make(deckList: [card("A", 2)],
+                                         knownInDeck: [],
+                                         predictedInDeck: [],
+                                         cardsInHand: [],
+                                         leftDeck: [],
+                                         shuffledIntoDeck: ["A": 1],
+                                         inHandFromDeck: [:])
+
+        XCTAssertEqual(rowStates(groups.deck, "A"),
+                       [.plain: 2, CardZoneRowState(gift: true, status: .none): 1])
+        assertNoCardIsLost(groups, known: ["A": 3])
+        assertDeckHasNoZeroCount(groups)
+    }
+
+    /// Gifts that went through the hand join the played section as gift rows,
+    /// and a shuffled in copy of the same card in the same state shares the
+    /// row with them rather than repeating it.
+    func testGiftsPlayedFromHandJoinThePlayedSection() {
+        let discovered = card("X", 1)
+        discovered.isCreated = true
+        discovered.zoneStatus = .graveyard
+        let alsoShuffled = card("A", 1)
+        alsoShuffled.isCreated = true
+        alsoShuffled.zoneStatus = .graveyard
+        let giftInGraveyard = CardZoneRowState(gift: true, status: .graveyard)
+
+        let groups = CardZoneGroups.make(deckList: [card("A", 1)],
+                                         knownInDeck: [],
+                                         predictedInDeck: [],
+                                         cardsInHand: [],
+                                         leftDeck: [card("A", 1)],
+                                         shuffledLeftDeck: ["A": 1],
+                                         inHandFromDeck: [:],
+                                         playedStates: ["A": [giftInGraveyard: 1]],
+                                         giftsPlayed: [discovered, alsoShuffled])
+
+        XCTAssertEqual(rowStates(groups.played, "X"), [giftInGraveyard: 1])
+        XCTAssertEqual(rowStates(groups.played, "A"), [giftInGraveyard: 2])
+        XCTAssertEqual(totals(groups.deck), ["A": 1], "the list's own copy is still in the deck")
+        // The list's A, the shuffled in A, the A made in hand, and X.
+        assertNoCardIsLost(groups, known: ["A": 3, "X": 1])
+    }
+
+    private func addEntity(_ game: Game, id: Int, cardId: String, zone: Zone,
+                           controller: Int, originalZone: Zone?, originalController: Int,
+                           type: CardType = .minion) -> Entity {
+        let entity = Entity(id: id)
+        entity.cardId = cardId
+        entity[.zone] = zone.rawValue
+        entity[.controller] = controller
+        entity[.cardtype] = type.rawValue
+        entity.info.originalZone = originalZone
+        entity.info.originalController = originalController
+        game.entities[id] = entity
+        return entity
+    }
+
+    /// One opponent turn's worth of every case the icons tell apart, over real
+    /// entities and the lists `Player` keeps.
+    func testEveryCopyGetsItsGiftAndStatus() {
+        let previous = Player.knownOpponentDeck
+        defer { Player.knownOpponentDeck = previous }
+
+        for id in ["BT_753", "SC_010", "SW_041", "VAC_933", "SW_039", "VAC_933t"] {
+            waitForCard(id)
+        }
+        let game = makeGame()
+        let opponent: Player = game.opponent
+        Player.knownOpponentDeck = [card("BT_753", 2), card("SC_010", 1), card("SW_041", 1)]
+
+        // Deck list card played from hand, now dead: skull, no gift.
+        let dead = addEntity(game, id: 10, cardId: "BT_753", zone: .graveyard, controller: 2,
+                             originalZone: .deck, originalController: 2)
+        opponent.cardsPlayedThisMatch.append(dead)
+        // Its second copy, discarded out of the hand: burned.
+        let discarded = addEntity(game, id: 11, cardId: "BT_753", zone: .graveyard, controller: 2,
+                                  originalZone: .deck, originalController: 2)
+        opponent.handDiscard(entity: discarded, turn: 3)
+        // Deck list card played and still on the board: no status.
+        let alive = addEntity(game, id: 12, cardId: "SW_041", zone: .play, controller: 2,
+                              originalZone: .deck, originalController: 2)
+        opponent.cardsPlayedThisMatch.append(alive)
+        // A discovered card played from hand, on the board: gift, no status.
+        let discovered = addEntity(game, id: 13, cardId: "VAC_933", zone: .play, controller: 2,
+                                   originalZone: .hand, originalController: 2)
+        discovered.info.created = true
+        opponent.cardsPlayedThisMatch.append(discovered)
+        // A deck list card in hand that the parser flagged created, as it does
+        // on ordinary draws (bug T6): not a gift.
+        let drawn = addEntity(game, id: 14, cardId: "SC_010", zone: .hand, controller: 2,
+                              originalZone: .deck, originalController: 2)
+        drawn.info.created = true
+        // A card made in hand and still there: a gift.
+        _ = addEntity(game, id: 15, cardId: "SW_039", zone: .hand, controller: 2,
+                      originalZone: .hand, originalController: 2)
+        // A token summoned straight onto the board and dead: in no section.
+        _ = addEntity(game, id: 16, cardId: "VAC_933t", zone: .graveyard, controller: 2,
+                      originalZone: .play, originalController: 2)
+
+        guard let groups = opponent.opponentCardGroups else {
+            return XCTFail("a linked opponent deck is grouped")
+        }
+        XCTAssertEqual(rowStates(groups.played, "BT_753"), [graveyard: 1, burned: 1])
+        XCTAssertEqual(rowStates(groups.played, "SW_041"), [.plain: 1])
+        XCTAssertEqual(rowStates(groups.played, "VAC_933"),
+                       [CardZoneRowState(gift: true, status: .none): 1])
+        XCTAssertEqual(rowStates(groups.hand, "SC_010"), [.plain: 1],
+                       "an ordinary draw is not a gift, whatever info.created says")
+        XCTAssertEqual(rowStates(groups.hand, "SW_039"), [CardZoneRowState(gift: true, status: .none): 1])
+        for section in [groups.deck, groups.hand, groups.played] {
+            XCTAssertNil(totals(section)["VAC_933t"], "a token that never was in hand is in no section")
+        }
+        XCTAssertTrue(groups.deck.all { !$0.isCreated && $0.zoneStatus == .none })
+        assertNoCardIsLost(groups, known: ["BT_753": 2, "SC_010": 1, "SW_041": 1,
+                                           "VAC_933": 1, "SW_039": 1])
+    }
+
+    /// Taken by the other side without being played is burned, for a deck
+    /// list card as for a card that was made in hand.
+    func testACardTakenByTheOtherSideIsBurned() {
+        let previous = Player.knownOpponentDeck
+        defer { Player.knownOpponentDeck = previous }
+
+        waitForCard("BT_753")
+        waitForCard("SW_039")
+        let game = makeGame()
+        Player.knownOpponentDeck = [card("BT_753", 1)]
+        // Their deck card, drawn and now in our hand.
+        _ = addEntity(game, id: 10, cardId: "BT_753", zone: .hand, controller: 1,
+                      originalZone: .deck, originalController: 2)
+        // A card made in their hand, now in ours.
+        _ = addEntity(game, id: 11, cardId: "SW_039", zone: .hand, controller: 1,
+                      originalZone: .hand, originalController: 2)
+
+        guard let groups = game.opponent.opponentCardGroups else {
+            return XCTFail("a linked opponent deck is grouped")
+        }
+        XCTAssertEqual(rowStates(groups.played, "BT_753"), [burned: 1])
+        XCTAssertEqual(rowStates(groups.played, "SW_039"),
+                       [CardZoneRowState(gift: true, status: .burned): 1])
+        XCTAssertTrue(groups.hand.isEmpty, "neither is in their hand")
+    }
+
+    /// Nothing the opponent has not shown may reach a section: a secret played
+    /// from hand is still an entity without a card id.
+    func testAnUnrevealedOpponentCardIsInNoSection() {
+        let previous = Player.knownOpponentDeck
+        defer { Player.knownOpponentDeck = previous }
+
+        let game = makeGame()
+        Player.knownOpponentDeck = [card("A", 1)]
+        let secret = addEntity(game, id: 10, cardId: "", zone: .secret, controller: 2,
+                               originalZone: .hand, originalController: 2, type: .spell)
+        game.opponent.spellsPlayedCards.append(secret)
+
+        guard let groups = game.opponent.opponentCardGroups else {
+            return XCTFail("a linked opponent deck is grouped")
+        }
+        XCTAssertTrue(groups.played.isEmpty)
+        XCTAssertTrue(groups.hand.isEmpty)
+    }
+
+    // MARK: - 2.7 review round 2
+
+    private let gift = CardZoneRowState(gift: true, status: .none)
+    private let giftInGraveyard = CardZoneRowState(gift: true, status: .graveyard)
+    private let giftBurned = CardZoneRowState(gift: true, status: .burned)
+
+    /// Review #1: a card made in their hand that reaches the board without
+    /// being played (pulled by 肮脏的鼠辈, cast by a trigger) left the hand all
+    /// the same. It is in the played section on the board and once it is dead.
+    func testAGiftThatReachedTheBoardWithoutBeingPlayedIsInThePlayedSection() {
+        let previous = Player.knownOpponentDeck
+        defer { Player.knownOpponentDeck = previous }
+
+        waitForCard("VAC_933")
+        let game = makeGame()
+        Player.knownOpponentDeck = [card("A", 1)]
+        let pulled = addEntity(game, id: 10, cardId: "VAC_933", zone: .play, controller: 2,
+                               originalZone: .hand, originalController: 2)
+
+        guard let onBoard = game.opponent.opponentCardGroups else {
+            return XCTFail("a linked opponent deck is grouped")
+        }
+        XCTAssertEqual(rowStates(onBoard.played, "VAC_933"), [gift: 1])
+
+        pulled[.zone] = Zone.graveyard.rawValue
+        guard let dead = game.opponent.opponentCardGroups else {
+            return XCTFail("a linked opponent deck is grouped")
+        }
+        XCTAssertEqual(rowStates(dead.played, "VAC_933"), [giftInGraveyard: 1])
+    }
+
+    /// Review #2: a secret they discovered is played face down, so it never
+    /// reaches `spellsPlayedCards`; once it fires and shows its card id it has
+    /// to be in the played section like any other gift.
+    func testARevealedSecretTheOpponentDiscoveredIsInThePlayedSection() {
+        let previous = Player.knownOpponentDeck
+        defer { Player.knownOpponentDeck = previous }
+
+        waitForCard("EX1_610")
+        let game = makeGame()
+        Player.knownOpponentDeck = [card("A", 1)]
+        _ = addEntity(game, id: 10, cardId: "EX1_610", zone: .graveyard, controller: 2,
+                      originalZone: .hand, originalController: 2, type: .spell)
+
+        guard let groups = game.opponent.opponentCardGroups else {
+            return XCTFail("a linked opponent deck is grouped")
+        }
+        XCTAssertEqual(rowStates(groups.played, "EX1_610"), [giftInGraveyard: 1])
+    }
+
+    /// Review #3: played, bounced back to hand, then discarded. What happened
+    /// last is that it was thrown away, so it is burned, not a skull.
+    func testACardPlayedBouncedAndThenDiscardedIsBurned() {
+        let previous = Player.knownOpponentDeck
+        defer { Player.knownOpponentDeck = previous }
+
+        waitForCard("BT_753")
+        let game = makeGame()
+        let opponent: Player = game.opponent
+        Player.knownOpponentDeck = [card("BT_753", 1)]
+        let bounced = addEntity(game, id: 10, cardId: "BT_753", zone: .graveyard, controller: 2,
+                                originalZone: .deck, originalController: 2)
+        opponent.cardsPlayedThisMatch.append(bounced)
+        opponent.boardToHand(entity: bounced, turn: 4)
+        opponent.handDiscard(entity: bounced, turn: 5)
+
+        guard let groups = opponent.opponentCardGroups else {
+            return XCTFail("a linked opponent deck is grouped")
+        }
+        XCTAssertEqual(rowStates(groups.played, "BT_753"), [burned: 1])
+    }
+
+    /// Review #4: a gift shuffled back into the deck and destroyed in there
+    /// (a bomb, a full hand) never went through a discard from hand. It still
+    /// left, so it is a burned gift in the played section.
+    func testAGiftDestroyedBackInTheDeckIsBurned() {
+        let previous = Player.knownOpponentDeck
+        defer { Player.knownOpponentDeck = previous }
+
+        waitForCard("VAC_933")
+        let game = makeGame()
+        let opponent: Player = game.opponent
+        Player.knownOpponentDeck = [card("A", 1)]
+        let destroyed = addEntity(game, id: 10, cardId: "VAC_933", zone: .graveyard, controller: 2,
+                                  originalZone: .hand, originalController: 2)
+        opponent.deckDiscard(entity: destroyed, turn: 5)
+
+        guard let groups = opponent.opponentCardGroups else {
+            return XCTFail("a linked opponent deck is grouped")
+        }
+        XCTAssertEqual(rowStates(groups.played, "VAC_933"), [giftBurned: 1])
+    }
+
+    /// Review #5: a gift that went back into the deck without T8's latch (the
+    /// Coin, a discovered copy) is a gift in the deck section too, and it does
+    /// not take the place of the list's own unrevealed copies.
+    func testAGiftBackInTheDeckIsAGiftRowThere() {
+        let previous = Player.knownOpponentDeck
+        defer { Player.knownOpponentDeck = previous }
+
+        waitForCard("BT_753")
+        let game = makeGame()
+        Player.knownOpponentDeck = [card("BT_753", 2)]
+        _ = addEntity(game, id: 10, cardId: "BT_753", zone: .deck, controller: 2,
+                      originalZone: .hand, originalController: 2)
+
+        guard let groups = game.opponent.opponentCardGroups else {
+            return XCTFail("a linked opponent deck is grouped")
+        }
+        XCTAssertEqual(rowStates(groups.deck, "BT_753"), [.plain: 2, gift: 1])
+    }
+
+    /// 2.7 round 3: E.T.C.'s pick, played from hand, is a gift in the played
+    /// section even when it names a sideboard original as its source; only the
+    /// original, set aside at setup and never in hand, stays out (bug T9).
+    func testASideboardPickPlayedFromHandIsAGiftInThePlayedSection() {
+        waitForCard("ETC_080")
+        waitForCard("TOY_644")
+        waitForCard("BT_753")
+
+        let game = makeGame()
+        setActiveDeck(game, [("ETC_080", 1), ("BT_753", 1)])
+        addPlayedDeckCard(game, id: 6, cardId: "ETC_080", controller: 1, originalController: 1)
+        createSideboardCardAtSetup(game, id: 34, cardId: "TOY_644", controller: 1)
+        let picked = addEntity(game, id: 186, cardId: "TOY_644", zone: .graveyard, controller: 1,
+                               originalZone: .hand, originalController: 1, type: .spell)
+        picked[.copied_from_entity_id] = 34
+        game.player.cardsPlayedThisMatch.append(picked)
+
+        guard let groups = game.player.playerCardGroups else {
+            return XCTFail("an active deck is grouped by zone")
+        }
+        XCTAssertEqual(totals(groups.played), ["ETC_080": 1, "TOY_644": 1])
+        XCTAssertEqual(rowStates(groups.played, "TOY_644"), [giftInGraveyard: 1])
+    }
+
+    // MARK: - 2.7 review round 3
+
+    /// Round 3 #1: a card we discovered that also happens to be in E.T.C.'s
+    /// sideboard is our gift, not a sideboard card; the sideboard panel does not
+    /// account for it, so hiding it would lose it.
+    func testADiscoveredCardThatIsAlsoASideboardCardIsAGift() {
+        waitForCard("ETC_080")
+        waitForCard("TOY_644")
+        waitForCard("BT_753")
+
+        let game = makeGame()
+        setActiveDeck(game, [("ETC_080", 1), ("BT_753", 1)])
+        createSideboardCardAtSetup(game, id: 34, cardId: "TOY_644", controller: 1)
+        let discovered = addEntity(game, id: 90, cardId: "TOY_644", zone: .graveyard, controller: 1,
+                                   originalZone: .hand, originalController: 1, type: .spell)
+        game.player.cardsPlayedThisMatch.append(discovered)
+
+        guard let groups = game.player.playerCardGroups else {
+            return XCTFail("an active deck is grouped by zone")
+        }
+        XCTAssertEqual(rowStates(groups.played, "TOY_644"), [giftInGraveyard: 1])
+    }
+
+    /// Round 3 #2: a gift set aside out of the hand and handed back (upstream
+    /// calls the first half a discard and never clears it for a card made in
+    /// hand), then played and dead. What happened last is that it was played.
+    func testAGiftSetAsideAndBackBeforeBeingPlayedIsASkull() {
+        let previous = Player.knownOpponentDeck
+        defer { Player.knownOpponentDeck = previous }
+
+        waitForCard("VAC_933")
+        let game = makeGame()
+        let opponent: Player = game.opponent
+        Player.knownOpponentDeck = [card("A", 1)]
+        let gift = addEntity(game, id: 10, cardId: "VAC_933", zone: .graveyard, controller: 2,
+                             originalZone: .hand, originalController: 2)
+        opponent.handDiscard(entity: gift, turn: 3)
+        opponent.cardsPlayedThisMatch.append(gift)
+
+        guard let groups = opponent.opponentCardGroups else {
+            return XCTFail("a linked opponent deck is grouped")
+        }
+        XCTAssertEqual(rowStates(groups.played, "VAC_933"), [giftInGraveyard: 1])
+    }
+
+    /// Round 3 #3: a gift in hand replaced by a transformation (恶魔计划) is
+    /// left behind in SETASIDE. It is gone, not played and not discarded: it is
+    /// in no section — the card that replaced it is the one in hand.
+    func testAGiftReplacedInHandIsInNoSection() {
+        let previous = Player.knownOpponentDeck
+        defer { Player.knownOpponentDeck = previous }
+
+        waitForCard("VAC_933")
+        let game = makeGame()
+        let opponent: Player = game.opponent
+        Player.knownOpponentDeck = [card("A", 1)]
+        let replaced = addEntity(game, id: 10, cardId: "VAC_933", zone: .setaside, controller: 2,
+                                 originalZone: .hand, originalController: 2)
+        opponent.handDiscard(entity: replaced, turn: 3)
+
+        guard let groups = opponent.opponentCardGroups else {
+            return XCTFail("a linked opponent deck is grouped")
+        }
+        for section in [groups.deck, groups.hand, groups.played] {
+            XCTAssertNil(totals(section)["VAC_933"])
+        }
+    }
+
+    /// The same for a deck list card: it did leave the deck, so it stays in the
+    /// played section as before 2.7, only without a status icon.
+    func testADeckListCardReplacedInHandStaysPlayedWithoutAStatus() {
+        let previous = Player.knownOpponentDeck
+        defer { Player.knownOpponentDeck = previous }
+
+        waitForCard("BT_753")
+        let game = makeGame()
+        let opponent: Player = game.opponent
+        Player.knownOpponentDeck = [card("BT_753", 1)]
+        let replaced = addEntity(game, id: 10, cardId: "BT_753", zone: .setaside, controller: 2,
+                                 originalZone: .deck, originalController: 2)
+        opponent.handDiscard(entity: replaced, turn: 3)
+
+        guard let groups = opponent.opponentCardGroups else {
+            return XCTFail("a linked opponent deck is grouped")
+        }
+        XCTAssertEqual(rowStates(groups.played, "BT_753"), [.plain: 1])
+        assertNoCardIsLost(groups, known: ["BT_753": 1])
+    }
+
+    /// Round 3 #4: a token summoned straight onto the board, bounced to hand,
+    /// then pulled back onto the board without being played. It has been in
+    /// hand (`info.returned`), so it is a gift in the played section.
+    func testABouncedTokenPulledOntoTheBoardIsInThePlayedSection() {
+        let previous = Player.knownOpponentDeck
+        defer { Player.knownOpponentDeck = previous }
+
+        waitForCard("VAC_933")
+        let game = makeGame()
+        let opponent: Player = game.opponent
+        Player.knownOpponentDeck = [card("A", 1)]
+        let token = addEntity(game, id: 10, cardId: "VAC_933", zone: .play, controller: 2,
+                              originalZone: .play, originalController: 2)
+        opponent.boardToHand(entity: token, turn: 3)
+
+        guard let groups = opponent.opponentCardGroups else {
+            return XCTFail("a linked opponent deck is grouped")
+        }
+        XCTAssertEqual(rowStates(groups.played, "VAC_933"), [gift: 1])
     }
 }
