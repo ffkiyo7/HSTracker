@@ -28,6 +28,11 @@
 - 文案：`AGENTS.md` 禁止给 `.xcstrings` 增 key，所以红龙自有的界面文案直接用中文字面量，集中放一个文件；不动任何 `.xcstrings` / `.strings` / `.xib`。
 - 视觉动效遵守系统「减弱动态效果」。
 
+## 构建节奏（10-05 用户定）
+
+- 改动过程中只跑相关测试（`-only-testing:` 红龙 / 本书新增的测试类），全套 `test` 只在交付前跑一次。
+- 不切换 `SWIFT_OPTIMIZATION_LEVEL` / configuration 做测量（会整包重编）；性能数据在 Debug 下取相对值，或用 scratchpad 里的独立 `swiftc -O` 基准。
+
 ## 允许修改的文件
 
 `HSTracker/RedDragon/`（新增 / 修改）、`RootOverlayView.swift` / `RootOverlayViewModel.swift`（挂载）、设置窗里放开关所需的文件、`HSTrackerTests/` 红龙相关、`project.pbxproj`（只登记）。还要碰别的，先在报告里论证。
