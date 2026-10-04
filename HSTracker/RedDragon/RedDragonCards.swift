@@ -63,6 +63,9 @@ enum RDCard: Int, CaseIterable {
     case shadowcaster
     case bounceAround, potionOfIllusion, alexstrasza
     case junkPlaceholder, freeSlotPlaceholder
+    /// 不在本牌组、只用于验证公式表的牌（公式表是给带持枪要挟的另一版牌组写的）。
+    /// 生产搜索只在手里真有这张牌时才会打它；它们不进牌库 / 边牌，也不会被当成缺件。
+    case backstab, pocketSand, dehydrate
 }
 
 struct RDCardDef {
@@ -91,6 +94,12 @@ struct RDCardDef {
     let isSideboard: Bool
     /// 牌库里有几张（用于缺件枚举与抽牌池）
     let deckCount: Int
+    /// 指向性效果只能指「未受伤」的随从（背刺）
+    let targetMustBeUndamaged: Bool
+    /// 快枪：本回合进手时费用变成这个值（脱水）
+    let quickdrawCost: Int?
+    /// 不在本牌组、只用于验证公式表（见 `RDCard.backstab` 处的说明）
+    let verificationOnly: Bool
 
     var isPlaceholder: Bool { return type == .placeholder }
 }
@@ -115,14 +124,19 @@ enum RDCards {
                            aura: Bool = false,
                            mirror: Bool = false,
                            sideboard: Bool = false,
-                           deckCount: Int = 0) -> RDCardDef {
+                           deckCount: Int = 0,
+                           undamagedOnly: Bool = false,
+                           quickdraw: Int? = nil,
+                           verificationOnly: Bool = false) -> RDCardDef {
         return RDCardDef(card: card, ids: ids, dbfId: dbfId, enName: enName,
                          printedCost: cost, type: type, attack: attack, health: health,
                          isDragon: dragon, isCombo: combo, targetScope: scope,
                          needsTargetToPlay: needsTarget, effects: effects,
                          comboEffects: comboEffects, doubledByShark: shark,
                          providesSharkAura: aura, mirrorsLastSpell: mirror,
-                         isSideboard: sideboard, deckCount: deckCount)
+                         isSideboard: sideboard, deckCount: deckCount,
+                         targetMustBeUndamaged: undamagedOnly, quickdrawCost: quickdraw,
+                         verificationOnly: verificationOnly)
     }
 
     static let table: [RDCardDef] = [
@@ -198,7 +212,23 @@ enum RDCards {
         def(.junkPlaceholder, [], 0, "(junk)", cost: 0, type: .placeholder),
         def(.freeSlotPlaceholder, [], 0, "(free slot)", cost: 0, type: .placeholder,
             scope: .friendlyMinion, needsTarget: true,
-            effects: [.removeOneFriendlyMinion])
+            effects: [.removeOneFriendlyMinion]),
+        // —— 以下三张不在本牌组，只用于验证（spike「腾格」：能把自己场上随从弄走的 ≤2 费牌）——
+        // 背刺：对一个未受伤的随从造成 $2 点伤害。
+        def(.backstab, ["CS2_072", "CORE_CS2_072", "VAN_CS2_072"], 180, "Backstab",
+            cost: 0, type: .spell, scope: .anyMinion, needsTarget: true,
+            effects: [.damageTarget(2, usesSpellDamage: true)],
+            undamagedOnly: true, verificationOnly: true),
+        // 袋底藏沙：造成 $3 点伤害。快枪：对手的下一张牌费用 +1（只影响对手，这里不建模）。
+        def(.pocketSand, ["WW_403"], 100359, "Pocket Sand", cost: 2, type: .spell,
+            scope: .anyCharacter, needsTarget: true,
+            effects: [.damageTarget(3, usesSpellDamage: true)], verificationOnly: true),
+        // 脱水：吸血。对一个随从造成 $4 点伤害。快枪：本回合进手时费用为 (1)。
+        // 吸血只回英雄血，本模型不追踪我方英雄生命，不影响伤害与费用。
+        def(.dehydrate, ["WW_325"], 100015, "Dehydrate", cost: 3, type: .spell,
+            scope: .anyMinion, needsTarget: true,
+            effects: [.damageTarget(4, usesSpellDamage: true)],
+            quickdraw: 1, verificationOnly: true)
     ]
 
     /// `def(_:)` 按 rawValue 直接索引这张表 —— 少登记一条就会静默错位，
@@ -223,6 +253,13 @@ enum RDCards {
     static func def(_ card: RDCard) -> RDCardDef {
         return byCard[card.rawValue]
     }
+
+    /// 有快枪费用的牌（`canonicalHash` 每张手牌都要问，预先按 rawValue 算好，省掉整张 def 的拷贝）
+    static func hasQuickdraw(_ card: RDCard) -> Bool {
+        return quickdrawCards[card.rawValue]
+    }
+
+    private static let quickdrawCards: [Bool] = byCard.map { $0.quickdrawCost != nil }
 
     /// 本牌组的英雄与英雄技能（`Cards.by(cardId:)` 过滤 hero / hero_power，查它们要用 `Cards.any(byId:)`）
     static let heroId = "HERO_03bm"

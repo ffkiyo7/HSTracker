@@ -108,7 +108,7 @@ enum RDDifficulty {
     static func templateOrder(_ actions: [RDAction]) -> [(card: RDCard, index: Int)] {
         var firstIndex = [Int](repeating: -1, count: openingTemplate.count)
         for (i, action) in actions.enumerated() {
-            guard case .play(_, let identity, _, _) = action else { continue }
+            guard case .play(_, let identity, _, _, _) = action else { continue }
             guard let slot = openingTemplate.firstIndex(of: identity) else { continue }
             if firstIndex[slot] < 0 { firstIndex[slot] = i }
         }
@@ -142,7 +142,7 @@ enum RDDifficulty {
         }
         var n = 0
         for i in (first + 1)..<last {
-            guard case .play(_, let identity, _, _) = actions[i],
+            guard case .play(_, let identity, _, _, _) = actions[i],
                   openingTemplate.contains(identity) else {
                 n += 1
                 continue

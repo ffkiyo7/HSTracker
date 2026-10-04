@@ -22,7 +22,12 @@
     "杂牌数 a+b": "如 3+2 = 共 5 杂，其中 2 杂可清（见同行备注「5杂中2杂可清」）；本文件 junk 取总数，junkRaw 保留原写法",
     "红字": "图中红色数字/文字表示该格有特殊要求，用 crystalsRed / junkRed / redInPhase 标注",
     "水晶 /": "预启动等行水晶列写「/」，本文件 crystals=null，crystalsRaw=\"/\"",
-    "伤害空": "预启动组不给伤害，damage=null"
+    "伤害空": "预启动组不给伤害，damage=null",
+    "premise（T2a）": "该行成立所需、表里没写进数字列的开局状态，只用引擎状态能表达的字段：luckyComet（RDState.luckyCometCharges）/ cardsPlayedThisTurn / enemyBoard / startHand + sideboard（下回合行的整手牌）。测试断言：不带前提重放失败、带前提重放通过",
+    "tableErrata（T2a）": "原表写错的格：cells 记表值、改正值与依据；steps / expandedLines / crystals 是改正后的整行。phases / steps 保留表值不动。测试断言：原样重放失败、改正后整行重放通过 —— 归不归「原表有误」由引擎说了算",
+    "transcriptionFixes（T2a）": "转录本身的错，已直接改在 steps 上，这里记原值与依据",
+    "fromNote（T2a）": "从行备注 / 组注里的公式补成的独立行，id 带 -n1 后缀",
+    "startDeckVariants（T2a）": "起手缺、在牌库里的牌（行标签写明的），每种缺法逐一重放"
   },
   "notation": {
     "鱼": "鲨鱼之灵",
@@ -249,6 +254,28 @@
       "raw": "4 | 6 | 4 | 步 | 32 | 鱼2狐0刀0牛0晦4步-刀4刀2暗1刀1舞1 | 鱼1晦4牛3刀2刀2龙1幻1龙0 |  | 3杂能收到暗，有暗建议二阶段 鱼晦刀刀龙暗龙，手里多1龙"
     },
     {
+      "id": "t1-32-04-n1",
+      "group": "32公式",
+      "table": 1,
+      "fromNote": "t1-32-04 备注「3杂能收到暗，有暗建议二阶段 鱼晦刀刀龙暗龙，手里多1龙」（高清图，2026-10-04 T2a 补转录）",
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 6,
+      "junk": 3,
+      "junkRed": false,
+      "specialJunk": "步",
+      "specialJunkRaw": "步",
+      "damage": 32,
+      "phases": ["鱼2狐0刀0牛0晦4步-刀4刀2暗1刀1舞1", "鱼晦刀刀龙暗龙"],
+      "steps": [
+        [{"card":"鱼","manaAfter":2},{"card":"狐","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"步","target":"刀","manaAfter":4},{"card":"刀","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"舞","manaAfter":1}],
+        [{"card":"鱼","manaAfter":null},{"card":"晦","manaAfter":null},{"card":"刀","manaAfter":null},{"card":"刀","manaAfter":null},{"card":"龙","manaAfter":null},{"card":"暗","manaAfter":null},{"card":"龙","manaAfter":null}]
+      ],
+      "note": "一阶段同 t1-32-04；二阶段是备注给的替代线（无数字），杂牌数按备注取 3；伤害沿用该行 32（备注没写，两次阿莱 ×16）",
+      "uncertain": [],
+      "raw": "（t1-32-04 备注）3杂能收到暗，有暗建议二阶段 鱼晦刀刀龙暗龙，手里多1龙"
+    },
+    {
       "id": "t1-32-05",
       "group": "32公式",
       "table": 1,
@@ -293,6 +320,10 @@
     {
       "id": "t1-48-02",
       "group": "48公式",
+      "tableErrata": {
+        "cells": [{"at": "crystals", "table": 4, "corrected": 5, "basis": "引擎重放：4 水晶时 晦 从 1 双触发只回到 4（1→3→4），表写 晦5，此后每个数各少 1，末尾第三张龙打不出；水晶改 5 后整行逐格对上。旁证 t1-48p-07 一阶段逐字相同、水晶列是 5。高清图核过，转录没错"}],
+        "crystals": 5
+      },
       "table": 1,
       "crystals": 4,
       "crystalsRed": false,
@@ -435,6 +466,13 @@
     {
       "id": "t1-48-06b",
       "group": "48公式",
+      "tableErrata": {
+        "cells": [{"at": "phases[1]", "table": "鱼3晦5刀4刀4龙3 腾格3 暗2龙1龙0（合并单元格，5 水晶那一半的）", "corrected": "鱼3刀2刀2龙1暗1晦4 腾格2 龙1龙0", "basis": "引擎重放：4 水晶时二阶段 晦 从 2 只回到 4，晦5 不成立，末尾第三张龙打不出。改正值取同表里「4 水晶 + 腾格（≤2费）」的二阶段（t1-48-13b、t2-huqs-04b 同一位置、同一起始法力 3 写的就是这一条），整行重放 48 成立"}],
+        "steps": [
+          [{"card":"鱼","manaAfter":3},{"card":"狐","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"骨","target":"狐","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":3}],
+          [{"card":"鱼","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"暗","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"腾格","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+        ]
+      },
       "table": 1,
       "crystals": 4,
       "crystalsRed": true,
@@ -567,6 +605,14 @@
     {
       "id": "t1-48-11",
       "group": "48公式",
+      "tableErrata": {
+        "cells": [{"at": "steps[1][0]", "table": "鱼0", "corrected": "鱼1", "basis": "引擎重放：一阶段最后一张刀压下两层「2 槽 -2」，舞 只吃每层第 1 槽，第 2 槽留给二阶段的鱼 → 1 费鱼 0 费，打完仍是 1。旁证 t1-48p-01 一阶段逐字相同，它的二阶段起手写「鱼1」"}],
+        "steps": [
+          [{"card":"鱼","manaAfter":2},{"card":"狐","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"步","target":"刀","manaAfter":4},{"card":"刀","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"舞","manaAfter":1}],
+          [{"card":"鱼","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"殒","target":"舞","manaAfter":2}],
+          [{"card":"鱼","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"牛","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":2},{"card":"幻","manaAfter":2},{"card":"龙","manaAfter":1}]
+        ]
+      },
       "table": 1,
       "crystals": 4,
       "crystalsRed": false,
@@ -820,6 +866,14 @@
     {
       "id": "t1-48p-08",
       "group": "48+公式",
+      "tableErrata": {
+        "cells": [{"at": "steps[1][7..8]", "table": "殒舞3（无连字符，两个 token）", "corrected": "殒-舞3（一个 token）", "basis": "引擎重放：拆成两个 token 时一阶段已经把唯一的舞打掉、手里没有第二张舞；读作「殒-舞3」后整行 80 伤逐格成立。旁证 t1-48p-06 / t2-wuhu-11 同位置写的就是「殒-舞3」"}],
+        "steps": [
+          [{"card":"鱼","manaAfter":3},{"card":"狐","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"骨","target":"狐","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":3}],
+          [{"card":"鱼","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"暗","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"殒","target":"舞","manaAfter":3}],
+          [{"card":"鱼","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"龙","manaAfter":3},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1}]
+        ]
+      },
       "table": 1,
       "crystals": 4,
       "crystalsRed": false,
@@ -1038,6 +1092,35 @@
       "raw": "/ | 6 | 4 |  |  | 鱼2狐0刀0牛0(晦4)幻0 | 下回合不卡格能4费48：鱼牛刀暗刀晦刀舞 鱼刀刀龙暗龙龙 |  | 没下晦也不影响；缺暗也指有暗但费不够打出，此时暗视作杂牌"
     },
     {
+      "id": "t1-pre-03-n1",
+      "group": "预启动",
+      "table": 1,
+      "fromNote": "t1-pre-03 二阶段格「下回合不卡格能4费48：鱼牛刀暗刀晦刀舞 鱼刀刀龙暗龙龙」（高清图，2026-10-04 T2a 补转录成独立一行）",
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 4,
+      "junk": null,
+      "junkRed": false,
+      "specialJunk": null,
+      "specialJunkRaw": null,
+      "damage": 48,
+      "transcriptionFixes": [{"at": "junk", "was": 4, "now": null, "basis": "2026-10-04 T2a 第三轮：截图这一格只写了「下回合不卡格能4费48」，没有给下回合的杂牌数；原值 4 是从 t1-pre-03 那一行继承来的。下回合手里的杂牌取决于上回合终局和下回合抽到什么，截图没有声明，改为 null，案例结论记「待用户确认」"}],
+      "premise": {
+        "startHand": [{"card":"鱼","copy":true},{"card":"狐","copy":true},{"card":"刀","copy":true},{"card":"牛","copy":true},{"card":"晦","copy":true},{"card":"暗"},{"card":"龙"}],
+        "sideboard": ["舞"],
+        "reason": "下回合局面 = t1-pre-03 预启动打完：幻 把场上 鱼/狐/刀/牛/晦 复制成 1 费 1/1 进手；暗 原版留在手里（缺暗 = 费不够打出）；上回合牛在鲨鱼下发现两张，一张是已打出的幻、另一张取龙，边牌池只剩舞。「不卡格」= 我方场面已空（被对手清掉）。4 水晶 4 费"
+      },
+      "phases": ["鱼牛刀暗刀晦刀舞", "鱼刀刀龙暗龙龙"],
+      "steps": [
+        [{"card":"鱼","manaAfter":null},{"card":"牛","manaAfter":null},{"card":"刀","manaAfter":null},{"card":"暗","target":"刀","manaAfter":null},{"card":"刀","manaAfter":null},{"card":"晦","manaAfter":null},{"card":"刀","manaAfter":null},{"card":"舞","manaAfter":null}],
+        [{"card":"鱼","manaAfter":null},{"card":"刀","manaAfter":null},{"card":"刀","manaAfter":null},{"card":"龙","manaAfter":null},{"card":"暗","manaAfter":null},{"card":"龙","manaAfter":null},{"card":"龙","manaAfter":null}]
+      ],
+      "transcriptionNote": "原文无数字；一阶段 暗 的目标「刀」是本次按「暗 之后接两张刀」补的",
+      "note": "预启动行写给下回合的公式，此前只在 t1-pre-03 的 inference 里推演过，没进测试",
+      "uncertain": [],
+      "raw": "（t1-pre-03 二阶段格）下回合不卡格能4费48：鱼牛刀暗刀晦刀舞 鱼刀刀龙暗龙龙"
+    },
+    {
       "id": "t2-wuhu-01",
       "group": "无狐",
       "table": 2,
@@ -1080,6 +1163,28 @@
       "raw": "4 | 8 | 5 | 步 | 32 | 鱼4刀0牛0晦4步-刀4刀2暗1刀1舞1 | 鱼1晦4牛3刀2刀2龙1幻1龙0 |  | 4杂时舞能收到暗，二阶段可以鱼晦刀刀龙暗龙"
     },
     {
+      "id": "t2-wuhu-02-n1",
+      "group": "无狐",
+      "table": 2,
+      "fromNote": "t2-wuhu-02 备注「4杂时舞能收到暗，二阶段可以鱼晦刀刀龙暗龙」（表 2 低清图，2026-10-04 T2a 补转录）",
+      "crystals": 4,
+      "crystalsRed": false,
+      "cost": 8,
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": "步",
+      "specialJunkRaw": "步",
+      "damage": 32,
+      "phases": ["鱼4刀0牛0晦4步-刀4刀2暗1刀1舞1", "鱼晦刀刀龙暗龙"],
+      "steps": [
+        [{"card":"鱼","manaAfter":4},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"步","target":"刀","manaAfter":4},{"card":"刀","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"舞","manaAfter":1}],
+        [{"card":"鱼","manaAfter":null},{"card":"晦","manaAfter":null},{"card":"刀","manaAfter":null},{"card":"刀","manaAfter":null},{"card":"龙","manaAfter":null},{"card":"暗","manaAfter":null},{"card":"龙","manaAfter":null}]
+      ],
+      "note": "一阶段同 t2-wuhu-02；二阶段是备注给的替代线（无数字），杂牌数按备注取 4；伤害沿用该行 32",
+      "uncertain": [],
+      "raw": "（t2-wuhu-02 备注）4杂时舞能收到暗，二阶段可以鱼晦刀刀龙暗龙"
+    },
+    {
       "id": "t2-wuhu-03",
       "group": "无狐",
       "table": 2,
@@ -1100,14 +1205,27 @@
       "note": "5杂中2杂可清，二阶段晦回费爆费了，一阶段晦后可清杂（≤1费），还能通过「刀杂舞」清杂",
       "uncertain": ["steps[0]"],
       "resolved": ["steps[0]"],
+      "transcriptionFixes": [{"at": "expandedLines", "was": "两条：①不清 ②两张都清，②的一阶段带 T1 推演的法力（杂3 刀2 杂2 舞2），二阶段照抄①的印刷数字", "now": "四条清杂分支：①不清（印刷数字）②只清第一张（晦后，≤1费）③只清第二张（「刀杂舞」）④两张都清；②③④截图没印数字，从插入的杂起（含二阶段）不校验法力", "basis": "2026-10-04 T2a 第四轮：备注「5杂中2杂可清…一阶段晦后可清杂（≤1费），还能通过「刀杂舞」清杂」允许的清杂选择全部展开再下整行结论；推演出来的数字不当作截图内容"}],
       "expandedLines": [
         {
-          "label": "一阶段·不打两张括号杂（表里印的数字就是这一条）",
+          "label": "不清（表里印的数字就是这一支）",
+          "printed": true,
           "steps": [{"card":"鱼","manaAfter":5},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":3}]
         },
         {
-          "label": "一阶段·两张括号杂都清（第一张 1 费自付、第二张吃刀油槽）",
-          "steps": [{"card":"鱼","manaAfter":5},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"杂","manaAfter":3,"note":"≤1费，晦后刀油槽已空，按印刷价付"},{"card":"刀","manaAfter":2},{"card":"杂","manaAfter":2,"note":"吃掉刀油两层各 1 槽，≤4费即 0 费"},{"card":"舞","manaAfter":2}]
+          "label": "只清第一张（晦后，杂≤1费）",
+          "printed": false,
+          "steps": [{"card":"鱼","manaAfter":5},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"杂","maxCost":1},{"card":"刀"},{"card":"舞"}]
+        },
+        {
+          "label": "只清第二张（刀杂舞）",
+          "printed": false,
+          "steps": [{"card":"鱼","manaAfter":5},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"杂"},{"card":"舞"}]
+        },
+        {
+          "label": "两张都清",
+          "printed": false,
+          "steps": [{"card":"鱼","manaAfter":5},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"杂","maxCost":1},{"card":"刀"},{"card":"杂"},{"card":"舞"}]
         }
       ],
       "inference": {
@@ -1314,6 +1432,38 @@
       "raw": "4 | 9 | 2 | 殒 | 80 | 鱼5刀1暗0刀0牛0晦4刀3舞3 | 鱼3刀2刀2龙1暗1晦4刀3殒-舞3 | 鱼3龙2龙1晦4龙3暗2龙1 | "
     },
     {
+      "id": "t2-wuhu-n1",
+      "group": "无狐",
+      "table": 2,
+      "fromNote": "无狐组组注第二行「有骨刺对象时，“步+骨”能给以上无狐公式减2费：“刀骨鱼步刀”...如9费5杂32→7费5杂中步骨32：刀3骨3鱼3步-刀3刀1暗0刀0牛0晦4刀3舞3  鱼3刀2刀2龙1」（表 2 低清图，2026-10-04 T2a 补转录；放大核过，「龙1」之后单元格是空的，不是被裁掉）",
+      "crystals": 4,
+      "crystalsRaw": "（组注未写，沿用它改写的 9费5杂32 即 t2-wuhu-01 的 4 水晶）",
+      "crystalsRed": false,
+      "cost": 7,
+      "junk": 5,
+      "junkRed": false,
+      "specialJunk": ["步", "骨"],
+      "specialJunkRaw": "步骨",
+      "damage": 32,
+      "phases": ["刀3骨3鱼3步-刀3刀1暗0刀0牛0晦4刀3舞3", "鱼3刀2刀2龙1"],
+      "premise": {"cardsPlayedThisTurn": 1, "enemyBoard": [{"attack": 2, "health": 3}], "reason": "组注写「有骨刺对象时」= 对方场上有一个 3 伤打得死的随从（骨刺打它才减费，且自己的刀稍后还要被步收回，不能当骨刺目标）；另外首张就是刀且打完还剩 3（4 费原价），说明刀的连击已开 —— 刀之前垫过一张牌（费用列里的偷费），本回合已出牌数 = 1"},
+      "steps": [
+        [{"card":"刀","manaAfter":3},{"card":"骨","target":"敌随","manaAfter":3},{"card":"鱼","manaAfter":3},{"card":"步","target":"刀","manaAfter":3},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":3}],
+        [{"card":"鱼","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1}]
+      ],
+      "transcriptionNote": "骨 的 target「敌随」是本次按组注「有骨刺对象」补的，表里只写「骨」",
+      "tableErrata": {
+        "cells": [{"at": "steps[1] 末尾", "table": "鱼3刀2刀2龙1（到此为止）", "corrected": "鱼3刀2刀2龙1暗1龙0", "basis": "引擎重放：按原文二阶段只打出一次阿莱 = 16，与组注自己写的「32」不符。组注说这条是 9费5杂32（t2-wuhu-01）减 2 费的改写，t2-wuhu-01 二阶段正是「鱼3刀2刀2龙1暗1龙0」；补上「暗1龙0」后整行 32 逐格成立"}],
+        "steps": [
+          [{"card":"刀","manaAfter":3},{"card":"骨","target":"敌随","manaAfter":3},{"card":"鱼","manaAfter":3},{"card":"步","target":"刀","manaAfter":3},{"card":"刀","manaAfter":1},{"card":"暗","manaAfter":0},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":3}],
+          [{"card":"鱼","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"暗","manaAfter":1},{"card":"龙","manaAfter":0}]
+        ]
+      },
+      "note": "组注里的散文公式，此前没进任何测试",
+      "uncertain": [],
+      "raw": "（无狐组组注）有骨刺对象时，“步+骨”能给以上无狐公式减2费：“刀骨鱼步刀”...如9费5杂32→7费5杂中步骨32：刀3骨3鱼3步-刀3刀1暗0刀0牛0晦4刀3舞3  鱼3刀2刀2龙1"
+    },
+    {
       "id": "t2-wuhui-01",
       "group": "无晦",
       "table": 2,
@@ -1472,6 +1622,12 @@
       "damage": null,
       "phases": ["一阶段:鱼 暗-鱼 步-暗  二阶段:鱼 牛（幻 龙） 三阶段:鱼 暗-鱼 晦 幻 暗-暗  四阶段:鱼（晦）龙暗-龙   开始无限"],
       "steps": [null],
+      "expandedLines": [
+        {
+          "label": "2026-10-04 T2a 按散文逐 token 展开（括号里的牛发现结果 / 可选晦按写出的照打；「龙暗-龙...开始无限」的省略号之后不展开）",
+          "steps": [{"card":"鱼"},{"card":"暗","target":"鱼"},{"card":"步","target":"暗"},{"card":"鱼"},{"card":"牛"},{"card":"鱼"},{"card":"暗","target":"鱼"},{"card":"晦"},{"card":"幻"},{"card":"暗","target":"暗"},{"card":"鱼"},{"card":"晦"},{"card":"龙"},{"card":"暗","target":"龙"}]
+        }
+      ],
       "note": "费用太高一般用不到",
       "uncertain": ["phases[0]", "steps", "note"],
       "inference": {
@@ -1484,6 +1640,7 @@
     {
       "id": "t2-huqs-01",
       "group": "狐起手",
+      "premise": {"luckyComet": 1, "reason": "组名「提前彗」：上回合已打过幸运彗星（GDB_873），本回合第一张连击随从的连击触发两次（T2a 起作为开局状态 RDState.luckyCometCharges 表达）"},
       "table": 2,
       "crystals": 6,
       "crystalsRed": false,
@@ -1505,6 +1662,7 @@
     {
       "id": "t2-huqs-02",
       "group": "狐起手",
+      "premise": {"luckyComet": 1, "reason": "组名「提前彗」：上回合已打过幸运彗星（GDB_873），本回合第一张连击随从的连击触发两次（T2a 起作为开局状态 RDState.luckyCometCharges 表达）"},
       "table": 2,
       "crystals": 5,
       "crystalsRed": false,
@@ -1526,6 +1684,7 @@
     {
       "id": "t2-huqs-03",
       "group": "狐起手",
+      "premise": {"luckyComet": 1, "reason": "组名「提前彗」：上回合已打过幸运彗星（GDB_873），本回合第一张连击随从的连击触发两次（T2a 起作为开局状态 RDState.luckyCometCharges 表达）"},
       "table": 2,
       "crystals": 4,
       "crystalsRed": false,
@@ -1545,8 +1704,41 @@
       "raw": "4 | 6 | 4 | 骨 | 32 | 狐4骨-狐2刀2鱼2暗1刀0牛0晦4刀3舞3 | 鱼3刀2刀2龙1暗1龙0 |  | 步能为启动减2费（狐2步-狐2刀2鱼2暗1刀0牛0晦4骨-狐2刀2舞2  鱼2晦4刀3刀3龙2暗2龙1）"
     },
     {
+      "id": "t2-huqs-03-n1",
+      "group": "狐起手",
+      "table": 2,
+      "fromNote": "t2-huqs-03 备注「步能为启动减2费（狐2步-狐2刀2鱼2暗1刀0牛0晦4骨-狐2刀2舞2  鱼2晦4刀3刀3龙2暗2龙1）」（表 2 低清图，2026-10-04 T2a 补转录）",
+      "premise": {"luckyComet": 1, "reason": "组名「提前彗」：上回合已打过幸运彗星（GDB_873），本回合第一张连击随从的连击触发两次（T2a 起作为开局状态 RDState.luckyCometCharges 表达）"},
+      "crystals": 4,
+      "crystalsRaw": "（备注未写，沿用 t2-huqs-03 的 4 水晶）",
+      "crystalsRed": false,
+      "cost": 4,
+      "costRaw": "（备注说「减2费」，t2-huqs-03 的 6 费 - 2；与起手「狐2」一致）",
+      "junk": 4,
+      "junkRed": false,
+      "specialJunk": ["骨", "步"],
+      "specialJunkRaw": "骨（+步）",
+      "damage": 32,
+      "phases": ["狐2步-狐2刀2鱼2暗1刀0牛0晦4骨-狐2刀2舞2", "鱼2晦4刀3刀3龙2暗2龙1"],
+      "steps": [
+        [{"card":"狐","manaAfter":2},{"card":"步","target":"狐","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"骨","target":"狐","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"舞","manaAfter":2}],
+        [{"card":"鱼","manaAfter":2},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1}]
+      ],
+      "tableErrata": {
+        "cells": [{"at": "steps[0][1] 之后", "table": "步-狐2刀2（步收回狐之后直接下刀）", "corrected": "步-狐2狐2刀2（收回的 0 费狐再下一次）", "basis": "引擎重放：照原文 刀 只吃到一层狐的 -2，打完是 0 不是 2；且后面「骨-狐」要求狐在场，原文里狐已被步收回、没再下。补一个 0 费的「狐2」后，刀 吃两层狐 -4、骨-狐 有目标，整行 32 逐格成立。表 1 的 t1-48-03a 同一手法就写成「步-狐1狐1」"}],
+        "steps": [
+          [{"card":"狐","manaAfter":2},{"card":"步","target":"狐","manaAfter":2},{"card":"狐","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"骨","target":"狐","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"舞","manaAfter":2}],
+          [{"card":"鱼","manaAfter":2},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"刀","manaAfter":3},{"card":"龙","manaAfter":2},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1}]
+        ]
+      },
+      "note": "行备注里的公式，此前没进任何测试",
+      "uncertain": [],
+      "raw": "（t2-huqs-03 备注）步能为启动减2费（狐2步-狐2刀2鱼2暗1刀0牛0晦4骨-狐2刀2舞2  鱼2晦4刀3刀3龙2暗2龙1）"
+    },
+    {
       "id": "t2-huqs-04a",
       "group": "狐起手",
+      "premise": {"luckyComet": 1, "reason": "组名「提前彗」：上回合已打过幸运彗星（GDB_873），本回合第一张连击随从的连击触发两次（T2a 起作为开局状态 RDState.luckyCometCharges 表达）"},
       "table": 2,
       "crystals": 5,
       "crystalsRed": true,
@@ -1569,6 +1761,7 @@
     {
       "id": "t2-huqs-04b",
       "group": "狐起手",
+      "premise": {"luckyComet": 1, "reason": "组名「提前彗」：上回合已打过幸运彗星（GDB_873），本回合第一张连击随从的连击触发两次（T2a 起作为开局状态 RDState.luckyCometCharges 表达）"},
       "table": 2,
       "crystals": 4,
       "crystalsRed": false,
@@ -1590,6 +1783,7 @@
     {
       "id": "t2-huqs-05",
       "group": "狐起手",
+      "premise": {"luckyComet": 1, "reason": "组名「提前彗」：上回合已打过幸运彗星（GDB_873），本回合第一张连击随从的连击触发两次（T2a 起作为开局状态 RDState.luckyCometCharges 表达）"},
       "table": 2,
       "crystals": 5,
       "crystalsRed": false,
@@ -1611,6 +1805,14 @@
     {
       "id": "t2-daoqs-01",
       "group": "刀起手",
+      "premise": {"luckyComet": 1, "cardsPlayedThisTurn": 1, "reason": "组名「提前彗」：上回合已打过幸运彗星（GDB_873），本回合第一张连击随从的连击触发两次；刀起手：刀油是连击不是战吼，第一张刀之前已垫过一张牌（费用列里的偷费，如币），本回合已出牌数 = 1"},
+      "tableErrata": {
+        "cells": [{"at": "steps[0][3]", "table": "刀1", "corrected": "刀0", "basis": "引擎重放：暗 之后剩 1，刀 是 1 费复制且刀油槽已用完，打完只能是 0；紧随的「牛0」也只有从 0 出发才成立。同组 7 费的 t2-daoqs-03 同位置「刀1牛1」多 1 费，t2-daoqs-05 同位置就写「刀0」"}],
+        "steps": [
+          [{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":3}],
+          [{"card":"鱼","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"暗","manaAfter":1},{"card":"龙","manaAfter":0}]
+        ]
+      },
       "table": 2,
       "crystals": 4,
       "crystalsRed": false,
@@ -1632,6 +1834,17 @@
     {
       "id": "t2-daoqs-02",
       "group": "刀起手",
+      "premise": {"luckyComet": 1, "cardsPlayedThisTurn": 1, "reason": "组名「提前彗」：上回合已打过幸运彗星（GDB_873），本回合第一张连击随从的连击触发两次；刀起手：刀油是连击不是战吼，第一张刀之前已垫过一张牌（费用列里的偷费，如币），本回合已出牌数 = 1"},
+      "transcriptionFixes": [{"at": "expandedLines[0].steps[3]", "was": "刀0", "now": "刀1", "basis": "2026-10-04 T2a 对图：表 2 低清图该格印的是「刀1」。原转录在展开线里直接写了推演值 0，等于把改正藏进了转录；改回表值，改正挪到 tableErrata 由引擎判定"}, {"at": "expandedLines", "was": "只有一条：不清", "now": "四条清杂分支：①不清（印刷数字）②只清第一张（晦后，≤1费）③只清第二张（「刀杂舞」）④两张都清；②③④截图没印数字，从插入的杂起（含二阶段）不校验法力。tableErrata 的展开线同样四条（刀0 为改正值）", "basis": "2026-10-04 T2a 第四轮：备注「5杂中2杂可清…一阶段晦后可清杂（≤1费），以及「刀杂舞」清杂」允许的清杂选择全部展开再下整行结论"}],
+      "tableErrata": {
+        "cells": [{"at": "expandedLines[0].steps[3]", "table": "刀1", "corrected": "刀0", "basis": "同 t2-daoqs-01：引擎重放 暗 之后剩 1，1 费刀复制打完只能是 0，后面「牛0」从 0 出发才成立"}],
+        "expandedLines": [
+          {"label": "不清（刀0 为改正值）", "steps": [{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":3}]},
+          {"label": "只清第一张（刀0 为改正值）", "steps": [{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"杂","maxCost":1},{"card":"刀"},{"card":"舞"}]},
+          {"label": "只清第二张（刀0 为改正值）", "steps": [{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"杂"},{"card":"舞"}]},
+          {"label": "两张都清（刀0 为改正值）", "steps": [{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"杂","maxCost":1},{"card":"刀"},{"card":"杂"},{"card":"舞"}]}
+        ]
+      },
       "table": 2,
       "crystals": 4,
       "crystalsRed": false,
@@ -1652,8 +1865,24 @@
       "resolved": ["steps[0]"],
       "expandedLines": [
         {
-          "label": "一阶段·不打两张括号杂（注意：「刀1」按推演应为「刀0」，见 inference）",
-          "steps": [{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":3}]
+          "label": "不清（注意：「刀1」按推演应为「刀0」，见 inference）",
+          "printed": true,
+          "steps": [{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":3}]
+        },
+        {
+          "label": "只清第一张（晦后，杂≤1费）",
+          "printed": false,
+          "steps": [{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"杂","maxCost":1},{"card":"刀"},{"card":"舞"}]
+        },
+        {
+          "label": "只清第二张（刀杂舞）",
+          "printed": false,
+          "steps": [{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"杂"},{"card":"舞"}]
+        },
+        {
+          "label": "两张都清",
+          "printed": false,
+          "steps": [{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":1},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"杂","maxCost":1},{"card":"刀"},{"card":"杂"},{"card":"舞"}]
         }
       ],
       "inference": {
@@ -1666,6 +1895,7 @@
     {
       "id": "t2-daoqs-03",
       "group": "刀起手",
+      "premise": {"luckyComet": 1, "cardsPlayedThisTurn": 1, "reason": "组名「提前彗」：上回合已打过幸运彗星（GDB_873），本回合第一张连击随从的连击触发两次；刀起手：刀油是连击不是战吼，第一张刀之前已垫过一张牌（费用列里的偷费，如币），本回合已出牌数 = 1"},
       "table": 2,
       "crystals": 5,
       "crystalsRed": false,
@@ -1687,6 +1917,14 @@
     {
       "id": "t2-daoqs-04a",
       "group": "刀起手",
+      "premise": {"luckyComet": 1, "cardsPlayedThisTurn": 1, "reason": "组名「提前彗」：上回合已打过幸运彗星（GDB_873），本回合第一张连击随从的连击触发两次；刀起手：刀油是连击不是战吼，第一张刀之前已垫过一张牌（费用列里的偷费，如币），本回合已出牌数 = 1"},
+      "tableErrata": {
+        "cells": [{"at": "steps[0][3]", "table": "刀1", "corrected": "刀0", "basis": "同 t2-daoqs-01：引擎重放 暗 之后剩 1，1 费刀复制打完只能是 0，后面「牛0」从 0 出发才成立"}],
+        "steps": [
+          [{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"杂","manaAfter":3},{"card":"舞","manaAfter":3}],
+          [{"card":"鱼","manaAfter":2},{"card":"晦","manaAfter":5},{"card":"刀","manaAfter":4},{"card":"刀","manaAfter":4},{"card":"龙","manaAfter":3},{"card":"腾格","manaAfter":3},{"card":"暗","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+        ]
+      },
       "table": 2,
       "crystals": 5,
       "crystalsRed": true,
@@ -1710,6 +1948,14 @@
     {
       "id": "t2-daoqs-04b",
       "group": "刀起手",
+      "premise": {"luckyComet": 1, "cardsPlayedThisTurn": 1, "reason": "组名「提前彗」：上回合已打过幸运彗星（GDB_873），本回合第一张连击随从的连击触发两次；刀起手：刀油是连击不是战吼，第一张刀之前已垫过一张牌（费用列里的偷费，如币），本回合已出牌数 = 1"},
+      "tableErrata": {
+        "cells": [{"at": "steps[0][3]", "table": "刀1", "corrected": "刀0", "basis": "同 t2-daoqs-01：引擎重放 暗 之后剩 1，1 费刀复制打完只能是 0，后面「牛0」从 0 出发才成立"}],
+        "steps": [
+          [{"card":"刀","manaAfter":2},{"card":"鱼","manaAfter":2},{"card":"暗","manaAfter":1},{"card":"刀","manaAfter":0},{"card":"牛","manaAfter":0},{"card":"晦","manaAfter":4},{"card":"刀","manaAfter":3},{"card":"舞","manaAfter":3}],
+          [{"card":"鱼","manaAfter":3},{"card":"刀","manaAfter":2},{"card":"刀","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"暗","manaAfter":1},{"card":"晦","manaAfter":4},{"card":"腾格","manaAfter":2},{"card":"龙","manaAfter":1},{"card":"龙","manaAfter":0}]
+        ]
+      },
       "table": 2,
       "crystals": 4,
       "crystalsRed": false,
@@ -1731,6 +1977,7 @@
     {
       "id": "t2-daoqs-05",
       "group": "刀起手",
+      "premise": {"luckyComet": 1, "cardsPlayedThisTurn": 1, "reason": "组名「提前彗」：上回合已打过幸运彗星（GDB_873），本回合第一张连击随从的连击触发两次；刀起手：刀油是连击不是战吼，第一张刀之前已垫过一张牌（费用列里的偷费，如币），本回合已出牌数 = 1"},
       "table": 2,
       "crystals": 5,
       "crystalsRed": true,
@@ -1754,6 +2001,7 @@
     {
       "id": "t2-wuhui2-01",
       "group": "无晦（狐视作杂牌）",
+      "premise": {"luckyComet": 1, "reason": "组名「提前彗」：上回合已打过幸运彗星（GDB_873），本回合第一张连击随从的连击触发两次（T2a 起作为开局状态 RDState.luckyCometCharges 表达）"},
       "table": 2,
       "crystals": null,
       "crystalsRaw": "/",
@@ -1776,6 +2024,7 @@
     {
       "id": "t2-wuhui2-02",
       "group": "无晦（狐视作杂牌）",
+      "premise": {"luckyComet": 1, "reason": "组名「提前彗」：上回合已打过幸运彗星（GDB_873），本回合第一张连击随从的连击触发两次（T2a 起作为开局状态 RDState.luckyCometCharges 表达）"},
       "table": 2,
       "crystals": null,
       "crystalsRaw": "/",
@@ -1798,6 +2047,7 @@
     {
       "id": "t2-16-01a",
       "group": "打/回16（狐视作杂牌）",
+      "premise": {"luckyComet": 1, "reason": "组名「提前彗」：上回合已打过幸运彗星（GDB_873），本回合第一张连击随从的连击触发两次（T2a 起作为开局状态 RDState.luckyCometCharges 表达）"},
       "table": 2,
       "crystals": 4,
       "crystalsRed": false,
@@ -1819,6 +2069,7 @@
     {
       "id": "t2-16-01b",
       "group": "打/回16（狐视作杂牌）",
+      "premise": {"luckyComet": 1, "reason": "组名「提前彗」：上回合已打过幸运彗星（GDB_873），本回合第一张连击随从的连击触发两次（T2a 起作为开局状态 RDState.luckyCometCharges 表达）"},
       "table": 2,
       "crystals": 4,
       "crystalsRed": false,
@@ -1840,6 +2091,7 @@
     {
       "id": "t2-pre-01",
       "group": "预启动（狐视作杂牌）",
+      "premise": {"luckyComet": 1, "cardsPlayedThisTurn": 1, "reason": "组名「提前彗」：上回合已打过幸运彗星（GDB_873），本回合第一张连击随从的连击触发两次；本行以刀起手：刀油是连击不是战吼，第一张刀之前已垫过一张牌（费用列里的偷费，如币），本回合已出牌数 = 1"},
       "table": 2,
       "crystals": null,
       "crystalsRaw": "/",
@@ -1871,6 +2123,7 @@
     {
       "id": "t2-pre-02",
       "group": "预启动（狐视作杂牌）",
+      "premise": {"luckyComet": 1, "reason": "组名「提前彗」：上回合已打过幸运彗星（GDB_873），本回合第一张连击随从的连击触发两次（T2a 起作为开局状态 RDState.luckyCometCharges 表达）"},
       "table": 2,
       "crystals": null,
       "crystalsRaw": "/",
@@ -1901,6 +2154,8 @@
     {
       "id": "t2-chou-01",
       "group": "常用缺随抽随",
+      "startDeckVariants": [["暗", "牛"], ["暗", "晦"], ["牛", "晦"]],
+      "startDeckNote": "2026-10-04 T2a 补：行标签「缺暗牛晦中2个」= 起手缺这三张里的两张、它们在牌库，靠帷幕（牌库随从 ≤ 2 → 确定抽到）拿回。原起手（sim.py seed_for）六随从全在手、牌库为空，帷幕实际空抽，没体现这一行要教的东西。三种缺法逐一重放；起手里不放这两张、牌库里只放这两张",
       "table": 2,
       "rowLabel": "缺暗牛晦中2个",
       "crystals": 5,

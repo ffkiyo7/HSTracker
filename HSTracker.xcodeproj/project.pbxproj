@@ -382,6 +382,8 @@
 		B8DD0F00000000000000B005 /* RedDragonDifficulty.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A005 /* RedDragonDifficulty.swift */; };
 		B8DD0F00000000000000B006 /* RedDragonSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A006 /* RedDragonSearch.swift */; };
 		B8DD0F00000000000000B007 /* RedDragonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A007 /* RedDragonTests.swift */; };
+		B8DD0F00000000000000B010 /* RedDragonComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A010 /* RedDragonComponents.swift */; };
+		B8DD0F00000000000000B011 /* RedDragonFormulaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A011 /* RedDragonFormulaTests.swift */; };
 		B8DD0F00000000000000B008 /* formulas.json in Resources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A008 /* formulas.json */; };
 		43C1C9F61E96CCDB008C20B1 /* SecretTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43640BE21E8A328700FAFD07 /* SecretTests.swift */; };
 		43C1C9F71E96CCE9008C20B1 /* AlgorithmTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CF1B5891E81426D007DCBF2 /* AlgorithmTests.swift */; };
@@ -2073,6 +2075,8 @@
 		B8DD0F00000000000000A005 /* RedDragonDifficulty.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonDifficulty.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A006 /* RedDragonSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonSearch.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A007 /* RedDragonTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonTests.swift; sourceTree = "<group>"; };
+		B8DD0F00000000000000A010 /* RedDragonComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonComponents.swift; sourceTree = "<group>"; };
+		B8DD0F00000000000000A011 /* RedDragonFormulaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonFormulaTests.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A008 /* formulas.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = formulas.json; path = Fixtures/RedDragon/formulas.json; sourceTree = "<group>"; };
 		1CF1B58B1E815810007DCBF2 /* LogReaderTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LogReaderTests.swift; sourceTree = "<group>"; };
 		1CF204F81E83B74300037A42 /* MirrorHelper.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MirrorHelper.swift; sourceTree = "<group>"; };
@@ -4322,6 +4326,7 @@
 				B8DD0F00000000000000A004 /* RedDragonReplay.swift */,
 				B8DD0F00000000000000A005 /* RedDragonDifficulty.swift */,
 				B8DD0F00000000000000A006 /* RedDragonSearch.swift */,
+				B8DD0F00000000000000A010 /* RedDragonComponents.swift */,
 			);
 			path = RedDragon;
 			sourceTree = "<group>";
@@ -4331,6 +4336,7 @@
 			children = (
 				1CF1B5891E81426D007DCBF2 /* AlgorithmTests.swift */,
 				B8DD0F00000000000000A007 /* RedDragonTests.swift */,
+				B8DD0F00000000000000A011 /* RedDragonFormulaTests.swift */,
 				B8DD0F00000000000000A008 /* formulas.json */,
 				B8DD0F00000000000000A009 /* CardZoneGroupsTests.swift */,
 				B8DD0F00000000000000A00A /* ZoneGroupsReplayTests.swift */,
@@ -8060,6 +8066,7 @@
 				B8DD0F00000000000000B004 /* RedDragonReplay.swift in Sources */,
 				B8DD0F00000000000000B005 /* RedDragonDifficulty.swift in Sources */,
 				B8DD0F00000000000000B006 /* RedDragonSearch.swift in Sources */,
+				B8DD0F00000000000000B010 /* RedDragonComponents.swift in Sources */,
 				B89865C52D92010C00BA5649 /* ElvenMinstrel.swift in Sources */,
 				B8B78F9D2C93C39000DD33EC /* IShowInGlobalEffectList.swift in Sources */,
 				B89865992D91D1DA00BA5649 /* MalygosTheSpellweaverCore.swift in Sources */,
@@ -9044,6 +9051,7 @@
 				B8DD0F00000000000000B00A /* ZoneGroupsReplayTests.swift in Sources */,
 				B8DD0F00000000000000B00C /* TrackerMetricsTests.swift in Sources */,
 				B8DD0F00000000000000B007 /* RedDragonTests.swift in Sources */,
+				B8DD0F00000000000000B011 /* RedDragonFormulaTests.swift in Sources */,
 				43C1C9FD1E96CCE9008C20B1 /* DatabaseTests.swift in Sources */,
 				439BD8C91EBCD40200959F69 /* EnumTests.swift in Sources */,
 				B8AA00022C00000100000002 /* OfficialBuildTests.swift in Sources */,

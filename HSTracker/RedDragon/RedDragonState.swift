@@ -53,11 +53,14 @@ struct RDHandCard {
     /// **不进 `canonicalHash`**：对搜索来说所有杂牌等价（都打不出去、都只占一个手牌格），
     /// 按 cardId 区分只会让去重失效、状态数翻倍。
     var unmodeledCardId: String?
+    /// 本回合才进手（抽到 / 发现 / 复制 / 弹回）。只对「快枪」牌（`quickdrawCost`）有影响
+    var enteredHandThisTurn: Bool
 
     init(entityId: Int, card: RDCard, pool: [RDCard] = [], enchants: [RDEnchant] = [],
          statsOverride: RDStats? = nil, isShadowOfDemise: Bool = false,
          printedCostOverride: Int? = nil, poolFromSideboard: Bool = false,
-         unmodeledCardId: String? = nil) {
+         unmodeledCardId: String? = nil, enteredHandThisTurn: Bool = false) {
+        self.enteredHandThisTurn = enteredHandThisTurn
         self.entityId = entityId
         self.card = card
         self.pool = pool
@@ -113,6 +116,8 @@ struct RDEnemyMinion {
     var divineShield: Bool
     var immune: Bool
     var stealth: Bool
+    /// 本回合受过伤（背刺只能指未受伤的随从）。开局状态按未受伤算
+    var damaged = false
 }
 
 struct RDOpponent {
@@ -212,6 +217,11 @@ struct RDState {
     var layers: [RDDiscountLayer]
     var secretsInPlay: [RDCard]
 
+    /// 幸运彗星（`GDB_873`）留下的「下一张连击随从的连击触发两次」还剩几次。
+    /// 这张牌不进本牌组的搜索（09-11 已决），它只作为**开局前就存在的状态**：
+    /// 上回合打过、效果不限本回合。T2b 从对局里读玩家身上的彗星附魔填这一格。
+    var luckyCometCharges: Int
+
     var damageDealt: Int
     var nextEntityId: Int
     /// 打过几次「花费用 + 抽 1 张未知」的截断牌（异教地图 / 垂钓时光）
@@ -249,6 +259,7 @@ struct RDState {
         self.sideboard = RDCards.sideboardCards
         self.layers = []
         self.secretsInPlay = []
+        self.luckyCometCharges = 0
         self.damageDealt = 0
         self.nextEntityId = 1
         self.truncatedDraws = 0
@@ -263,7 +274,10 @@ struct RDState {
     }
 
     func effectiveBaseCost(_ card: RDHandCard, as identity: RDCard) -> Int {
-        var value = card.printedCostOverride ?? RDCards.def(identity).printedCost
+        let def = RDCards.def(identity)
+        // 快枪「费用为 (X)」：按固定值算，盖过附魔和减费层（见 `cost`）。待核口径，card-model H 节
+        if card.enteredHandThisTurn, let q = def.quickdrawCost { return q }
+        var value = card.printedCostOverride ?? def.printedCost
         for e in card.enchants {
             switch e {
             case .set(let v): value = v
@@ -283,6 +297,14 @@ struct RDState {
     }
 
     func cost(of card: RDHandCard, as identity: RDCard) -> Int {
+        // 快枪生效（本回合进手）时的固定费用。口径：固定值，不再吃伺机待发 / 狐 / 刀油的减费层、
+        // 也不吃费用附魔。依据只有玩家实测的说法；官方规则是「费用修改按产生先后依次生效，后设定的
+        // 覆盖先前的」，快枪这次设定算在什么时刻没有查到确证 —— **待核**。取这个口径是因为它给出的
+        // 费用不低于另一种算法，搜索不会因此报出打不出来的线。减费层照样被这张牌消耗（`consumeLayers`）。
+        // 热路径：先查预算好的布尔表，别为每张牌拷整张 def
+        if card.enteredHandThisTurn && RDCards.hasQuickdraw(identity) {
+            return RDCards.def(identity).quickdrawCost ?? 0
+        }
         return max(0, effectiveBaseCost(card, as: identity) - discount(for: card, as: identity))
     }
 
@@ -304,6 +326,15 @@ struct RDState {
     }
 
     /// 去重用的确定性指纹。跨进程稳定（不用 Swift 的随机种子 Hasher）
+    ///
+    /// 不进哈希的字段，都是一次搜索里恒定、或由已入哈希的字段决定的：
+    /// - `handLimit` / `boardLimit` / `spellDamage`：没有牌会改它们，整次搜索恒定；
+    /// - `nextEntityId` 和所有 entityId：只是编号，两条路径编号不同但局面相同时应当合并；
+    /// - `opponent.immune` / `opponent.secretCount`、敌方随从的 `immune` / `stealth`：本牌组没有牌改它们；
+    /// - 我方随从的 `maxHealth` / `statsSetTo1x1`：由卡 + 当前身材 + 是否沉默决定（只有 1/1 复制体会是 1/1）；
+    /// - 手牌的 `pool` / `poolFromSideboard`：只有 `.replay` 口径会产生，搜索口径恒为空；
+    /// - 手牌的 `unmodeledCardId`：所有杂牌对搜索等价（见该字段注释）；
+    /// - 手牌的 `enteredHandThisTurn`：只影响快枪牌的费用，所以只对快枪牌进哈希。
     func canonicalHash() -> UInt64 {
         var h: UInt64 = 0xcbf2_9ce4_8422_2325
         func feed(_ v: Int) {
@@ -312,6 +343,7 @@ struct RDState {
         feed(mana); feed(tempMana); feed(maxMana)
         feed(cardsPlayedThisTurn); feed(damageDealt); feed(truncatedDraws)
         feed(heroAttackedThisTurn ? 1 : 0); feed(heroPowerUsed ? 1 : 0)
+        feed(luckyCometCharges)
         feed(opponent.health); feed(opponent.armor)
         feed(weapon?.attack ?? -1); feed(weapon?.durability ?? -1)
         // 手牌与顺序无关：把每张牌的 key 哈希交换律地并起来，省掉排序与分配。
@@ -325,6 +357,10 @@ struct RDState {
             var key = UInt64(identity.rawValue &* 64 &+ min(63, effectiveBaseCost(c, as: identity)))
             key = key &* 2 &+ (c.statsOverride == nil ? 0 : 1)
             key = key &* 2 &+ (c.isShadowOfDemise ? 1 : 0)
+            // 快枪牌的「本回合进手」决定它以后的费用（受减费层影响后不一定还看得出来），要进哈希
+            if RDCards.hasQuickdraw(identity) {
+                key = key &* 2 &+ (c.enteredHandThisTurn ? 1 : 0)
+            }
             let mixed = (key &+ 0x9e37_79b9_7f4a_7c15) &* 0xff51_afd7_ed55_8ccd
             handMix ^= mixed
             handSum = handSum &+ mixed
@@ -362,6 +398,7 @@ struct RDState {
         for s in secretsInPlay { feed(s.rawValue) }
         for m in opponent.board {
             feed(m.attack); feed(m.health); feed(m.taunt ? 1 : 0); feed(m.divineShield ? 1 : 0)
+            feed(m.damaged ? 1 : 0)
         }
         return h
     }
