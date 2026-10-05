@@ -583,3 +583,44 @@ T1 任务书与执行结果 `docs/archive/tasks/spike-rdr-t1-search-core.md`（�
     cp HSTrackerTests/Fixtures/RedDragon/formulas.json $B/ && $B/rdbench
     ```
   - `bench/main.swift`（不入库）只做三件事：定义一个空的 `HSTrackerTests: XCTestCase` 基类，代替测试 target 里初始化 Realm 的那个；调 `RedDragonFormulaTests.setUp()`；调 `testProductionConfigCostRelease()`。所以起手构造、fixture、默认 `RedDragonConfig()` 和测试里完全相同。`Bundle(for:)` 在命令行程序里指向可执行文件所在目录，所以要把 fixture 复制到 `bench/`。
+
+### T2b 舞动顺序订正（10-05，T2b 第二轮 A4）
+
+T2b 用本机日志否定了「舞动手牌满烧最右」：舞动按**上场先后**收回，后上场的被烧（证据见 `docs/research/red-dragon-card-model.md`「T2b 舞动顺序订正」）。引擎改了之后重跑本书全部测试，`RedDragonFormulaTests` 7 条全过（1 条 `testProductionConfigCostRelease` 按设计在 Debug 跳过），Debug 242 s。
+
+**引擎改了什么**
+- 舞动不再有「排法」：按上场先后处理，烧掉的是最后上场的那几个，与落位无关。`RDBoardOrder`（延后决定场位）只剩幻觉药水用（药水仍按场位从左到右复制，日志里 7 次药水都没爆手，**待核**）。
+- 局面哈希：只在「场位顺序 ≠ 上场顺序」时才多喂上场顺序，两者一致的局面哈希和本书原来的一样 —— 采样补搜按哈希抽样，哈希一变抽到的局面就变，`t2-wuhui-03` 靠补搜救回的结论因此不受影响（第一次改哈希时它掉到 16 < 32）。
+
+**结论变了的案例**（签名逐字记在 `rdExpectedFailures`）
+
+| 案例 | 原结论 | 现结论 | 签名 | 原因 |
+|---|---|---|---|---|
+| t2-wuhu-09 | 原样重放通过 | **公式不成立** | 爆手｜第18步「晦4」 | 二阶段上场先后 鱼刀刀龙暗晦，殒变成的第二次舞动放不下全部，最后下的晦被烧，三阶段第 3 张就要的晦没了。原来按场位、把晦排在左边能收回 |
+| t2-wuhu-03#1 | 公式不成立（爆手｜第15步「暗2」） | 公式不成立 | 爆手｜第10步「晦4」 | 舞动只剩 4 格，按上场先后 鱼刀暗刀牛晦刀 收回前 4 个，晦被烧，卡点提前到第 10 步 |
+| t2-daoqs-02#1 | 同上 | 公式不成立 | 爆手｜第10步「晦4」 | 同 t2-wuhu-03#1（带前提、改正后） |
+| t2-wuhu-03#2 | 清杂分支可行 | **公式不成立** | 爆手｜第11步「晦」；第7步「杂」 | 只清第一张：剩 5 格，晦和最后一张刀被烧（「第7步「杂」」是另一种实例化：手里没有 ≤1 费的杂） |
+| t2-wuhu-03#3 | 清杂分支可行 | **公式不成立** | 爆手｜第11步「晦」 | 只清第二张：同上 |
+| t2-daoqs-02#2 / #3 | 清杂分支可行 | **公式不成立** | 同 t2-wuhu-03#2 / #3 | 同上 |
+
+- 多分支行：`t2-wuhu-03`、`t2-daoqs-02` 现在都只靠「两张都清」那一支成立（整行仍成立）。原来三条清杂支都可行。
+- **结论分布**（90 个案例）：通过 **80**（原样 48、前提下 22、改正后 8、清杂分支可行 2），未验证 **10**（公式不成立 8、待用户确认 1、非单回合 1）。原来是通过 85 / 未验证 5。
+- 搜索：齐件 53 个、缺件 27 个案例全部达标（伤害分布见测试输出）。
+
+**缺件补齐**：25 个有目标，23 个达标；2 个**已知搜索漏线**，记在新加的 `rdExpectedSupplementMisses`（不在表里的必须达标，在表里的必须仍没到 —— 搜到了就要从表里删）：
+
+| 案例 | 搜到 / 目标 | 说明 |
+|---|---|---|
+| t2-wuhu-10 补狐 | 65 / 80 | 本案例自己的线补齐后严格重放到 80 仍成立 —— 线在，束丢了。-O 基准：从这条线走完前 6 步的局面起搜能找到，起手到第 5 步都找不到；状态闸门 80 万 / 160 万、束宽 ×2、采样束 ×2 都还是 65 |
+| t2-wuhui-04 补晦 | 49 / 64（参照 t1-48p-03） | 状态闸门 80 万到 56，束宽 / 采样束 ×2 仍 49 |
+
+原来两个都达标。推测是舞动的排法变体（按场位时多出的子节点）改变了束里留下的局面，没有逐层核实。这是搜索质量问题，不是公式不成立；要不要为它调束（会动所有案例的耗时）待总指挥定。
+
+**基准命令**（-O，仓库根，`B` = scratchpad 下的 `bench3/`，`main.swift` 里的起手由测试打印的字面量构造，不入库）：
+```
+env PATH=/usr/bin:/bin:/usr/sbin:/sbin xcrun swiftc -O -wmo -enable-testing -emit-library -emit-module \
+  -module-name HSTracker -emit-module-path $B/HSTracker.swiftmodule -o $B/libHSTracker.dylib \
+  HSTracker/RedDragon/RedDragon{Cards,Components,Difficulty,Engine,Replay,Search,State}.swift
+env PATH=/usr/bin:/bin:/usr/sbin:/sbin xcrun swiftc -O -module-name RDBench -I $B -L $B -lHSTracker \
+  -Xlinker -rpath -Xlinker $B -o $B/rdbench $B/main.swift && $B/rdbench
+```

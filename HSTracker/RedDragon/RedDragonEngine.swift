@@ -26,12 +26,31 @@ enum RDChoice: Equatable {
 
 enum RDAction: Equatable {
     /// `position`：随从落位（插在场上第几格之前，0 = 最左）。nil = 最右。
-    /// 真实炉石由玩家决定落位；舞动按场上从左到右收回、手牌放不下的（最右侧）被烧，
-    /// 复制全场也按从左到右进手，所以落位会改变结果。法术 / 武器恒为 nil。
+    /// 真实炉石由玩家决定落位。只有幻觉药水（复制全场，按从左到右进手、放不下的丢掉，待核）
+    /// 受落位影响；舞动按上场先后处理，与落位无关（T2b 日志订正）。法术 / 武器恒为 nil。
     case play(entityId: Int, identity: RDCard, target: RDTarget, choices: [RDChoice],
               position: Int? = nil)
     case heroPower
-    case attack(attacker: RDTarget, defender: RDTarget)
+    /// `choices`：攻击之后触发的抽牌（疾速矿锄「在你的英雄攻击后，抽一张牌」，T2b 第四轮），口径同打牌
+    case attack(attacker: RDTarget, defender: RDTarget, choices: [RDChoice] = [])
+
+    /// 这一步的确定化选择（抽牌 / 发现），不管是打牌还是攻击带来的
+    var choices: [RDChoice] {
+        switch self {
+        case .play(_, _, _, let c, _): return c
+        case .attack(_, _, let c): return c
+        case .heroPower: return []
+        }
+    }
+
+    /// 同一个动作，换一组确定化选择
+    func replacingChoices(_ c: [RDChoice]) -> RDAction {
+        switch self {
+        case .play(let e, let i, let t, _, let p): return .play(entityId: e, identity: i, target: t, choices: c, position: p)
+        case .attack(let a, let d, _): return .attack(attacker: a, defender: d, choices: c)
+        case .heroPower: return self
+        }
+    }
 }
 
 enum RDIllegal: Error, Equatable {
@@ -89,8 +108,9 @@ enum RDEngine {
                                 options: options)
         case .heroPower:
             return try useHeroPower(state)
-        case .attack(let attacker, let defender):
-            return try resolveAttack(attacker: attacker, defender: defender, state: state)
+        case .attack(let attacker, let defender, let choices):
+            return try resolveAttack(attacker: attacker, defender: defender, choices: choices,
+                                     state: state, options: options)
         }
     }
 
@@ -150,7 +170,8 @@ enum RDEngine {
                                        maxHealth: stats.health,
                                        statsSetTo1x1: handCard.statsOverride != nil,
                                        silenced: false, summoningSick: true,
-                                       attacksThisTurn: 0, enchants: handCard.enchants)
+                                       attacksThisTurn: 0, enchants: handCard.enchants,
+                                       playOrder: s.takePlayOrder())
             s.board.insert(minion, at: position ?? s.board.count)
             summonedId = id
         }
@@ -329,9 +350,11 @@ enum RDEngine {
     /// 两个一模一样的随从站位不同，指左边还是右边，会改变之后舞动 / 药水收到哪几张（例：骨刺杀右边那只
     /// 1/1 阿莱，药水才复制得到左边那只），所以不等价。等价的那几个由搜索在执行后按「局面 + 场序偏序」去重
     /// （`RedDragonSearch.collapseEquivalentTargets`）。没有这类牌时场序不影响任何结果，
-    /// 进哈希的字段全相同（`minionKey`）的随从才合并
+    /// 进哈希的字段全相同（`minionKey`）的随从才合并。
+    /// 舞动可达时同理（`arrivalOrderMatters`，T2b 第三轮）：舞动按上场先后收回，上场先后是 A₁、B、A₂ 时
+    /// 弹走 / 杀掉 A₁ 和 A₂ 留下的上场先后不同，之后爆手收回的牌就不同。执行后按包含上场先后的哈希去重
     private static func appendFriendlyTargets(_ state: RDState, into out: inout [RDTarget]) {
-        if boardOrderMatters(state) {
+        if boardOrderMatters(state) || arrivalOrderMatters(state) {
             for m in state.board { out.append(.friendlyMinion(m.entityId)) }
             return
         }
@@ -399,7 +422,9 @@ enum RDEngine {
             returnToHand(minion, extraEnchant: .delta(costDelta), state: &s)
 
         case .bounceAllFriendly(let setCost):
-            let minions = s.board
+            // 按上场先后处理，后上场的放不下就被烧（日志：10-01 那局 Power.log 的 5 次舞动爆手全部如此，
+            // 其中一次后上场的放在最左；card-model H 节）。与场位无关
+            let minions = s.boardIndicesByPlayOrder().map { s.board[$0] }
             s.board = []
             for minion in minions {
                 returnToHand(minion, extraEnchant: .set(setCost), state: &s)
@@ -604,9 +629,12 @@ enum RDEngine {
         return s
     }
 
-    private static func resolveAttack(attacker: RDTarget, defender: RDTarget,
-                                      state: RDState) throws -> RDState {
+    private static func resolveAttack(attacker: RDTarget, defender: RDTarget, choices: [RDChoice],
+                                      state: RDState, options: RDOptions) throws -> RDState {
         var s = state
+        // 疾速矿锄：攻击结算完、武器耐久用光也照样抽（10-01 原始 Power.log 第 4119 行：武器 DAMAGE 到 2 之后
+        // 它的 TRIGGER 块仍抽了牌，块在攻击之后、单独一个顶层块）
+        let drawsAfter = attacker == .friendlyHero && (s.weapon?.drawOnHeroAttack ?? false)
         let taunts = s.opponent.board.filter { $0.taunt && !$0.stealth }
         if !taunts.isEmpty {
             guard case .enemyMinion(let id) = defender,
@@ -620,7 +648,7 @@ enum RDEngine {
             guard let weapon = s.weapon, weapon.attack > 0, weapon.durability > 0 else {
                 throw RDIllegal.noWeapon
             }
-            guard !s.heroAttackedThisTurn else { throw RDIllegal.cannotAttack }
+            guard !s.heroAttackedThisTurn, !s.heroFrozen else { throw RDIllegal.cannotAttack }
             attackPower = weapon.attack
             s.heroAttackedThisTurn = true
             s.weapon?.durability -= 1
@@ -652,35 +680,69 @@ enum RDEngine {
             throw RDIllegal.illegalTarget
         }
         removeDeadMinions(&s)
+        if drawsAfter {
+            var ctx = RDEffectContext(target: .none, choices: choices, source: nil, options: options)
+            try resolve(.draw(filter: Self.heroAttackDrawFilter, count: 1), state: &s, ctx: &ctx)
+        } else if !choices.isEmpty {
+            throw RDIllegal.missingChoice
+        }
         return s
     }
+
+    /// 疾速矿锄抽的是任意一张
+    static let heroAttackDrawFilter = RDCardFilter.any
 
     // MARK: - 合法动作枚举
 
     static func legalActions(_ state: RDState, options: RDOptions = .search) -> [RDAction] {
+        var dropped = false
+        return legalActions(state, options: options, dropped: &dropped)
+    }
+
+    /// `dropped`：这一步有合法的走法没列出来 —— 抽牌 / 发现组合被截断、跳过的过牌（异教地图 / 垂钓）、
+    /// 打不出的未建模牌（真实对局里它可能有用）。搜索据此判断「没搜到斩杀」能不能当证明
+    static func legalActions(_ state: RDState, options: RDOptions, dropped: inout Bool) -> [RDAction] {
         var out: [RDAction] = []
         out.reserveCapacity(24)
 
         let orderMatters = options.expandPlacements && boardOrderMatters(state)
-        // 同一张牌的不同实例（费用相同、附魔相同）只展开一次
+        // 同一张牌的不同实例（结算上完全相同）只展开一次。键用附魔的内容和身材覆盖的数值，
+        // 不只是附魔张数（T2b 第三轮收紧：原来只比张数和「有没有覆盖」）
         var seenCardKeys: [Int] = []
         seenCardKeys.reserveCapacity(state.hand.count)
         for card in state.hand {
             for identityIndex in 0..<card.identityCount {
                 let identity = card.identity(at: identityIndex)
                 let def = RDCards.def(identity)
-                if !options.allowTruncatedDraws && hasTruncatedDraw(def) { continue }
-                // 未建模的牌只占手牌格，不产生动作
-                if def.isPlaceholder && !options.allowPlaceholderPlays { continue }
+                // 未建模的牌只占手牌格，不产生动作。真实对局里读到的未建模牌（有 cardId）可能有用 → 算丢弃
+                if def.isPlaceholder && !options.allowPlaceholderPlays {
+                    if card.unmodeledCardId != nil { dropped = true }
+                    continue
+                }
                 let cost = state.cost(of: card, as: identity)
                 guard state.availableMana >= cost else { continue }
                 if def.type == .minion && state.boardSlotsFree <= 0 { continue }
                 if isSecret(def) && state.secretsInPlay.contains(identity) { continue }
-                var key = identity.rawValue &* 64 &+ min(63, cost)
-                key = key &* 4 &+ min(3, card.enchants.count)
-                key = key &* 2 &+ (card.statsOverride == nil ? 0 : 1)
+                // 异教地图 / 垂钓在搜索里不展开（v1 已决）：打得出却不展开 → 算丢弃
+                if !options.allowTruncatedDraws && hasTruncatedDraw(def) {
+                    dropped = true
+                    continue
+                }
+                var hasher = Hasher()
+                hasher.combine(identity.rawValue)
+                hasher.combine(cost)
+                for e in card.enchants {
+                    switch e {
+                    case .set(let v): hasher.combine(1); hasher.combine(v)
+                    case .delta(let v): hasher.combine(2); hasher.combine(v)
+                    }
+                }
+                hasher.combine(card.statsOverride?.attack ?? -1)
+                hasher.combine(card.statsOverride?.health ?? -1)
                 // 殒命暗影变成的 X 与真的 X 不是同一张（打出后前者没了，后者留着还能镜像下一张法术）
-                key = key &* 2 &+ (card.isShadowOfDemise ? 1 : 0)
+                hasher.combine(card.isShadowOfDemise)
+                if RDCards.hasQuickdraw(identity) { hasher.combine(card.enteredHandThisTurn) }
+                let key = hasher.finalize()
                 if seenCardKeys.contains(key) { continue }
                 seenCardKeys.append(key)
 
@@ -694,7 +756,7 @@ enum RDEngine {
                         targets = [.none]
                     }
                 }
-                let choiceSets = choiceCombinations(for: def, state: state, options: options)
+                let choiceSets = choiceCombinations(for: def, state: state, options: options, dropped: &dropped)
                 let positions = def.type == .minion && orderMatters
                     ? placements(for: card, identity: identity, state: state)
                     : [nil]
@@ -722,19 +784,33 @@ enum RDEngine {
                 out.append(.attack(attacker: .friendlyMinion(m.entityId), defender: d))
             }
         }
-        if let w = state.weapon, w.attack > 0, w.durability > 0, !state.heroAttackedThisTurn {
+        if let w = state.weapon, w.attack > 0, w.durability > 0, !state.heroAttackedThisTurn, !state.heroFrozen {
+            // 疾速矿锄：攻击后抽一张，按牌库剩余逐种分叉（和行骗 / 帷幕的抽牌同一口径）
+            let draws = w.drawOnHeroAttack && !options.deferredChoices
+                ? combinations(of: [.draw(heroAttackDrawFilter)], state: state, options: options,
+                               dropped: &dropped)
+                : noChoices
             for d in defenders {
-                out.append(.attack(attacker: .friendlyHero, defender: d))
+                for choices in draws {
+                    out.append(.attack(attacker: .friendlyHero, defender: d, choices: choices))
+                }
             }
+        }
+        // 交易（可交易的牌：1 费洗回牌库、抽一张，黑水弯刀还会给手里一张法术减 1）不是打牌，引擎没建模：
+        // 能交易时算丢弃，「没搜到」不当证明（T2b 第四轮排查）
+        if state.availableMana >= 1, state.deck.total > 0,
+           state.hand.contains(where: { c in (0..<c.identityCount).contains { RDCards.isTradeable(c.identity(at: $0)) } }) {
+            dropped = true
         }
         return out
     }
 
     // MARK: - 落位
 
-    /// 场上顺序只通过「按从左到右处理全场」的效果影响结果：舞动全弹回（手牌满时右侧的被烧）、
-    /// 幻觉药水复制全场（手牌满时右侧的进不了手）。本牌组没有相邻 / 位置类效果。
-    /// 所以手牌、边牌、牌库里都没有这类效果时，所有落位等价，只展开最右一种。
+    /// 场位只通过「按从左到右处理全场」的效果影响结果：幻觉药水复制全场（手牌满时右侧的进不了手，
+    /// **待核**：本机日志 7 次药水都没爆手，且场位序都等于上场序，分不出两种口径）。舞动按上场先后处理，
+    /// 不看场位（T2b 日志订正）。本牌组没有相邻 / 位置类效果。
+    /// 所以手牌、边牌、牌库里都没有药水时，所有落位等价，只展开最右一种。
     /// 殒命暗影只会镜像「打出过的法术」，那张法术本身一定也在这三处之一，不必单独看。
     static func boardOrderMatters(_ s: RDState) -> Bool {
         let ordered = processesBoardInOrder
@@ -748,7 +824,32 @@ enum RDEngine {
         return false
     }
 
-    /// 这张牌有「从左到右处理全场、手牌放不下的丢掉」的效果（舞动全弹回 / 幻觉药水复制全场）
+    /// 手牌、边牌、牌库里有「按上场先后处理全场」的牌（舞动）：同款随从里留下哪一只会改变之后的结果
+    static func arrivalOrderMatters(_ s: RDState) -> Bool {
+        let ordered = processesBoardInArrivalOrder
+        for c in s.hand {
+            for i in 0..<c.identityCount where ordered(c.identity(at: i)) { return true }
+        }
+        for c in s.sideboard where ordered(c) { return true }
+        for raw in 0..<s.deck.counts.count where s.deck.counts[raw] > 0 {
+            if let card = RDCard(rawValue: raw), ordered(card) { return true }
+        }
+        return false
+    }
+
+    static func processesBoardInArrivalOrder(_ card: RDCard) -> Bool {
+        return arrivalOrderCards[card.rawValue]
+    }
+
+    private static let arrivalOrderCards: [Bool] = RDCard.allCases.map { card in
+        let def = RDCards.def(card)
+        return (def.effects + def.comboEffects).contains { e in
+            if case .bounceAllFriendly = e { return true }
+            return false
+        }
+    }
+
+    /// 这张牌有「按场位从左到右处理全场、手牌放不下的丢掉」的效果（幻觉药水复制全场）
     static func processesBoardInOrder(_ card: RDCard) -> Bool {
         return boardOrderCards[card.rawValue]
     }
@@ -757,10 +858,8 @@ enum RDEngine {
     private static let boardOrderCards: [Bool] = RDCard.allCases.map { card in
         let def = RDCards.def(card)
         return (def.effects + def.comboEffects).contains { e in
-            switch e {
-            case .bounceAllFriendly, .copyAllFriendlyToHand: return true
-            default: return false
-            }
+            if case .copyAllFriendlyToHand = e { return true }
+            return false
         }
     }
 
@@ -828,77 +927,116 @@ enum RDEngine {
         return false
     }
 
+    /// 抽牌 / 发现的每一种确定化结果，和引擎结算时消耗 `choices` 的方式一一对应：按效果顺序逐次抽 / 发现，
+    /// 这一刻剩下的不同牌只有一种就直接拿（不占 choice），多于一种就分叉。
+    /// 每一支各自扣牌库 / 边牌：牌库里有两张同名牌时，连抽可以两次都抽到它（T2b 第三轮修：原来同一张牌不许重复选）。
+    /// 超过 `maxChoiceCombinations` 时截断，`dropped` 置 true —— 搜索据此不再把「没搜到」当证明
     private static func choiceCombinations(for def: RDCardDef, state: RDState,
-                                           options: RDOptions) -> [[RDChoice]] {
+                                           options: RDOptions, dropped: inout Bool) -> [[RDChoice]] {
         guard mayNeedChoices(def) else { return noChoices }
         if options.deferredChoices { return noChoices }
-        var pools: [[RDCard]] = []
-        var deck = state.deck
-        var sideboard = state.sideboard
         let usesCombo = state.comboActive && !def.comboEffects.isEmpty
         let triggers = triggerCount(def, sharkAura: state.sharkAuraActive,
                                     cometDoubles: usesCombo && consumesLuckyComet(def)
                                         && state.luckyCometCharges > 0)
         let effects = usesCombo ? def.comboEffects : def.effects
+        var slots: [RDChoiceSlot] = []
         for _ in 0..<triggers {
             for e in effects {
                 switch e {
                 case .draw(let filter, let count):
-                    for _ in 0..<count {
-                        let candidates = deck.remaining(filter: filter)
-                        if candidates.count > 1 {
-                            pools.append(candidates)
-                            deck.remove(candidates[0])
-                        } else if candidates.count == 1 {
-                            deck.remove(candidates[0])
-                        }
-                    }
+                    for _ in 0..<count { slots.append(.draw(filter)) }
                 case .discoverFromSideboard(let count):
-                    for _ in 0..<count where !sideboard.isEmpty {
-                        if sideboard.count > 1 {
-                            pools.append(sideboard)
-                            sideboard.removeFirst()
-                        } else {
-                            sideboard.removeFirst()
-                        }
-                    }
+                    for _ in 0..<count { slots.append(.discover) }
                 default:
                     break
                 }
             }
         }
-        guard !pools.isEmpty else { return [[]] }
+        return combinations(of: slots, state: state, options: options, dropped: &dropped)
+    }
 
-        var combos: [[RDChoice]] = [[]]
-        for pool in pools {
-            var next: [[RDChoice]] = []
-            for combo in combos {
-                for card in pool {
-                    // 同一张牌不重复选（发现 / 连抽都是从池里拿走）
-                    if combo.contains(.pick(card)) { continue }
-                    next.append(combo + [.pick(card)])
+    /// `action` 在 `state` 上所有可能的确定化选择（抽牌的每种结果 × 发现的每种选择）。
+    /// 组合超过 256 种、或这一步不认识时返回 nil（调用方按「不确定」处理）
+    static func choiceVariants(for action: RDAction, in state: RDState) -> [[RDChoice]]? {
+        var options = RDOptions.search
+        options.maxChoiceCombinations = 256
+        var dropped = false
+        let sets: [[RDChoice]]
+        switch action {
+        case .play(let eid, let identity, _, _, _):
+            guard state.handIndex(ofEntity: eid) != nil else { return nil }
+            sets = choiceCombinations(for: RDCards.def(identity), state: state, options: options, dropped: &dropped)
+        case .attack(.friendlyHero, _, _):
+            guard state.weapon?.drawOnHeroAttack == true else { return nil }
+            sets = combinations(of: [.draw(heroAttackDrawFilter)], state: state, options: options, dropped: &dropped)
+        default:
+            return nil
+        }
+        return dropped ? nil : sets
+    }
+
+    enum RDChoiceSlot { case draw(RDCardFilter), discover }
+
+    /// 按槽位顺序逐次抽 / 发现的全部确定化结果（打牌和疾速矿锄攻击共用）
+    static func combinations(of slots: [RDChoiceSlot], state: RDState, options: RDOptions,
+                             dropped: inout Bool) -> [[RDChoice]] {
+        guard !slots.isEmpty else { return noChoices }
+
+        let cap = options.maxChoiceCombinations
+        var combos: [[RDChoice]] = []
+        func walk(_ i: Int, _ deck: RDDeck, _ sideboard: [RDCard], _ picks: [RDChoice]) {
+            if combos.count >= cap {
+                dropped = true
+                return
+            }
+            guard i < slots.count else {
+                combos.append(picks)
+                return
+            }
+            switch slots[i] {
+            case .draw(let filter):
+                let candidates = deck.remaining(filter: filter)
+                if candidates.count <= 1 {
+                    var d = deck
+                    if let only = candidates.first { d.remove(only) }
+                    walk(i + 1, d, sideboard, picks)
+                } else {
+                    for c in candidates {
+                        var d = deck
+                        d.remove(c)
+                        walk(i + 1, d, sideboard, picks + [.pick(c)])
+                    }
+                }
+            case .discover:
+                if sideboard.count <= 1 {
+                    walk(i + 1, deck, Array(sideboard.dropFirst()), picks)
+                } else {
+                    for (k, c) in sideboard.enumerated() where !sideboard[..<k].contains(c) {
+                        var rest = sideboard
+                        rest.remove(at: k)
+                        walk(i + 1, deck, rest, picks + [.pick(c)])
+                    }
                 }
             }
-            combos = next
-            if combos.count > options.maxChoiceCombinations {
-                combos = Array(combos.prefix(options.maxChoiceCombinations))
-            }
         }
-        return combos.isEmpty ? [[]] : combos
+        walk(0, state.deck, state.sideboard, [])
+        return combos.isEmpty ? noChoices : combos
     }
 }
 
 // MARK: - 延后决定的落位
 
-/// 场面顺序只在「从左到右处理全场、手牌放不下就丢」的那一刻起作用（舞动全弹回 / 幻觉药水复制全场，
-/// 用户 09-11 定的规则）。下随从时可以插到任意一格，所以不必在每次下随从时逐格展开：随从先一律放最右，
+/// 场位只在「从左到右处理全场、手牌放不下就丢」的那一刻起作用。T2b 起只剩幻觉药水复制全场
+/// （待核：日志里没有药水爆手的样本）；舞动改按上场先后处理（`RDBoardMinion.playOrder`），不再经过这里。
+/// 下随从时可以插到任意一格，所以不必在每次下随从时逐格展开：随从先一律放最右，
 /// 只记下**哪些先后关系已经定了**（`RDBoardConstraints`，一个偏序），到爆手那一步展开「进手的是哪几张」
 /// ——偏序里大小为 k 的每个下闭集（排在它们前面的必须也在里面）——事后再翻译回每次下随从的落位
 /// （`assignPositions`）。偏序怎么来：
 /// - 回合开始就在场上的随从：按原顺序全序；
 /// - 新下的随从：和谁都没有先后关系（可以插任意一格）；
-/// - 爆手时选定进手的集合 C：C 里的每个都排在没进手的每个左边。舞动之后场面清空，这条无所谓；
-///   **幻觉药水保留场面**，C 内部、C 外部的相对顺序仍然没定，留给之后的舞动 / 药水去定。
+/// - 爆手时选定进手的集合 C：C 里的每个都排在没进手的每个左边。药水保留场面，
+///   C 内部、C 外部的相对顺序仍然没定，留给之后的药水去定。
 /// 和逐格展开得到的结果集合相同（单测逐个比对），分支少得多。
 /// 束搜索和公式验证的严格重放都走这条路；翻译出的带落位动作序列再由引擎原样重放校验。
 /// 本牌组没有召唤效果；以后加了，召唤出的随从不是玩家放的，要按场上现有位置加约束。
@@ -987,10 +1125,6 @@ enum RDBoardOrder {
         for p in c.pairs {
             if let i = ids.firstIndex(of: p.left), let j = ids.firstIndex(of: p.right) { pred[j] |= 1 << i }
         }
-        let keepsBoard = !RDCards.def(identity).effects.contains { e in
-            if case .bounceAllFriendly = e { return true }
-            return false
-        }
         let keys = s.board.map(RDEngine.minionKey)
         // 现有顺序的前 m 个（状态里的顺序是偏序的线性扩展，所以它一定合法）排第一个
         let firstMask = (1 << m) - 1
@@ -1014,7 +1148,7 @@ enum RDBoardOrder {
             let backIdx = (0..<n).filter { mask & (1 << $0) == 0 }
             let orderIdx = frontIdx + backIdx
             // 先不结算，按结果去重：一模一样的随从选哪个结果相同。
-            // 全弹回之后场面清空，只看进手的多重集；复制全场之后场面保留，要比整个场面序列 + 之后的偏序
+            // 复制全场之后场面保留，要比进手的多重集 + 整个场面序列 + 之后的偏序
             var newPairs = c.pairs
             for a in frontIdx {
                 for b in backIdx where !c.pairs.contains(RDOrderPair(left: ids[a], right: ids[b])) {
@@ -1024,11 +1158,9 @@ enum RDBoardOrder {
             let nc = RDBoardConstraints(pairs: newPairs)
             let reordered = orderIdx.map { s.board[$0] }
             var signature = frontIdx.map { keys[$0] }.sorted()
-            if keepsBoard {
-                signature += [-1] + orderIdx.map { keys[$0] }
-                let pm = nc.positionMask(reordered)
-                signature += [Int(truncatingIfNeeded: pm), Int(truncatingIfNeeded: pm >> 32)]
-            }
+            signature += [-1] + orderIdx.map { keys[$0] }
+            let pm = nc.positionMask(reordered)
+            signature += [Int(truncatingIfNeeded: pm), Int(truncatingIfNeeded: pm >> 32)]
             guard tried.insert(signature).inserted else { continue }
             let next: RDState
             if mask == firstMask {
@@ -1130,8 +1262,8 @@ enum RDBoardOrder {
                                choices: choices, position: pos)
             case .heroPower:
                 action = a
-            case .attack(let attacker, let defender):
-                action = .attack(attacker: remap(attacker), defender: remap(defender))
+            case .attack(let attacker, let defender, let choices):
+                action = .attack(attacker: remap(attacker), defender: remap(defender), choices: choices)
             }
             guard let next = try? RDEngine.apply(action, to: t, options: options) else { return nil }
             // 这一步新出现的实体按内容配对

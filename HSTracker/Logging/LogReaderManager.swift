@@ -161,6 +161,9 @@ final class LogReaderManager {
                     }
                 }
                 processMap.removeAll()
+                // Fork: red dragon assistant snapshots here - between batches nothing else writes entities
+                RedDragonAssistant.shared.parserBatchDidEnd(coreManager.game, linesProcessed: !keys.isEmpty,
+                                                            idle: powerGameStateParser.currentBlock == nil)
             }
             Thread.sleep(forTimeInterval: LogReaderManager.updateDelay)
         }

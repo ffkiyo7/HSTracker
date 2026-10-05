@@ -23,4 +23,20 @@ extension Settings {
     /// `showSessionRecap`, which is the battlegrounds one.
     @UserDefault(key: Settings.show_constructed_session_recap, defaultValue: true)
     static var showConstructedSessionRecap: Bool
+
+    static let red_dragon_assist = "red_dragon_assist"
+    static let red_dragon_reveal_level = "red_dragon_reveal_level"
+    static let red_dragon_quiz_mode = "red_dragon_quiz_mode"
+
+    /// 红龙辅助总开关。关着时刷新链上的挂点直接返回，不调度任何计算（RedDragonAssistant）
+    @UserDefault(key: Settings.red_dragon_assist, defaultValue: false)
+    static var redDragonAssist: Bool
+
+    /// 进回合时默认揭示到哪一档：0 判定 / 1 参与牌 / 2 顺序（`RDRevealLevel`）
+    @UserDefault(key: Settings.red_dragon_reveal_level, defaultValue: 0)
+    static var redDragonRevealLevel: Int
+
+    /// 答题模式：不给序号，每出一张牌判对错
+    @UserDefault(key: Settings.red_dragon_quiz_mode, defaultValue: false)
+    static var redDragonQuizMode: Bool
 }

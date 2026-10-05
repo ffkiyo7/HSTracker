@@ -57,6 +57,32 @@ struct RedDragonResult {
     var boardOrderPassRan = false
     /// 要返回的线里，场面顺序翻译成落位失败、被丢掉的条数（主搜索 + 补搜）
     var placementTranslationFailures = 0
+    /// 撞上了 CPU 兜底（`cpuBudget` / 缺件的 `missingPieceBudget` 不算）。只有它才说明结果随机器负载变，
+    /// 撞状态闸门（`maxStatesExpanded`）是可复现的正常收口
+    var cpuBudgetHit = false
+    /// 被 `RedDragonConfig.cancellation` 取消。取消了的结果不完整，调用方应丢掉
+    var cancelled = false
+    /// 有一遍搜索把可达局面**穷举**完了：束没裁过、每个节点的动作没截过、爆手排法没截过、没撞深度 / 状态 /
+    /// CPU 上限、没取消。只有这时「没找到斩杀」才等于「按本模型不能斩杀」。生产配置下只有小局面能做到
+    var exhaustive = false
+}
+
+/// 后台计算的取消标记：新局面一到，旧的那次搜索就不用算完了。任何线程都可以 `cancel()`
+final class RDCancellation {
+    private let lock = NSLock()
+    private var flag = false
+
+    var isCancelled: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return flag
+    }
+
+    func cancel() {
+        lock.lock()
+        flag = true
+        lock.unlock()
+    }
 }
 
 struct RedDragonConfig {
@@ -73,10 +99,10 @@ struct RedDragonConfig {
     var beamWidth: Int? = 1500
     /// 每个节点最多展开几个动作（按卡表推出的先验排序）。nil = 全展开
     var maxActionsPerNode: Int? = 14
-    /// 主搜索 / 采样补搜在爆手的全场弹回 / 复制处，除现有顺序外最多再展开几种「进手集合」的排法
-    /// （共识分、蓄力分各取前几）。nil = 全展开。**这是有损的**：需要的排法两种分都排不进前几时就漏
-    /// （公式表 t2-wuhu-03 / t2-daoqs-02 的清杂分支：舞动要收回晦、烧掉牛）。主搜索里全展开又会把束挤满
-    /// （t1-48p-06 / t1-48p-07 / t2-wuhui-03 掉线），所以留 1，漏掉的交给 `boardOrderPass`。数据见任务书
+    /// 主搜索 / 采样补搜在爆手的全场复制（幻觉药水；舞动 T2b 起按上场先后处理，没有排法）处，
+    /// 除现有顺序外最多再展开几种「进手集合」的排法（共识分、蓄力分各取前几）。nil = 全展开。
+    /// **这是有损的**：需要的排法两种分都排不进前几时就漏。T2a 时舞动也走这里，主搜索全展开会把束挤满
+    /// （t1-48p-06 / t1-48p-07 / t2-wuhui-03 掉线），所以留 1，漏掉的交给 `boardOrderPass`。数据见 T2a 任务书
     var maxBoardOrderVariants: Int? = 1
     /// 束里留给「爆手时现有顺序之外的排法」的份额上限（nil = 不分开，和其他子节点一起竞争）。
     /// 主搜索 / 采样补搜不用；排法补搜用 `boardOrderPass.beamShare`
@@ -100,6 +126,8 @@ struct RedDragonConfig {
     var missingPieceBudget: Double = 2.0
     var weights: RDDifficultyWeights = .standard
     var options: RDOptions = .search
+    /// nil = 不可取消。和 CPU 兜底在同一处检查（每展开一个节点一次）
+    var cancellation: RDCancellation? = nil
 
     static let exact: RedDragonConfig = {
         var c = RedDragonConfig()
@@ -109,6 +137,8 @@ struct RedDragonConfig {
         c.boardOrderPass = nil
         c.samplingPassWidth = nil
         c.maxStatesExpanded = nil
+        // 抽牌 / 发现组合也不截断（T2b 第三轮）
+        c.options.maxChoiceCombinations = .max
         return c
     }()
 }
@@ -170,12 +200,18 @@ enum RedDragonSearch {
         }
         var run = search(root, config: mainConfig, deadline: deadline)
         run.mainStatesExpanded = run.statesExpanded
+        if run.cancelled {
+            run.cpuTime = threadCPUTime() - start
+            return run
+        }
 
         // 排法补搜：主搜索每次爆手只展开「现有顺序 + 共识分最高的 1 种」排法（`maxBoardOrderVariants`），
-        // 需要别的排法的线（如公式表 t2-daoqs-02 的清杂分支：舞动要收回晦、烧掉牛）搜不到；
-        // 而主搜索里排法不设上限又会把束挤满、别的线掉了。所以主搜索没斩杀时再跑一遍：排法全展开，
-        // 但只在每层束里争固定份额，状态数也只拿总预算的一部分。
-        if !run.isLethal, let pass = config.boardOrderPass, threadCPUTime() < deadline {
+        // 需要别的排法的线搜不到；而主搜索里排法不设上限又会把束挤满、别的线掉了。
+        // 所以主搜索没斩杀时再跑一遍：排法全展开，但只在每层束里争固定份额，状态数也只拿总预算的一部分。
+        // T2b 起舞动按上场先后处理、不再有排法，只剩幻觉药水爆手（待核）依赖场位：起手够不着药水就不跑，
+        // 否则它只是把主搜索换个小预算重跑一遍，白占采样补搜的份额
+        if !run.isLethal, !run.cancelled, let pass = config.boardOrderPass, RDEngine.boardOrderMatters(root),
+           threadCPUTime() < deadline {
             let left = config.maxStatesExpanded.map { $0 - run.statesExpanded }
             let share = config.maxStatesExpanded.map { max(1, Int(Double($0) * pass.budgetShare)) }
             if (left ?? 1) > 0 {
@@ -195,7 +231,7 @@ enum RedDragonSearch {
         // 均匀抽样不受这个偏置影响。它只在不斩杀时跑，斩杀局面的耗时不变。
         // 状态预算两遍共用：补搜拿总量减去主搜索实际用掉的部分。
         let remaining = config.maxStatesExpanded.map { $0 - run.statesExpanded }
-        if !run.isLethal, sampling, threadCPUTime() < deadline, (remaining ?? 1) > 0 {
+        if !run.isLethal, !run.cancelled, sampling, threadCPUTime() < deadline, (remaining ?? 1) > 0 {
             var sampledConfig = config
             sampledConfig.maxStatesExpanded = remaining
             let sampled = search(root, config: sampledConfig, deadline: deadline, selection: .sampled)
@@ -203,11 +239,12 @@ enum RedDragonSearch {
             run.samplingPassRan = true
         }
 
-        if !run.isLethal && config.enableMissingPieces {
+        if !run.isLethal && !run.cancelled && config.enableMissingPieces {
             let found = findMissingPieces(root, config: config,
                                           deadline: threadCPUTime() + config.missingPieceBudget)
             run.missingPieces = found.cards
             run.missingPiecesBudgetExceeded = found.budgetExceeded
+            if config.cancellation?.isCancelled == true { run.cancelled = true }
         }
         run.cpuTime = threadCPUTime() - start
         return run
@@ -219,6 +256,10 @@ enum RedDragonSearch {
         var out = main
         out.statesExpanded += sampled.statesExpanded
         out.placementTranslationFailures += sampled.placementTranslationFailures
+        out.cpuBudgetHit = main.cpuBudgetHit || sampled.cpuBudgetHit
+        out.cancelled = main.cancelled || sampled.cancelled
+        // 任何一遍穷举完了都算证明（各遍搜的是同一棵树，只是裁法不同）
+        out.exhaustive = (main.exhaustive || sampled.exhaustive) && !out.cancelled
         out.depthReached = max(main.depthReached, sampled.depthReached)
         if sampled.isLethal {
             out.isLethal = true
@@ -265,6 +306,11 @@ enum RedDragonSearch {
         var statesExpanded = 0
         var termination = RDTermination.exhausted
         var depth = 0
+        var cpuBudgetHit = false
+        var cancelled = false
+        /// 有损的裁剪发生过（束、动作上限、排法上限、深度上限）：没找到斩杀也不能说明不能斩
+        var pruned = false
+        func isCancelled() -> Bool { return config.cancellation?.isCancelled == true }
 
         func makeLine(parent: Int, action: RDAction, state: RDState,
                       branchKey: [RDCard], order: RDOrderDecision?) -> RedDragonLine {
@@ -339,6 +385,12 @@ enum RedDragonSearch {
             for index in frontier {
                 if threadCPUTime() > deadline {
                     termination = .budgetExceeded
+                    cpuBudgetHit = true
+                    break outer
+                }
+                if let token = config.cancellation, token.isCancelled {
+                    termination = .budgetExceeded
+                    cancelled = true
                     break outer
                 }
                 if let cap = config.maxStatesExpanded, statesExpanded >= cap {
@@ -346,12 +398,18 @@ enum RedDragonSearch {
                     break outer
                 }
                 let node = nodes[index]
-                var actions = RDEngine.legalActions(node.state, options: listOptions)
+                var dropped = false
+                var actions = RDEngine.legalActions(node.state, options: listOptions, dropped: &dropped)
+                // 动作生成层丢了合法分支（组合截断 / 跳过的过牌 / 未建模牌）：走完也不算穷举
+                if dropped { pruned = true }
                 if let cap = config.maxActionsPerNode, actions.count > cap {
                     // 先把执行后等价的友方目标并掉，免得同款随从的几个目标挤占动作上限
                     actions = collapseEquivalentTargets(actions, node.state, node.constraints,
                                                         options: config.options)
-                    if actions.count > cap { actions = topActions(actions, node.state, cap: cap) }
+                    if actions.count > cap {
+                        actions = topActions(actions, node.state, cap: cap)
+                        pruned = true
+                    }
                 }
                 for action in actions {
                     guard let first = try? RDEngine.apply(action, to: node.state,
@@ -360,7 +418,8 @@ enum RedDragonSearch {
                     if case .play(_, let identity, _, _, _) = action, RDEngine.processesBoardInOrder(identity) {
                         let outcomes = orderOutcomes(parent: node, action: action, first: first,
                                                      options: config.options,
-                                                     maxVariants: config.maxBoardOrderVariants)
+                                                     maxVariants: config.maxBoardOrderVariants,
+                                                     truncated: &pruned)
                         for (i, o) in outcomes.enumerated() {
                             consider(index, node, action, o.state, o.constraints, o.decision, i > 0)
                         }
@@ -384,6 +443,7 @@ enum RedDragonSearch {
                 return a.hash < b.hash
             }
             if let width = beamWidth, children.count > width {
+                pruned = true
                 func pick(_ cs: [Child], _ w: Int) -> [Child] {
                     guard cs.count > w else { return cs }
                     guard w > 0 else { return [] }
@@ -419,13 +479,25 @@ enum RedDragonSearch {
 
         if threadCPUTime() > deadline && termination == .exhausted {
             termination = .budgetExceeded
+            cpuBudgetHit = true
         }
+        if !frontier.isEmpty && depth >= config.maxDepth { pruned = true }
+        func cancelledResult() -> RedDragonResult {
+            return RedDragonResult(maxDamage: maxDamage, effectiveEnemyHealth: threshold, isLethal: false,
+                                   chosenLine: nil, lethalLines: [], branches: [], missingPieces: [],
+                                   missingPiecesBudgetExceeded: false, termination: .budgetExceeded,
+                                   cpuTime: 0, statesExpanded: statesExpanded, depthReached: depth,
+                                   cancelled: true)
+        }
+        if cancelled { return cancelledResult() }
 
+        // 收尾（落位翻译、去重排序、重放校验）每条线都要重放，线多时不便宜：每一步之间、每条线之前都看取消
         // 场面顺序翻译成落位，之后的去重 / 签名 / 重放校验都看带落位的动作
         // 翻译不出来的线丢掉：只保证不返回假线，避免不了漏解，所以计数（测试断言公式表上为 0）
         var translationFailures = 0
         func placed(_ line: RedDragonLine) -> RedDragonLine? {
             guard line.pendingBoardOrders != nil else { return line }
+            guard !isCancelled() else { return nil }
             let out = withPlacements(line, root: root, options: config.options)
             if out == nil { translationFailures += 1 }
             return out
@@ -433,9 +505,12 @@ enum RedDragonSearch {
         lethal = lethal.compactMap(placed)
         if let best = bestLine { bestLine = placed(best) }
         for (bid, line) in bestByBranch where line.pendingBoardOrders != nil {
+            if isCancelled() { break }
             bestByBranch[bid] = placed(line)
         }
+        if isCancelled() { return cancelledResult() }
         lethal = dedupe(lethal)
+        if isCancelled() { return cancelledResult() }
         lethal.sort { a, b in
             if a.difficulty != b.difficulty { return a.difficulty < b.difficulty }
             if a.damage != b.damage { return a.damage > b.damage }
@@ -444,16 +519,22 @@ enum RedDragonSearch {
         if lethal.count > config.maxLethalLines {
             lethal.removeSubrange(config.maxLethalLines...)
         }
+        if isCancelled() { return cancelledResult() }
 
         // 路径重放校验（P0）：任何要返回的线，先用同一套规则从根重放一遍
-        lethal = lethal.filter { validated($0, root: root, config: config) }
-        if let best = bestLine, !validated(best, root: root, config: config) {
+        func checked(_ line: RedDragonLine) -> Bool {
+            return !isCancelled() && validated(line, root: root, config: config)
+        }
+        lethal = lethal.filter(checked)
+        if let best = bestLine, !checked(best) {
             bestLine = nil
         }
+        if isCancelled() { return cancelledResult() }
 
         let chosen = lethal.first ?? bestLine
-        let branches = bestByBranch.values
-            .filter { validated($0, root: root, config: config) }
+        let validBranches = bestByBranch.values.filter(checked)
+        if isCancelled() { return cancelledResult() }
+        let branches = validBranches
             .sorted { a, b in
                 if a.branchKey.count != b.branchKey.count {
                     return a.branchKey.count < b.branchKey.count
@@ -477,7 +558,9 @@ enum RedDragonSearch {
                                cpuTime: 0,
                                statesExpanded: statesExpanded,
                                depthReached: depth,
-                               placementTranslationFailures: translationFailures)
+                               placementTranslationFailures: translationFailures,
+                               cpuBudgetHit: cpuBudgetHit,
+                               exhaustive: termination == .exhausted && !pruned)
     }
 
     /// 三件事：① 按「已造成伤害」分桶保底（只取全局 Top-K 会把「龙数低、还在蓄力」的桶整个砍掉，
@@ -558,7 +641,12 @@ enum RedDragonSearch {
                     }.joined(separator: "-")
                     + (position.map { "@\($0)" } ?? "")
             case .heroPower: return "hp"
-            case .attack(let a, let d): return "a\(targetCode(a))>\(targetCode(d))"
+            case .attack(let a, let d, let choices):
+                return "a\(targetCode(a))>\(targetCode(d))"
+                    + (choices.isEmpty ? "" : "/" + choices.map { c -> String in
+                        if case .pick(let card) = c { return String(card.rawValue) }
+                        return "?"
+                    }.joined(separator: "-"))
             }
         }.joined(separator: " ")
     }
@@ -584,8 +672,7 @@ enum RedDragonSearch {
     }
 
     private static func appendBranchKey(_ key: inout [RDCard], action: RDAction) {
-        guard case .play(_, _, _, let choices, _) = action else { return }
-        for c in choices {
+        for c in action.choices {
             if case .pick(let card) = c { key.append(card) }
         }
     }
@@ -724,7 +811,7 @@ enum RedDragonSearch {
             return p
         case .heroPower:
             return 20
-        case .attack(_, let defender):
+        case .attack(_, let defender, _):
             return defender == .enemyHero ? 200 : 90
         }
     }
@@ -771,19 +858,22 @@ enum RedDragonSearch {
 
     // MARK: - 落位
 
-    // 束搜索不在下随从时逐格展开落位（`expandPlacements = false`，随从先放最右），而在爆手的全场弹回 /
-    // 复制那一步展开「收回哪几张」（`RDBoardOrder`，原理见那里）。线要返回时再翻译回每次下随从的落位，
-    // 并由 `validated` 用真实落位重放一遍。
+    // 束搜索不在下随从时逐格展开落位（`expandPlacements = false`，随从先放最右），而在爆手的全场
+    // 复制（幻觉药水，待核；舞动 T2b 起按上场先后、不在此列）那一步展开「复制哪几张」（`RDBoardOrder`，
+    // 原理见那里）。线要返回时再翻译回每次下随从的落位，并由 `validated` 用真实落位重放一遍。
 
     /// `RDBoardOrder.outcomes`，排法只留共识分最高的 `maxVariants` 种（现有顺序那一种总在）：
     /// 排法全放进束会把别的线挤掉（公式表上全展开时 4 个案例掉线）
     private static func orderOutcomes(parent: Node, action: RDAction, first: RDState,
-                                      options: RDOptions, maxVariants: Int?) -> [RDBoardOutcome] {
+                                      options: RDOptions, maxVariants: Int?,
+                                      truncated: inout Bool) -> [RDBoardOutcome] {
         let all = RDBoardOrder.outcomes(of: action, from: parent.state, constraints: parent.constraints,
                                         first: first, options: options)
         guard let cap = maxVariants, all.count > cap + 1 else { return all }
+        truncated = true
         // 和束一样用两种正交的分各取前 cap 个：共识分（收口）和蓄力分（留下能回费 / 降费的随从）。
-        // 只按共识分取时，「舞动收回晦、烧掉一张刀复制」这类排法永远排不进来（公式表 t2-wuhu-03 的清杂分支）
+        // 只按共识分取时，留下回费随从的排法排不进来（T2a 时舞动也按场位，公式表 t2-wuhu-03 的清杂分支靠它；
+        // T2b 起舞动不走这里，现在只剩药水爆手）
         let scored = all.dropFirst().map { v -> (RDBoardOutcome, RDEval, UInt64) in
             (v, evaluate(v.state), v.state.canonicalHash())
         }
@@ -825,6 +915,7 @@ enum RedDragonSearch {
         var out: [RDCard] = []
         for card in candidates {
             if threadCPUTime() > deadline { return (out, true) }
+            if config.cancellation?.isCancelled == true { return (out, false) }
             var probe = root
             probe.deck.remove(card)
             let id = probe.takeEntityId()

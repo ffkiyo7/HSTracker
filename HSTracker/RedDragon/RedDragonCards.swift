@@ -261,6 +261,14 @@ enum RDCards {
 
     private static let quickdrawCards: [Bool] = byCard.map { $0.quickdrawCost != nil }
 
+    /// 可交易（TRADEABLE）的牌。交易不是打牌，引擎不展开，只用来判「有没有漏掉的走法」。
+    /// 本牌组的 25 张逐张对过卡表（T2b 第四轮）：只有黑水弯刀
+    static let tradeableCards: Set<RDCard> = [.blackwaterCutlass]
+
+    static func isTradeable(_ card: RDCard) -> Bool {
+        return tradeableCards.contains(card)
+    }
+
     /// 本牌组的英雄与英雄技能（`Cards.by(cardId:)` 过滤 hero / hero_power，查它们要用 `Cards.any(byId:)`）
     static let heroId = "HERO_03bm"
     static let heroPowerId = "HERO_03bmhp"

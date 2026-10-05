@@ -31,6 +31,7 @@
 
 import XCTest
 @testable import HSTracker
+@testable import RedDragonCore
 
 // MARK: - 公式表缩写
 
@@ -81,10 +82,21 @@ private let rdExpectedFailures: [String: RDExpectedFailure] = [
         reason: "截图只写「下回合不卡格能4费48」，没给下回合杂牌数；原 fixture 的 4 是从 t1-pre-03 继承的，已改 null。"
             + "参考：杂牌 0–3 张时前提下重放通过，4 张时起手 11 张非法"),
     "t2-wuhu-03#1": RDExpectedFailure(
-        verdict: .invalid, signature: "爆手｜第15步「暗2」",
-        reason: "「不清」这一支（表里印的数字属于它）：一阶段打完场上 7 个随从，舞动时手里还有 4 杂 + 骨 + 龙，只剩 4 格；"
-            + "二阶段要 鱼晦刀刀暗 5 张随从，按场上从左到右收回、放不下的烧掉（用户 09-11 定的规则），落位怎么排都要烧掉一张。"
-            + "手牌上限放开就能打满（引擎判「爆手」）。整行靠三条清杂分支成立"),
+        verdict: .invalid, signature: "爆手｜第10步「晦4」",
+        reason: "「不清」这一支（表里印的数字属于它）：一阶段打完场上 7 个随从（上场先后 鱼刀暗刀牛晦刀），舞动时手里还有"
+            + " 4 杂 + 骨 + 龙，只剩 4 格；舞动按上场先后收回（T2b 日志订正），鱼刀暗刀收回、牛晦刀烧掉，"
+            + "二阶段第 2 张就要的晦没了。手牌上限放开就能打满（引擎判「爆手」）。整行靠「两张都清」那一支成立"),
+    "t2-wuhu-03#2": RDExpectedFailure(
+        verdict: .invalid, signature: "爆手｜第11步「晦」；第7步「杂」",
+        reason: "「只清第一张」：舞动时只剩 5 格，按上场先后收回 鱼刀暗刀牛，晦和最后一张刀烧掉，二阶段的晦没了"
+            + "（「第7步「杂」」是另一种实例化：手里没有 ≤1 费的杂）。T2a 时按场位、能把晦排到左边收回，这一支成立"),
+    "t2-wuhu-03#3": RDExpectedFailure(
+        verdict: .invalid, signature: "爆手｜第11步「晦」",
+        reason: "「只清第二张」：同 #2，舞动时只剩 5 格，后上场的晦和刀被烧。T2a 时按场位这一支成立"),
+    "t2-wuhu-09": RDExpectedFailure(
+        verdict: .invalid, signature: "爆手｜第18步「晦4」",
+        reason: "二阶段上场先后 鱼刀刀龙暗晦，殒变成的第二次舞动手牌放不下全部：按上场先后收回，最后下的晦被烧，"
+            + "三阶段第 3 张就要的晦没了。T2a 时按场位、把晦排在左边就能收回（烧一张刀），所以当时判原样通过"),
     "t2-wudao-01": RDExpectedFailure(
         verdict: .notAFormula, signature: "无费用无步骤",
         reason: "截图这一格是「无刀做无限」的说明文字，没有费用、杂牌数和步骤"),
@@ -93,9 +105,38 @@ private let rdExpectedFailures: [String: RDExpectedFailure] = [
         reason: "声明的起手 = 6 随从 + 杂牌 4（含骨）+ 步（「提前彗」组注：步不计入杂牌数）= 11 张，超过手牌上限 10，"
             + "真实对局里不存在。若组注不适用于这条备注公式（步计入 4 张杂牌），起手是 10 张，需用户确认"),
     "t2-daoqs-02#1": RDExpectedFailure(
-        verdict: .invalid, signature: "爆手｜第15步「暗2」",
-        reason: "同 t2-wuhu-03#1（「不清」这一支，带前提、改正后）：舞动时手里只剩 4 格，二阶段要的 5 张随从落位怎么排"
-            + "都要烧掉一张。整行靠三条清杂分支成立")
+        verdict: .invalid, signature: "爆手｜第10步「晦4」",
+        reason: "同 t2-wuhu-03#1（「不清」这一支，带前提、改正后）：舞动时手里只剩 4 格，按上场先后收回前 4 个，"
+            + "晦被烧。整行靠「两张都清」那一支成立"),
+    "t2-daoqs-02#2": RDExpectedFailure(
+        verdict: .invalid, signature: "爆手｜第11步「晦」；第7步「杂」",
+        reason: "同 t2-wuhu-03#2：只剩 5 格，后上场的晦和刀被烧"),
+    "t2-daoqs-02#3": RDExpectedFailure(
+        verdict: .invalid, signature: "爆手｜第11步「晦」",
+        reason: "同 t2-wuhu-03#3：只剩 5 格，后上场的晦和刀被烧")
+]
+
+/// 缺件补齐后搜索没到目标、已知是**搜索漏线**（不是公式不成立）的案例。
+/// 测试要求（T2b 第三轮）：不在表里的补齐必须到目标；在表里的——
+/// ① 「到目标」的断言照样写，但包在 `XCTExpectFailure` 里（预期失败）；哪天搜到了，预期失败没发生，测试报错提示从表里删；
+/// ② 搜索伤害不低于 `floor`（现在能到的值，防止进一步退化）；③ 本案例自己的线补齐后仍能严格重放到表伤（线确实存在）。
+/// 这些补齐不算「搜索能补齐」
+private struct RDSupplementMiss {
+    var floor: Int
+    var note: String
+}
+
+private let rdExpectedSupplementMisses: [String: RDSupplementMiss] = [
+    "t2-wuhu-10": RDSupplementMiss(
+        floor: 65,
+        note: "T2b 舞动改按上场先后后，补狐的起手默认配置只搜到 65/80。本案例自己的线补齐后严格重放到 80 仍成立，"
+            + "线存在、束丢了：-O 基准从这条线走完前 6 步的局面起搜能找到，起手到第 5 步都找不到；"
+            + "状态闸门放到 160 万、束宽翻倍、采样束翻倍都还是 65。T2a 时搜到 80，推测是舞动爆手的排法变体（按场位、多出的子节点）"
+            + "改变了束里留下的局面（未逐层核实）"),
+    "t2-wuhui-04": RDSupplementMiss(
+        floor: 49,
+        note: "同上，补晦的起手默认配置 49/64（目标取参照 t1-48p-03 的 64）；状态闸门放到 80 万为 56，"
+            + "束宽 / 采样束翻倍仍 49。T2a 时搜到 64，推测原因同上")
 ]
 
 // MARK: - fixture 数据
@@ -1129,6 +1170,11 @@ class RedDragonFormulaTests: HSTrackerTests {
 
         // 缺件：把缺的组件换掉一张不可打的杂牌（没有杂牌就加一张），搜索要到「起手被它包含的齐件案例」与本案例表伤的较大者
         var supplementLines: [String] = []
+        var checkedMisses = Set<String>()
+        defer {
+            XCTAssertEqual(checkedMisses, Set(rdExpectedSupplementMisses.keys),
+                           "rdExpectedSupplementMisses 里有没走到补齐断言的条目（案例改名或不再缺件），从表里删掉")
+        }
         let completes = results.filter { $0.missing.isEmpty && $0.c.row.damage != nil }
         for r in results where !r.missing.isEmpty {
             guard var supp = r.start?.state else { continue }
@@ -1166,14 +1212,28 @@ class RedDragonFormulaTests: HSTrackerTests {
             let damage = search(supp, target: goal, r.c.id + " 补齐").maxDamage
             // 本案例自己的线在补齐后的起手上是否仍成立（严格重放，同一份 token）
             var ownLine = ""
+            var ownLineOK: Bool?
             if let d = r.c.row.damage, let tokens = r.verdict == .tableError ? (r.c.corrected ?? r.c.tokens) : Optional(r.c.tokens) {
                 let ok = strictReplay(tokens, from: supp, expectedDamage: r.c.truncated ? nil : d).ok
+                ownLineOK = ok
                 ownLine = ok ? "；本案例的线补齐后严格重放仍通过" : "；本案例的线补齐后严格重放不通过"
             }
             let refText = best.map { "参照 \($0.c.id) \($0.c.row.damage ?? 0)" } ?? "无可比齐件案例，目标取本案例表伤"
+            let knownMiss = rdExpectedSupplementMisses[r.c.id]
+            if knownMiss != nil { checkedMisses.insert(r.c.id) }
             supplementLines.append("   \(r.c.id) 补\(missingText) → 搜索 \(damage)，目标 \(goal)（\(refText)\(ownLine)）"
-                                   + (damage >= goal ? "" : "  ⚠️"))
-            XCTAssertGreaterThanOrEqual(damage, goal, "\(r.c.id) 补\(missingText) 后搜索 \(damage) < \(goal)")
+                                   + (damage >= goal ? "" : (knownMiss != nil ? "  已知搜索漏线" : "  ⚠️")))
+            if let miss = knownMiss {
+                XCTAssertGreaterThanOrEqual(damage, miss.floor,
+                                            "\(r.c.id) 补\(missingText) 搜索退化：\(damage) < 已知能到的 \(miss.floor)")
+                XCTAssertEqual(ownLineOK, true, "\(r.c.id) 补\(missingText)：已知合法的那条线不能再严格重放，漏线说明作废")
+                XCTExpectFailure("\(r.c.id) 补\(missingText) 是已知搜索漏线（\(damage)/\(goal)）。"
+                                 + "若这条预期失败没发生，说明搜到了，从 rdExpectedSupplementMisses 里删掉") {
+                    XCTAssertGreaterThanOrEqual(damage, goal, "\(r.c.id) 补\(missingText) 后搜索 \(damage) < \(goal)")
+                }
+            } else {
+                XCTAssertGreaterThanOrEqual(damage, goal, "\(r.c.id) 补\(missingText) 后搜索 \(damage) < \(goal)")
+            }
         }
 
         var out = ["== 逐案例（案例 / 分组 / 结论 / 起手 / 前提·改正·实例化 / 表伤 / 搜伤 / 难度 / 主搜索·合计态 / Debug CPU）",

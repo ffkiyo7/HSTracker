@@ -8,6 +8,7 @@
 
 import XCTest
 @testable import HSTracker
+@testable import RedDragonCore
 
 class RedDragonTests: HSTrackerTests {
 
@@ -459,7 +460,9 @@ class RedDragonTests: HSTrackerTests {
                        "友方随从一点血没掉")
     }
 
-    func testBounceAroundBurnsRightmostWhenHandIsFull() {
+    /// T2b 起舞动按上场先后（`playOrder`）收回；这里三个随从都没给上场号（同为 0），同号时按场位，
+    /// 所以结果和「从左到右、烧最右」一样。上场先后与场位不同的情形见 `testBounceBurnsByArrivalOrderNotPlacement`
+    func testBounceAroundBurnsLastArrivedWhenHandIsFull() {
         // 手牌满 10（含舞动）；场上 3 个随从，打完舞动只剩 1 个手牌格
         var s = stateWith(hand: [.coin, .coin, .preparation, .preparation, .evasion, .evasion,
                                  .digForTreasure, .digForTreasure, .shroudOfConcealment,
@@ -473,7 +476,7 @@ class RedDragonTests: HSTrackerTests {
                                              target: .none, choices: []), to: s)
         XCTAssertTrue(next.board.isEmpty, "舞动清空场面")
         XCTAssertEqual(next.hand.count, 10, "只有 1 个手牌格，只收得回 1 个随从")
-        // 弹回顺序从左到右：只有最左的狐人进了手，最右侧的阿莱被烧
+        // 上场号相同 → 按场位：只有最左的狐人进了手，阿莱和刀油被烧
         XCTAssertTrue(next.hand.contains { $0.card == .foxyFraud })
         XCTAssertFalse(next.hand.contains { $0.card == .alexstrasza })
         XCTAssertFalse(next.hand.contains { $0.card == .scabbsCutterbutter })
@@ -651,9 +654,9 @@ class RedDragonTests: HSTrackerTests {
 
     // MARK: - 7. 随从落位
 
-    /// 舞动按场上从左到右收回、手牌放不下的烧掉（用户 09-11 定的规则）——
-    /// 新下的随从插在哪一格，直接决定烧掉谁
-    func testPlacementDecidesWhichMinionBounceBurns() {
+    /// 舞动按上场先后收回、手牌放不下的后上场的烧掉（T2b 日志订正，推翻 09-11「烧最右」）——
+    /// 新下的随从插在哪一格都一样，最后下的那个被烧
+    func testBounceBurnsByArrivalOrderNotPlacement() {
         // 手牌 10 张：鲨鱼 + 舞动 + 8 张币；场上 狐、阿莱
         var s = stateWith(hand: [.spiritOfTheShark, .bounceAround] + Array(repeating: .coin, count: 8),
                           board: [.foxyFraud, .alexstrasza], mana: 10, maxMana: 10)
@@ -675,10 +678,23 @@ class RedDragonTests: HSTrackerTests {
             XCTAssertEqual(t.hand.count, 10)
             return order.filter { card in !t.hand.contains { $0.card == card } }
         }
-        // 打完鲨鱼手里 9 张，舞动打出后 8 张 → 只剩 2 格，3 个随从烧掉最右那个
+        // 打完鲨鱼手里 9 张，舞动打出后 8 张 → 只剩 2 格，3 个随从里最后上场的鲨鱼被烧，放哪都一样
         XCTAssertEqual(burned(after: nil), [.spiritOfTheShark], "放最右 → 烧鲨鱼")
-        XCTAssertEqual(burned(after: 0), [.alexstrasza], "放最左 → 鲨鱼收回，烧阿莱")
-        XCTAssertEqual(burned(after: 1), [.alexstrasza], "放中间 → 烧阿莱")
+        XCTAssertEqual(burned(after: 0), [.spiritOfTheShark], "放最左 → 还是烧鲨鱼")
+        XCTAssertEqual(burned(after: 1), [.spiritOfTheShark], "放中间 → 还是烧鲨鱼")
+
+        // 起手场面的上场先后由读取层填（`playOrder`）：阿莱先上场、狐后上场，狐在左边。
+        // 手里舞动 + 9 张币，打出舞动后只剩 1 格：收回先上场的阿莱，烧狐（按场位会反过来）
+        var r = stateWith(hand: [.bounceAround] + Array(repeating: .coin, count: 9),
+                          board: [.foxyFraud, .alexstrasza], mana: 10, maxMana: 10)
+        r.board[0].playOrder = 2   // 狐
+        r.board[1].playOrder = 1   // 阿莱
+        r.nextPlayOrder = 3
+        let u = try! RDEngine.apply(.play(entityId: r.hand[0].entityId, identity: .bounceAround,
+                                          target: .none, choices: []), to: r)
+        XCTAssertEqual(u.hand.count, 10)
+        XCTAssertTrue(u.hand.contains { $0.card == .alexstrasza }, "先上场的阿莱收回")
+        XCTAssertFalse(u.hand.contains { $0.card == .foxyFraud }, "后上场的狐被烧")
 
         // 越界 / 法术带落位 → 非法
         XCTAssertThrowsError(try RDEngine.apply(.play(entityId: shark.entityId, identity: .spiritOfTheShark,
@@ -691,19 +707,19 @@ class RedDragonTests: HSTrackerTests {
         }
     }
 
-    /// 只展开结果上不等价的落位：① 手牌 / 边牌 / 牌库里都没有按顺序处理全场的效果 → 只有最右一种；
-    /// ② 插在完全相同的随从之间 → 场面序列相同，只留一种
+    /// 只展开结果上不等价的落位：① 手牌 / 边牌 / 牌库里都没有按场位处理全场的效果（幻觉药水；
+    /// T2b 起舞动按上场先后、不算）→ 只有最右一种；② 插在完全相同的随从之间 → 场面序列相同，只留一种
     func testPlacementsOnlyExpandInequivalentPositions() {
-        var noBounce = stateWith(hand: [.spiritOfTheShark], board: [.foxyFraud, .alexstrasza],
+        var noBounce = stateWith(hand: [.spiritOfTheShark, .bounceAround], board: [.foxyFraud, .alexstrasza],
                                  mana: 10, maxMana: 10)
-        noBounce.sideboard = []   // 默认边牌池里有舞动 / 幻觉药水
+        noBounce.sideboard = []   // 默认边牌池里有幻觉药水
         noBounce.deck = RDDeck([])
-        XCTAssertFalse(RDEngine.boardOrderMatters(noBounce))
+        XCTAssertFalse(RDEngine.boardOrderMatters(noBounce), "只有舞动 → 场位不影响结果")
         let plays = RDEngine.legalActions(noBounce).filter {
-            if case .play = $0 { return true }
+            if case .play(let eid, _, _, _, _) = $0 { return eid == noBounce.hand[0].entityId }
             return false
         }
-        XCTAssertEqual(plays.count, 1, "没有舞动 / 幻觉药水 → 落位全等价")
+        XCTAssertEqual(plays.count, 1, "没有幻觉药水 → 落位全等价")
 
         var same = stateWith(hand: [.spiritOfTheShark, .bounceAround],
                              board: [.spiritOfTheShark, .spiritOfTheShark], mana: 10, maxMana: 10)
@@ -712,27 +728,28 @@ class RedDragonTests: HSTrackerTests {
         XCTAssertEqual(RDEngine.placements(for: same.hand[0], identity: .spiritOfTheShark, state: same), [nil],
                        "三条一模一样的鲨鱼：插哪都是同一个场面")
 
-        // 边牌池里有舞动也算（牛能发现出来）
+        // 边牌池里有药水也算（牛能发现出来）
         var side = noBounce
-        side.sideboard = [.bounceAround]
+        side.sideboard = [.potionOfIllusion]
         XCTAssertTrue(RDEngine.boardOrderMatters(side))
         XCTAssertEqual(RDEngine.placements(for: side.hand[0], identity: .spiritOfTheShark, state: side),
                        [nil, 1, 0])
     }
 
-    /// 「爆手时再决定收回哪几张」（`RDBoardOrder`）和「下随从时逐格展开落位」得到的舞动后局面集合相同。
-    /// 场上已有牛、刀油（锁定，牛在左），手里狐、鲨鱼、舞动，手牌上限 3：舞动时 4 个随从只收得回 3 个
+    /// 「爆手时再决定复制哪几张」（`RDBoardOrder`）和「下随从时逐格展开落位」得到的药水后局面集合相同。
+    /// 场上已有牛、刀油（锁定，牛在左），手里狐、鲨鱼、药水，手牌上限 3：药水时 4 个随从只复制得了 3 个
     func testDeferredBoardOrderReachesSameOutcomesAsFullPlacement() {
-        var s = stateWith(hand: [.foxyFraud, .spiritOfTheShark, .bounceAround],
+        var s = stateWith(hand: [.foxyFraud, .spiritOfTheShark, .potionOfIllusion],
                           board: [.etcBandManager, .scabbsCutterbutter], mana: 10, maxMana: 10, handLimit: 3)
         s.sideboard = []
-        let n = assertDeferredMatchesFull(s, terminal: .bounceAround)
-        XCTAssertGreaterThan(n, 3, "要有因落位不同而不同的结果")
+        // 药水不清场：两种做法的场面顺序本来就不一样（延后决定的只取偏序的一个代表），只比场面以外的部分
+        let n = assertDeferredMatchesFull(s, terminal: .potionOfIllusion, ignoreBoardOrder: true)
+        XCTAssertGreaterThan(n, 3, "要有因落位不同而不同的结果（进手的是哪几张）")
     }
 
-    /// 幻觉药水保留场面：爆手时只定了「复制到的在没复制到的左边」，两边内部的顺序还没定，
-    /// 之后的舞动还能再选。A、B、C 三个自由随从（0 费狐 / 母龙 / 鲨鱼），药水只复制得了两个，
-    /// 舞动只收得回一个：ABC 和 BAC 复制的都是 A、B，但舞动一个收 A、一个收 B，是两种结果
+    /// 幻觉药水爆手后再舞动：药水只定了「复制到的在没复制到的左边」，舞动按上场先后处理、不看场位。
+    /// A、B、C 三个自由随从（0 费狐 / 母龙 / 鲨鱼），药水只复制得了两个，舞动只收得回一个（最先下的那个）。
+    /// 两种做法得到的结果集合仍须相同
     func testDeferredBoardOrderKeepsFreedomAfterPotion() {
         var s = stateWith(hand: [.potionOfIllusion, .bounceAround], board: [], mana: 10, maxMana: 10,
                           handLimit: 3)
@@ -748,9 +765,16 @@ class RedDragonTests: HSTrackerTests {
     /// `terminal` 之后的局面集合，必须相同；延后决定的每条路径翻译成落位后，引擎原样重放也要到同一个局面。
     /// 返回不同结果的个数
     @discardableResult
-    private func assertDeferredMatchesFull(_ s: RDState, terminal: RDCard,
+    private func assertDeferredMatchesFull(_ s: RDState, terminal: RDCard, ignoreBoardOrder: Bool = false,
                                            file: StaticString = #filePath, line: UInt = #line) -> Int {
         let original = Set(s.hand.map { $0.entityId })
+        func key(_ t: RDState) -> UInt64 {
+            guard ignoreBoardOrder else { return t.canonicalHash() }
+            var u = t
+            u.board.sort { RDEngine.minionKey($0) < RDEngine.minionKey($1) }
+            for i in u.board.indices { u.board[i].playOrder = 0 }
+            return u.canonicalHash()
+        }
         func allowed(_ a: RDAction) -> (ok: Bool, isTerminal: Bool) {
             guard case .play(let eid, let identity, _, _, _) = a, original.contains(eid) else { return (false, false) }
             return (true, identity == terminal)
@@ -760,7 +784,7 @@ class RedDragonTests: HSTrackerTests {
             for a in RDEngine.legalActions(t) {
                 let k = allowed(a)
                 guard k.ok, let next = try? RDEngine.apply(a, to: t) else { continue }
-                if k.isTerminal { full.insert(next.canonicalHash()) } else { dfsFull(next) }
+                if k.isTerminal { full.insert(key(next)) } else { dfsFull(next) }
             }
         }
         dfsFull(s)
@@ -779,7 +803,7 @@ class RedDragonTests: HSTrackerTests {
                     path.append(a)
                     decisions.append(o.decision)
                     if k.isTerminal {
-                        deferred.insert(o.state.canonicalHash())
+                        deferred.insert(key(o.state))
                         let placed = RDBoardOrder.assignPositions(path, decisions: decisions, root: s,
                                                                   options: .search)
                         let end = placed.flatMap { try? RDReplay.run($0, from: s) }
@@ -800,31 +824,35 @@ class RedDragonTests: HSTrackerTests {
         return full.count
     }
 
-    /// 落位翻译要改写编号：场上鲨鱼，手里狐、药水、舞动、7 张杂。线是 下狐 → 药水（不爆手，鲨鱼和狐
-    /// 各复制一张）→ 舞动只收得回一个、收狐 → 下药水复制出的狐。搜索口径里狐在最右，复制出的狐是
-    /// 第二张复制品；翻译后狐要插到最左，药水的进手顺序跟着变，那个编号就成了鲨鱼的复制品。
+    /// 落位翻译要改写编号：场上鲨鱼，手里狐、两瓶药水、5 张杂，手牌上限 8。线是 下狐 → 药水 1（不爆手，
+    /// 鲨鱼和狐各复制一张）→ 药水 2 只复制得了一个、复制狐 → 下药水 1 复制出的狐。搜索口径里狐在最右，
+    /// 药水 1 复制出的狐是第二张复制品；翻译后狐要插到最左，药水 1 的进手顺序跟着变，那个编号就成了鲨鱼的复制品。
+    /// （T2a 时这里用的是舞动；T2b 起舞动按上场先后处理、没有排法，只剩药水爆手会定场位）
     func testPlacementTranslationRemapsEntityIds() throws {
-        var s = stateWith(hand: [.foxyFraud, .potionOfIllusion, .bounceAround]
-                            + Array(repeating: .junkPlaceholder, count: 7),
-                          board: [.spiritOfTheShark], mana: 10, maxMana: 10)
+        var s = stateWith(hand: [.foxyFraud, .potionOfIllusion, .potionOfIllusion]
+                            + Array(repeating: .junkPlaceholder, count: 5),
+                          board: [.spiritOfTheShark], mana: 10, maxMana: 10, handLimit: 8)
         s.sideboard = []
+        s.hand[0].enchants = [.set(1)]   // 狐 1 费：1 + 4 + 4 + 复制品 1 = 10
         let sharkId = s.board[0].entityId
-        let fox = s.hand[0], potion = s.hand[1], dance = s.hand[2]
+        let fox = s.hand[0], potion = s.hand[1], potion2 = s.hand[2]
         let a1 = RDAction.play(entityId: fox.entityId, identity: .foxyFraud, target: .none, choices: [])
         let s1 = try RDEngine.apply(a1, to: s)
         let foxOnBoard = s1.board.last!.entityId
         let a2 = RDAction.play(entityId: potion.entityId, identity: .potionOfIllusion, target: .none, choices: [])
         let s2 = try RDEngine.apply(a2, to: s1)
         let foxCopy = s2.hand.first { $0.card == .foxyFraud && $0.statsOverride != nil }!
-        let a3 = RDAction.play(entityId: dance.entityId, identity: .bounceAround, target: .none, choices: [])
+        let a3 = RDAction.play(entityId: potion2.entityId, identity: .potionOfIllusion, target: .none, choices: [])
         let a4 = RDAction.play(entityId: foxCopy.entityId, identity: .foxyFraud, target: .none, choices: [])
         let decisions: [RDOrderDecision?] = [nil, nil, RDOrderDecision(order: [foxOnBoard, sharkId], front: 1), nil]
 
-        // 搜索口径（舞动处按 decision 重排）能走通
-        var t = try RDEngine.apply(a2, to: s1)
+        // 搜索口径（药水 2 处按 decision 重排）能走通；药水 2 复制的是狐
+        var t = s2
         t.board = [t.board[1], t.board[0]]
-        t = try RDEngine.apply(a4, to: RDEngine.apply(a3, to: t))
-        XCTAssertTrue(t.hand.contains { $0.card == .foxyFraud && $0.statsOverride == nil }, "舞动收回的是狐")
+        t = try RDEngine.apply(a3, to: t)
+        XCTAssertEqual(t.hand.filter { $0.card == .foxyFraud }.count, 2, "药水 2 复制的是狐")
+        XCTAssertFalse(t.hand.contains { $0.card == .spiritOfTheShark && $0.entityId > foxCopy.entityId })
+        t = try RDEngine.apply(a4, to: t)
 
         // 只改落位、不改编号的话，第 4 步打的是鲨鱼的复制品
         let positionOnly: [RDAction] = [
@@ -835,7 +863,7 @@ class RedDragonTests: HSTrackerTests {
         let placed = try XCTUnwrap(RDBoardOrder.assignPositions([a1, a2, a3, a4], decisions: decisions,
                                                                 root: s, options: .search))
         guard case .play(_, _, _, _, let p) = placed[0] else { return XCTFail() }
-        XCTAssertEqual(p, 0, "狐插最左，舞动才收得回它")
+        XCTAssertEqual(p, 0, "狐插最左，药水 2 才复制得到它")
         guard case .play(let copyId, _, _, _, _) = placed[3] else { return XCTFail() }
         XCTAssertNotEqual(copyId, foxCopy.entityId, "编号已改写成带落位重放时狐的复制品")
         let end = try RDReplay.run(placed, from: s)
@@ -894,6 +922,222 @@ class RedDragonTests: HSTrackerTests {
         }
     }
 
+    /// T2b 第四轮 P1（Codex 最小复现）：7 费，场上一只召唤失调的阿莱，装着疾速矿锄，牌库只剩一张暗影步，
+    /// 对手 9 血。英雄打脸 1 → 矿锄抽到暗影步 → 收回阿莱（9 − 2 = 7 费）→ 再下阿莱打脸 8 = 9。
+    /// 原来攻击后的抽牌不结算，输出 damage=1 exhaustive=true，等于「证明不能斩」
+    func testQuickPickDrawAfterHeroAttackIsResolvedAndSearched() throws {
+        var s = stateWith(hand: [], board: [.alexstrasza], mana: 7, maxMana: 7)
+        s.sideboard = []
+        s.board[0].summoningSick = true
+        s.weapon = RDWeapon(attack: 1, durability: 2, drawOnHeroAttack: true)
+        s.deck = RDDeck([(.shadowstep, 1)])
+        s.opponent = RDOpponent(health: 9)
+
+        // 引擎：攻击后抽到那张（牌库只剩一种，不占 choice）
+        let hit = try RDEngine.apply(.attack(attacker: .friendlyHero, defender: .enemyHero), to: s)
+        XCTAssertEqual(hit.hand.map { $0.card }, [.shadowstep])
+        XCTAssertEqual(hit.deck.total, 0)
+        XCTAssertEqual(hit.damageDealt, 1)
+        // 技能匕首（同为 1/2）不抽
+        var dagger = s
+        dagger.weapon = RDWeapon(attack: 1, durability: 2, drawOnHeroAttack: false)
+        XCTAssertTrue(try RDEngine.apply(.attack(attacker: .friendlyHero, defender: .enemyHero), to: dagger).hand.isEmpty)
+        XCTAssertNotEqual(s.canonicalHash(), dagger.canonicalHash(), "矿锄和匕首的局面不能去重成一个")
+        // 耐久只剩 1 的矿锄打完也抽（日志：武器 DAMAGE 满了之后 TRIGGER 块照样抽）
+        var last = s
+        last.weapon?.durability = 1
+        XCTAssertEqual(try RDEngine.apply(.attack(attacker: .friendlyHero, defender: .enemyHero), to: last).hand.count, 1)
+
+        for (name, config) in [("精确", RedDragonConfig.exact), ("默认", RedDragonConfig())] {
+            let result = RedDragonSearch.solve(s, config: config)
+            XCTAssertTrue(result.isLethal, "\(name)：damage=\(result.maxDamage) exhaustive=\(result.exhaustive)")
+            let line = try XCTUnwrap(result.chosenLine, name)
+            XCTAssertNotNil(RDReplay.validate(line.actions, from: s, expectedDamage: 9), name)
+            XCTAssertFalse(RDLineWalker.dependsOnDraw(line.actions, root: s), "牌库只剩一张，抽什么是确定的")
+        }
+
+        // 牌库两种牌：攻击按抽到哪张分叉；斩杀线依赖抽牌
+        var two = s
+        two.deck = RDDeck([(.shadowstep, 1), (.coin, 1)])
+        let heroAttacks = RDEngine.legalActions(two).filter {
+            if case .attack(.friendlyHero, .enemyHero, _) = $0 { return true }
+            return false
+        }
+        XCTAssertEqual(Set(heroAttacks.map { "\($0.choices)" }),
+                       Set([[RDChoice.pick(.shadowstep)], [.pick(.coin)]].map { "\($0)" }))
+        let r2 = RedDragonSearch.solve(two, config: .exact)
+        XCTAssertTrue(r2.isLethal)
+        if let line = r2.chosenLine { XCTAssertTrue(RDLineWalker.dependsOnDraw(line.actions, root: two)) }
+    }
+
+    /// T2b 第五轮 P2：「过程中发生了随机抽牌」≠「斩杀依赖抽到的牌」。
+    /// ① 对手 1 血，矿锄攻击本身就致死，攻击后的抽牌（牌库两种牌）不降低确定性；
+    /// ② 抽到的牌后面没用上（暗影步本来就在手里）也不降低；③ 后面要打抽到的那张 → 依赖
+    func testDrawAfterLethalOrUnusedDoesNotMakeLineDrawDependent() throws {
+        var s = stateWith(hand: [], board: [], mana: 0, maxMana: 7)
+        s.sideboard = []
+        s.weapon = RDWeapon(attack: 1, durability: 2, drawOnHeroAttack: true)
+        s.deck = RDDeck([(.shadowstep, 1), (.coin, 1)])
+        s.opponent = RDOpponent(health: 1)
+        for pick in [RDCard.shadowstep, .coin] {
+            let line: [RDAction] = [.attack(attacker: .friendlyHero, defender: .enemyHero, choices: [.pick(pick)])]
+            XCTAssertFalse(RDLineWalker.dependsOnDraw(line, root: s), "致死之后的抽牌（抽到 \(pick)）")
+        }
+        let r = RedDragonSearch.solve(s, config: .exact)
+        XCTAssertTrue(r.isLethal)
+        XCTAssertFalse(r.lethalLines.isEmpty)
+        for l in r.lethalLines { XCTAssertFalse(RDLineWalker.dependsOnDraw(l.actions, root: s)) }
+
+        // ② 暗影步已在手：英雄打脸 1（抽一张，没用上）→ 暗影步收回阿莱 → 7 费再下阿莱打脸 8
+        var u = stateWith(hand: [.shadowstep], board: [.alexstrasza], mana: 7, maxMana: 7)
+        u.sideboard = []
+        u.board[0].summoningSick = true
+        u.weapon = RDWeapon(attack: 1, durability: 2, drawOnHeroAttack: true)
+        u.deck = RDDeck([(.coin, 1), (.preparation, 1)])
+        u.opponent = RDOpponent(health: 9)
+        let step = u.hand[0], alex = u.board[0]
+        let after = try RDEngine.apply(.attack(attacker: .friendlyHero, defender: .enemyHero, choices: [.pick(.coin)]), to: u)
+        let bounced = try RDEngine.apply(.play(entityId: step.entityId, identity: .shadowstep,
+                                               target: .friendlyMinion(alex.entityId), choices: []), to: after)
+        let back = try XCTUnwrap(bounced.hand.last { $0.card == .alexstrasza })
+        let unused: [RDAction] = [
+            .attack(attacker: .friendlyHero, defender: .enemyHero, choices: [.pick(.coin)]),
+            .play(entityId: step.entityId, identity: .shadowstep, target: .friendlyMinion(alex.entityId), choices: []),
+            .play(entityId: back.entityId, identity: .alexstrasza, target: .enemyHero, choices: [])
+        ]
+        XCTAssertNotNil(RDReplay.validate(unused, from: u, expectedDamage: 9))
+        XCTAssertFalse(RDLineWalker.dependsOnDraw(unused, root: u), "抽到的牌没用上")
+
+        // ③ 要打抽到的那张：第四轮那个局面（牌库暗影步 + 币），换成抽到币就打不出暗影步
+        var v = stateWith(hand: [], board: [.alexstrasza], mana: 7, maxMana: 7)
+        v.sideboard = []
+        v.board[0].summoningSick = true
+        v.weapon = RDWeapon(attack: 1, durability: 2, drawOnHeroAttack: true)
+        v.deck = RDDeck([(.shadowstep, 1), (.coin, 1)])
+        v.opponent = RDOpponent(health: 9)
+        let rv = RedDragonSearch.solve(v, config: .exact)
+        let lv = try XCTUnwrap(rv.chosenLine)
+        XCTAssertTrue(RDLineWalker.dependsOnDraw(lv.actions, root: v))
+    }
+
+    /// T2b 第四轮排查：不是打牌的走法里，交易（黑水弯刀，可交易）没建模。手里有它、有 1 费、牌库不空时
+    /// 动作层报告「丢了分支」，搜索走完也不算穷举
+    func testTradeableCardInHandMakesSearchNonExhaustive() {
+        var s = stateWith(hand: [.blackwaterCutlass], board: [], mana: 1, maxMana: 1)
+        s.sideboard = []
+        s.deck = RDDeck([(.coin, 1)])
+        s.opponent = RDOpponent(health: 30)
+        var dropped = false
+        _ = RDEngine.legalActions(s, options: .search, dropped: &dropped)
+        XCTAssertTrue(dropped)
+        XCTAssertFalse(RedDragonSearch.solve(s, config: .exact).exhaustive)
+        // 牌库空了交易不了 → 不算丢
+        var empty = s
+        empty.deck = RDDeck([])
+        dropped = false
+        _ = RDEngine.legalActions(empty, options: .search, dropped: &dropped)
+        XCTAssertFalse(dropped)
+        XCTAssertEqual(RDCards.tradeableCards, [.blackwaterCutlass])
+    }
+
+    /// T2b 第三轮 P1：连抽按剩余张数枚举（牌库两张同名牌可以都抽到），组合超上限时如实报告「丢了分支」。
+    /// 隐藏（抽两张随从），牌库 狐 ×2、鲨鱼 ×1：确定化结果是 狐狐 / 狐鲨 / 鲨（之后只剩狐，直接拿、不占 choice）
+    func testConsecutiveDrawsEnumerateRemainingCopiesAndReportTruncation() throws {
+        var s = stateWith(hand: [.shroudOfConcealment], board: [], mana: 10, maxMana: 10)
+        s.sideboard = []
+        s.deck = RDDeck([(.foxyFraud, 2), (.spiritOfTheShark, 1)])
+        let shroud = s.hand[0]
+        func combos(_ options: RDOptions, _ dropped: inout Bool) -> [[RDChoice]] {
+            return RDEngine.legalActions(s, options: options, dropped: &dropped).compactMap { a -> [RDChoice]? in
+                guard case .play(let eid, _, _, let choices, _) = a, eid == shroud.entityId else { return nil }
+                return choices
+            }
+        }
+        var dropped = false
+        let all = combos(.search, &dropped)
+        XCTAssertFalse(dropped)
+        XCTAssertEqual(Set(all.map { "\($0)" }),
+                       Set([[RDChoice.pick(.foxyFraud), .pick(.foxyFraud)],
+                            [.pick(.foxyFraud), .pick(.spiritOfTheShark)],
+                            [.pick(.spiritOfTheShark)]].map { "\($0)" }))
+        let twoFoxes = try RDEngine.apply(.play(entityId: shroud.entityId, identity: .shroudOfConcealment,
+                                                target: .none, choices: [.pick(.foxyFraud), .pick(.foxyFraud)]),
+                                          to: s)
+        XCTAssertEqual(twoFoxes.hand.filter { $0.card == .foxyFraud }.count, 2)
+        XCTAssertEqual(twoFoxes.deck.counts[RDCard.foxyFraud.rawValue], 0)
+
+        // 上限 2：截断并报告；精确档不设上限
+        var capped = RDOptions.search
+        capped.maxChoiceCombinations = 2
+        dropped = false
+        XCTAssertEqual(combos(capped, &dropped).count, 2)
+        XCTAssertTrue(dropped, "截断了合法分支要报告")
+        XCTAssertEqual(RedDragonConfig.exact.options.maxChoiceCombinations, .max)
+
+        // 搜索：动作层丢了分支 → 走完也不算穷举
+        var config = RedDragonConfig.exact
+        config.options = capped
+        s.opponent = RDOpponent(health: 99)
+        let result = RedDragonSearch.solve(s, config: config)
+        XCTAssertFalse(result.exhaustive)
+        config.options.maxChoiceCombinations = .max
+        XCTAssertTrue(RedDragonSearch.solve(s, config: config).exhaustive)
+    }
+
+    /// T2b 第三轮 P2：舞动可达时同款友方随从也不能合并成一个目标。上场先后 A₁、B、C、A₂（场位同序，
+    /// A 是两只一模一样的失调狐），手牌满（骨刺、舞动、8 张杂）：骨刺杀一只 A 后舞动只剩 2 格、收回最先上场的两只。
+    /// 杀 A₁ → 收回 B、C；杀 A₂ → 收回 A、B。两个目标都要列出来，执行后按含上场先后的局面去重也不能并掉。
+    /// 对照：手里没有舞动（边牌、牌库也没有）时仍只列一个
+    func testIdenticalFriendlyTargetsStayDistinctWhenBounceAroundReachable() throws {
+        var s = stateWith(hand: [.serratedBoneSpike, .bounceAround]
+                            + Array(repeating: .junkPlaceholder, count: 8),
+                          board: [.foxyFraud, .spiritOfTheShark, .scabbsCutterbutter, .foxyFraud],
+                          mana: 10, maxMana: 10, handLimit: 10)
+        s.sideboard = []
+        s.deck = RDDeck([])
+        for i in s.board.indices {
+            s.board[i].summoningSick = true
+            s.board[i].playOrder = i + 1
+        }
+        s.nextPlayOrder = s.board.count + 1
+        let a1 = s.board[0].entityId, a2 = s.board[3].entityId
+        XCTAssertEqual(RDEngine.minionKey(s.board[0]), RDEngine.minionKey(s.board[3]))
+        XCTAssertFalse(RDEngine.boardOrderMatters(s))
+        XCTAssertTrue(RDEngine.arrivalOrderMatters(s))
+        let spike = s.hand[0], dance = s.hand[1]
+
+        func spikeTargets(_ actions: [RDAction]) -> Set<Int> {
+            return Set(actions.compactMap { act -> Int? in
+                guard case .play(let eid, _, .friendlyMinion(let t), _, _) = act, eid == spike.entityId else { return nil }
+                return t
+            })
+        }
+        let listed = RDEngine.legalActions(s)
+        XCTAssertTrue(spikeTargets(listed).isSuperset(of: [a1, a2]), "两只狐都要能被指到")
+        let collapsed = RedDragonSearch.collapseEquivalentTargets(listed, s, RDBoardConstraints.root(s),
+                                                                  options: .search)
+        XCTAssertTrue(spikeTargets(collapsed).isSuperset(of: [a1, a2]), "执行后上场先后不同，不能被去重并掉")
+
+        func returned(killing target: Int) throws -> [RDCard] {
+            var t = try RDEngine.apply(.play(entityId: spike.entityId, identity: .serratedBoneSpike,
+                                             target: .friendlyMinion(target), choices: []), to: s)
+            XCTAssertFalse(t.board.contains { $0.entityId == target })
+            t = try RDEngine.apply(.play(entityId: dance.entityId, identity: .bounceAround,
+                                         target: .none, choices: []), to: t)
+            XCTAssertTrue(t.board.isEmpty)
+            return t.hand.map { $0.card }.filter { $0 != .junkPlaceholder }.sorted { $0.rawValue < $1.rawValue }
+        }
+        let killFirst = try returned(killing: a1), killLast = try returned(killing: a2)
+        XCTAssertEqual(killFirst, [RDCard.spiritOfTheShark, .scabbsCutterbutter].sorted { $0.rawValue < $1.rawValue })
+        XCTAssertEqual(killLast, [RDCard.foxyFraud, .spiritOfTheShark].sorted { $0.rawValue < $1.rawValue })
+
+        // 对照：舞动不可达 → 同款只列一个
+        var noDance = s
+        noDance.hand.remove(at: 1)
+        XCTAssertFalse(RDEngine.arrivalOrderMatters(noDance))
+        XCTAssertEqual(spikeTargets(RDEngine.legalActions(noDance)).intersection([a1, a2]).count, 1)
+    }
+
     /// 「等价目标合并」的独立核对（不经 `legalActions` 的合并）：对每张要指目标的手牌，把所有友方 / 敌方
     /// 实体和英雄都当目标逐个执行，每个结果（局面 + 场序偏序）都必须能由 `legalActions` 给出的某个动作、
     /// 再经搜索的 `collapseEquivalentTargets` 之后到达。覆盖伤害（骨刺）、弹回（暗影步）、复制（施法者）
@@ -946,12 +1190,14 @@ class RedDragonTests: HSTrackerTests {
         }
     }
 
-    /// 束搜索不逐格展开落位，而在爆手的舞动那一步展开「收回哪几张」，再翻译回落位。
-    /// 场上已有 狐、牛（回合开始就在，顺序锁定），手里 1 费阿莱复制 + 舞动，手牌上限 2：
-    /// 阿莱放最右会被烧，插到牛的左边才能收回、再打一次凑够 16（狐的相对位置锁定，插第 2 格最贴近原顺序）
-    func testSearchPlacesMinionSoBounceKeepsIt() {
-        var s = stateWith(hand: [.bounceAround], board: [.foxyFraud, .etcBandManager],
+    /// 束搜索不逐格展开落位，而在爆手的药水那一步展开「复制哪几张」，再翻译回落位。
+    /// 场上已有 狐、牛（回合开始就在，顺序锁定），手里 1 费阿莱复制 + 幻觉药水，手牌上限 2：
+    /// 阿莱放最右复制不到，插到牛的左边才复制得到、再打一次凑够 16（狐的相对位置锁定，插第 2 格最贴近原顺序）。
+    /// （T2a 时这里用的是舞动；T2b 起舞动按上场先后处理，放哪都烧最后下的）
+    func testSearchPlacesMinionSoPotionCopiesIt() {
+        var s = stateWith(hand: [.potionOfIllusion], board: [.foxyFraud, .etcBandManager],
                           mana: 10, maxMana: 10, handLimit: 2)
+        s.sideboard = []
         let alexId = s.takeEntityId()
         s.hand.insert(RDHandCard(entityId: alexId, card: .alexstrasza, enchants: [.set(1)],
                                  statsOverride: RDStats(attack: 1, health: 1)), at: 0)
@@ -964,9 +1210,72 @@ class RedDragonTests: HSTrackerTests {
             guard case .play(_, let identity, _, _, let p) = a, identity == .alexstrasza else { return nil }
             return .some(p)
         }
-        // 第一次插在狐和牛之间（第 2 格）；舞动后场面已空，第二次放哪都一样（最右）
+        // 第一次插在狐和牛之间（第 2 格）；第二次（复制品）之后没有药水，放哪都一样（最右）
         XCTAssertEqual(alexPositions, [1, nil])
         XCTAssertNil(line.pendingBoardOrders, "返回的线已经翻译成落位")
+    }
+
+    // MARK: - 7b. 英雄冻结、搜索中途取消
+
+    /// 冻结的英雄不能攻击：装着的武器、搜索中途装上的武器（黑水弯刀、英雄技能的匕首）都不行
+    func testFrozenHeroNeverAttacks() throws {
+        var s = stateWith(hand: [.blackwaterCutlass], board: [], mana: 10, maxMana: 10)
+        s.sideboard = []
+        s.weapon = RDWeapon(attack: 3, durability: 2, drawOnHeroAttack: false)
+        s.opponent = RDOpponent(health: 3)
+        func heroAttacks(_ t: RDState) -> Bool {
+            return RDEngine.legalActions(t).contains {
+                if case .attack(.friendlyHero, _, _) = $0 { return true }
+                return false
+            }
+        }
+        XCTAssertTrue(heroAttacks(s))
+        XCTAssertTrue(RedDragonSearch.solve(s).isLethal)
+        s.heroFrozen = true
+        XCTAssertFalse(heroAttacks(s))
+        XCTAssertThrowsError(try RDEngine.apply(.attack(attacker: .friendlyHero, defender: .enemyHero), to: s))
+        let equipped = try RDEngine.apply(.play(entityId: s.hand[0].entityId, identity: .blackwaterCutlass,
+                                                target: .none, choices: []), to: s)
+        XCTAssertNotNil(equipped.weapon)
+        XCTAssertFalse(heroAttacks(equipped), "中途装上的武器也不行")
+        let r = RedDragonSearch.solve(s, config: .exact)
+        XCTAssertFalse(r.isLethal)
+        XCTAssertTrue(r.exhaustive)
+        XCTAssertNotEqual(s.canonicalHash(), { var t = s; t.heroFrozen = false; return t.canonicalHash() }())
+    }
+
+    /// 搜索开始后取消：后台真的停下来（不是算完再丢）。不设状态闸门、CPU 兜底放到很大，
+    /// 不取消的话要跑很久；取消后很快返回、`cancelled`、展开的状态远少于不取消时的一小段
+    func testCancellationStopsRunningSearch() {
+        var s = stateWith(hand: [.foxyFraud, .scabbsCutterbutter, .spiritOfTheShark, .shadowcaster,
+                                 .darkscaleBroodmother, .etcBandManager, .bounceAround, .potionOfIllusion,
+                                 .shadowstep, .preparation],
+                          board: [], mana: 10, maxMana: 10)
+        s.opponent = RDOpponent(health: 999)
+        var config = RedDragonConfig()
+        config.cpuBudget = 1e9
+        config.maxStatesExpanded = nil
+        config.missingPieceBudget = 1e9
+        let token = RDCancellation()
+        config.cancellation = token
+        let done = DispatchSemaphore(value: 0)
+        var result: RedDragonResult?
+        var returnedAt = Date.distantFuture
+        DispatchQueue.global().async {
+            result = RedDragonSearch.solve(s, config: config)
+            returnedAt = Date()
+            done.signal()
+        }
+        Thread.sleep(forTimeInterval: 0.5)
+        let cancelledAt = Date()
+        token.cancel()
+        XCTAssertEqual(done.wait(timeout: .now() + 10), .success, "取消后 10 s 内没返回")
+        XCTAssertEqual(result?.cancelled, true, "取消前就算完了：局面不够重")
+        let lag = returnedAt.timeIntervalSince(cancelledAt)
+        print("取消到返回 \(String(format: "%.3f", lag)) s，已展开 \(result?.statesExpanded ?? 0) 态")
+        XCTAssertLessThan(lag, 1.0, "取消后后台还在跑")
+        XCTAssertFalse(result?.isLethal ?? true)
+        XCTAssertTrue(result?.lethalLines.isEmpty ?? false)
     }
 
     // MARK: - 8. 只用于验证的牌（背刺 / 袋底藏沙 / 脱水）

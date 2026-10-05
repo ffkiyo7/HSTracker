@@ -104,6 +104,10 @@ struct RDBoardMinion {
     var attacksThisTurn: Int
     /// 费用附魔跟着实体走（board → hand → board），这是「先舞后步 = 0」的前提
     var enchants: [RDEnchant]
+    /// 上场先后（越小越早）。舞动按它处理全场、后上场的放不下就被烧（T2b 日志订正，card-model H 节）；
+    /// 与场位（`board` 里的下标）无关。并列时按场位。引擎新下的随从取 `RDState.takePlayOrder()`，
+    /// 根局面由读取层从对局填（`EntityInfo.boardOrder`）
+    var playOrder: Int = 0
 
     var isAlive: Bool { return health > 0 }
 }
@@ -207,6 +211,8 @@ struct RDState {
     var spellDamage: Int
     var heroAttackedThisTurn: Bool
     var heroPowerUsed: Bool
+    /// 我方英雄被冻结：本回合不能攻击（含搜索途中新装备的武器）
+    var heroFrozen: Bool
     var weapon: RDWeapon?
 
     var hand: [RDHandCard]
@@ -224,6 +230,8 @@ struct RDState {
 
     var damageDealt: Int
     var nextEntityId: Int
+    /// 下一个上场随从的 `playOrder`（只增不减）。根局面要大于场上所有随从的 `playOrder`
+    var nextPlayOrder: Int
     /// 打过几次「花费用 + 抽 1 张未知」的截断牌（异教地图 / 垂钓时光）
     var truncatedDraws: Int
 
@@ -251,6 +259,7 @@ struct RDState {
         self.spellDamage = 0
         self.heroAttackedThisTurn = false
         self.heroPowerUsed = false
+        self.heroFrozen = false
         self.weapon = nil
         self.hand = []
         self.board = []
@@ -262,6 +271,7 @@ struct RDState {
         self.luckyCometCharges = 0
         self.damageDealt = 0
         self.nextEntityId = 1
+        self.nextPlayOrder = 1
         self.truncatedDraws = 0
         self.boardLimit = 7
         self.handLimit = 10
@@ -271,6 +281,17 @@ struct RDState {
         let id = nextEntityId
         nextEntityId += 1
         return id
+    }
+
+    mutating func takePlayOrder() -> Int {
+        let o = nextPlayOrder
+        nextPlayOrder += 1
+        return o
+    }
+
+    /// 场上随从按上场先后排的下标（舞动的处理顺序）。并列（手工构造的局面都是 0）时按场位
+    func boardIndicesByPlayOrder() -> [Int] {
+        return board.indices.sorted { (board[$0].playOrder, $0) < (board[$1].playOrder, $1) }
     }
 
     func effectiveBaseCost(_ card: RDHandCard, as identity: RDCard) -> Int {
@@ -343,9 +364,14 @@ struct RDState {
         feed(mana); feed(tempMana); feed(maxMana)
         feed(cardsPlayedThisTurn); feed(damageDealt); feed(truncatedDraws)
         feed(heroAttackedThisTurn ? 1 : 0); feed(heroPowerUsed ? 1 : 0)
+        // 新加的两项只在「有区别」时才喂：英雄没冻结、场位顺序 = 上场顺序（绝大多数局面）的哈希和加之前一样，
+        // 采样补搜按哈希抽样，哈希一变抽到的就变（t2-wuhui-03 靠补搜救回，见 T2a 任务书「T2b 舞动顺序订正」）
+        if heroFrozen { feed(-9) }
         feed(luckyCometCharges)
         feed(opponent.health); feed(opponent.armor)
         feed(weapon?.attack ?? -1); feed(weapon?.durability ?? -1)
+        // 疾速矿锄和技能匕首都是 1/2，只差攻击后抽不抽（T2b 第四轮）。只在抽时喂，别的局面哈希不变
+        if weapon?.drawOnHeroAttack == true { feed(-11) }
         // 手牌与顺序无关：把每张牌的 key 哈希交换律地并起来，省掉排序与分配。
         // key 必须带上 isShadowOfDemise 和「是否 1/1 复制体」：殒变成的「步」和真「步」同费但
         // 未来不同（殒打出后就没了，真步留着还能让殒镜像下一张法术），1/1 复制体与原版同费但
@@ -368,7 +394,9 @@ struct RDState {
         h = (h ^ handMix) &* 0x1000_0000_01b3
         h = (h ^ handSum) &* 0x1000_0000_01b3
         feed(hand.count)
-        // 场面有顺序（舞动弹回顺序 / 最右侧被烧）
+        // 场面有两种顺序：场位（幻觉药水从左到右复制）和上场先后（舞动按它处理、后上场的被烧）。
+        // 先按场位喂一遍完整内容，再按上场先后喂一遍随从键。不喂计数器的绝对值（不同路径到达的同一局面
+        // 计数器不同），也不喂按场位排的名次（两个一模一样的随从互换位置是同一个局面）
         for m in board {
             feed(m.card.rawValue)
             feed(m.attack); feed(m.health)
@@ -383,6 +411,14 @@ struct RDState {
             feed(-3)
         }
         feed(-4)
+        if board.count > 1 {
+            let byArrival = boardIndicesByPlayOrder()
+            // 按上场先后排的随从键序列和按场位的一样时不喂（此时它由场位序列决定）
+            if !byArrival.indices.allSatisfy({ RDEngine.minionKey(board[byArrival[$0]]) == RDEngine.minionKey(board[$0]) }) {
+                feed(-8)
+                for i in byArrival { feed(RDEngine.minionKey(board[i])) }
+            }
+        }
         for l in layers {
             feed(l.amount); feed(l.slots); feed(RDDiscountLayer.filterCode(l.filter))
         }
