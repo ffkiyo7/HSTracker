@@ -129,6 +129,9 @@ class RootOverlayViewModel: ObservableObject {
     // stack.
     let linkOpponentDeck = LinkOpponentDeckPanelViewModel()
 
+    // Fork: red dragon assist, fed by RedDragonAssistant.shared; its panel keeps clear of both trackers.
+    lazy var redDragon = RedDragonOverlayViewModel(trackers: [playerTracker, opponentTracker])
+
     // Settings.windowsLocked, HDT's _uiMovable inverted. Mirrored here because
     // the trackers stop being click-through - and gain their drag and resize
     // grip - exactly while the overlay is unlocked, so the views have to

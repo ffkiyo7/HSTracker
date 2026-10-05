@@ -109,7 +109,7 @@ final class RedDragonAssistant {
 
     // —— 以下全部只在主线程读写 ——
 
-    /// overlay 读的状态。T2c 在 `onChange` 里接
+    /// overlay 读的状态。T2c 的 overlay 用 `subscribe` 接（`onChange` 只留一个回调位）
     private(set) var hint = RedDragonHint.inactive
     var onChange: ((RedDragonHint) -> Void)?
     /// 调度过几次计算（测试用：关掉开关后它不再涨）
@@ -448,5 +448,30 @@ final class RedDragonAssistant {
         guard h != hint else { return }
         hint = h
         onChange?(h)
+        for s in subscribers {
+            s.handler(h)
+        }
     }
+
+    // MARK: 多订阅（T2c overlay 用；`onChange` 留给测试和单个调用方）
+
+    private struct Subscriber {
+        let token: Int
+        let handler: (RedDragonHint) -> Void
+    }
+    private var subscribers: [Subscriber] = []
+    private var nextSubscriberToken = 0
+
+    /// 主线程。返回的 token 交给 `unsubscribe` 退订；订阅方释放时要退订（handler 里应弱引用自己）
+    func subscribe(_ handler: @escaping (RedDragonHint) -> Void) -> Int {
+        nextSubscriberToken += 1
+        subscribers.append(Subscriber(token: nextSubscriberToken, handler: handler))
+        return nextSubscriberToken
+    }
+
+    func unsubscribe(_ token: Int) {
+        subscribers.removeAll { $0.token == token }
+    }
+
+    var subscriberCount: Int { return subscribers.count }
 }

@@ -103,6 +103,11 @@ extension RDGameSnapshot {
             .sorted { ($0.zonePosition, $0.id) < ($1.zonePosition, $1.id) }
             .map(minion)
         let theirSecrets = theirs.filter { $0.isInSecret && $0.isSecret }.count
+        func slots(_ play: [Entity]) -> [Int] {
+            return play.filter { $0.takesBoardSlot }
+                .sorted { ($0.zonePosition, $0.id) < ($1.zonePosition, $1.id) }
+                .map { $0.id }
+        }
 
         var playerEnchants: [PlayerEnchantment] = []
         if let p = playerEntity {
@@ -160,6 +165,8 @@ extension RDGameSnapshot {
             deadToBoard: deadToBoard,
             deck: deck,
             sideboard: sideboard,
-            maxEntityId: maxId)
+            maxEntityId: maxId,
+            boardSlots: slots(inPlay),
+            opponentBoardSlots: slots(theirPlay))
     }
 }

@@ -150,6 +150,12 @@ struct RDAnalysis: Equatable {
     /// 本回合已经做过的操作数（`NUM_OPTIONS_PLAYED_THIS_TURN`：出牌、攻击、英雄技能），回合内只增不减。
     /// 答题模式用它判断「做了一步」；不从场面推（攻击后死掉、被弹回的随从会让推出来的数倒退）
     var actionsTaken: Int
+
+    // 这个结论对应的手牌 / 场面排位（entity id，从左到右）。overlay 用它把标记落到第几张 / 第几格；
+    // 只在结论不过时画标记，所以排位和屏上一致
+    var handOrder: [Int] = []
+    var boardSlots: [Int] = []
+    var opponentBoardSlots: [Int] = []
 }
 
 /// 答题模式（spike 二、1）：不显示序号，每做一步判卷
@@ -486,7 +492,11 @@ enum RDHintBuilder {
             singleTurnInsufficient: verdict == .provenNotLethal,
             boardDanger: snap.deadToBoard || snap.opponentBoardDamage + dangerMargin >= myHealth,
             opponentHasSecrets: snap.opponentSecretCount > 0,
-            actionsTaken: snap.optionsPlayedThisTurn)
+            actionsTaken: snap.optionsPlayedThisTurn,
+            handOrder: snap.hand.map { $0.entityId },
+            boardSlots: snap.boardSlots.isEmpty ? snap.board.map { $0.entityId } : snap.boardSlots,
+            opponentBoardSlots: snap.opponentBoardSlots.isEmpty
+                ? snap.opponentBoard.map { $0.entityId } : snap.opponentBoardSlots)
     }
 
     static func cardId(_ c: RDCard) -> String {

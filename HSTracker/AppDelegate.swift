@@ -66,7 +66,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
                 CountersPreferences(),
                 BattlegroundsPreferences(nibName: "BattlegroundsPreferences", bundle: nil),
                 ArenaPreferences(nibName: "ArenaPreferences", bundle: nil),
-                MercenariesPreferences(nibName: "MercenariesPreferences", bundle: nil)
+                MercenariesPreferences(nibName: "MercenariesPreferences", bundle: nil),
+                // Fork: HSTracker/RedDragon/RedDragonPreferences.swift
+                RedDragonPreferences()
             ])
         ])
     }()

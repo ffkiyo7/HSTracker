@@ -611,6 +611,8 @@ struct RootOverlayView: View {
             // the two board grids on its own canvas.
             MercenariesAbilityHoverView(viewModel: viewModel.mercenariesAbilityHover,
                                         canvasSize: geometry.size)
+            // Fork: red dragon assist (HSTracker/RedDragon/RedDragonOverlayView.swift).
+            RedDragonOverlayView(viewModel: viewModel.redDragon, canvasSize: geometry.size)
             // Last of all, because GridFlavorText is the one child HDT gives
             // a Panel.ZIndex (5) on its canvas - everything else is at the
             // default 0, so the flavor text draws over the lot. It belongs

@@ -32,7 +32,7 @@
 | Phase 6 排队显示牌组 | ✅ | 08-30 实战；入口 `Game.isDeckTrackerQueue`（Bug T4 补 `isInMenu` 门） |
 | Phase 7 局末小结窗 | ✅ | 09-11 实战；钩子 `CoreManager.appTerminated`，开关 `show_constructed_session_recap`（默认开，**设置 UI 留 4.3**） |
 | 收尾（删 `useSwiftUITracker` 与旧路径） | ❌ | 被 REFORK 取代：旧路径随重建消失 |
-| 红龙贼 combo 提示器 | 🚧 | T0 + T1 已提交 `0a921d6b`（`HSTracker/RedDragon/`，24 测试），REFORK S7 原样搬。10-04 用户提前恢复，T2 拆三本串行：T2a 公式表全量验证 + 齐件 / 缺件分组 ✅ `d73f8a67`（90 案例通过 85 / 未验证 5，搜索 85/85 达表；五轮 review；待用户定的 5 项见「等你定」，任务书留 `docs/tasks/rdr-t2a-formula-audit.md` 至定完）→ T2b 接对局数据 + 开关 ✅（五轮 review；舞动订正为「后上场放不下的烧」后公式表通过 85 → 80；回放 10-01 四局四个斩杀回合全找到；`rdr-t2b-live-data.md`）→ T2c overlay + 设置页（`rdr-t2c-overlay.md`）；每本 Opus 实现、我读 diff + 本机 Codex review 后提交，最后出效果图 artifact 给用户验收 |
+| 红龙贼 combo 提示器 | 🚧 | T0 + T1 已提交 `0a921d6b`（`HSTracker/RedDragon/`，24 测试），REFORK S7 原样搬。10-04 用户提前恢复，T2 拆三本串行：T2a 公式表全量验证 + 齐件 / 缺件分组 ✅ `d73f8a67`（90 案例通过 85 / 未验证 5，搜索 85/85 达表；五轮 review；待用户定的 5 项见「等你定」，任务书留 `docs/tasks/rdr-t2a-formula-audit.md` 至定完）→ T2b 接对局数据 + 开关 ✅（五轮 review；舞动订正为「后上场放不下的烧」后公式表通过 85 → 80；回放 10-01 四局四个斩杀回合全找到；`rdr-t2b-live-data.md`）→ T2c overlay + 设置页 🖥️ 已提交待验收（两轮 review；效果图 artifact + 🎮 一局；拖离默认位置的场攻 / 计数器面板不跟着让位，未修；`rdr-t2c-overlay.md`）；每本 Opus 实现、我读 diff + 本机 Codex review 后提交，最后出效果图 artifact 给用户验收 |
 | **REFORK**：在上游新画布上重建 | 🚧 | `docs/REFORK.md`；新线 `dev0923`（09-30 起主仓库直接 checkout）。S0–S5、S6a、S7 ✅（09-26 实测，S4 的解锁复测 09-27 过）；S6b ✅ 09-28 四本一批（`a8e59f43` / `2618be4b` / `b12ead8c`）同日实测过，09-29 Codex 打回小结窗两条必修 `7312c31c` 修复、09-30 实测过；S8 ✅ 09-29：文档 / `AGENTS.md` / 代理定义 / 注入脚本搬上新线，`upstream-merges.md` 热点表按新线重写，`dev0923` 推到 origin；3.6.13 ✅ 09-29 合入（Phase U4），09-30 实测过（排队牌组、rewind 分区）。**余：REFORK「S6b 余项」（Trackers 设置页 = 4.3）+「回到主线的标准」第 2 条收口局** |
 
 **顺序**：红龙 T2a → T2b → T2c（10-04 用户提前）→ Phase 2 / V2 余项 → 4.3 fork 开关补进上游设置页（3.6.13 已合，可做）。
@@ -46,6 +46,7 @@
 | 🖥️ `LocalizationFormatTests` 挂住 | 受限环境跑 `xcodebuild test` 时到这组就不动（>10 分钟），疑似桌面访问授权弹窗；你在本机跑一次 `-only-testing:HSTrackerTests/LocalizationFormatTests` 看有没有弹窗，点允许 | 不开炉石 |
 | Bug T10 | 两张的牌抽走一张后数字框 2 → 1；手牌段行数 = 段头数字 | 一局 |
 | Bug T11 | ① 再见「被炸的牌还在牌库」时记牌名 / 段数字 / 已打出段有无；② 高亮三入口（记牌器行 / 手牌 / 发现）哪个不亮 —— **上游原样包也不亮**（REFORK 未决），从上游链路查；09-26 新线实测记牌器行高亮正常（S4 接上了上游只发布没人用的 `deckHighlight`），手牌 / 发现两入口未单独看 | 一局 |
+| 红龙 T2c overlay | 🖥️ 先看效果图 artifact；再打一局红龙贼：面板 / 手牌序号 / 场面标记坐标对不对、悬停放大牌时标记有没有挡、⌃⌥W/S/Q 热键、设置页开关热切换 | 红龙贼套牌，设置里开「红龙辅助」 |
 | Phase 2 / 2.6 高亮加强 | 只能在炉石背景上看 | 弑君者之类关联卡 |
 | Phase 4 / 4.3 Trackers 页 | 🖥️ 设置窗口中英文各一遍 | 不开炉石 |
 

@@ -117,6 +117,11 @@ struct RDGameSnapshot: Hashable {
     var sideboard: [String]?
 
     var maxEntityId: Int
+
+    /// 双方场上占格子的实体（随从 + 地标），按 `ZONE_POSITION`。overlay 按它找随从在第几格，
+    /// 和 `BoardOverlayView` 的排法一致（地标也占格，`board` / `opponentBoard` 里没有它们）
+    var boardSlots: [Int] = []
+    var opponentBoardSlots: [Int] = []
 }
 
 extension RDGameSnapshot {
