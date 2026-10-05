@@ -39,6 +39,27 @@ extension RDGameSnapshot {
                        match: game.startTime)
     }
 
+    /// 回溯（GAME_RESET）重发玩家实体时写的是「FULL_ENTITY - Updating 玩家名」，解析器认不出，后面的 tag 落到
+    /// 解析器当前的实体上（10-05 第 7 局落到了 id 0）：多出一个带 PLAYER_ID、但 ENTITY_ID 对不上自己的假玩家实体，
+    /// 而 `Game.playerEntity` 按最小 id 取会取到它（回合、法力从此冻住）。真玩家实体的 ENTITY_ID 就是自己的 id
+    static func isPlayerEntityCandidate(_ e: Entity) -> Bool {
+        return e.id > 0 && (e[.entity_id] == 0 || e[.entity_id] == e.id)
+    }
+
+    /// 我方玩家实体，跳过上面那种假实体
+    static func playerEntity(game: Game) -> Entity? {
+        let id = game.player.id
+        return game.entities.values.filter { $0[.player_id] == id && isPlayerEntityCandidate($0) }
+            .min { $0.id < $1.id }
+    }
+
+    /// 牌现在是什么。解析器碰到 CHANGE_ENTITY 不改 `cardId`（留着原卡），新身份记在 `info.latestCardId`：
+    /// 殒命暗影变成上一张法术就是这样（10-05 第 4 局 T11，殒命暗影在舞动后变成舞动，按 `cardId` 读还是殒命暗影）
+    static func currentCardId(_ e: Entity) -> String {
+        let latest = e.info.latestCardId
+        return latest.isEmpty ? e.cardId : latest
+    }
+
     /// 不经过 `Game` 的版本（测试用手工构造的实体）
     static func capture(entities all: [Entity], playerId: Int, opponentId: Int,
                         deck: [String: Int], band: [String]?,
@@ -55,8 +76,9 @@ extension RDGameSnapshot {
         for e in all {
             maxId = max(maxId, e.id)
             byId[e.id] = e
-            if e[.player_id] == playerId, playerEntity.map({ e.id < $0.id }) ?? true { playerEntity = e }
-            if e[.player_id] == opponentId, opponentEntity.map({ e.id < $0.id }) ?? true { opponentEntity = e }
+            let real = isPlayerEntityCandidate(e)
+            if real, e[.player_id] == playerId, playerEntity.map({ e.id < $0.id }) ?? true { playerEntity = e }
+            if real, e[.player_id] == opponentId, opponentEntity.map({ e.id < $0.id }) ?? true { opponentEntity = e }
             if e.name == "GameEntity" || e[.cardtype] == CardType.game.rawValue { gameEntity = e }
             if e.isEnchantment && e.isInPlay && e[.attached] > 0 {
                 enchantsByTarget[e[.attached], default: []].append(e)
@@ -67,7 +89,7 @@ extension RDGameSnapshot {
             return (enchantsByTarget[e.id] ?? []).sorted { $0.id < $1.id }.map { $0.cardId }
         }
         func minion(_ e: Entity) -> Minion {
-            return Minion(entityId: e.id, cardId: e.cardId, zonePosition: e.zonePosition,
+            return Minion(entityId: e.id, cardId: currentCardId(e), zonePosition: e.zonePosition,
                           attack: e.attack, health: e.health, maxHealth: e[.health], damage: e[.damage],
                           exhausted: e.has(tag: .exhausted), attacksThisTurn: e[.num_attacks_this_turn],
                           silenced: e.has(tag: .silenced), frozen: e.has(tag: .frozen),
@@ -82,7 +104,7 @@ extension RDGameSnapshot {
         let hand = mine.filter { $0.isInHand }
             .sorted { ($0.zonePosition, $0.id) < ($1.zonePosition, $1.id) }
             .map { e in
-                HandCard(entityId: e.id, cardId: e.cardId, cost: e[.cost], zonePosition: e.zonePosition,
+                HandCard(entityId: e.id, cardId: currentCardId(e), cost: e[.cost], zonePosition: e.zonePosition,
                          attack: e.attack, health: e.health, isCoin: e.isTheCoin,
                          enchantments: enchantIds(e))
             }

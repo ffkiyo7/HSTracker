@@ -138,9 +138,8 @@ enum RDStateReader {
         return RDLiveState(state: s, handZonePositions: zones, inferredBaseCostEntities: inferred)
     }
 
-    /// 场上随从身上仍挂着的费用附魔 → 引擎的附魔链（按附魔实体编号 = 挂上的先后）。引擎把场上随从的附魔
-    /// 带回手（`returnToHand`），所以连招中途重拍快照时要原样恢复，否则「舞动（1 费）→ 再下场 → 暗影步」
-    /// 会按印刷费 4 − 2 = 2 算（T2b 第三轮）。只认本牌组会碰到的几种：
+    /// 场上随从仍挂着的费用附魔，按附魔实体编号恢复。它们只描述当前实体，回手时全部清除，
+    /// 然后叠加回手牌自身的费用效果（T3 日志订正）。只认本牌组会碰到的几种：
     /// 舞动「本回合 1 费」、药水复制品的 1 费、暗影施法者复制品的 1/1 1 费、暗影步的 −2（`GBL_002e`）
     static let boardCostEnchantMap: [String: RDEnchant] = [
         "ETC_079e": .set(1), "SCH_352e2": .set(1), "OG_291e": .set(1), "GBL_002e": .delta(-2)

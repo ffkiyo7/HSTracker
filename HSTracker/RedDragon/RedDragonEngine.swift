@@ -170,7 +170,10 @@ enum RDEngine {
                                        maxHealth: stats.health,
                                        statsSetTo1x1: handCard.statsOverride != nil,
                                        silenced: false, summoningSick: true,
-                                       attacksThisTurn: 0, enchants: handCard.enchants,
+                                       // 手牌上的费用附魔不跟上场：舞动全场的「本回合费用为 1」在随从打出后由
+                                       // 附魔自己的 TRIGGER 拿掉（10-05 第 2 局晦鳞巢母 #22：舞动后 COST 1，打出后
+                                       // 场上变回 3，再被暗影步弹回 3 − 2 = 1）
+                                       attacksThisTurn: 0, enchants: [],
                                        playOrder: s.takePlayOrder())
             s.board.insert(minion, at: position ?? s.board.count)
             summonedId = id
@@ -557,16 +560,20 @@ enum RDEngine {
         // 手牌满 → 弹回的随从被销毁（格子腾了，牌没了）
         guard s.handSlotsFree > 0 else { return }
         let eid = s.takeEntityId()
+        // 回手按印刷身材、印刷费，再叠弹回自带的那个附魔。场上的费用附魔一个都不带回：
+        // - 1/1 复制体（暗影施法者 `OG_291e` / 幻觉药水 `SCH_352e2`）的复制附魔回手时被清掉（10-05 日志：施法者复制的
+        //   阿莱被暗影步弹回 COST 9 → 7、ATK 8；被舞动弹回的刀油 ATK 3、COST 4 → 1）；
+        // - 舞动的「本回合费用为 1」打出时就没了（见 `play`），「先舞后步 = 0」作废（10-05 用户定）
         appendThisTurn(&s, RDHandCard(entityId: eid, card: minion.card,
-                                 enchants: minion.enchants + [extraEnchant],
-                                 statsOverride: minion.statsSetTo1x1
-                                     ? RDStats(attack: minion.attack, health: minion.maxHealth)
-                                     : nil,
+                                 enchants: [extraEnchant],
                                  isShadowOfDemise: false))
     }
 
     private static func silence(_ minion: inout RDBoardMinion) {
         minion.silenced = true
+        // 沉默去掉随从身上所有附魔，包括带回手里的费用附魔（复制体的「费用为 1」、舞动的「本回合费用为 1」）：
+        // 之后被弹回按印刷费，再叠弹回自带的那个
+        minion.enchants = []
         if minion.statsSetTo1x1 {
             let def = RDCards.def(minion.card)
             minion.attack = def.attack
@@ -886,13 +893,7 @@ enum RDEngine {
         let stats = card.statsOverride ?? RDStats(attack: def.attack, health: def.health)
         var newKey = identity.rawValue &* 4096 &+ min(63, stats.health) &* 64 &+ min(31, stats.attack) &* 2
         newKey = newKey &* 2 &+ (card.statsOverride != nil ? 1 : 0)
-        newKey = newKey &* 8   // 新下的随从：召唤失调、未沉默、未攻击
-        for e in card.enchants {
-            switch e {
-            case .set(let v): newKey = newKey &* 31 &+ 100 &+ v
-            case .delta(let v): newKey = newKey &* 31 &+ 200 &+ v
-            }
-        }
+        newKey = newKey &* 8   // 新下的随从：召唤失调、未沉默、未攻击；手牌的费用附魔不跟上场（见 `play`）
         var keys: [Int] = state.board.map(minionKey)
         let n = keys.count
         var seen: [[Int]] = []

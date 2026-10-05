@@ -1320,6 +1320,17 @@ class RedDragonFormulaTests: HSTrackerTests {
         XCTAssertGreaterThan(full.statesExpanded, full.mainStatesExpanded, "补搜应展开了状态")
         print("== t2-wuhui-03：主搜索 \(full.mainStatesExpanded) 态未斩杀；补搜后合计 "
               + "\(full.statesExpanded) 态伤害 \(full.maxDamage)（总预算 \(config.maxStatesExpanded ?? 0)）")
+        // 换手牌排列及引擎新实体起点，仍是同一个可执行局面，不能靠某组编号/枚举顺序碰巧搜到。
+        var reordered = root
+        reordered.hand.reverse()
+        reordered.nextEntityId += 10_000
+        reordered.opponent = RDOpponent(health: damage)
+        let repeated = RedDragonSearch.solve(reordered, config: config)
+        XCTAssertTrue(repeated.isLethal, "相同资源换排列仍须找到 \(damage)")
+        if let line = repeated.chosenLine {
+            XCTAssertNotNil(RDReplay.validate(line.actions, from: reordered, expectedDamage: line.damage))
+        }
+        assertSharedStateBudget(repeated, config: config, "t2-wuhui-03 换排列")
     }
 
     // MARK: 6. 确定性

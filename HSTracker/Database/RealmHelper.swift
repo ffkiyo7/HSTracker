@@ -306,12 +306,16 @@ struct RealmHelper {
 					c.count = card.count as? Int ?? 0
 					deck.add(card: c)
 				}
+				// 新导入的套牌也要带上 sideboard（E.T.C. 乐队等），否则首局记牌器和红龙判定都看不到
+				for sideboard in convertSideboards(mirrorDeck.sideboards) {
+					deck.sideboards.append(sideboard)
+				}
 			}
 		} catch {
 			logger.error("Can not import deck. Error : \(error)")
 			return nil
 		}
-		
+
 		if deck.isValid() {
 			logger.info("Saving and using new deck : \(deck)")
 		} else {

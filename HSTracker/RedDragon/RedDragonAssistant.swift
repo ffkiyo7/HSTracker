@@ -14,9 +14,10 @@
 //     BLOCK 还开着时来了新行、上次投递的是局面 → 先作废（版本 +1、取消在算的），投 `main.async` 让主线程
 //     把结果标过时（`markStale`），每段只投一次；到一致边界再拷、再投（即使和上次相同）
 //  2. 主线程 `submit`：开关（`env.isEnabled()`）再查一次；记下版本，标「正在算」，
-//     `workQueue.asyncAfter(debounce)`
+//     `workQueue.asyncAfter(debounce)`。屏上是本回合的斩杀线时改成 `workQueue.async`（不去抖）
 //  3. 后台串行队列：读取 + 搜索 + 生成结论；被作废就半路退出（搜索主循环和收尾都看取消标记）
-//     → **`main.async`（第 2 跳）**
+//     → **`main.async`（第 2 跳）**。不去抖的那次先试「接着用」（`RDContinuation`：新局面就是屏上那条线
+//     推出来的局面，剩下的步骤在真实局面上重放校验通过）；对不上就在这条队列上再 `asyncAfter(debounce)` 走搜索
 //  4. 主线程 `commit`：代号是最新的、局面版本等于解析线程最新拷出的版本、对局身份没变、开关还开着
 //     → 结论 + 揭示档 + 答题判定在同一个 block 里提交，回调 `onChange`
 //
@@ -51,6 +52,8 @@ final class RedDragonAssistant {
         var debounce: TimeInterval
         var config: RedDragonConfig
         var cardName: (String) -> String
+        /// 跟手（T3）：新局面就是屏上那条斩杀线推出来的局面时，不去抖、不搜索，重放校验剩下的步骤直接上屏
+        var followsLine = true
 
         static let live = Environment(
             isEnabled: { Settings.redDragonAssist },
@@ -81,7 +84,8 @@ final class RedDragonAssistant {
     private var parsedVersion = 0
     /// 最近一次投递的快照的对局身份
     private var parsedMatch: Date?
-    private var deckGateCache: (id: String, eligible: Bool)?
+    /// 键带上 sideboard 张数：同一副牌的乐队可能在会话中途才被补进来（导入时缺了、下次匹配时更新）
+    private var deckGateCache: (id: String, sideboardCards: Int, eligible: Bool)?
     /// 在算的那次的取消标记（主线程调度时放进来，解析线程拷出新局面时作废）
     private var sharedToken: RDCancellation?
     /// 上次投递之后、一致边界之前，局面已经作废过（BLOCK 开着时来了新行）。下一个一致边界上的快照
@@ -118,9 +122,20 @@ final class RedDragonAssistant {
     private(set) var committedComputations = 0
     /// 跑完但因为局面版本 / 对局身份过时被丢掉的次数（测试用）
     private(set) var discardedComputations = 0
+    /// 上屏的结论里走「接着用」（没搜索）的次数（测试用）
+    private(set) var followedComputations = 0
+
+    /// 屏上那条斩杀线（第一条）和同一局面上其余不靠抽牌的斩杀线，各带自己的根局面（`RDContinuation` 的起点）。
+    /// 用户不一定照屏上的顺序打（10-05 第 7 局 T13 换了顺序，照样能斩），其余的线也接。只在结论是「可斩杀」时有
+    private struct FollowBase {
+        var candidates: [(root: RDState, line: RedDragonLine)]
+        var turn: Int
+        var match: Date?
+    }
 
     private var generation = 0
     private var inFlight: RDCancellation?
+    private var followBase: FollowBase?
     private var lastSnapshot: RDGameSnapshot?
     private var turn: Int?
     private var requestedReveal: RDRevealLevel?
@@ -200,22 +215,23 @@ final class RedDragonAssistant {
         guard !game.isInMenu, !game.gameEnded, let deck = game.currentDeck else { return .inactive }
         guard isEligible(deck), !game.isBattlegroundsMatch(), !game.isMercenariesMatch(),
               game.isMulliganDone() else { return .inactive }
-        guard game.playerEntity?.isCurrentPlayer == true else { return .opponentTurn }
+        guard RDGameSnapshot.playerEntity(game: game)?.isCurrentPlayer == true else { return .opponentTurn }
         guard let snap = RDGameSnapshot.capture(game: game) else { return .inactive }
         return .snapshot(snap)
     }
 
-    /// 套牌判定，按套牌 id 缓存。任何线程可调
+    /// 套牌判定，按套牌 id + sideboard 张数缓存。任何线程可调
     func isEligible(_ deck: PlayingDeck) -> Bool {
+        let sideboardCards = deck.sideboards.reduce(0) { $0 + $1.cards.count }
         lock.lock()
-        if let gate = deckGateCache, gate.id == deck.id {
+        if let gate = deckGateCache, gate.id == deck.id, gate.sideboardCards == sideboardCards {
             lock.unlock()
             return gate.eligible
         }
         lock.unlock()
         let eligible = RDDeckGate.isRedDragonDeck(deck)
         lock.lock()
-        deckGateCache = (deck.id, eligible)
+        deckGateCache = (deck.id, sideboardCards, eligible)
         lock.unlock()
         return eligible
     }
@@ -341,15 +357,9 @@ final class RedDragonAssistant {
         publish(h)
 
         let env = self.env
-        workQueue.asyncAfter(deadline: .now() + env.debounce) { [weak self] in
-            guard !token.isCancelled else { return }
-            let live = RDStateReader.read(snap)
-            var config = env.config
-            config.cancellation = token
-            let result = RedDragonSearch.solve(live.state, config: config)
-            guard !token.isCancelled, !result.cancelled else { return }
-            let analysis = RDHintBuilder.analyze(snapshot: snap, live: live, result: result,
-                                                 cardName: env.cardName)
+        let workQueue = self.workQueue
+        // 第 3 跳之后回主线程（第 4 跳）的那一下，搜索和接着用两条路共用
+        let deliver: (RDAnalysis, FollowBase?, Bool) -> Void = { [weak self] analysis, base, followed in
             DispatchQueue.main.async {
                 guard let self, gen == self.generation, self.env.isEnabled() else { return }
                 if let version {
@@ -360,13 +370,50 @@ final class RedDragonAssistant {
                         return
                     }
                 }
-                self.commit(analysis, snapshot: snap)
+                if followed { self.followedComputations += 1 }
+                self.commit(analysis, snapshot: snap, base: base)
             }
+        }
+        let search = {
+            guard !token.isCancelled else { return }
+            let live = RDStateReader.read(snap)
+            var config = env.config
+            config.cancellation = token
+            let result = RedDragonSearch.solve(live.state, config: config)
+            guard !token.isCancelled, !result.cancelled else { return }
+            let analysis = RDHintBuilder.analyze(snapshot: snap, live: live, result: result,
+                                                 cardName: env.cardName)
+            let lines = result.lethalLines.filter { !RDLineWalker.dependsOnDraw($0.actions, root: live.state) }
+            let base = FollowBase(candidates: lines.map { (live.state, $0) }, turn: snap.turn, match: snap.match)
+            deliver(analysis, lines.isEmpty ? nil : base, false)
+        }
+        // 跟手：屏上是斩杀线、还在同一回合时，先不去抖试一次「接着用」（读取 + 推演 + 重放，毫秒级），
+        // 对不上再按原样去抖、搜索。都在同一条串行后台队列上，取消标记照看
+        guard env.followsLine, let base = followBase, base.turn == snap.turn, base.match == snap.match else {
+            workQueue.asyncAfter(deadline: .now() + env.debounce, execute: search)
+            return
+        }
+        workQueue.async {
+            guard !token.isCancelled else { return }
+            var live = RDStateReader.read(snap)
+            let resumed = RDContinuation.resumeAll(base.candidates, onto: live.state)
+            guard let shown = resumed.first else {
+                workQueue.asyncAfter(deadline: .now() + env.debounce, execute: search)
+                return
+            }
+            // 线是从共用的根局面（新编号起点和读取的不同）校验的，展示层逐步推演也要从它推
+            live.state = shown.root
+            let result = RDContinuation.result(resumed.map { $0.line }, root: live.state)
+            let analysis = RDHintBuilder.analyze(snapshot: snap, live: live, result: result,
+                                                 cardName: env.cardName)
+            let next = FollowBase(candidates: resumed.map { ($0.root, $0.line) }, turn: snap.turn, match: snap.match)
+            deliver(analysis, next, true)
         }
     }
 
-    private func commit(_ analysis: RDAnalysis, snapshot: RDGameSnapshot) {
+    private func commit(_ analysis: RDAnalysis, snapshot: RDGameSnapshot, base: FollowBase?) {
         inFlight = nil
+        followBase = analysis.verdict == .lethal ? base : nil
         committedComputations += 1
         quizState = RDQuizState.next(quizState, snapshot: snapshot, verdict: analysis.verdict)
         var h = hint
@@ -381,7 +428,7 @@ final class RedDragonAssistant {
         var h = base
         let lethal = h.analysis?.isLethal ?? false
         let tier = h.analysis?.tier
-        h.maxRevealLevel = RDRevealPolicy.cap(isLethal: lethal, tier: tier)
+        h.maxRevealLevel = RDRevealPolicy.cap(isLethal: lethal, tier: tier, preference: env.revealPreference())
         h.revealLevel = RDRevealPolicy.effective(requested: requestedReveal, preference: env.revealPreference(),
                                                  isLethal: lethal, tier: tier)
         h.quizMode = env.quizMode()
@@ -397,7 +444,7 @@ final class RedDragonAssistant {
     /// 热键：升一档（T2c 接）
     func raiseReveal() {
         guard let a = hint.analysis, hint.phase == .ready || hint.phase == .computing else { return }
-        let top = RDRevealPolicy.cap(isLethal: a.isLethal, tier: a.tier)
+        let top = RDRevealPolicy.cap(isLethal: a.isLethal, tier: a.tier, preference: env.revealPreference())
         requestedReveal = min(top, RDRevealLevel(rawValue: hint.revealLevel.rawValue + 1) ?? .order)
         recompose()
     }
@@ -441,6 +488,7 @@ final class RedDragonAssistant {
         turn = newTurn
         requestedReveal = nil
         quizState = nil
+        followBase = nil
         if newTurn == nil { lastSnapshot = nil }
     }
 

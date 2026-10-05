@@ -540,7 +540,7 @@ class RedDragonTests: HSTrackerTests {
     }
 
     func testShadowstepAndBounceAroundOrderMatters() {
-        // 先舞动后步 = 0
+        // 舞动的 1 费在打出时失效；再暗影步按印刷 9 - 2 = 7
         var s = stateWith(hand: [.bounceAround, .shadowstep], board: [.alexstrasza],
                           mana: 10, maxMana: 10)
         s.handLimit = 10
@@ -557,7 +557,7 @@ class RedDragonTests: HSTrackerTests {
                                       target: .friendlyMinion(alexOnBoard.entityId),
                                       choices: []), to: t)
         let after = t.hand.first { $0.card == .alexstrasza }!
-        XCTAssertEqual(t.cost(of: after, as: .alexstrasza), 0, "先舞动后步 = 0")
+        XCTAssertEqual(t.cost(of: after, as: .alexstrasza), 7, "舞动后打出再暗影步：印刷 9 - 2")
 
         // 先步后舞动 = 1
         var u = stateWith(hand: [.shadowstep, .bounceAround], board: [.alexstrasza],
@@ -577,6 +577,43 @@ class RedDragonTests: HSTrackerTests {
                                       target: .none, choices: []), to: u)
         let bounced = u.hand.first { $0.card == .alexstrasza }!
         XCTAssertEqual(u.cost(of: bounced, as: .alexstrasza), 1, "先步后舞动 = 1")
+    }
+
+    func testCopyLosesCopyEnchantWhenReturnedToHand() {
+        // 10-05 第 7 局：施法者复制的 1/1 阿莱（复制时费用设为 1）被暗影步弹回，日志里 COST 7、ATK 8
+        var s = stateWith(hand: [.shadowstep], board: [], mana: 10, maxMana: 10)
+        s.handLimit = 10
+        let copyId = s.takeEntityId()
+        s.board.append(RDBoardMinion(entityId: copyId, card: .alexstrasza, attack: 1, health: 1,
+                                     maxHealth: 1, statsSetTo1x1: true, silenced: false,
+                                     summoningSick: true, attacksThisTurn: 0, enchants: [.set(1)]))
+        let step = s.hand[0]
+        let t = try! RDEngine.apply(.play(entityId: step.entityId, identity: .shadowstep,
+                                          target: .friendlyMinion(copyId), choices: []), to: s)
+        let back = t.hand.first { $0.card == .alexstrasza }!
+        XCTAssertEqual(t.cost(of: back, as: .alexstrasza), 7, "复制体回手：印刷 9 - 2，不带复制时的 1 费")
+        XCTAssertNil(back.statsOverride, "复制体回手是印刷身材")
+    }
+
+    func testSilencedMinionReturnsAtPrintedCost() {
+        // 沉默去掉随从身上所有附魔：之后被暗影步弹回 = 印刷 9 - 2，复制体和非复制体（带舞动的「费用为 1」）都一样
+        for copy in [true, false] {
+            var s = stateWith(hand: [.deafen, .shadowstep], board: [], mana: 10, maxMana: 10)
+            s.handLimit = 10
+            let alexId = s.takeEntityId()
+            s.board.append(RDBoardMinion(entityId: alexId, card: .alexstrasza, attack: copy ? 1 : 8,
+                                         health: copy ? 1 : 8, maxHealth: copy ? 1 : 8, statsSetTo1x1: copy,
+                                         silenced: false, summoningSick: true, attacksThisTurn: 0,
+                                         enchants: [.set(1)]))
+            let deafen = s.hand[0], step = s.hand[1]
+            var t = try! RDEngine.apply(.play(entityId: deafen.entityId, identity: .deafen,
+                                              target: .friendlyMinion(alexId), choices: []), to: s)
+            XCTAssertEqual(t.board.first { $0.entityId == alexId }?.enchants, [], copy ? "复制体" : "非复制体")
+            t = try! RDEngine.apply(.play(entityId: step.entityId, identity: .shadowstep,
+                                          target: .friendlyMinion(alexId), choices: []), to: t)
+            let back = t.hand.first { $0.card == .alexstrasza }!
+            XCTAssertEqual(t.cost(of: back, as: .alexstrasza), 7, copy ? "复制体" : "非复制体")
+        }
     }
 
     func testScabbsLayerSurvivesBounceAroundPhase() {

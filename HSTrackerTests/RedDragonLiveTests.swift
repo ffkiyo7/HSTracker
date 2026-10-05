@@ -155,13 +155,14 @@ class RedDragonLiveTests: HSTrackerTests {
         XCTAssertEqual(m.enchants, [.set(1)])
         XCTAssertTrue(m.summoningSick)
 
-        // 暗影步收回复制体：复制品的「费用为 1」跟着走，再 -2 → 0
+        // 暗影步收回复制体：复制附魔消失，印刷 9 - 2 = 7
         let step = s.hand[1]
         let bounced = try? RDEngine.apply(.play(entityId: step.entityId, identity: .shadowstep,
                                                 target: .friendlyMinion(m.entityId), choices: []), to: s)
         let back = bounced?.hand.last
         XCTAssertEqual(back?.card, .alexstrasza)
-        XCTAssertEqual(back.map { bounced!.cost(of: $0, as: .alexstrasza) }, 0)
+        XCTAssertEqual(back.map { bounced!.cost(of: $0, as: .alexstrasza) }, 7)
+        XCTAssertNil(back?.statsOverride)
 
         // 致聋术沉默复制体：1/1 附魔被拿掉，变回 8/8
         let deafen = s.hand[2]
@@ -171,10 +172,9 @@ class RedDragonLiveTests: HSTrackerTests {
         XCTAssertEqual(silenced?.board.first?.health, 8)
     }
 
-    /// T2b 第三轮 P2：场上随从身上的费用附魔要恢复。鲨鱼被舞动收回（挂 `ETC_079e`、本回合 1 费），
-    /// 再下场；这时重拍快照、读成根局面，暗影步把它收回应是 1 − 2 → 0 费，不是印刷费 4 − 2 = 2。
-    /// 另一条鲨鱼没被舞动过（对照，2 费）；第三条被暗影步收回过一次（`GBL_002e`）再下场，再收回是 4 − 2 − 2 = 0
-    func testBoardCostEnchantsSurviveReplayAndShadowstep() throws {
+    /// T3 日志订正：当前场上实体的费用附魔可读取，但回手清除。无论此前被舞动或暗影步收回过，
+    /// 再被暗影步收回都按印刷费 4 - 2，不跨区域叠加旧减费。
+    func testBoardCostEnchantsAreClearedByShadowstep() throws {
         let t = Table(resources: 10)
         let danced = t.add("TRL_092", zone: .play, tags: [.exhausted: 1])
         t.enchant("ETC_079e", on: danced)
@@ -195,9 +195,9 @@ class RedDragonLiveTests: HSTrackerTests {
                                                 target: .friendlyMinion(e.id), choices: []), to: s)
             return next.hand.first { $0.card == .spiritOfTheShark }.map { next.cost(of: $0, as: .spiritOfTheShark) }
         }
-        XCTAssertEqual(try costAfterStep(danced), 0, "舞动的「本回合 1 费」跟着回手，再 −2")
+        XCTAssertEqual(try costAfterStep(danced), 2, "旧舞动费用清除，印刷费 4 − 2")
         XCTAssertEqual(try costAfterStep(plain), 2, "对照：印刷费 4 − 2")
-        XCTAssertEqual(try costAfterStep(stepped), 0, "两次暗影步叠加：4 − 2 − 2")
+        XCTAssertEqual(try costAfterStep(stepped), 2, "两次暗影步不跨区域叠加")
         // 不认识的附魔（身材 buff 等）不进费用链
         XCTAssertEqual(RDStateReader.boardCostEnchants(["TTN_858t2e1", "ETC_079e", "DAL_714e"]), [.set(1)])
     }
@@ -385,15 +385,16 @@ class RedDragonLiveTests: HSTrackerTests {
     }
 
     /// 场面目标落到具体随从：暗影步收回场上那条（预启动下的）阿莱，再打出它
-    func testBoardTargetsResolveToRealEntities() {
-        let t = Table(resources: 1)
+    func testBoardTargetsResolveToRealEntities() throws {
+        let t = Table(resources: 7)
         t.opponentHero[.health] = 8
-        let alex = t.add("LEG_CS3_031", zone: .play, tags: [.atk: 1, .health: 1])
+        let alex = t.add("LEG_CS3_031", zone: .play, tags: [.atk: 1, .health: 1, .exhausted: 1])
         t.enchant("SCH_352e", on: alex)
         let step = t.add("EX1_144", zone: .hand)
         let r = analyze(t.snapshot())
         XCTAssertTrue(r.isLethal)
         XCTAssertEqual(r.steps.count, 2)
+        guard r.steps.count == 2 else { return }
         XCTAssertEqual(r.steps[0].handEntityId, step.id)
         XCTAssertEqual(r.steps[0].target, .friendlyMinion(entityId: alex.id, cardId: "LEG_CS3_031"))
         XCTAssertEqual(r.boardMarks, [RDBoardMark(entityId: alex.id, isEnemy: false, stepIndex: 1, role: .target)])
@@ -485,12 +486,22 @@ class RedDragonLiveTests: HSTrackerTests {
         XCTAssertEqual(RDRevealPolicy.cap(isLethal: false, tier: nil), .verdict)
         XCTAssertEqual(RDRevealPolicy.effective(requested: .order, preference: .order, isLethal: false, tier: nil),
                        .verdict)
-        // 基础线不许升到 L2
+        // 偏好不是「顺序」时，基础线不许升到 L2（热键也不行）
         XCTAssertEqual(RDRevealPolicy.cap(isLethal: true, tier: .basic), .cards)
         XCTAssertEqual(RDRevealPolicy.effective(requested: .order, preference: .verdict, isLethal: true, tier: .basic),
                        .cards)
-        XCTAssertEqual(RDRevealPolicy.effective(requested: nil, preference: .order, isLethal: true, tier: .basic),
+        XCTAssertEqual(RDRevealPolicy.effective(requested: .order, preference: .cards, isLethal: true, tier: .basic),
                        .cards)
+        // 偏好是「顺序」：任何难度的斩杀线都给顺序，线中途变成基础也不降档（10-05 用户定）
+        XCTAssertEqual(RDRevealPolicy.cap(isLethal: true, tier: .basic, preference: .order), .order)
+        for tier in [RDDifficulty.Tier.basic, .advanced, .hard] {
+            XCTAssertEqual(RDRevealPolicy.effective(requested: nil, preference: .order, isLethal: true, tier: tier),
+                           .order, "\(tier)")
+        }
+        // 用户按热键降下来仍听用户的；不斩杀仍只有判定
+        XCTAssertEqual(RDRevealPolicy.effective(requested: .cards, preference: .order, isLethal: true, tier: .basic),
+                       .cards)
+        XCTAssertEqual(RDRevealPolicy.cap(isLethal: false, tier: nil, preference: .order), .verdict)
         // 进阶按偏好
         XCTAssertEqual(RDRevealPolicy.effective(requested: nil, preference: .verdict, isLethal: true, tier: .advanced),
                        .verdict)

@@ -410,7 +410,7 @@ class RedDragonLiveReplayTests: HSTrackerTests {
     }
 
     /// 后手、赢。T8 可斩杀（困难线）但没打出来，T10 打出了基础线
-    func testReplayG4Second() {
+    func testReplayG4Second() throws {
         let t = checkpoints("2026-10-01-g4-second", playerId: 2)
         XCTAssertEqual(t.keys.sorted(), [2, 4, 6, 8, 10])
         for c in t.values { checkReader(c) }
@@ -453,7 +453,13 @@ class RedDragonLiveReplayTests: HSTrackerTests {
         XCTAssertEqual(t10.analysis.maxDamage, 32)
         XCTAssertEqual(t10.analysis.tier, .basic)
         XCTAssertNil(t10.opponentAfter)
-        XCTAssertEqual(t10.analysis.steps.first?.cardId, "TRL_092", "第一步是鲨鱼")
+        // 幸运币和鲨鱼可换先后；验证完整合法斩杀与首步映射，不把某一种同分顺序写死。
+        let chosen = try XCTUnwrap(t10.result.chosenLine)
+        XCTAssertNotNil(RDReplay.validate(chosen.actions, from: t10.live.state, expectedDamage: 32))
+        let first = try XCTUnwrap(t10.analysis.steps.first)
+        let firstCard = try XCTUnwrap(t10.live.state.hand.first { $0.entityId == first.handEntityId })
+        let displayedCardId = try XCTUnwrap(first.cardId)
+        XCTAssertEqual(RDCards.card(forId: displayedCardId), firstCard.card, "按牌的身份比较，允许幸运币的不同卡牌编号")
         XCTAssertEqual(t10.analysis.steps.first?.kind, .playFromHand)
     }
 
@@ -502,8 +508,23 @@ class RedDragonLiveReplayTests: HSTrackerTests {
         XCTAssertEqual(t9.analysis.maxDamage, 32)
         XCTAssertEqual(t9.analysis.effectiveEnemyHealth, 28)
         XCTAssertEqual(t9.opponentAfter, 27)
-        // T11：手里没刀油、没巢母，0 伤（技能 / 攻击都打不到脸：嘲讽挡着）
-        XCTAssertEqual(t[11]!.analysis.maxDamage, 0)
+        // T11：殒命暗影已变成致聋术，可沉默 #41 的嘲讽，再转刀打脸 1 点。
+        XCTAssertEqual(t[11]!.analysis.maxDamage, 1)
+        var t11 = t[11]!.live.state
+        let deafen = t11.hand.first { $0.isShadowOfDemise && $0.card == .deafen }
+        XCTAssertNotNil(deafen)
+        if let deafen {
+            do {
+                t11 = try RDEngine.apply(.play(entityId: deafen.entityId, identity: .deafen,
+                                               target: .enemyMinion(41), choices: []), to: t11)
+                XCTAssertFalse(t11.opponent.board.contains { $0.taunt })
+                t11 = try RDEngine.apply(.heroPower, to: t11)
+                t11 = try RDEngine.apply(.attack(attacker: .friendlyHero, defender: .enemyHero, choices: []), to: t11)
+                XCTAssertEqual(t11.damageDealt, 1)
+            } catch {
+                XCTFail("T11 的 1 点伤害重放失败：\(error)")
+            }
+        }
         XCTAssertEqual(t[11]!.analysis.effectiveEnemyHealth, 27)
         // T13：对方铺了 6 个随从
         XCTAssertEqual(t[13]!.snapshot.opponentBoard.count, 6)

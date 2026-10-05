@@ -198,9 +198,12 @@ struct RedDragonHint: Equatable {
 enum RDRevealPolicy {
 
     /// 难度档 → 最多揭示到哪一档。spike 二、1：最简可用线是「基础」档 → 不许升到 L2；
-    /// 不斩杀时只有判定（L1 / L2 没有可指的线）
-    static func cap(isLethal: Bool, tier: RDDifficulty.Tier?) -> RDRevealLevel {
+    /// 不斩杀时只有判定（L1 / L2 没有可指的线）。
+    /// 设置选了「顺序」（`preference == .order`）时不按难度封顶：斩杀线一律给顺序，连招中途重算出更简单的线
+    /// 也不降档（10-05 用户定：猎人那把打出幸运币后线变「基础」，顺序被封成参与牌，公式中途消失）
+    static func cap(isLethal: Bool, tier: RDDifficulty.Tier?, preference: RDRevealLevel? = nil) -> RDRevealLevel {
         guard isLethal, let tier = tier else { return .verdict }
+        if preference == .order { return .order }
         switch tier {
         case .basic: return .cards
         case .advanced, .hard: return .order
@@ -210,7 +213,7 @@ enum RDRevealPolicy {
     /// 进回合时的默认档：只有难线可用 → 兜底引导默认开；其余按用户偏好，再按难度封顶
     static func defaultLevel(preference: RDRevealLevel, isLethal: Bool,
                              tier: RDDifficulty.Tier?) -> RDRevealLevel {
-        let top = cap(isLethal: isLethal, tier: tier)
+        let top = cap(isLethal: isLethal, tier: tier, preference: preference)
         if isLethal && tier == .hard { return top }
         return min(preference, top)
     }
@@ -218,7 +221,7 @@ enum RDRevealPolicy {
     /// `requested`：本回合用户按热键选的档（nil = 没按过）。结论变了（打出一张后重算）时照样封顶
     static func effective(requested: RDRevealLevel?, preference: RDRevealLevel,
                           isLethal: Bool, tier: RDDifficulty.Tier?) -> RDRevealLevel {
-        let top = cap(isLethal: isLethal, tier: tier)
+        let top = cap(isLethal: isLethal, tier: tier, preference: preference)
         if let r = requested { return min(r, top) }
         return defaultLevel(preference: preference, isLethal: isLethal, tier: tier)
     }

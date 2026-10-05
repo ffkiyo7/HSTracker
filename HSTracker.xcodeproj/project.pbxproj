@@ -390,6 +390,12 @@
 		B8DD0F00000000000000B018 /* 2026-10-01-g5-first.log in Resources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A018 /* 2026-10-01-g5-first.log */; };
 		B8DD0F00000000000000B019 /* 2026-10-01-g3-lost.log in Resources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A019 /* 2026-10-01-g3-lost.log */; };
 		B8DD0F00000000000000B01B /* 2026-10-01-g2-bounce-overflow.log in Resources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A01B /* 2026-10-01-g2-bounce-overflow.log */; };
+		B8DD0F00000000000000B025 /* 2026-10-05-g2-dance-lost.log in Resources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A025 /* 2026-10-05-g2-dance-lost.log */; };
+		B8DD0F00000000000000B026 /* 2026-10-05-g4-dance-won.log in Resources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A026 /* 2026-10-05-g4-dance-won.log */; };
+		B8DD0F00000000000000B027 /* 2026-10-05-g7-rewind.log in Resources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A027 /* 2026-10-05-g7-rewind.log */; };
+		B8DD0F00000000000000B029 /* 2026-10-05-g1-first.log in Resources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A029 /* 2026-10-05-g1-first.log */; };
+		B8DD0F00000000000000B02A /* 2026-10-05-g6-first.log in Resources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A02A /* 2026-10-05-g6-first.log */; };
+		B8DD0F00000000000000B028 /* RedDragonFeedbackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A028 /* RedDragonFeedbackTests.swift */; };
 		B8DD0F00000000000000B01A /* RedDragonLiveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A01A /* RedDragonLiveTests.swift */; };
 		B8DD0F00000000000000B011 /* RedDragonFormulaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A011 /* RedDragonFormulaTests.swift */; };
 		B8DD0F00000000000000B008 /* formulas.json in Resources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A008 /* formulas.json */; };
@@ -2101,6 +2107,12 @@
 		B8DD0F00000000000000A018 /* 2026-10-01-g5-first.log */ = {isa = PBXFileReference; lastKnownFileType = text; name = "2026-10-01-g5-first.log"; path = "Fixtures/RedDragon/2026-10-01-g5-first.log"; sourceTree = "<group>"; };
 		B8DD0F00000000000000A019 /* 2026-10-01-g3-lost.log */ = {isa = PBXFileReference; lastKnownFileType = text; name = "2026-10-01-g3-lost.log"; path = "Fixtures/RedDragon/2026-10-01-g3-lost.log"; sourceTree = "<group>"; };
 		B8DD0F00000000000000A01B /* 2026-10-01-g2-bounce-overflow.log */ = {isa = PBXFileReference; lastKnownFileType = text; name = "2026-10-01-g2-bounce-overflow.log"; path = "Fixtures/RedDragon/2026-10-01-g2-bounce-overflow.log"; sourceTree = "<group>"; };
+		B8DD0F00000000000000A025 /* 2026-10-05-g2-dance-lost.log */ = {isa = PBXFileReference; lastKnownFileType = text; name = "2026-10-05-g2-dance-lost.log"; path = "Fixtures/RedDragon/2026-10-05-g2-dance-lost.log"; sourceTree = "<group>"; };
+		B8DD0F00000000000000A026 /* 2026-10-05-g4-dance-won.log */ = {isa = PBXFileReference; lastKnownFileType = text; name = "2026-10-05-g4-dance-won.log"; path = "Fixtures/RedDragon/2026-10-05-g4-dance-won.log"; sourceTree = "<group>"; };
+		B8DD0F00000000000000A027 /* 2026-10-05-g7-rewind.log */ = {isa = PBXFileReference; lastKnownFileType = text; name = "2026-10-05-g7-rewind.log"; path = "Fixtures/RedDragon/2026-10-05-g7-rewind.log"; sourceTree = "<group>"; };
+		B8DD0F00000000000000A029 /* 2026-10-05-g1-first.log */ = {isa = PBXFileReference; lastKnownFileType = text; name = "2026-10-05-g1-first.log"; path = "Fixtures/RedDragon/2026-10-05-g1-first.log"; sourceTree = "<group>"; };
+		B8DD0F00000000000000A02A /* 2026-10-05-g6-first.log */ = {isa = PBXFileReference; lastKnownFileType = text; name = "2026-10-05-g6-first.log"; path = "Fixtures/RedDragon/2026-10-05-g6-first.log"; sourceTree = "<group>"; };
+		B8DD0F00000000000000A028 /* RedDragonFeedbackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonFeedbackTests.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A01A /* RedDragonLiveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonLiveTests.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A011 /* RedDragonFormulaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonFormulaTests.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A008 /* formulas.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = formulas.json; path = Fixtures/RedDragon/formulas.json; sourceTree = "<group>"; };
@@ -4378,11 +4390,17 @@
 				B8DD0F00000000000000A01A /* RedDragonLiveTests.swift */,
 				B8DD0F00000000000000A016 /* RedDragonLiveReplayTests.swift */,
 				B8DD0F00000000000000A024 /* RedDragonOverlayTests.swift */,
+				B8DD0F00000000000000A028 /* RedDragonFeedbackTests.swift */,
 				B8DD0F00000000000000A008 /* formulas.json */,
 				B8DD0F00000000000000A017 /* 2026-10-01-g4-second.log */,
 				B8DD0F00000000000000A018 /* 2026-10-01-g5-first.log */,
 				B8DD0F00000000000000A019 /* 2026-10-01-g3-lost.log */,
 				B8DD0F00000000000000A01B /* 2026-10-01-g2-bounce-overflow.log */,
+				B8DD0F00000000000000A025 /* 2026-10-05-g2-dance-lost.log */,
+				B8DD0F00000000000000A026 /* 2026-10-05-g4-dance-won.log */,
+				B8DD0F00000000000000A027 /* 2026-10-05-g7-rewind.log */,
+				B8DD0F00000000000000A029 /* 2026-10-05-g1-first.log */,
+				B8DD0F00000000000000A02A /* 2026-10-05-g6-first.log */,
 				B8DD0F00000000000000A009 /* CardZoneGroupsTests.swift */,
 				B8DD0F00000000000000A00A /* ZoneGroupsReplayTests.swift */,
 				B8DD0F00000000000000A00C /* TrackerMetricsTests.swift */,
@@ -7074,6 +7092,11 @@
 				B8DD0F00000000000000B018 /* 2026-10-01-g5-first.log in Resources */,
 				B8DD0F00000000000000B019 /* 2026-10-01-g3-lost.log in Resources */,
 				B8DD0F00000000000000B01B /* 2026-10-01-g2-bounce-overflow.log in Resources */,
+				B8DD0F00000000000000B025 /* 2026-10-05-g2-dance-lost.log in Resources */,
+				B8DD0F00000000000000B026 /* 2026-10-05-g4-dance-won.log in Resources */,
+				B8DD0F00000000000000B027 /* 2026-10-05-g7-rewind.log in Resources */,
+				B8DD0F00000000000000B029 /* 2026-10-05-g1-first.log in Resources */,
+				B8DD0F00000000000000B02A /* 2026-10-05-g6-first.log in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -9105,6 +9128,7 @@
 				B8DD0F00000000000000B011 /* RedDragonFormulaTests.swift in Sources */,
 				B8DD0F00000000000000B01A /* RedDragonLiveTests.swift in Sources */,
 				B8DD0F00000000000000B016 /* RedDragonLiveReplayTests.swift in Sources */,
+				B8DD0F00000000000000B028 /* RedDragonFeedbackTests.swift in Sources */,
 				B8DD0F00000000000000B024 /* RedDragonOverlayTests.swift in Sources */,
 				43C1C9FD1E96CCE9008C20B1 /* DatabaseTests.swift in Sources */,
 				439BD8C91EBCD40200959F69 /* EnumTests.swift in Sources */,

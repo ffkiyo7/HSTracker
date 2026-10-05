@@ -8,7 +8,7 @@
 
 import Foundation
 
-/// 挂在某一张牌 / 某一个随从实体上的费用附魔，按挂载顺序求值（先步后舞 = 1，先舞后步 = 0）
+/// 同一区域内的费用附魔按挂载顺序求值；随从打出及回手时清除旧费用附魔。
 enum RDEnchant: Equatable {
     case set(Int)
     case delta(Int)
@@ -102,7 +102,7 @@ struct RDBoardMinion {
     var silenced: Bool
     var summoningSick: Bool
     var attacksThisTurn: Int
-    /// 费用附魔跟着实体走（board → hand → board），这是「先舞后步 = 0」的前提
+    /// 当前场上实体的费用附魔；回手时清除，不带入手牌。
     var enchants: [RDEnchant]
     /// 上场先后（越小越早）。舞动按它处理全场、后上场的放不下就被烧（T2b 日志订正，card-model H 节）；
     /// 与场位（`board` 里的下标）无关。并列时按场位。引擎新下的随从取 `RDState.takePlayOrder()`，

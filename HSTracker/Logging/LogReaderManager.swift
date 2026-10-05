@@ -64,6 +64,20 @@ final class LogReaderManager {
     let logPath: String
 
     private let rewoundEntityCreations = RewoundEntityCreationFilter()
+    private var enteredRewoundPlays = Set<LogDate>()
+
+    /// Fork: a rewound stretch starts at the rewound PLAY block, not at the first line sharing its
+    /// timestamp. PowerTaskList lines logged before that BLOCK_START at the same time (the previous
+    /// block's BLOCK_END, its last tag changes) did happen; skipping them left the parser inside a
+    /// block that never ended (10-05 log, the second Rewind of game 7).
+    static func isRewound(_ line: LogLine, ranges: [ClosedRange<LogDate>], entered: inout Set<LogDate>) -> Bool {
+        guard let range = ranges.first(where: { $0.contains(line.time) }) else { return false }
+        guard line.time == range.lowerBound, !entered.contains(range.lowerBound),
+              line.content.hasPrefix("PowerTaskList.") else { return true }
+        guard line.content.contains("BLOCK_START BlockType=PLAY") else { return false }
+        entered.insert(range.lowerBound)
+        return true
+    }
 
     private(set) var running = false
     private var stopped = false
@@ -118,6 +132,7 @@ final class LogReaderManager {
     }
     
     private func startLogReaders() {
+        enteredRewoundPlays.removeAll()
         // Do not clear `stopped` here: a stop() that arrives before this block
         // starts running has to take effect, otherwise the loop would outlive
         // its manager and keep driving the watchers alongside a newer reader.
@@ -214,7 +229,7 @@ final class LogReaderManager {
 	private func processLine(line: LogLine) {
         // skip rewound lines, but keep the entities they created in the uploaded log:
         // a rewind does not un-create them and later lines still reference them.
-        if ignoredTimeRanges.contains(where: { $0.contains(line.time) }) {
+        if LogReaderManager.isRewound(line, ranges: ignoredTimeRanges, entered: &enteredRewoundPlays) {
             if rewoundEntityCreations.keepInPowerLog(line) {
                 coreManager.game.add(powerLog: line)
             }

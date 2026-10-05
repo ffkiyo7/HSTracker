@@ -1,6 +1,6 @@
 # HSTracker 个人分支：计划与进度
 
-最后更新 2026-10-04。本文件是唯一的计划 + 进度文档（原 `PLAN.md` / `PROGRESS.md` 全文归档在
+最后更新 2026-10-05。本文件是唯一的计划 + 进度文档（原 `PLAN.md` / `PROGRESS.md` 全文归档在
 `docs/archive/plan-2026-09-22.md` / `progress-2026-09-22.md`，决策理由、实测数据、排查经过都在那里）。
 主线换轨见 `docs/REFORK.md`；上游合并见 `docs/upstream-merges.md`；任务书在做的放 `docs/tasks/`，完成的放 `docs/archive/tasks/`。
 
@@ -35,7 +35,11 @@
 | 红龙贼 combo 提示器 | 🚧 | T0 + T1 已提交 `0a921d6b`（`HSTracker/RedDragon/`，24 测试），REFORK S7 原样搬。10-04 用户提前恢复，T2 拆三本串行：T2a 公式表全量验证 + 齐件 / 缺件分组 ✅ `d73f8a67`（90 案例通过 85 / 未验证 5，搜索 85/85 达表；五轮 review；待用户定的 5 项见「等你定」，任务书留 `docs/tasks/rdr-t2a-formula-audit.md` 至定完）→ T2b 接对局数据 + 开关 ✅（五轮 review；舞动订正为「后上场放不下的烧」后公式表通过 85 → 80；回放 10-01 四局四个斩杀回合全找到；`rdr-t2b-live-data.md`）→ T2c overlay + 设置页 🖥️ 已提交待验收（两轮 review；效果图 artifact + 🎮 一局；拖离默认位置的场攻 / 计数器面板不跟着让位，未修；`rdr-t2c-overlay.md`）；每本 Opus 实现、我读 diff + 本机 Codex review 后提交，最后出效果图 artifact 给用户验收 |
 | **REFORK**：在上游新画布上重建 | 🚧 | `docs/REFORK.md`；新线 `dev0923`（09-30 起主仓库直接 checkout）。S0–S5、S6a、S7 ✅（09-26 实测，S4 的解锁复测 09-27 过）；S6b ✅ 09-28 四本一批（`a8e59f43` / `2618be4b` / `b12ead8c`）同日实测过，09-29 Codex 打回小结窗两条必修 `7312c31c` 修复、09-30 实测过；S8 ✅ 09-29：文档 / `AGENTS.md` / 代理定义 / 注入脚本搬上新线，`upstream-merges.md` 热点表按新线重写，`dev0923` 推到 origin；3.6.13 ✅ 09-29 合入（Phase U4），09-30 实测过（排队牌组、rewind 分区）。**余：REFORK「S6b 余项」（Trackers 设置页 = 4.3）+「回到主线的标准」第 2 条收口局** |
 
-**顺序**：红龙 T2a → T2b → T2c（10-04 用户提前）→ Phase 2 / V2 余项 → 4.3 fork 开关补进上游设置页（3.6.13 已合，可做）。
+**顺序**：红龙 T4 准备线 + 最高档完整斩杀公式 → Phase 2 / V2 余项 → 4.3 fork 开关补进上游设置页（3.6.13 已合，可做）。
+
+- ✅ **红龙 T3**：2026-10-06 用户实测通过，并入 `dev0923`（Codex 在 `codex/rdr-t3` 实现；同步骤更新中位 348→30 ms，2/36 未赶上下次点击，炉石日志等待仍约 3 秒）。实测后追加两项：① 设置选「顺序」时斩杀线一律给顺序、中途变简单不降档（10-05 实测连招中途重算出基础线、L2 被封到 L1，公式消失）；② 新导入的套牌没存 sideboard（上游 `RealmHelper.add(mirrorDeck:)` 漏了），首局 E.T.C. 乐队为空、红龙判定不成立、整个 overlay 不出，已补并让套牌判定缓存带上 sideboard 张数。任务书归档 `docs/archive/tasks/rdr-t3-live-feedback.md`。
+- 未修：每步在炉石日志写完前（0.5–6 s）overlay 只留角标、公式暂藏，是否改成「变灰保留」等用户定。
+- ⬜ **红龙 T4**：2026-10-05 用户已确认最高档完整斩杀公式要做（选 A：仍逐步校验/计算，只扩展显示）；T3 已验收，可开始，任务书 `docs/tasks/rdr-t4-setup-lines.md`。
 用户验收原话（10-04）：引擎验证截图内全部公式，可反推、无错漏；齐件 / 缺件分开算；设置里可热开启；overlay 不卡顿、符合设计语言、不与已有组件冲突。
 
 ## 🎮 待你亲自看
@@ -56,7 +60,7 @@
 
 - **红龙 T2a 公式**（细节在 `docs/tasks/rdr-t2a-formula-audit.md` 末尾）：① `t1-pre-03-n1` 下回合杂牌数截图没写（0~3 通过，4 起手 11 张非法）；② `t2-huqs-03-n1` 是否适用「提前彗」组注（步不计杂 → 起手 11 张判不成立）；③ 13 条腾格行靠「公式表是给另一版牌组写的」推断通过（用背刺 / 袋底藏沙）；④ 快枪固定费用是否覆盖减费（待核）；⑤ 彗星「连击没开也消耗 / 与鲨鱼同场 ×2」两条假设（待 T2b 日志核）。
 - **构建环境**：`AGENTS.md` 构建命令清掉了全部代理，SwiftPM 拉不到 github.com；实现者临时加 `GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.https://github.com.proxy GIT_CONFIG_VALUE_0=<原 https_proxy>`。要不要写进 `AGENTS.md`。`-configuration Release` 下测试 target 编不过（`HSTracker-Test-Bridging-Header.h:13` 找不到 HockeySDK），要不要修。
-- **红龙 T2b**（细节在 `docs/tasks/rdr-t2-delivery.md`「等用户定」）：幻觉药水处理顺序无证据、按场位（待核）；舞动 / 暗影步的费用附魔回手再下场是否保留（推断）；展示规则（「被截断」只在撞 CPU 兜底时标、基础线最多揭示到 L1、只有困难线时默认 L2）；两条缺件补齐后搜不到的线（`t2-wuhu-10` 补狐、`t2-wuhui-04` 补晦）要不要调束；G3 T9 疑似漏斩要不要人工核；本地包 Release 也带 `-enable-testing` 能否接受；对手奥秘不进搜索（T2c 标「⚠ 对方有奥秘」）。
+- **红龙 T2b**（细节在 `docs/tasks/rdr-t2-delivery.md`「等用户定」）：幻觉药水处理顺序无证据、按场位（待核）；展示规则（「被截断」只在撞 CPU 兜底时标、只有困难线时默认 L2；「基础线最多揭示到 L1」10-05 已定：设置选「顺序」时不封顶）；两条缺件补齐后搜不到的线（`t2-wuhu-10` 补狐、`t2-wuhui-04` 补晦）要不要调束；G3 T9 疑似漏斩要不要人工核；本地包 Release 也带 `-enable-testing` 能否接受；对手奥秘不进搜索（T2c 标「⚠ 对方有奥秘」）。
 
 - **V2 余项**：折叠 / 拖拽 / 吸附共用一个鼠标模型（不锁定 + 边缘吸附 + 锚点持久化，已决 09-15，细节在 `docs/tasks/phase2-v-visual-redesign.md`）；三行头 40 → 21 实机看。
 - **卡条行高一局之内会变**（上游行为，行高按当前行数压缩）：V1 已让宽度跟着缩；是否改成固定行高 + 滚动 / 截断，用户说优先级不高。

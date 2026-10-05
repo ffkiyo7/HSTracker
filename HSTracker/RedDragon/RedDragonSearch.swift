@@ -148,7 +148,7 @@ enum RedDragonSearch {
     private enum BeamSelection {
         /// 分桶保底 + 共识分 + 蓄力分（主搜索）
         case scored
-        /// 按哈希均匀抽样（采样补搜）
+        /// 按资源阶段分层采样（采样补搜）
         case sampled
     }
 
@@ -225,10 +225,11 @@ enum RedDragonSearch {
             }
         }
 
-        // 采样补搜：主搜索没找到斩杀、还有预算时，用同一份预算剩下的部分再跑一遍按哈希抽样的束。
+        // 采样补搜：主搜索没找到斩杀、还有预算时，用剩余预算按资源阶段分层保留候选。
         // 打分束会被「已经打出一条龙、伤害更高」的节点挤满，少数「先把整手牌弹回成 0 费、
         // 最后连下两条龙」的线（公式表 t2-wuhui-03）在打分束里加宽到 24000 都会掉，
-        // 均匀抽样不受这个偏置影响。它只在不斩杀时跑，斩杀局面的耗时不变。
+        // 各阶段轮流保留蓄力分最高的候选，不让已经打过龙的节点挤掉回收阶段，也不靠哈希抽中它。
+        // 它只在不斩杀时跑，主搜索已斩杀的局面耗时不变。
         // 状态预算两遍共用：补搜拿总量减去主搜索实际用掉的部分。
         let remaining = config.maxStatesExpanded.map { $0 - run.statesExpanded }
         if !run.isLethal, !run.cancelled, sampling, threadCPUTime() < deadline, (remaining ?? 1) > 0 {
@@ -616,12 +617,34 @@ enum RedDragonSearch {
         return picked.map { children[$0] }
     }
 
-    /// 采样补搜用：不看分数，按 `canonicalHash` 排序取前 `width` 个 —— 哈希近似均匀，等于确定性的
-    /// 均匀抽样。用途见 `RedDragonConfig.samplingPassWidth`。
+    /// 按伤害、法力、场面/手牌格数、边牌余量分层，层内按蓄力分取，层间轮流取。
+    /// 这样回收前后都有名额；哈希仅打破同分，不再决定哪种资源阶段能留下。
     private static func sampleBeam(_ children: [Child], width: Int) -> [Child] {
-        var order = Array(children.indices)
-        order.sort { children[$0].hash < children[$1].hash }
-        return order.prefix(width).sorted().map { children[$0] }
+        var groups: [[Int]: [Int]] = [:]
+        for (i, c) in children.enumerated() {
+            let s = c.state
+            let key = [s.damageDealt, s.availableMana, s.board.count, s.hand.count, s.sideboard.count]
+            groups[key, default: []].append(i)
+        }
+        let ordered = groups.keys.sorted { $0.lexicographicallyPrecedes($1) }.map { key in
+            groups[key]!.sorted { a, b in
+                if children[a].builderScore != children[b].builderScore {
+                    return children[a].builderScore > children[b].builderScore
+                }
+                if children[a].score != children[b].score { return children[a].score > children[b].score }
+                return children[a].hash < children[b].hash
+            }
+        }
+        var picked: [Int] = []
+        var rank = 0
+        while picked.count < width {
+            for group in ordered where rank < group.count {
+                picked.append(group[rank])
+                if picked.count == width { break }
+            }
+            rank += 1
+        }
+        return picked.sorted().map { children[$0] }
     }
 
     private static func validated(_ line: RedDragonLine, root: RDState,
