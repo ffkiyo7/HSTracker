@@ -16,6 +16,8 @@ enum NotificationType {
 class NotificationManager {
     
     static func showNotification(type: NotificationType) {
+        // 测试用真实 Power.log 回放整局，每个回合都会走到这里：不往系统通知中心发
+        guard !AppDelegate.isRunningTests else { return }
         switch type {
         case .gameStart:
             guard Settings.notifyGameStart else {

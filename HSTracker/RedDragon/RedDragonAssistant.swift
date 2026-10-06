@@ -54,6 +54,8 @@ final class RedDragonAssistant {
         var cardName: (String) -> String
         /// 跟手（T3）：新局面就是屏上那条斩杀线推出来的局面时，不去抖、不搜索，重放校验剩下的步骤直接上屏
         var followsLine = true
+        /// 危险、奶 16 凑不出时再搜一遍预启动线（T4 用户定「等死」，默认不搜；留作开关）
+        var suggestsPreLaunch = false
 
         static let live = Environment(
             isEnabled: { Settings.redDragonAssist },
@@ -127,11 +129,27 @@ final class RedDragonAssistant {
 
     /// 屏上那条斩杀线（第一条）和同一局面上其余不靠抽牌的斩杀线，各带自己的根局面（`RDContinuation` 的起点）。
     /// 用户不一定照屏上的顺序打（10-05 第 7 局 T13 换了顺序，照样能斩），其余的线也接。只在结论是「可斩杀」时有
+    private struct FollowCandidate {
+        var root: RDState
+        /// 还没走的部分
+        var line: RedDragonLine
+        /// 整条线的公式（`done` 记已走了几步）：锁定时屏上画它
+        var formula: RDFormula
+    }
+
+    /// 斩杀线（`goal == .lethal`）或危险时的奶 16 线（`.heal16`）。锁定（T4）= 这一组线不再换：
+    /// 用户每走一步只核对在不在线上（`RDContinuation.advance`），不重新搜索；走不通才标偏离、重算
     private struct FollowBase {
-        var candidates: [(root: RDState, line: RedDragonLine)]
+        var goal: RDFormula.Goal
+        var candidates: [FollowCandidate]
         var turn: Int
         var match: Date?
+        /// 锁定时的本回合操作计数。计数没变 = 用户没有新操作（攻击结算中途随从死亡之类），对不上也不算偏离
+        var options = 0
     }
+
+    /// 锁定模式：设置选「顺序」且没开答题。屏上是一条完整公式，不因「过时」隐藏
+    private var lockMode: Bool { return env.revealPreference() == .order && !env.quizMode() }
 
     private var generation = 0
     private var inFlight: RDCancellation?
@@ -311,8 +329,13 @@ final class RedDragonAssistant {
         case .snapshot(let snap):
             if snap == lastSnapshot && (hint.phase == .ready || hint.phase == .computing) { return }
             // 只有操作数变了、屏上的结论就是这个局面的：不重算，拿现有结论按新计数判卷
-            if let last = lastSnapshot, hint.phase == .ready, !hint.isStale, var a = hint.analysis,
-               last.turn == snap.turn, RDQuizState.sameIgnoringOptionCount(snap, last) {
+            // （危险且斩不了、准备线还没补上的不走这条：解析线程已经把在算的准备线作废了，要重新调度）
+            // 上一份局面还在核对 / 搜索（`inFlight`）时屏上的结论不是它的：锁定模式核对期间不置灰，phase 仍是
+            // ready，走这条会把那次计算丢掉（解析线程已经取消了它）又不重排，面板停在「重算中」直到下一个操作
+            // （10-06 14:47 实测：英雄攻击 → 随从死亡 → 操作计数，卡了 11 秒）
+            if let last = lastSnapshot, inFlight == nil, hint.phase == .ready, !hint.isStale, var a = hint.analysis,
+               last.turn == snap.turn, RDQuizState.sameIgnoringOptionCount(snap, last),
+               a.isLethal || !a.boardDanger || a.setup != nil {
                 lastSnapshot = snap
                 a.actionsTaken = snap.optionsPlayedThisTurn
                 quizState = RDQuizState.next(quizState, snapshot: snap, verdict: a.verdict)
@@ -336,6 +359,8 @@ final class RedDragonAssistant {
         // 一致边界上的快照可能和上一份相同（这段日志没改到相关实体），那也要重算
         lastSnapshot = nil
         guard hint.phase == .ready || hint.phase == .computing else { return }
+        // 锁定的公式：炉石日志晚到的窗口里照常显示，不标过时
+        guard !hint.locked else { return }
         var h = hint
         h.phase = .computing
         h.isStale = h.analysis != nil
@@ -351,10 +376,17 @@ final class RedDragonAssistant {
         sharedToken = token
         lock.unlock()
         scheduledComputations += 1
-        var h = hint
-        h.phase = .computing
-        h.isStale = h.analysis != nil
-        publish(h)
+        // 锁定模式下屏上有锁定的线：新局面来了先不变暗，等核对结果（毫秒级）
+        // （走完了的准备线不算：之后再怎么打都不是「偏离」）
+        let locking = lockMode && followBase?.turn == snap.turn && followBase?.match == snap.match
+            && followBase?.candidates.first.map({ $0.formula.done < $0.formula.tokens.count }) == true
+        if !locking {
+            var h = hint
+            h.phase = .computing
+            h.isStale = h.analysis != nil
+            publish(h)
+        }
+        let previous = hint.analysis
 
         let env = self.env
         let workQueue = self.workQueue
@@ -374,6 +406,23 @@ final class RedDragonAssistant {
                 self.commit(analysis, snapshot: snap, base: base)
             }
         }
+        // 准备线（奶 16 / 预启动）比判定慢，晚一跳到：先把判定交出去，再算准备线补上（同一代号、同一局面版本）
+        let deliverSetup: (RDAnalysis, FollowBase?) -> Void = { [weak self] analysis, base in
+            DispatchQueue.main.async {
+                guard let self, gen == self.generation, self.env.isEnabled() else { return }
+                if let version {
+                    let parsed = self.parsedState()
+                    guard parsed.version == version, parsed.match == snap.match else { return }
+                }
+                self.commitSetup(analysis, base: base)
+            }
+        }
+        let deliverDeviated: () -> Void = { [weak self] in
+            DispatchQueue.main.async {
+                guard let self, gen == self.generation, self.env.isEnabled() else { return }
+                self.markDeviated()
+            }
+        }
         let search = {
             guard !token.isCancelled else { return }
             let live = RDStateReader.read(snap)
@@ -384,8 +433,39 @@ final class RedDragonAssistant {
             let analysis = RDHintBuilder.analyze(snapshot: snap, live: live, result: result,
                                                  cardName: env.cardName)
             let lines = result.lethalLines.filter { !RDLineWalker.dependsOnDraw($0.actions, root: live.state) }
-            let base = FollowBase(candidates: lines.map { (live.state, $0) }, turn: snap.turn, match: snap.match)
+            let base = FollowBase(goal: .lethal,
+                                  candidates: lines.map {
+                                      FollowCandidate(root: live.state, line: $0,
+                                                      formula: RDFormulaBuilder.formula(.lethal, $0.actions,
+                                                                                        root: live.state))
+                                  },
+                                  turn: snap.turn, match: snap.match,
+                                  options: snap.optionsPlayedThisTurn)
             deliver(analysis, lines.isEmpty ? nil : base, false)
+
+            // 斩不了 + 场面危险：算奶 16。不危险不主动推荐准备线（10-05 用户定）；斩得了先斩
+            guard !analysis.isLethal, analysis.boardDanger else { return }
+            var setup = RedDragonSearch.solveSetup(live.state, goal: .heal16, config: config)
+            guard !token.isCancelled, !setup.cancelled else { return }
+            var advice = RDHintBuilder.setupAdvice(result: setup, goal: .heal16, root: live.state)
+            if setup.setupLines.isEmpty, env.suggestsPreLaunch {
+                setup = RedDragonSearch.solveSetup(live.state, goal: .preLaunch, config: config)
+                guard !token.isCancelled, !setup.cancelled else { return }
+                advice = RDHintBuilder.setupAdvice(result: setup, goal: .preLaunch, root: live.state) ?? advice
+            }
+            var withSetup = analysis
+            withSetup.setup = advice
+            let goal: RDFormula.Goal = advice?.kind == .preLaunch ? .preLaunch : .heal16
+            let healBase = FollowBase(goal: goal,
+                                      candidates: setup.setupLines.map {
+                                          FollowCandidate(root: live.state, line: $0,
+                                                          formula: RDFormulaBuilder.formula(goal, $0.actions,
+                                                                                            root: live.state,
+                                                                                            potential: $0.potential))
+                                      },
+                                      turn: snap.turn, match: snap.match,
+                                  options: snap.optionsPlayedThisTurn)
+            deliverSetup(withSetup, healBase.candidates.isEmpty ? nil : healBase)
         }
         // 跟手：屏上是斩杀线、还在同一回合时，先不去抖试一次「接着用」（读取 + 推演 + 重放，毫秒级），
         // 对不上再按原样去抖、搜索。都在同一条串行后台队列上，取消标记照看
@@ -396,36 +476,103 @@ final class RedDragonAssistant {
         workQueue.async {
             guard !token.isCancelled else { return }
             var live = RDStateReader.read(snap)
-            let resumed = RDContinuation.resumeAll(base.candidates, onto: live.state)
-            guard let shown = resumed.first else {
+            var advanced = RDContinuation.advance(base.candidates.map { ($0.root, $0.line) },
+                                                  onto: live.state, goal: base.goal, tolerant: locking)
+            // 锁定：只认屏上那条公式。别的候选对得上、但写出来不是同一条公式的，不能悄悄换上去
+            // （公式文本相同、只是打哪张复制体不同的候选仍算同一条）—— 否则照着打公式会自己变
+            if locking, let shownTokens = base.candidates.first?.formula.tokens {
+                advanced = advanced.filter { base.candidates[$0.index].formula.tokens == shownTokens }
+            }
+            // 准备线没有「判定」可重算：沿用上次的结论，只换跟局面走的几项
+            let canRefresh = base.goal == .lethal || previous != nil
+            guard let shown = advanced.first?.resumed, canRefresh else {
+                // 锁定的线走不通：先标「已偏离」（旧公式不能继续当可行线显示），再搜新线
+                // （对手已经死了不算偏离：斩杀线的最后一步打完就是这个局面；操作计数没变也不算：用户没有新操作，
+                //   是上一个操作还在结算——英雄攻击后随从死亡——照常重算，旧公式留在屏上等新的换掉）
+                if locking, live.state.opponent.health > 0, snap.optionsPlayedThisTurn != base.options {
+                    let s = live.state
+                    logger.info("red dragon: deviated, mana \(s.mana)+\(s.tempMana), hand ["
+                        + s.hand.map { RDText.abbr($0.card) + "\(s.cost(of: $0, as: $0.card))" }.joined(separator: " ")
+                        + "], board [" + s.board.map { RDText.abbr($0.card) }.joined(separator: " ") + "]")
+                    deliverDeviated()
+                }
                 workQueue.asyncAfter(deadline: .now() + env.debounce, execute: search)
                 return
             }
             // 线是从共用的根局面（新编号起点和读取的不同）校验的，展示层逐步推演也要从它推
             live.state = shown.root
-            let result = RDContinuation.result(resumed.map { $0.line }, root: live.state)
-            let analysis = RDHintBuilder.analyze(snapshot: snap, live: live, result: result,
+            let candidates = advanced.map { item -> FollowCandidate in
+                var formula = base.candidates[item.index].formula
+                formula.done += item.resumed.stepsTaken
+                return FollowCandidate(root: item.resumed.root, line: item.resumed.line, formula: formula)
+            }
+            let next = FollowBase(goal: base.goal, candidates: candidates, turn: snap.turn, match: snap.match,
+                                  options: snap.optionsPlayedThisTurn)
+            var analysis: RDAnalysis
+            if base.goal == .lethal {
+                let result = RDContinuation.result(advanced.map { $0.resumed.line }, root: live.state)
+                analysis = RDHintBuilder.analyze(snapshot: snap, live: live, result: result,
                                                  cardName: env.cardName)
-            let next = FollowBase(candidates: resumed.map { ($0.root, $0.line) }, turn: snap.turn, match: snap.match)
+                analysis.formula = candidates[0].formula
+            } else {
+                analysis = RDHintBuilder.refreshed(previous!, snapshot: snap, live: live)
+                analysis.setup = RDSetupAdvice(kind: base.goal == .preLaunch ? .preLaunch : .heal16,
+                                               formula: candidates[0].formula)
+            }
             deliver(analysis, next, true)
         }
     }
 
     private func commit(_ analysis: RDAnalysis, snapshot: RDGameSnapshot, base: FollowBase?) {
         inFlight = nil
-        followBase = analysis.verdict == .lethal ? base : nil
+        followBase = base
         committedComputations += 1
         quizState = RDQuizState.next(quizState, snapshot: snapshot, verdict: analysis.verdict)
         var h = hint
         h.phase = .ready
         h.analysis = analysis
         h.isStale = false
+        h.deviated = false
+        logLocked(analysis.formula, base: base)
+        publish(composed(h))
+    }
+
+    /// 锁定的公式写一行日志（公式全文 + 已走几步），实测反馈时对照「当时显示的是什么」
+    private func logLocked(_ formula: RDFormula?, base: FollowBase?) {
+        guard lockMode, base != nil, let f = formula else { return }
+        logger.info("red dragon: locked \(f.goal) \(f.done)/\(f.tokens.count): "
+            + f.tokens.map { RDText.formulaToken($0) }.joined(separator: " "))
+    }
+
+    /// 晚到的准备线（奶 16 / 预启动 / 等死）：补进已经上屏的判定结论。判定和它同属一个局面（同一代号、同一版本）
+    private func commitSetup(_ analysis: RDAnalysis, base: FollowBase?) {
+        guard hint.phase == .ready, !hint.isStale, let current = hint.analysis else { return }
+        var a = analysis
+        a.actionsTaken = current.actionsTaken
+        a.handOrder = current.handOrder
+        a.boardSlots = current.boardSlots
+        a.opponentBoardSlots = current.opponentBoardSlots
+        followBase = base
+        var h = hint
+        h.analysis = a
+        logLocked(a.setup?.formula, base: base)
+        publish(composed(h))
+    }
+
+    /// 锁定的线走不通了：旧公式置灰留在原位（标「已偏离，重算中」），等新线（`commit`）锁定后换掉
+    private func markDeviated() {
+        followBase = nil
+        var h = hint
+        h.deviated = true
+        h.phase = .computing
+        h.isStale = h.analysis != nil
         publish(composed(h))
     }
 
     /// 揭示档 / 答题判定随用户操作和偏好变，结论不变
     private func composed(_ base: RedDragonHint) -> RedDragonHint {
         var h = base
+        h.locked = lockMode && followBase != nil && h.analysis != nil && !h.deviated
         let lethal = h.analysis?.isLethal ?? false
         let tier = h.analysis?.tier
         h.maxRevealLevel = RDRevealPolicy.cap(isLethal: lethal, tier: tier, preference: env.revealPreference())
@@ -445,14 +592,14 @@ final class RedDragonAssistant {
     func raiseReveal() {
         guard let a = hint.analysis, hint.phase == .ready || hint.phase == .computing else { return }
         let top = RDRevealPolicy.cap(isLethal: a.isLethal, tier: a.tier, preference: env.revealPreference())
-        requestedReveal = min(top, RDRevealLevel(rawValue: hint.revealLevel.rawValue + 1) ?? .order)
+        requestedReveal = min(top, .order)
         recompose()
     }
 
     /// 热键：降一档
     func lowerReveal() {
         guard hint.analysis != nil else { return }
-        requestedReveal = RDRevealLevel(rawValue: hint.revealLevel.rawValue - 1) ?? .verdict
+        requestedReveal = .verdict
         recompose()
     }
 
@@ -489,6 +636,7 @@ final class RedDragonAssistant {
         requestedReveal = nil
         quizState = nil
         followBase = nil
+        if hint.deviated { hint.deviated = false }
         if newTurn == nil { lastSnapshot = nil }
     }
 

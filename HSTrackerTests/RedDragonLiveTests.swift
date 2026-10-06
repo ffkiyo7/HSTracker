@@ -467,17 +467,18 @@ class RedDragonLiveTests: HSTrackerTests {
         XCTAssertTrue(RedDragonSearch.solve(thawed.state).isLethal, "不冻结时 2 攻武器打 2 血斩杀")
     }
 
-    /// 场面危险：对方下回合场攻 ≥ 我方血量 + 护甲 − 余量
+    /// 场面危险：对方下回合场攻 ≥ 我方血量 + 护甲 − 余量（T4：余量 3 → 5）
     func testBoardDanger() {
+        XCTAssertEqual(RDHintBuilder.dangerMargin, 5)
         let t = Table()
         var snap = t.snapshot()
         snap.heroHealth = 10
         snap.heroArmor = 2
-        snap.opponentBoardDamage = 8
+        snap.opponentBoardDamage = 6
         let live = RDStateReader.read(snap)
         let r = RedDragonSearch.solve(live.state)
         XCTAssertFalse(RDHintBuilder.analyze(snapshot: snap, live: live, result: r, cardName: { $0 }).boardDanger)
-        snap.opponentBoardDamage = 9
+        snap.opponentBoardDamage = 7
         XCTAssertTrue(RDHintBuilder.analyze(snapshot: snap, live: live, result: r, cardName: { $0 }).boardDanger)
     }
 
@@ -487,11 +488,12 @@ class RedDragonLiveTests: HSTrackerTests {
         XCTAssertEqual(RDRevealPolicy.effective(requested: .order, preference: .order, isLethal: false, tier: nil),
                        .verdict)
         // 偏好不是「顺序」时，基础线不许升到 L2（热键也不行）
-        XCTAssertEqual(RDRevealPolicy.cap(isLethal: true, tier: .basic), .cards)
+        XCTAssertEqual(RDRevealPolicy.cap(isLethal: true, tier: .basic), .verdict)
         XCTAssertEqual(RDRevealPolicy.effective(requested: .order, preference: .verdict, isLethal: true, tier: .basic),
-                       .cards)
-        XCTAssertEqual(RDRevealPolicy.effective(requested: .order, preference: .cards, isLethal: true, tier: .basic),
-                       .cards)
+                       .verdict)
+        // 只剩两档；以前存过「参与牌」（1）的设置读出来按判定
+        XCTAssertEqual(RDRevealLevel.allCases, [.verdict, .order])
+        XCTAssertNil(RDRevealLevel(rawValue: 1))
         // 偏好是「顺序」：任何难度的斩杀线都给顺序，线中途变成基础也不降档（10-05 用户定）
         XCTAssertEqual(RDRevealPolicy.cap(isLethal: true, tier: .basic, preference: .order), .order)
         for tier in [RDDifficulty.Tier.basic, .advanced, .hard] {
@@ -499,8 +501,8 @@ class RedDragonLiveTests: HSTrackerTests {
                            .order, "\(tier)")
         }
         // 用户按热键降下来仍听用户的；不斩杀仍只有判定
-        XCTAssertEqual(RDRevealPolicy.effective(requested: .cards, preference: .order, isLethal: true, tier: .basic),
-                       .cards)
+        XCTAssertEqual(RDRevealPolicy.effective(requested: .verdict, preference: .order, isLethal: true, tier: .basic),
+                       .verdict)
         XCTAssertEqual(RDRevealPolicy.cap(isLethal: false, tier: nil, preference: .order), .verdict)
         // 进阶按偏好
         XCTAssertEqual(RDRevealPolicy.effective(requested: nil, preference: .verdict, isLethal: true, tier: .advanced),
@@ -730,6 +732,30 @@ class RedDragonLiveTests: HSTrackerTests {
         XCTAssertEqual(assistant.scheduledComputations, scheduled, "只差计数，不重算")
     }
 
+    /// 锁定模式下，上一份局面还在核对时只差计数的那份紧跟着到（10-06 14:47 实测：英雄攻击 → 随从死亡 → 计数）：
+    /// 不能走「只更新计数」的捷径——那会丢掉在算的那次又不重排，面板停在「重算中」
+    func testLateCountDuringLockedCheckStillRecomputes() {
+        let sw = Switch()
+        let assistant = makeAssistant(sw, reveal: .order)
+        func feed(_ s: RDGameSnapshot) { DispatchQueue.global().sync { assistant.feed(.snapshot(s)) } }
+        let s0 = lethalSnapshot(health: 8)
+        feed(s0)
+        spin { assistant.hint.phase == .ready }
+        XCTAssertTrue(assistant.hint.locked)
+        // 局面变了（锁定的线接不上）、计数还没涨；紧接着只差计数的那份
+        var s1 = s0
+        s1.opponentHeroHealth = 7
+        var s2 = s1
+        s2.optionsPlayedThisTurn += 1
+        feed(s1)
+        feed(s2)
+        spin(until: { assistant.hint.phase == .ready && assistant.hint.analysis?.effectiveEnemyHealth == 7 }, timeout: 5)
+        XCTAssertEqual(assistant.hint.phase, .ready, "重算要出结果，不能停在「重算中」")
+        XCTAssertEqual(assistant.hint.analysis?.effectiveEnemyHealth, 7)
+        XCTAssertFalse(assistant.hint.deviated)
+        XCTAssertEqual(assistant.hint.analysis?.actionsTaken, s2.optionsPlayedThisTurn)
+    }
+
     /// 操作数只增不减：计数倒退（不该发生）不重判
     func testQuizActionsAreMonotonic() {
         var q = RDQuizState.next(nil, snapshot: quizSnap(turn: 7, count: 2, step: 2), verdict: .lethal)
@@ -768,10 +794,11 @@ class RedDragonLiveTests: HSTrackerTests {
         var enabled = true
     }
 
-    private func makeAssistant(_ sw: Switch, debounce: TimeInterval = 0, quiz: Bool = false) -> RedDragonAssistant {
+    private func makeAssistant(_ sw: Switch, debounce: TimeInterval = 0, quiz: Bool = false,
+                               reveal: RDRevealLevel = .verdict) -> RedDragonAssistant {
         let env = RedDragonAssistant.Environment(
             isEnabled: { sw.enabled },
-            revealPreference: { .verdict },
+            revealPreference: { reveal },
             quizMode: { quiz },
             debounce: debounce,
             config: RedDragonConfig(),
@@ -975,7 +1002,7 @@ class RedDragonLiveTests: HSTrackerTests {
         XCTAssertNil(assistant.hint.analysis)
     }
 
-    /// 揭示档热键：进阶线能升到 L2；基础线最多升到 L1（临时放宽基础阈值造一条基础线）
+    /// 揭示档热键：进阶线能升到 L2；基础线停在判定（临时放宽基础阈值造一条基础线）
     func testRevealHotkeysRespectCap() {
         let sw = Switch()
         let assistant = makeAssistant(sw)
@@ -998,10 +1025,8 @@ class RedDragonLiveTests: HSTrackerTests {
         XCTAssertEqual(assistant.hint.analysis?.tier, .basic)
         XCTAssertEqual(assistant.hint.revealLevel, .verdict)
         assistant.raiseReveal()
-        XCTAssertEqual(assistant.hint.revealLevel, .cards)
-        assistant.raiseReveal()
-        XCTAssertEqual(assistant.hint.revealLevel, .cards, "基础线不许升到 L2")
-        XCTAssertEqual(assistant.hint.maxRevealLevel, .cards)
+        XCTAssertEqual(assistant.hint.revealLevel, .verdict, "基础线不许升到 L2")
+        XCTAssertEqual(assistant.hint.maxRevealLevel, .verdict)
         assistant.lowerReveal()
         XCTAssertEqual(assistant.hint.revealLevel, .verdict)
     }

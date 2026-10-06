@@ -15,10 +15,12 @@ struct RDOverlayModel: Equatable {
 
     enum Tone: Equatable {
         case lethal, lethalIfDraw, notFound, provenNotLethal, neutral
+        /// 准备线（奶 16 / 预启动）和「等死」：和斩杀线的绿色一眼分开
+        case setup, doomed
     }
 
     enum Status: Hashable {
-        case computing, stale, truncated
+        case computing, truncated
     }
 
     struct Badge: Equatable {
@@ -36,7 +38,7 @@ struct RDOverlayModel: Equatable {
         var maxLevel: RDRevealLevel
         var quizMode: Bool
         var quiz: RDQuizMark?
-        /// 结论不是当前局面的（过时 / 正在算）：整块变暗，不画标记
+        /// 结论不是当前局面的（过时 / 正在算 / 已偏离）：整块置灰，内容和大小不变
         var dimmed: Bool
     }
 
@@ -46,40 +48,36 @@ struct RDOverlayModel: Equatable {
         case missing
         case insufficient
         case danger
+        /// 完整公式（多行排版，不截断）。`setup`：准备线（奶 16 / 预启动），否则是斩杀线
+        case formula(setup: Bool)
+        /// 准备线的「回合末留下什么」
+        case leftover
+    }
+
+    /// 公式里的一步。`done` 划掉、`next` 高亮、`pending` 正常、`note` 是「抽到 X 才继续」之类的说明
+    struct Piece: Equatable {
+        enum State: Equatable { case done, next, pending, note }
+        var text: String
+        var state: State
+        /// `text` 里要换色突出的那一段（乐队经理拿的牌「（龙舞）」）
+        var accent: String? = nil
     }
 
     struct Line: Equatable {
         var kind: LineKind
         var text: String
-    }
+        /// 公式行开头的小标签（「斩杀」/「奶16」/「预启动」）
+        var label: String? = nil
+        var pieces: [Piece] = []
 
-    /// 手牌上的标记。`index` 从 0 起、从左到右，`count` 是手牌张数（`BoardOverlayView.handCardPosition` 的参数）
-    struct HandMark: Equatable {
-        var entityId: Int
-        var index: Int
-        var count: Int
-        /// L1 的必打 / 可选；只有序号没有高亮时为 nil
-        var role: RDHandMark.Role?
-        /// L2 的步骤序号（同一张牌可能出现在多步里）
-        var steps: [Int]
-    }
-
-    struct BoardMark: Equatable {
-        var entityId: Int
-        var isEnemy: Bool
-        var index: Int
-        var count: Int
-        var steps: [Int]
-        /// 这格随从在某一步是目标（画圈）；否则只是攻击方
-        var isTarget: Bool
+        var isFormula: Bool {
+            if case .formula = kind { return true }
+            return false
+        }
     }
 
     var badge: Badge?
     var lines: [Line] = []
-    var handMarks: [HandMark] = []
-    var boardMarks: [BoardMark] = []
-    /// 指向对方英雄的步骤
-    var heroTargetSteps: [Int] = []
 
     var isVisible: Bool { return badge != nil }
 
@@ -97,7 +95,8 @@ struct RDOverlayModel: Equatable {
         case .computing, .ready:
             break
         }
-        let dimmed = hint.phase == .computing || hint.isStale
+        // 锁定的公式不变暗：炉石日志晚到的窗口里照常显示（10-06 用户定）
+        let dimmed = hint.deviated || ((hint.phase == .computing || hint.isStale) && !hint.locked)
         guard let a = hint.analysis else {
             return RDOverlayModel(badge: Badge(title: RDText.assistantName, numbers: nil, margin: nil, tone: .neutral,
                                                tier: nil, statuses: [.computing], opponentSecrets: false,
@@ -105,36 +104,63 @@ struct RDOverlayModel: Equatable {
                                                quizMode: hint.quizMode, quiz: nil, dimmed: false))
         }
 
+        // 重算 / 过时期间不加「正在算」「过时」标签（多一行面板就会跳）：只把整块置灰，内容原样留着，
+        // 算完再换（10-06 用户定：照着打的时候浮窗不要变形）
         var statuses: [Status] = []
-        if hint.phase == .computing { statuses.append(.computing) }
-        if hint.isStale { statuses.append(.stale) }
         if a.completeness == .truncated { statuses.append(.truncated) }
 
+        // 准备建议只在斩不了时有（斩得了先斩）
+        let setup = a.isLethal ? nil : a.setup
         let title: String
         let tone: Tone
-        switch a.verdict {
-        case .lethal: (title, tone) = (RDText.lethal, .lethal)
-        case .lethalIfDraw: (title, tone) = (RDText.lethalIfDraw, .lethalIfDraw)
-        case .notFound: (title, tone) = (RDText.notFound, .notFound)
-        case .provenNotLethal: (title, tone) = (RDText.provenNotLethal, .provenNotLethal)
+        if let s = setup {
+            switch s.kind {
+            case .heal16: (title, tone) = (RDText.heal16Title, .setup)
+            case .preLaunch: (title, tone) = (RDText.preLaunchTitle, .setup)
+            case .doomed: (title, tone) = (RDText.doomed, .doomed)
+            }
+        } else {
+            switch a.verdict {
+            case .lethal: (title, tone) = (RDText.lethal, .lethal)
+            case .lethalIfDraw: (title, tone) = (RDText.lethalIfDraw, .lethalIfDraw)
+            case .notFound: (title, tone) = (RDText.notFound, .notFound)
+            case .provenNotLethal: (title, tone) = (RDText.provenNotLethal, .provenNotLethal)
+            }
         }
-        // 「最大伤害 / 敌方有效血量」。不斩杀时标题已经说了「不能 / 未搜到」，不再加「最大」两字，省出角标宽度
-        let numbers = "\(a.maxDamage) / \(a.effectiveEnemyHealth)"
-        let badge = Badge(title: title, numbers: numbers, margin: RDText.margin(a.margin), tone: tone,
+        // 「最大伤害 / 敌方有效血量」。不斩杀时标题已经说了「不能 / 未搜到」，不再加「最大」两字，省出角标宽度。
+        // 准备线的角标不放伤害数字（那几个数和这条线无关）
+        // 锁定的线走不通（`deviated`）：旧公式置灰留在原位、不再高亮下一步，只把标题换成「已偏离，重算中」
+        // （数字让给它，标题行不变宽）；标签行、公式行、回合末行都不增不减，新线算出来再整块换掉
+        // （10-06 用户定，取代「只留一个角标」）
+        let plain = setup == nil && !hint.deviated
+        let numbers = plain ? "\(a.maxDamage) / \(a.effectiveEnemyHealth)" : nil
+        let badge = Badge(title: hint.deviated ? RDText.deviated : title, numbers: numbers,
+                          margin: plain ? RDText.margin(a.margin) : nil,
+                          tone: hint.deviated ? .notFound : tone,
                           tier: a.isLethal ? a.tier.map(RDText.tier) : nil, statuses: statuses,
                           opponentSecrets: a.opponentHasSecrets,
                           level: hint.revealLevel, maxLevel: hint.maxRevealLevel,
                           quizMode: hint.quizMode, quiz: hint.quizMode ? hint.quiz : nil, dimmed: dimmed)
         var model = RDOverlayModel(badge: badge)
-        // 过时的结论只留角标：它的建议、手牌 / 场面排位都可能已经不对了
-        guard !dimmed else { return model }
 
-        let marksAllowed = !hint.quizMode
-        let level = hint.revealLevel
-        if marksAllowed && level >= .order, let first = a.steps.first {
-            model.lines.append(Line(kind: .nextStep,
-                                    text: RDText.nextStep(RDText.step(first, cardName: cardName),
-                                                          total: a.totalSteps, shown: a.steps.count)))
+        // 奶 16 / 预启动 / 等死：永远直接给完整步骤，不受揭示档和答题模式影响（10-05 用户定：危险时没必要练习）
+        if let s = setup {
+            if let f = s.formula {
+                model.lines += formulaLines(f, setup: true, highlightsNext: !dimmed)
+                model.lines.append(Line(kind: .leftover, text: leftover(f)))
+            }
+            return model
+        }
+
+        if !hint.quizMode && hint.revealLevel >= .order {
+            if hint.locked || hint.deviated, a.isLethal, let f = a.formula {
+                // 「顺序」档锁定：完整公式，已走的划掉（答题模式下不显示完整公式）
+                model.lines += formulaLines(f, setup: false, highlightsNext: !dimmed)
+            } else if let first = a.steps.first {
+                model.lines.append(Line(kind: .nextStep,
+                                        text: RDText.nextStep(RDText.step(first, cardName: cardName),
+                                                              total: a.totalSteps, shown: a.steps.count)))
+            }
         }
         if a.verdict != .lethal {
             for b in a.drawBranches.prefix(maxBranches) {
@@ -154,36 +180,50 @@ struct RDOverlayModel: Equatable {
             model.lines.append(Line(kind: .danger, text: RDText.boardDanger))
         }
 
-        guard marksAllowed && level >= .cards else { return model }
-        let handIndex = Dictionary(a.handOrder.enumerated().map { ($0.element, $0.offset) },
-                                   uniquingKeysWith: { first, _ in first })
-        var hand: [Int: HandMark] = [:]
-        for m in a.handMarks {
-            guard let i = handIndex[m.entityId] else { continue }
-            hand[m.entityId] = HandMark(entityId: m.entityId, index: i, count: a.handOrder.count,
-                                        role: m.role, steps: [])
-        }
-        if level >= .order {
-            for s in a.steps where s.kind == .playFromHand {
-                guard let id = s.handEntityId, let i = handIndex[id] else { continue }
-                hand[id, default: HandMark(entityId: id, index: i, count: a.handOrder.count,
-                                           role: nil, steps: [])].steps.append(s.index)
-            }
-            var board: [Int: BoardMark] = [:]
-            for m in a.boardMarks {
-                let slots = m.isEnemy ? a.opponentBoardSlots : a.boardSlots
-                guard let i = slots.firstIndex(of: m.entityId) else { continue }
-                var mark = board[m.entityId] ?? BoardMark(entityId: m.entityId, isEnemy: m.isEnemy, index: i,
-                                                          count: slots.count, steps: [], isTarget: false)
-                if !mark.steps.contains(m.stepIndex) { mark.steps.append(m.stepIndex) }
-                mark.isTarget = mark.isTarget || m.role == .target
-                board[m.entityId] = mark
-            }
-            model.boardMarks = board.values.sorted { ($0.isEnemy ? 1 : 0, $0.index) < ($1.isEnemy ? 1 : 0, $1.index) }
-            model.heroTargetSteps = a.steps.filter { $0.target == .enemyHero }.map { $0.index }
-        }
-        model.handMarks = hand.values.sorted { $0.index < $1.index }
         return model
+    }
+
+    private static func label(_ goal: RDFormula.Goal) -> String {
+        switch goal {
+        case .lethal: return RDText.lethalLabel
+        case .heal16: return RDText.healLabel
+        case .preLaunch: return RDText.preLaunchLabel
+        }
+    }
+
+    /// 整条公式的每一步（不分行）
+    static func pieces(_ f: RDFormula) -> [Piece] {
+        return formulaLines(f, setup: false).flatMap { $0.pieces }
+    }
+
+    /// 公式按阶段分行（公式表的一二三阶段）：打出「舞」或「幻」的那一步收尾一行，下一步另起一行。
+    /// 只有第一行带标签；`highlightsNext` 为 false 时不高亮下一步（已偏离的旧公式）
+    static func formulaLines(_ f: RDFormula, setup: Bool, highlightsNext: Bool = true) -> [Line] {
+        var rows: [[Piece]] = [[]]
+        for (i, t) in f.tokens.enumerated() {
+            if i > 0 {
+                let prev = f.tokens[i - 1]
+                if prev.kind == .play, prev.card == .bounceAround || prev.card == .potionOfIllusion {
+                    rows.append([])
+                }
+            }
+            let state: Piece.State = i < f.done ? .done : (i == f.done && highlightsNext ? .next : .pending)
+            rows[rows.count - 1].append(Piece(text: RDText.formulaToken(t), state: state,
+                                                 accent: RDText.formulaPicks(t)))
+            if let note = RDText.formulaNote(t) { rows[rows.count - 1].append(Piece(text: note, state: .note)) }
+        }
+        return rows.enumerated().map { i, row in
+            Line(kind: .formula(setup: setup), text: "", label: i == 0 ? label(f.goal) : nil, pieces: row)
+        }
+    }
+
+    /// 「回合末：场 鱼 狐｜手 刀 暗｜下回合约 40」
+    static func leftover(_ f: RDFormula) -> String {
+        var parts: [String] = []
+        if !f.leftBoard.isEmpty { parts.append(RDText.leftBoard + f.leftBoard.map(RDText.abbr).joined(separator: " ")) }
+        if !f.leftHand.isEmpty { parts.append(RDText.leftHand + f.leftHand.map(RDText.abbr).joined(separator: " ")) }
+        if f.potential > 0 { parts.append(RDText.nextTurnPotential(f.potential)) }
+        return RDText.leftoverPrefix + parts.joined(separator: "｜")
     }
 }
 
@@ -224,16 +264,6 @@ enum RDOverlayGeometry {
         return CGRect(x: centerX - width / 2, y: top, width: width, height: height)
     }
 
-    /// 场面标记的中心：随从格的下沿。入场序号挂在上沿，两者不重叠
-    static func boardMarkCenter(_ rect: CGRect, canvas: CGSize) -> CGPoint {
-        return CGPoint(x: rect.midX, y: rect.maxY - badgeSize(canvas) * 0.2)
-    }
-
-    /// 对方英雄头像左下角（头像约在画面正中、0.19 H；武器徽章在 0.144 H 更靠左，场面入场序号在 0.29 H 以下）
-    static func heroTargetCenter(_ canvas: CGSize) -> CGPoint {
-        return CGPoint(x: canvas.width / 2 - canvas.height * 0.075, y: canvas.height * 0.235)
-    }
-
     // MARK: 判定面板的位置
 
     /// 默认位置：4:3 区域左下（手牌左边、我方英雄左下的空地），底边在 0.985 H，宽 ≤ 320 u。
@@ -248,7 +278,7 @@ enum RDOverlayGeometry {
     /// 3. 每个底边下字号 / 间距：×1 → ×0.85 → ×0.72。
     /// 4. 每个字号下左沿：先 4:3 内缩，再画布左边 8 u，再每个障碍的右沿 + 8 u；宽度到右边第一个障碍为止
     ///    （所以记牌器在右边时面板缩在它左边，在左边时挪到它右边）。
-    /// 5. 全都放不下：不画面板（手牌 / 场面标记照画）。
+    /// 5. 全都放不下：不画面板。
     static let panelInsetFraction: CGFloat = 0.025
     static let panelBottomFraction: CGFloat = 0.985
     static let panelMaxWidth: CGFloat = 320
@@ -378,9 +408,11 @@ enum RDOverlayGeometry {
             return limit
         }
 
-        var variants = lineCaps(lines.count).map { (keep: $0, hidesNumbers: false) }
+        // 公式行不能收（收了就是截掉后半段）：降级只收别的行，缩字号 / 换位置也放不下就不画面板
+        let required = lines.filter { $0.isFormula }.count
+        var variants = lineCaps(lines).map { (keep: $0, hidesNumbers: false) }
         if badge.numbers != nil {
-            variants.append((keep: 0, hidesNumbers: true))
+            variants.append((keep: required, hidesNumbers: true))
         }
         for variant in variants {
             let shown = compact(lines, keep: variant.keep)
@@ -418,11 +450,19 @@ enum RDOverlayGeometry {
         return [count] + [2, 1, 0].filter { $0 < count }
     }
 
+    /// 同上，但公式行一定留（不低于公式行的条数）
+    static func lineCaps(_ lines: [RDOverlayModel.Line]) -> [Int] {
+        let required = lines.filter { $0.isFormula }.count
+        return lineCaps(lines.count).filter { $0 >= required }
+    }
+
     /// 按重要度留 `keep` 行，留下的保持原来的顺序
     static func compact(_ lines: [RDOverlayModel.Line], keep: Int) -> [RDOverlayModel.Line] {
         guard keep < lines.count else { return lines }
         func rank(_ k: RDOverlayModel.LineKind) -> Int {
             switch k {
+            case .formula: return -2
+            case .leftover: return -1
             case .danger: return 0
             case .nextStep: return 1
             case .insufficient: return 2
@@ -478,7 +518,6 @@ enum RDPanelMetrics {
         for s in b.statuses {
             switch s {
             case .computing: out.append(RDText.computing)
-            case .stale: out.append(RDText.stale)
             case .truncated: out.append(RDText.truncated)
             }
         }
@@ -491,11 +530,17 @@ enum RDPanelMetrics {
     }
 
     static func headerWidth(_ b: RDOverlayModel.Badge, dropped: Int) -> CGFloat {
-        var w = paddingH + pipsWidth + headerSpacing + textWidth(b.title, size: titleSize)
-        if let n = b.numbers { w += headerSpacing + textWidth(n, size: numbersSize, latin: 0.7) }
-        if let m = b.margin { w += headerSpacing + textWidth(m, size: marginSize) + 10 }
-        if dropped > 0 { w += headerSpacing + textWidth(RDText.droppedLines(dropped), size: marginSize) }
-        return w
+        // 标题字实测比 textWidth 的估计宽（SwiftUI 的中文标题约 1.2 倍）：只有标题单独撑宽、又没有数字 / 余量垫着的
+        // 长标题（「已偏离，重算中」）才露出来，所以单独按 1.2 倍算一个下限
+        var rest: CGFloat = 0
+        if let n = b.numbers { rest += headerSpacing + textWidth(n, size: numbersSize, latin: 0.7) }
+        if let m = b.margin { rest += headerSpacing + textWidth(m, size: marginSize) + 10 }
+        if dropped > 0 { rest += headerSpacing + textWidth(RDText.droppedLines(dropped), size: marginSize) }
+        let title = textWidth(b.title, size: titleSize)
+        let base = paddingH + pipsWidth + headerSpacing
+        let plain = base + title + rest
+        // 有数字 / 余量的标题行，上面的老估计本来就偏大（测试里核对过）；只对纯标题行加这条下限
+        return b.numbers == nil && b.margin == nil ? max(plain, base + 1.2 * title + 3 + rest) : plain
     }
 
     static func chipRowWidth(_ b: RDOverlayModel.Badge) -> CGFloat {
@@ -528,10 +573,41 @@ enum RDPanelMetrics {
         return lineHeight(chipSize) + 2 * chipPaddingV
     }
 
-    /// 每行文字最多两行（`lineLimit(2)`）：估宽超过可用宽就算两行
+    /// 每行文字最多两行（`lineLimit(2)`；「回合末」三行）：估宽超过可用宽就多算一行
     static func rows(_ line: RDOverlayModel.Line, width: CGFloat) -> Int {
         let size = line.kind == .nextStep ? nextStepSize : lineSize
-        return textWidth(line.text, size: size) > width - paddingH - lineGlyphColumn ? 2 : 1
+        let avail = width - paddingH - lineGlyphColumn
+        let limit = line.kind == .leftover ? 3 : 2
+        return min(limit, max(1, Int((textWidth(line.text, size: size) / max(1, avail)).rounded(.up))))
+    }
+
+    static let formulaSize: CGFloat = 14
+    static let pieceGap: CGFloat = 7
+    static let rowGap: CGFloat = 3
+
+    /// 公式按词流式排：行首是小标签，每个词放不下就换行（和视图的 `RDFlowLayout` 同一套规则，估宽偏大）
+    static func formulaRows(_ line: RDOverlayModel.Line, width: CGFloat) -> Int {
+        let avail = width - paddingH - lineGlyphColumn
+        var x: CGFloat = line.label.map { chipWidth($0) + pieceGap } ?? 0
+        var rows = 1
+        for p in line.pieces {
+            let w = textWidth(p.text, size: formulaSize)
+            if x > 0 && x + w > avail {
+                rows += 1
+                x = 0
+            }
+            x += w + pieceGap
+        }
+        return rows
+    }
+
+    static func blockHeight(_ line: RDOverlayModel.Line, width: CGFloat) -> CGFloat {
+        if line.isFormula {
+            let r = formulaRows(line, width: width)
+            return CGFloat(r) * lineHeight(formulaSize) + CGFloat(r - 1) * rowGap
+        }
+        let size = line.kind == .nextStep ? nextStepSize : lineSize
+        return CGFloat(rows(line, width: width)) * lineHeight(size)
     }
 
     static func height(badge: RDOverlayModel.Badge, lines: [RDOverlayModel.Line], width: CGFloat) -> CGFloat {
@@ -541,8 +617,7 @@ enum RDPanelMetrics {
         if !lines.isEmpty {
             h += spacing + 1
             for line in lines {
-                let size = line.kind == .nextStep ? nextStepSize : lineSize
-                h += spacing + CGFloat(rows(line, width: width)) * lineHeight(size)
+                h += spacing + blockHeight(line, width: width)
             }
         }
         return h

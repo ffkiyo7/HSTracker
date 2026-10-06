@@ -1001,6 +1001,72 @@ class RedDragonFormulaTests: HSTrackerTests {
                        + " + t2-chou-01 多 2 种缺法 + t1-pre-03 缺暗 / 缺晦两种")
     }
 
+    // MARK: T4：打 / 回 16 与预启动两组的准备线
+
+    private static let setupGroups: Set<String> = ["打/回16", "预启动", "打/回16（狐视作杂牌）", "预启动（狐视作杂牌）"]
+
+    /// 公式整条（含第二阶段）重放到底，阿莱改对我方英雄（打 16 → 回 16）；重放不过返回 nil
+    private func formulaEnd(_ r: RDCaseResult) -> (end: RDState, hasDragon: Bool)? {
+        guard let start = r.start, let run = r.run else { return nil }
+        var hasDragon = false
+        let actions = run.actions.map { a -> RDAction in
+            if case .play(let e, let identity, .enemyHero, let c, let p) = a, identity == .alexstrasza {
+                hasDragon = true
+                return .play(entityId: e, identity: identity, target: .friendlyHero, choices: c, position: p)
+            }
+            return a
+        }
+        guard let out = try? RDReplay.run(actions, from: start.state, options: .search) else { return nil }
+        return (out.finalState, hasDragon)
+    }
+
+    /// 逐案例：公式（龙改回血）能重放；从声明的起手搜准备线，找到的最好一条下回合潜力不低于公式终局的。
+    /// 打印逐案例结果表（`RD_SETUP_TABLE=1` 时）
+    func testSetupLinesCoverHealAndPreLaunchRows() {
+        var cfg = RedDragonConfig()
+        cfg.setupCpuBudget = 900
+        var table: [String] = []
+        var summary: [String: Int] = [:]
+        var total = 0.0
+        var worst = 0.0
+        for r in RedDragonFormulaTests.results where RedDragonFormulaTests.setupGroups.contains(r.c.row.group) {
+            let id = r.c.id
+            guard r.verdict.passed, let start = r.start, let fe = formulaEnd(r) else {
+                table.append("\(id) | T2a「\(r.verdict.rawValue)」| 不适用（公式本身不通过，没有终局可比）")
+                summary["T2a 不通过·不适用", default: 0] += 1
+                continue
+            }
+            let goal: RDSetupGoal = fe.hasDragon ? .heal16 : .preLaunch
+            let formulaPotential = RDSetup.probe(fe.end, config: cfg)
+            let result = RedDragonSearch.solveSetup(start.state, goal: goal, config: cfg)
+            total += result.cpuTime
+            worst = max(worst, result.cpuTime)
+            let best = result.setupLines.first
+            let exact = result.setupLines.contains { line in
+                (try? RDReplay.run(line.actions, from: start.state, options: .search))
+                    .map { $0.finalState.canonicalHash() == fe.end.canonicalHash() } ?? false
+            }
+            var verdict: String
+            if fe.hasDragon && fe.end.healedRaw < RDSetup.healTarget {
+                verdict = "公式回血只有 \(fe.end.healedRaw)"
+            } else if let b = best, exact || b.potential / 8 >= formulaPotential / 8 {
+                verdict = exact ? "找到（与公式终局相同）" : "找到（潜力 \(b.potential) ≥ 公式 \(formulaPotential)）"
+            } else if let b = best {
+                verdict = "漏：搜到最好 \(b.potential) < 公式 \(formulaPotential)"
+            } else {
+                verdict = "漏：没搜到"
+            }
+            summary[verdict.hasPrefix("找到") ? "找到" : "漏", default: 0] += 1
+            table.append("\(id) | 目标 \(goal == .heal16 ? "回16" : "预启动") | \(verdict) | "
+                + "\(result.statesExpanded) 态 \(String(format: "%.2f", result.cpuTime)) s | "
+                + "最好线 \(best.map { RDFormulaBuilder.formula(.heal16, $0.actions, root: start.state).tokens.count } ?? 0) 步")
+        }
+        XCTAssertEqual(summary["漏"] ?? 0, 0, "公式表的准备线行必须都能从声明的起手搜到")
+        XCTAssertGreaterThan(summary["找到"] ?? 0, 0)
+        print("T4 准备线逐案例结果表\n" + table.joined(separator: "\n")
+            + "\n汇总 \(summary)；搜索合计 \(String(format: "%.1f", total)) s，最慢 \(String(format: "%.2f", worst)) s")
+    }
+
     // MARK: 2. 每个案例都有引擎结论
 
     func testEveryCaseHasEngineVerdict() {

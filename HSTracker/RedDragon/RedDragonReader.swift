@@ -83,6 +83,9 @@ enum RDStateReader {
         // 冻结的英雄不能攻击：武器（含搜索中途装上的）都打不出去
         s.heroFrozen = snap.heroFrozen
         s.heroPowerUsed = snap.heroPowerExhausted
+        s.heroHealth = snap.heroHealth
+        s.heroArmor = snap.heroArmor
+        s.heroMaxHealth = max(snap.heroMaxHealth, snap.heroHealth)
         if let w = snap.weapon, w.durability > 0 {
             s.weapon = RDWeapon(attack: w.attack, durability: w.durability,
                                 drawOnHeroAttack: RDCards.card(forId: w.cardId) == .quickPick)
@@ -94,8 +97,9 @@ enum RDStateReader {
         var inferred: [Int] = []
         for c in snap.hand {
             zones[c.entityId] = c.zonePosition
-            let (card, wasInferred) = handCard(c, layers: layers)
+            var (card, wasInferred) = handCard(c, layers: layers)
             if wasInferred { inferred.append(c.entityId) }
+            card.baseCostInferred = wasInferred
             s.hand.append(card)
         }
 

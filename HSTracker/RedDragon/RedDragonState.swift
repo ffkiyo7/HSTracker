@@ -55,6 +55,9 @@ struct RDHandCard {
     var unmodeledCardId: String?
     /// 本回合才进手（抽到 / 发现 / 复制 / 弹回）。只对「快枪」牌（`quickdrawCost`）有影响
     var enteredHandThisTurn: Bool
+    /// 读取层在减费层下看不出底费、按上限估的（`RDStateReader.handCard`），真实底费可能更低。只给跟手核对用
+    /// （`RDContinuation.correspondence`），**不进 `canonicalHash`**
+    var baseCostInferred = false
 
     init(entityId: Int, card: RDCard, pool: [RDCard] = [], enchants: [RDEnchant] = [],
          statsOverride: RDStats? = nil, isShadowOfDemise: Bool = false,
@@ -229,6 +232,12 @@ struct RDState {
     var luckyCometCharges: Int
 
     var damageDealt: Int
+    /// 我方英雄血量 / 护甲 / 上限（T4 回血线用；斩杀搜索不看）。`healedRaw` 是阿莱对友方的回血总量（不扣上限溢出），
+    /// 「奶 16」按它算；`heroHealth` 是封顶后的实际血量
+    var heroHealth: Int = 30
+    var heroArmor: Int = 0
+    var heroMaxHealth: Int = 30
+    var healedRaw: Int = 0
     var nextEntityId: Int
     /// 下一个上场随从的 `playOrder`（只增不减）。根局面要大于场上所有随从的 `playOrder`
     var nextPlayOrder: Int
@@ -367,6 +376,7 @@ struct RDState {
         // 新加的两项只在「有区别」时才喂：英雄没冻结、场位顺序 = 上场顺序（绝大多数局面）的哈希和加之前一样，
         // 采样补搜按哈希抽样，哈希一变抽到的就变（t2-wuhui-03 靠补搜救回，见 T2a 任务书「T2b 舞动顺序订正」）
         if heroFrozen { feed(-9) }
+        if healedRaw > 0 { feed(-12); feed(healedRaw); feed(heroHealth) }
         feed(luckyCometCharges)
         feed(opponent.health); feed(opponent.armor)
         feed(weapon?.attack ?? -1); feed(weapon?.durability ?? -1)

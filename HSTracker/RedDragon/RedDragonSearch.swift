@@ -27,6 +27,9 @@ struct RedDragonLine {
     /// 搜索内部用：每一步爆手时选定的场面顺序（只在爆手的全场弹回 / 复制处非空）。
     /// 返回前由 `RedDragonSearch` 翻译成 `actions` 里每次下随从的落位（并改写编号），然后清空
     var pendingBoardOrders: [RDOrderDecision?]? = nil
+    /// 准备线（T4）：终局阿莱对友方回血的总量；`potential` = 终局作为下回合起手能打的伤害（探针，见 `RDSetup`）
+    var healed = 0
+    var potential = 0
 }
 
 struct RedDragonBranch {
@@ -65,6 +68,16 @@ struct RedDragonResult {
     /// 有一遍搜索把可达局面**穷举**完了：束没裁过、每个节点的动作没截过、爆手排法没截过、没撞深度 / 状态 /
     /// CPU 上限、没取消。只有这时「没找到斩杀」才等于「按本模型不能斩杀」。生产配置下只有小局面能做到
     var exhaustive = false
+    /// 准备线搜索（`config.setup` 非 nil）的结果，按优劣排好；斩杀搜索恒空
+    var setupLines: [RedDragonLine] = []
+}
+
+/// 本回合不斩杀时为下回合做准备的两类线（T4）
+enum RDSetupGoal: Equatable {
+    /// 打 / 回 16：一张阿莱在鲨鱼下对友方英雄回满 16（危险时用，目标永远是自己）
+    case heal16
+    /// 预启动：不要求回血，只要终局留下的东西让下回合伤害最高（幻觉药水把一套收回手里、鲨鱼留场）
+    case preLaunch
 }
 
 /// 后台计算的取消标记：新局面一到，旧的那次搜索就不用算完了。任何线程都可以 `cancel()`
@@ -128,6 +141,11 @@ struct RedDragonConfig {
     var options: RDOptions = .search
     /// nil = 不可取消。和 CPU 兜底在同一处检查（每展开一个节点一次）
     var cancellation: RDCancellation? = nil
+    /// 非 nil = 准备线搜索：不找斩杀，收集满足目标的终局（见 `RedDragonSearch.solveSetup`）
+    var setup: RDSetupGoal? = nil
+    /// 准备线搜索自己的闸门（`solveSetup` 用，不动斩杀搜索的 `maxStatesExpanded` / `cpuBudget`）
+    var setupMaxStates: Int = 200_000
+    var setupCpuBudget: Double = 2.0
 
     static let exact: RedDragonConfig = {
         var c = RedDragonConfig()
@@ -284,7 +302,10 @@ enum RedDragonSearch {
                                deadline: Double,
                                selection: BeamSelection = .scored) -> RedDragonResult {
         let beamWidth = selection == .scored ? config.beamWidth : config.samplingPassWidth
-        let threshold = root.opponent.effectiveHealth
+        let setupGoal = config.setup
+        // 准备线搜索不找斩杀：门槛放到够不着，伤害账只给斩杀线用
+        let enemyHealth = root.opponent.effectiveHealth
+        let threshold = setupGoal == nil ? enemyHealth : Int.max
         let rootSideboard = root.sideboard.count
         // 束里不逐个展开落位（见「落位」一节）
         var listOptions = config.options
@@ -311,6 +332,8 @@ enum RedDragonSearch {
         var cancelled = false
         /// 有损的裁剪发生过（束、动作上限、排法上限、深度上限）：没找到斩杀也不能说明不能斩
         var pruned = false
+        /// 准备线候选：按质量降序、同质量按步数升序，只留前 `setupKeep` 条
+        var setupKept: [(quality: Int, steps: Int, line: RedDragonLine)] = []
         func isCancelled() -> Bool { return config.cancellation?.isCancelled == true }
 
         func makeLine(parent: Int, action: RDAction, state: RDState,
@@ -352,6 +375,32 @@ enum RedDragonSearch {
                 guard seen.insert(dedupKey(hash, constraints, next.board)).inserted else { return }
                 var key = node.branchKey
                 appendBranchKey(&key, action: action)
+                if let goal = setupGoal {
+                    let eval = RDSetup.evaluate(next, goal: goal)
+                    // 只收不靠随机抽牌的线（发现是自己选的，不算随机）
+                    if RDSetup.isCandidate(next, goal: goal, root: root, potential: eval.greedy),
+                       key.allSatisfy({ RDCards.sideboardCards.contains($0) }) {
+                        let steps = depth + 1
+                        let quality = goal == .preLaunch ? eval.greedy : RDSetup.quality(next)
+                        let worse = setupKept.count >= RDSetup.keep
+                            && (quality, -steps) <= (setupKept[setupKept.count - 1].quality,
+                                                      -setupKept[setupKept.count - 1].steps)
+                        if !worse {
+                            var line = makeLine(parent: index, action: action, state: next,
+                                                branchKey: key, order: order)
+                            line.healed = next.healedRaw
+                            line.potential = quality
+                            setupKept.append((quality, steps, line))
+                            setupKept.sort { ($0.quality, -$0.steps) > ($1.quality, -$1.steps) }
+                            if setupKept.count > RDSetup.keep { setupKept.removeLast() }
+                        }
+                    }
+                    children.append(Child(state: next, parent: index, action: action,
+                                          branchKey: key, score: eval.greedy,
+                                          builderScore: eval.builder, hash: hash,
+                                          constraints: constraints, decision: order, isVariant: isVariant))
+                    return
+                }
                 if next.damageDealt > maxDamage {
                     maxDamage = next.damageDealt
                     bestLine = makeLine(parent: index, action: action, state: next,
@@ -449,7 +498,10 @@ enum RedDragonSearch {
                     guard cs.count > w else { return cs }
                     guard w > 0 else { return [] }
                     switch selection {
-                    case .scored: return selectBeam(cs, width: w)
+                    case .scored:
+                        return setupGoal == .heal16
+                            ? selectBeam(cs, width: w, bucket: { min($0.healedRaw, RDSetup.healTarget) })
+                            : selectBeam(cs, width: w)
                     case .sampled: return sampleBeam(cs, width: w)
                     }
                 }
@@ -484,7 +536,7 @@ enum RedDragonSearch {
         }
         if !frontier.isEmpty && depth >= config.maxDepth { pruned = true }
         func cancelledResult() -> RedDragonResult {
-            return RedDragonResult(maxDamage: maxDamage, effectiveEnemyHealth: threshold, isLethal: false,
+            return RedDragonResult(maxDamage: maxDamage, effectiveEnemyHealth: enemyHealth, isLethal: false,
                                    chosenLine: nil, lethalLines: [], branches: [], missingPieces: [],
                                    missingPiecesBudgetExceeded: false, termination: .budgetExceeded,
                                    cpuTime: 0, statesExpanded: statesExpanded, depthReached: depth,
@@ -501,6 +553,27 @@ enum RedDragonSearch {
             guard !isCancelled() else { return nil }
             let out = withPlacements(line, root: root, options: config.options)
             if out == nil { translationFailures += 1 }
+            return out
+        }
+        if let goal = setupGoal {
+            var lines = setupKept.compactMap { placed($0.line) }
+            if isCancelled() { return cancelledResult() }
+            lines = dedupe(lines)
+            // 重放校验：同一套规则从根重放一遍，伤害对得上、回血 / 目标达成才留
+            lines = lines.filter { line in
+                guard !isCancelled(), let end = RDReplay.validate(line.actions, from: root,
+                                                                  expectedDamage: line.damage,
+                                                                  options: config.options) else { return false }
+                return RDSetup.accepts(end, goal: goal)
+            }
+            if isCancelled() { return cancelledResult() }
+            var out = RedDragonResult(maxDamage: 0, effectiveEnemyHealth: enemyHealth, isLethal: false,
+                                      chosenLine: nil, lethalLines: [], branches: [], missingPieces: [],
+                                      missingPiecesBudgetExceeded: false, termination: termination, cpuTime: 0,
+                                      statesExpanded: statesExpanded, depthReached: depth,
+                                      placementTranslationFailures: translationFailures,
+                                      cpuBudgetHit: cpuBudgetHit, exhaustive: false)
+            out.setupLines = lines
             return out
         }
         lethal = lethal.compactMap(placed)
@@ -548,7 +621,7 @@ enum RedDragonSearch {
             .map { RedDragonBranch(drawn: $0.branchKey, line: $0) }
 
         return RedDragonResult(maxDamage: maxDamage,
-                               effectiveEnemyHealth: threshold,
+                               effectiveEnemyHealth: enemyHealth,
                                isLethal: !lethal.isEmpty,
                                chosenLine: chosen,
                                lethalLines: lethal,
@@ -567,21 +640,22 @@ enum RedDragonSearch {
     /// 三件事：① 按「已造成伤害」分桶保底（只取全局 Top-K 会把「龙数低、还在蓄力」的桶整个砍掉，
     /// 那正是 48 / 64 线所在的桶）；② 共识分占一半；③ 蓄力分（正交）占另一半。
     /// `children` 必须已按共识分降序排好。
-    private static func selectBeam(_ children: [Child], width: Int) -> [Child] {
+    private static func selectBeam(_ children: [Child], width: Int,
+                                   bucket bucketOf: (RDState) -> Int = { $0.damageDealt }) -> [Child] {
         var taken = [Bool](repeating: false, count: children.count)
         var picked: [Int] = []
         picked.reserveCapacity(width)
 
         var buckets: [Int] = []
-        for c in children where !buckets.contains(c.state.damageDealt) {
-            buckets.append(c.state.damageDealt)
+        for c in children where !buckets.contains(bucketOf(c.state)) {
+            buckets.append(bucketOf(c.state))
         }
         buckets.sort()
         if buckets.count > 1 {
             let quota = max(3, width / (3 * buckets.count))
             for bucket in buckets {
                 var n = 0
-                for (i, c) in children.enumerated() where c.state.damageDealt == bucket {
+                for (i, c) in children.enumerated() where bucketOf(c.state) == bucket {
                     if n >= quota || picked.count >= width { break }
                     if taken[i] { continue }
                     taken[i] = true
@@ -816,7 +890,7 @@ enum RedDragonSearch {
             for e in def.effects + def.comboEffects {
                 switch e {
                 case .damageTarget(let n, _):
-                    p = max(p, target == .enemyHero ? 900 + n * 10 : 120)
+                    p = max(p, target == .enemyHero || target == .friendlyHero ? 900 + n * 10 : 120)
                 case .refreshMana: p = max(p, 300)
                 case .pushDiscount(let amount, let slots, _): p = max(p, 240 + amount * slots * 5)
                 case .discoverFromSideboard: p = max(p, 320)
@@ -956,5 +1030,135 @@ enum RedDragonSearch {
             }
         }
         return (out, false)
+    }
+
+    // MARK: - 准备线（T4）
+
+    /// 本回合不斩杀时的准备线。和斩杀搜索共用同一个 `search`（`config.setup`）：束搜索 + 同一套规则引擎 +
+    /// 同一遍重放校验，只是不找斩杀，而是收集「满足目标的终局」。收完再给每个终局的「下回合能打多少」
+    /// 做一次小预算的探针（把终局当下回合起手、对手血量放到够不着，量 `maxDamage`），按它排。
+    /// 排序：下回合伤害按 8（一次阿莱触发）分档 → 步数少 → 伤害高。（档内差 < 8 的两条线不分高低，选步数少的）
+    static func solveSetup(_ root: RDState, goal: RDSetupGoal,
+                           config base: RedDragonConfig = RedDragonConfig()) -> RedDragonResult {
+        let start = threadCPUTime()
+        var c = base
+        c.setup = goal
+        c.options.healFriendlyHero = goal == .heal16
+        c.maxStatesExpanded = base.setupMaxStates
+        c.cpuBudget = base.setupCpuBudget
+        c.boardOrderPass = nil
+        c.samplingPassWidth = nil
+        c.enableMissingPieces = false
+        var r = search(root, config: c, deadline: start + c.cpuBudget)
+        if !r.cancelled {
+            var probed = r.setupLines
+            // 探针合计有 CPU 兜底：候选已按便宜的分排好，撞上了就只留探过的
+            let probeDeadline = threadCPUTime() + RDSetup.probeTotalBudget
+            for i in probed.indices {
+                if base.cancellation?.isCancelled == true {
+                    r.cancelled = true
+                    break
+                }
+                if threadCPUTime() > probeDeadline {
+                    probed = Array(probed.prefix(i))
+                    break
+                }
+                guard let end = try? RDReplay.run(probed[i].actions, from: root, options: c.options).finalState else {
+                    continue
+                }
+                probed[i].potential = RDSetup.probe(end, config: base)
+            }
+            if !r.cancelled {
+                probed.sort { a, b in
+                    let (x, y) = (a.potential / 8, b.potential / 8)
+                    if x != y { return x > y }
+                    if a.actions.count != b.actions.count { return a.actions.count < b.actions.count }
+                    return a.potential > b.potential
+                }
+                r.setupLines = probed
+            }
+        }
+        r.cpuTime = threadCPUTime() - start
+        return r
+    }
+}
+
+enum RDSetup {
+    /// 回血线的目标：一张阿莱在鲨鱼下回 16
+    static let healTarget = 16
+    /// 每个搜索留的候选条数（探针只对这些做）
+    static let keep = 30
+    static let probeStates = 8_000
+    static let probeBudget = 0.25
+    static let probeTotalBudget = 1.0
+
+    /// 把回合结束时的局面当成下回合起手：法力 +1（封顶 10）、减费层 / 本回合计数清零、随从都能动
+    static func nextTurn(_ s: RDState) -> RDState {
+        var t = s
+        t.maxMana = min(10, s.maxMana + 1)
+        t.mana = t.maxMana
+        t.tempMana = 0
+        t.layers = []
+        t.cardsPlayedThisTurn = 0
+        t.heroAttackedThisTurn = false
+        t.heroPowerUsed = false
+        t.damageDealt = 0
+        t.healedRaw = 0
+        for i in t.board.indices {
+            t.board[i].summoningSick = false
+            t.board[i].attacksThisTurn = 0
+        }
+        return t
+    }
+
+    /// 便宜的「下回合潜力」：把终局当下回合起手跑一遍共识分
+    static func quality(_ s: RDState) -> Int {
+        return RedDragonSearch.evaluate(nextTurn(s)).greedy
+    }
+
+    static func evaluate(_ s: RDState, goal: RDSetupGoal) -> RedDragonSearch.RDEval {
+        switch goal {
+        case .heal16:
+            // 回血记进「伤害」栏（封顶 16）：共识分里的乐观上界 / 已完成量都按它走，阿莱对自己和对脸同价
+            var t = s
+            t.damageDealt = min(s.healedRaw, healTarget)
+            return RedDragonSearch.evaluate(t)
+        case .preLaunch:
+            var e = RedDragonSearch.evaluate(nextTurn(s))
+            e.builder = RedDragonSearch.evaluate(s).builder
+            return e
+        }
+    }
+
+    static func isCandidate(_ s: RDState, goal: RDSetupGoal, root: RDState, potential: Int) -> Bool {
+        switch goal {
+        case .heal16:
+            return s.healedRaw >= healTarget
+        case .preLaunch:
+            // 比不动强才算：至少打过一张牌，且下回合潜力高于根局面
+            return s.cardsPlayedThisTurn > root.cardsPlayedThisTurn
+                && potential > quality(root)
+        }
+    }
+
+    static func accepts(_ end: RDState, goal: RDSetupGoal) -> Bool {
+        return goal == .heal16 ? end.healedRaw >= healTarget : true
+    }
+
+    /// 终局当下回合起手，小预算搜一遍能打多少（对手血量放到够不着）
+    static func probe(_ end: RDState, config base: RedDragonConfig) -> Int {
+        var t = nextTurn(end)
+        t.opponent.health = 999
+        t.opponent.armor = 0
+        var c = RedDragonConfig()
+        c.weights = base.weights
+        c.maxStatesExpanded = probeStates
+        c.cpuBudget = probeBudget
+        c.beamWidth = 400
+        c.samplingPassWidth = nil
+        c.boardOrderPass = nil
+        c.enableMissingPieces = false
+        c.cancellation = base.cancellation
+        return RedDragonSearch.solve(t, config: c).maxDamage
     }
 }

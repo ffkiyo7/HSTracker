@@ -9,13 +9,12 @@
 
 import Foundation
 
-/// 三档揭示（spike 二、1）
+/// 两档揭示。原来的 L1「参与牌」和手牌 / 场面上的框、序号 10-06 用户定删掉；rawValue 不动
+/// （`Settings.redDragonRevealLevel` 存的是它，存过 1 的读出来按「判定」）
 enum RDRevealLevel: Int, CaseIterable, Comparable {
     /// L0 判定：只一个角标「可斩杀 28 / 27」或「最大 19 / 27」
     case verdict = 0
-    /// L1 参与牌：参与 combo 的手牌高亮，分必打 / 可选
-    case cards = 1
-    /// L2 顺序：前 3 步的手牌序号 + 场面标记 + 一行「下一步」
+    /// L2 顺序：面板里一行「下一步」；设置选「顺序」时是锁定的完整公式
     case order = 2
 
     static func < (lhs: RDRevealLevel, rhs: RDRevealLevel) -> Bool { return lhs.rawValue < rhs.rawValue }
@@ -50,6 +49,68 @@ enum RDStepTarget: Equatable {
     case friendlyMinion(entityId: Int?, cardId: String)
     case enemyMinion(entityId: Int, cardId: String)
     case enemyHero
+    /// 我方英雄（阿莱回血，T4）
+    case ownHero
+}
+
+// MARK: - 公式（T4）
+
+/// 公式里一步的目标。只留身份不留 entity id：公式是给人读的一串缩写，不用来落标记
+enum RDFormulaTarget: Equatable {
+    case card(RDCard)
+    case enemyMinion
+    case enemyHero
+    case ownHero
+}
+
+/// 公式表写法的一步：牌名缩写 + 打完剩余的费用 + 目标（`RDText.formulaToken` 渲染）。
+/// 只记牌名，不标来源（回收的复制体和原牌都写同一个缩写，由用户自己判断打哪张）
+struct RDFormulaToken: Equatable {
+    enum Kind: Equatable { case play, attack, heroPower }
+    var kind: Kind
+    /// 打出的牌；攻击时是攻击方的牌（英雄攻击为 nil）
+    var card: RDCard?
+    /// 殒命暗影本体（写成它当前变成的那张牌 +「（殒）」，例如「步（殒）」）
+    var original = false
+    /// 这步打完剩余的可用法力
+    var mana: Int
+    var target: RDFormulaTarget?
+    /// 这步随机抽到的牌：线只有抽到它们才能继续（写「抽到 X 才继续」）
+    var draws: [RDCard] = []
+    /// 乐队经理这步发现的边牌（写在牌名后的括号里，例如「牛（龙舞）1」）
+    var picks: [RDCard] = []
+}
+
+struct RDFormula: Equatable {
+    enum Goal: Equatable {
+        case lethal
+        /// 打 / 回 16 的回血线（危险时）
+        case heal16
+        case preLaunch
+    }
+    var goal: Goal
+    var tokens: [RDFormulaToken]
+    /// 已经走完的前几步（锁定模式用来画划掉 / 高亮）
+    var done = 0
+    /// 回合结束留下的东西（准备线）：场上随从、手牌里能认出的牌
+    var leftBoard: [RDCard] = []
+    var leftHand: [RDCard] = []
+    /// 下回合从这个终局起手能打多少（探针，准备线）
+    var potential = 0
+}
+
+/// 本回合不斩杀时的准备建议（T4）
+struct RDSetupAdvice: Equatable {
+    enum Kind: Equatable {
+        /// 危险、斩不了：奶 16 的线
+        case heal16
+        /// 预启动线
+        case preLaunch
+        /// 危险、斩不了、奶 16 凑不出
+        case doomed
+    }
+    var kind: Kind
+    var formula: RDFormula?
 }
 
 /// 发现 / 抽牌的结果。`isDraw` = 随机抽牌（取决于抽到什么），false = E.T.C. 发现（自己选）
@@ -156,6 +217,11 @@ struct RDAnalysis: Equatable {
     var handOrder: [Int] = []
     var boardSlots: [Int] = []
     var opponentBoardSlots: [Int] = []
+
+    /// 斩杀线的完整公式（`isLethal` 时有）。「顺序」档锁定时显示它
+    var formula: RDFormula? = nil
+    /// 准备建议：只在「斩不了 + 场面危险」时由助手补上（搜索较慢，晚于判定到）
+    var setup: RDSetupAdvice? = nil
 }
 
 /// 答题模式（spike 二、1）：不显示序号，每做一步判卷
@@ -187,6 +253,10 @@ struct RedDragonHint: Equatable {
     var maxRevealLevel: RDRevealLevel
     var quizMode: Bool
     var quiz: RDQuizMark?
+    /// 「顺序」档锁定：屏上是一条锁定的完整公式，不因「过时」隐藏、不因找到更优的线换掉（T4，10-06 用户定）
+    var locked = false
+    /// 锁定的线走不通了（打偏 / 对方介入）：不再显示旧公式，标「已偏离，重算中」直到新线锁定
+    var deviated = false
 
     static let inactive = RedDragonHint(phase: .inactive, analysis: nil, isStale: false,
                                         revealLevel: .verdict, maxRevealLevel: .verdict,
@@ -205,7 +275,7 @@ enum RDRevealPolicy {
         guard isLethal, let tier = tier else { return .verdict }
         if preference == .order { return .order }
         switch tier {
-        case .basic: return .cards
+        case .basic: return .verdict
         case .advanced, .hard: return .order
         }
     }
@@ -390,7 +460,7 @@ enum RDHintBuilder {
     /// 手牌序号只标前几步（spike 二、7）
     static let stepsShown = 3
     /// 「场面危险」的余量：对方场攻离我方有效血量还差这么多以内就算危险
-    static let dangerMargin = 3
+    static let dangerMargin = 5
 
     static func analyze(snapshot snap: RDGameSnapshot, live: RDLiveState, result: RedDragonResult,
                         cardName: (String) -> String) -> RDAnalysis {
@@ -457,7 +527,6 @@ enum RDHintBuilder {
             completeness = result.cpuBudgetHit ? .truncated : .capped
         }
 
-        let myHealth = snap.heroHealth + snap.heroArmor
         let costsInferred = !live.inferredBaseCostEntities.isEmpty
         // 牌库里有未建模的牌（读取层记成占位杂牌）：抽到它在搜索里是废牌，真实对局里未必 —— 不能当证明。
         // 手里的未建模牌、跳过的过牌由动作生成层报「丢弃」，已经让 `exhaustive` 为 false
@@ -493,13 +562,50 @@ enum RDHintBuilder {
             missingPieces: result.missingPieces.map(cardId),
             missingPiecesIncomplete: result.missingPiecesBudgetExceeded,
             singleTurnInsufficient: verdict == .provenNotLethal,
-            boardDanger: snap.deadToBoard || snap.opponentBoardDamage + dangerMargin >= myHealth,
+            boardDanger: isDanger(snap),
             opponentHasSecrets: snap.opponentSecretCount > 0,
             actionsTaken: snap.optionsPlayedThisTurn,
             handOrder: snap.hand.map { $0.entityId },
             boardSlots: snap.boardSlots.isEmpty ? snap.board.map { $0.entityId } : snap.boardSlots,
             opponentBoardSlots: snap.opponentBoardSlots.isEmpty
-                ? snap.opponentBoard.map { $0.entityId } : snap.opponentBoardSlots)
+                ? snap.opponentBoard.map { $0.entityId } : snap.opponentBoardSlots,
+            formula: isLethal ? chosen.map { RDFormulaBuilder.formula(.lethal, $0.actions, root: root) } : nil)
+    }
+
+    /// 场面危险：对方下回合场攻 ≥ 我方血量 + 护甲 − `dangerMargin`，或已经死于对方场面
+    static func isDanger(_ snap: RDGameSnapshot) -> Bool {
+        return snap.deadToBoard || snap.opponentBoardDamage + dangerMargin >= snap.heroHealth + snap.heroArmor
+    }
+
+    /// 锁定的线不重新搜索：沿用上次的判定结论，只把跟局面走的几项（排位、法力、操作数、危险、奥秘）换成现在的
+    static func refreshed(_ prev: RDAnalysis, snapshot snap: RDGameSnapshot, live: RDLiveState) -> RDAnalysis {
+        var a = prev
+        a.turn = snap.turn
+        a.availableMana = live.state.availableMana
+        a.actionsTaken = snap.optionsPlayedThisTurn
+        a.boardDanger = isDanger(snap)
+        a.opponentHasSecrets = snap.opponentSecretCount > 0
+        a.handOrder = snap.hand.map { $0.entityId }
+        a.boardSlots = snap.boardSlots.isEmpty ? snap.board.map { $0.entityId } : snap.boardSlots
+        a.opponentBoardSlots = snap.opponentBoardSlots.isEmpty
+            ? snap.opponentBoard.map { $0.entityId } : snap.opponentBoardSlots
+        return a
+    }
+
+    /// 准备线搜索的结果 → 建议。`danger` 之外不该调（不危险就不主动推荐）。
+    /// heal16 目标：有线 → 给最好的一条；凑不出 → 等死。preLaunch 目标：有线给线，没有就 nil
+    static func setupAdvice(result: RedDragonResult, goal: RDSetupGoal, root: RDState) -> RDSetupAdvice? {
+        switch goal {
+        case .heal16:
+            guard let best = result.setupLines.first else { return RDSetupAdvice(kind: .doomed, formula: nil) }
+            return RDSetupAdvice(kind: .heal16, formula: RDFormulaBuilder.formula(.heal16, best.actions, root: root,
+                                                                                  potential: best.potential))
+        case .preLaunch:
+            guard let best = result.setupLines.first else { return nil }
+            return RDSetupAdvice(kind: .preLaunch, formula: RDFormulaBuilder.formula(.preLaunch, best.actions,
+                                                                                     root: root,
+                                                                                     potential: best.potential))
+        }
     }
 
     static func cardId(_ c: RDCard) -> String {
@@ -513,6 +619,7 @@ enum RDHintBuilder {
             switch t {
             case .friendlyMinion(_, let id), .enemyMinion(_, let id): return cardName(id)
             case .enemyHero: return cardName(opponentHeroCardId)
+            case .ownHero: return cardName(RDCards.heroId)
             }
         }
         switch step.kind {
@@ -548,6 +655,8 @@ enum RDLineWalker {
                 return .enemyMinion(entityId: id, cardId: enemyCards[id] ?? "")
             case .enemyHero:
                 return .enemyHero
+            case .friendlyHero:
+                return .ownHero
             default:
                 return nil
             }
@@ -655,5 +764,71 @@ enum RDLineWalker {
             s = next
         }
         return false
+    }
+}
+
+// MARK: - 公式（T4）
+
+/// 一条线 → 公式表写法的 token 序列。沿线用同一套引擎推一遍，取每步打完剩余的法力
+enum RDFormulaBuilder {
+
+    static func formula(_ goal: RDFormula.Goal, _ actions: [RDAction], root: RDState,
+                        potential: Int = 0) -> RDFormula {
+        var s = root
+        var tokens: [RDFormulaToken] = []
+        for a in actions {
+            guard let after = try? RDEngine.apply(a, to: s) else { break }
+            tokens.append(token(a, before: s, after: after))
+            s = after
+        }
+        var f = RDFormula(goal: goal, tokens: tokens)
+        if goal != .lethal {
+            f.leftBoard = s.board.map { $0.card }.filter { !RDCards.def($0).isPlaceholder }
+            f.leftHand = s.hand.map { $0.identity(at: 0) }.filter { !RDCards.def($0).isPlaceholder }
+            f.potential = potential
+        }
+        return f
+    }
+
+    static func token(_ a: RDAction, before: RDState, after: RDState) -> RDFormulaToken {
+        func drawn(_ cs: [RDChoice]) -> [RDCard] {
+            return cs.compactMap { c in
+                guard case .pick(let card) = c, !RDCards.sideboardCards.contains(card) else { return nil }
+                return card
+            }
+        }
+        func target(_ t: RDTarget) -> RDFormulaTarget? {
+            switch t {
+            case .friendlyMinion(let id):
+                return before.board.first { $0.entityId == id }.map { .card($0.card) }
+            case .enemyMinion: return .enemyMinion
+            case .enemyHero: return .enemyHero
+            case .friendlyHero: return .ownHero
+            case .none, .unspecifiedFriendly: return nil
+            }
+        }
+        switch a {
+        case .heroPower:
+            return RDFormulaToken(kind: .heroPower, card: nil, mana: after.availableMana)
+        case .attack(let attacker, let defender, let choices):
+            var card: RDCard?
+            if case .friendlyMinion(let id) = attacker { card = before.board.first { $0.entityId == id }?.card }
+            return RDFormulaToken(kind: .attack, card: card, mana: after.availableMana,
+                                  target: target(defender), draws: drawn(choices))
+        case .play(let eid, let identity, let t, let choices, _):
+            let original = before.hand.first { $0.entityId == eid }?.isShadowOfDemise ?? false
+            var picks: [RDCard] = []
+            if identity == .etcBandManager {
+                picks = choices.compactMap { c in
+                    guard case .pick(let card) = c, RDCards.sideboardCards.contains(card) else { return nil }
+                    return card
+                }
+                // 固定写成 龙 → 舞 → 幻，和公式表的叫法一致（先后拿哪张没有区别）
+                let order: [RDCard] = [.alexstrasza, .bounceAround, .potionOfIllusion]
+                picks.sort { (order.firstIndex(of: $0) ?? 0) < (order.firstIndex(of: $1) ?? 0) }
+            }
+            return RDFormulaToken(kind: .play, card: identity, original: original, mana: after.availableMana,
+                                  target: target(t), draws: drawn(choices), picks: picks)
+        }
     }
 }

@@ -99,8 +99,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
         if AppDelegate.isTelemetryEnabled {
             startCrashReporting()
         }
+        // 跑测试时不弹授权窗：测试宿主每次重编签名都变，授权留不住，弹了也没用
         let options = [
-            kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true as CFBoolean
+            kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: !AppDelegate.isRunningTests as CFBoolean
         ]
         if !AXIsProcessTrustedWithOptions(options as CFDictionary) {
             logger.debug("Accessibility permission not granted")

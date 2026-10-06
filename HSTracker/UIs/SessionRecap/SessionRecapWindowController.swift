@@ -23,11 +23,15 @@ final class SessionRecapWindowController: NSWindowController, NSWindowDelegate {
     static func showIfNeeded(onClose: @escaping () -> Void) -> Bool {
         assertMainThread()
         guard Settings.showConstructedSessionRecap else {
+            logger.info("Session recap: setting is off")
             return false
         }
+        let start = SessionRecap.sessionStart
         guard let summary = SessionRecap.endSession() else {
+            logger.info("Session recap: nothing to show (session start \(String(describing: start)))")
             return false
         }
+        logger.info("Session recap: showing \(summary.record.total) games since \(summary.start)")
         if let previous = retained {
             // A recap left open from the last session is replaced, and its own
             // close callback must not run — that one may quit the app.
@@ -105,6 +109,10 @@ final class SessionRecapWindowController: NSWindowController, NSWindowDelegate {
     func windowWillClose(_ notification: Notification) {
         let onClose = self.onClose
         self.onClose = nil
+        let event = NSApp.currentEvent
+        logger.info("Session recap: window closing (runs quit callback: \(onClose != nil), "
+            + "event type: \(String(describing: event?.type.rawValue)), "
+            + "key: \(String(describing: event?.type == .keyDown ? event?.keyCode : nil)))")
         // Dropping the last reference from inside the notification would
         // deallocate the window that is sending it.
         DispatchQueue.main.async { [weak self] in

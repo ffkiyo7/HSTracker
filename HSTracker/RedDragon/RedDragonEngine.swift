@@ -89,6 +89,8 @@ struct RDOptions {
     /// 束搜索内部用 false —— 随从先一律放最右，等到真正爆手的全场弹回 / 复制时再决定场面顺序，
     /// 再把顺序翻译回落位（`RedDragonSearch` 的「落位」一节）。结果等价、分支少得多
     var expandPlacements = true
+    /// 阿莱克丝塔萨对我方英雄的回血目标要不要列进 `legalActions`（T4 回血线的搜索才开）
+    var healFriendlyHero = false
 
     static let search = RDOptions()
     static let replay = RDOptions(deferredChoices: true, allowTruncatedDraws: true,
@@ -250,7 +252,7 @@ enum RDEngine {
         switch def.targetScope {
         case .none:
             guard target == .none else { throw RDIllegal.illegalTarget }
-        case .friendlyMinion, .enemyMinion, .anyMinion, .anyCharacter, .enemyCharacter:
+        case .friendlyMinion, .enemyMinion, .anyMinion, .anyCharacter, .enemyCharacter, .enemyCharacterOrOwnHero:
             if target == .none {
                 // 随从的指向性战吼在无目标时仍可裸下，法术不行
                 guard !def.needsTargetToPlay else { throw RDIllegal.noTarget }
@@ -299,12 +301,14 @@ enum RDEngine {
             return state.boardIndex(ofEntity: id) != nil
         case .enemyMinion(let id):
             guard scope == .enemyMinion || scope == .anyMinion || scope == .anyCharacter
-                    || scope == .enemyCharacter else {
+                    || scope == .enemyCharacter || scope == .enemyCharacterOrOwnHero else {
                 return false
             }
             return state.opponent.board.contains { $0.entityId == id }
         case .enemyHero:
-            return scope == .anyCharacter || scope == .enemyCharacter
+            return scope == .anyCharacter || scope == .enemyCharacter || scope == .enemyCharacterOrOwnHero
+        case .friendlyHero:
+            return scope == .enemyCharacterOrOwnHero
         default:
             return false
         }
@@ -317,13 +321,13 @@ enum RDEngine {
         case .friendlyMinion: return !state.board.isEmpty
         case .enemyMinion: return !state.opponent.board.isEmpty
         case .anyMinion: return !state.board.isEmpty || !state.opponent.board.isEmpty
-        case .anyCharacter, .enemyCharacter: return true
+        case .anyCharacter, .enemyCharacter, .enemyCharacterOrOwnHero: return true
         }
     }
 
     /// 等价目标只留一个代表：同一张牌、同身材、同附魔的两个随从，指谁结果都一样。
     /// 这是真等价，不是启发式剪枝 —— 但它把 7 格场面的目标展开从 7 条压到 3~4 条。
-    static func legalTargets(for def: RDCardDef, state: RDState) -> [RDTarget] {
+    static func legalTargets(for def: RDCardDef, state: RDState, healFriendly: Bool = false) -> [RDTarget] {
         var out: [RDTarget] = []
         switch def.targetScope {
         case .none:
@@ -342,6 +346,10 @@ enum RDEngine {
         case .enemyCharacter:
             appendEnemyTargets(state, into: &out)
             out.append(.enemyHero)
+        case .enemyCharacterOrOwnHero:
+            appendEnemyTargets(state, into: &out)
+            out.append(.enemyHero)
+            if healFriendly { out.append(.friendlyHero) }
         }
         if def.targetMustBeUndamaged {
             out = out.filter { isUndamaged($0, state: state) }
@@ -467,7 +475,11 @@ enum RDEngine {
             }
 
         case .gainTempMana(let amount):
-            s.tempMana += amount
+            // 有用掉的水晶时，币是把 `RESOURCES_USED` 减回去（10-06 02:50 会话第 4 局：6 → 5），`TEMP_RESOURCES`
+            // 不动；一格都没用过才是临时水晶（10-05 20:34 会话第 1 局：`TEMP_RESOURCES` 0 → 1）
+            let refunded = min(amount, max(0, s.maxMana - s.mana))
+            s.mana += refunded
+            s.tempMana += amount - refunded
 
         case .pushDiscount(let amount, let slots, let filter):
             s.layers.append(RDDiscountLayer(amount: amount, slots: slots, filter: filter))
@@ -589,6 +601,11 @@ enum RDEngine {
                                    state s: inout RDState) -> Bool {
         guard amount > 0 else { return false }
         switch target {
+        case .friendlyHero:
+            // 阿莱的战吼对友方是治疗；`friendlyHero` 作目标只会来自它
+            s.healedRaw += amount
+            s.heroHealth = min(s.heroMaxHealth, s.heroHealth + amount)
+            return false
         case .enemyHero:
             guard !s.opponent.immune else { return false }
             s.damageDealt += amount
@@ -757,7 +774,7 @@ enum RDEngine {
                 if def.targetScope == .none {
                     targets = [.none]
                 } else {
-                    targets = legalTargets(for: def, state: state)
+                    targets = legalTargets(for: def, state: state, healFriendly: options.healFriendlyHero)
                     if targets.isEmpty {
                         if def.needsTargetToPlay { continue }
                         targets = [.none]

@@ -122,6 +122,8 @@ struct RDGameSnapshot: Hashable {
     /// 和 `BoardOverlayView` 的排法一致（地标也占格，`board` / `opponentBoard` 里没有它们）
     var boardSlots: [Int] = []
     var opponentBoardSlots: [Int] = []
+    /// 我方英雄的血量上限（回血封顶用，T4）
+    var heroMaxHealth: Int = 30
 }
 
 extension RDGameSnapshot {

@@ -23,6 +23,10 @@ enum RDTargetScope {
     /// 用 `.anyCharacter` 会让搜索生成「战吼打死自己的复制体」这种游戏里不存在的动作，
     /// 而重放用的是同一套规则，挡不住它。
     case enemyCharacter
+    /// 阿莱（T4）：敌方随从 / 敌方英雄打 8，**我方英雄回 8**。友方随从也能点，但回血对本模型没有意义，不列。
+    /// 我方英雄这个目标只在 `RDOptions.healFriendlyHero` 打开时才由 `legalActions` 列出（斩杀搜索不需要，
+    /// 列了只会多出一个无用分支）；校验（`apply`）永远认
+    case enemyCharacterOrOwnHero
 }
 
 /// 不展开的随机源。v1 把它们当「花费用 + 结果未知」截断（spike 六、）。
@@ -149,7 +153,7 @@ enum RDCards {
             effects: [.bounceTarget(costDelta: -2)], deckCount: 2),
         def(.shadowOfDemise, ["CORE_RLK_567", "RLK_567"], 126088, "Shadow of Demise",
             cost: 0, type: .spell, mirror: true, deckCount: 1),
-        def(.goneFishin, ["TSC_916"], 72119, "Gone Fishin'", cost: 1, type: .spell,
+        def(.goneFishin, ["TSC_916"], 72119, "Gone Fishin'", cost: 1, type: .spell, combo: true,
             effects: [.truncatedDraw(.dredge)], comboEffects: [.truncatedDraw(.dredge)],
             deckCount: 1),
         def(.digForTreasure, ["TOY_510"], 103341, "Dig for Treasure", cost: 1, type: .spell,
@@ -207,7 +211,7 @@ enum RDCards {
             effects: [.copyAllFriendlyToHand(setCost: 1, attack: 1, health: 1)], sideboard: true),
         def(.alexstrasza, ["LEG_CS3_031"], 113183, "Alexstrasza the Life-Binder",
             cost: 9, type: .minion, attack: 8, health: 8, dragon: true,
-            scope: .enemyCharacter, effects: [.damageTarget(8, usesSpellDamage: false)],
+            scope: .enemyCharacterOrOwnHero, effects: [.damageTarget(8, usesSpellDamage: false)],
             shark: true, sideboard: true),
         def(.junkPlaceholder, [], 0, "(junk)", cost: 0, type: .placeholder),
         def(.freeSlotPlaceholder, [], 0, "(free slot)", cost: 0, type: .placeholder,
@@ -248,6 +252,7 @@ enum RDCards {
     /// 能指敌方英雄的效果（阿莱）。搜索的启发式靠这个识别「打脸战吼」，不写死单张牌。
     static func canTargetEnemyHero(_ def: RDCardDef) -> Bool {
         return def.targetScope == .anyCharacter || def.targetScope == .enemyCharacter
+            || def.targetScope == .enemyCharacterOrOwnHero
     }
 
     static func def(_ card: RDCard) -> RDCardDef {

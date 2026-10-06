@@ -105,61 +105,37 @@ class RedDragonOverlayTests: HSTrackerTests {
         let computing = RDOverlayModel.make(Self.hint(nil, phase: .computing), cardName: Self.zh)
         XCTAssertTrue(computing.isVisible)
         XCTAssertEqual(computing.badge?.statuses, [.computing])
-        XCTAssertTrue(computing.handMarks.isEmpty)
     }
 
-    /// L0 只有角标；L1 加手牌高亮（必打 / 可选）、没有序号；L2 加序号、场面标记、「下一步」
-    func testRevealLevelsGateMarks() {
+    /// L0 只有角标；L2 加一行「下一步」。手牌 / 场面上不画任何标记（10-06 用户定，L1 一并删掉）
+    func testRevealLevelsGateLines() {
         let a = Self.sampleLethal()
         let l0 = RDOverlayModel.make(Self.hint(a, level: .verdict), cardName: Self.zh)
         XCTAssertEqual(l0.badge?.title, RDText.lethal)
         XCTAssertEqual(l0.badge?.numbers, "32 / 30")
         XCTAssertEqual(l0.badge?.margin, "+2")
         XCTAssertEqual(l0.badge?.tier, "进阶")
-        XCTAssertTrue(l0.handMarks.isEmpty)
-        XCTAssertTrue(l0.boardMarks.isEmpty)
         XCTAssertTrue(l0.lines.isEmpty)
 
-        let l1 = RDOverlayModel.make(Self.hint(a, level: .cards), cardName: Self.zh)
-        XCTAssertEqual(l1.handMarks.map { $0.entityId }, [101, 103, 106])
-        XCTAssertEqual(l1.handMarks.map { $0.role }, [.optional, .required, .required])
-        XCTAssertTrue(l1.handMarks.allSatisfy { $0.steps.isEmpty })
-        XCTAssertTrue(l1.boardMarks.isEmpty)
-        XCTAssertFalse(l1.lines.contains { $0.kind == .nextStep })
-
         let l2 = RDOverlayModel.make(Self.hint(a, level: .order), cardName: Self.zh)
-        XCTAssertEqual(l2.handMarks.first { $0.entityId == 103 }?.steps, [1])
-        XCTAssertEqual(l2.handMarks.first { $0.entityId == 106 }?.steps, [3])
-        XCTAssertEqual(l2.handMarks.first { $0.entityId == 103 }?.index, 2)
-        XCTAssertEqual(l2.handMarks.first { $0.entityId == 103 }?.count, 7)
-        XCTAssertEqual(l2.boardMarks.map { $0.entityId }, [201, 202, 301])
-        XCTAssertEqual(l2.boardMarks.first { $0.entityId == 301 }?.index, 1)
-        XCTAssertEqual(l2.boardMarks.first { $0.entityId == 301 }?.count, 3)
-        XCTAssertEqual(l2.boardMarks.first { $0.entityId == 301 }?.isTarget, true)
-        XCTAssertEqual(l2.boardMarks.first { $0.entityId == 201 }?.isTarget, false)
         XCTAssertEqual(l2.lines.first?.kind, .nextStep)
         XCTAssertEqual(l2.lines.first?.text, "下一步：斯卡布斯·刀油（共 14 步）")
     }
 
-    /// 基础线封顶 L1：请求 L2 也不出序号（封顶在展示模型里，overlay 照 `revealLevel` 画）
-    func testBasicLineCappedAtCards() {
+    /// 基础线封顶在判定：请求 L2 也不出「下一步」（封顶在展示模型里，overlay 照 `revealLevel` 画）
+    func testBasicLineCappedAtVerdict() {
         var a = Self.sampleLethal()
         a.tier = .basic
         let m = RDOverlayModel.make(Self.hint(a, level: .order), cardName: Self.zh)
-        XCTAssertEqual(m.badge?.level, .cards)
-        XCTAssertEqual(m.badge?.maxLevel, .cards)
-        XCTAssertFalse(m.handMarks.isEmpty)
-        XCTAssertTrue(m.handMarks.allSatisfy { $0.steps.isEmpty })
-        XCTAssertTrue(m.boardMarks.isEmpty)
+        XCTAssertEqual(m.badge?.level, .verdict)
+        XCTAssertEqual(m.badge?.maxLevel, .verdict)
+        XCTAssertTrue(m.lines.isEmpty)
     }
 
-    /// 答题模式：不画高亮和序号，角标旁给对 / 错
+    /// 答题模式：不给怎么打，角标旁给对 / 错
     func testQuizModeHidesMarksAndShowsJudgement() {
         let a = Self.sampleLethal()
         let right = RDOverlayModel.make(Self.hint(a, level: .order, quiz: .onLine, quizMode: true), cardName: Self.zh)
-        XCTAssertTrue(right.handMarks.isEmpty)
-        XCTAssertTrue(right.boardMarks.isEmpty)
-        XCTAssertTrue(right.heroTargetSteps.isEmpty)
         XCTAssertFalse(right.lines.contains { $0.kind == .nextStep })
         XCTAssertEqual(right.badge?.quizMode, true)
         XCTAssertEqual(right.badge?.quiz, .onLine)
@@ -170,18 +146,73 @@ class RedDragonOverlayTests: HSTrackerTests {
         XCTAssertEqual(wrong.badge?.margin, "差 9")
     }
 
-    /// 过时 / 正在算：只留变暗的角标，不画标记和建议（排位可能已经变了）
-    func testStaleHidesMarksKeepsBadge() {
+    /// 过时 / 正在算：整块置灰，内容原样留着（标签行、建议行都不增不减 —— 面板不变形，10-06 用户定）
+    func testStaleDimsWithoutChangingContent() {
         let a = Self.sampleLethal()
+        let fresh = RDOverlayModel.make(Self.hint(a, level: .order), cardName: Self.zh)
         for h in [Self.hint(a, phase: .computing, level: .order, stale: true), Self.hint(a, level: .order, stale: true)] {
             let m = RDOverlayModel.make(h, cardName: Self.zh)
             XCTAssertTrue(m.isVisible)
             XCTAssertEqual(m.badge?.dimmed, true)
-            XCTAssertTrue(m.badge?.statuses.contains(.stale) ?? false)
-            XCTAssertTrue(m.handMarks.isEmpty)
-            XCTAssertTrue(m.boardMarks.isEmpty)
-            XCTAssertTrue(m.lines.isEmpty)
+            XCTAssertEqual(m.badge?.statuses, fresh.badge?.statuses)
+            XCTAssertEqual(m.lines, fresh.lines)
         }
+    }
+
+    /// 已偏离：旧公式置灰留在原位、不再高亮下一步，行数和锁定时一样
+    func testDeviatedKeepsTheOldFormulaDimmed() {
+        var a = Self.sampleLethal()
+        a.formula = Self.t4Formula(.lethal, done: 3)
+        var locked = Self.hint(a, level: .order)
+        locked.locked = true
+        var deviated = locked
+        deviated.locked = false
+        deviated.deviated = true
+        let before = RDOverlayModel.make(locked, cardName: Self.zh)
+        let after = RDOverlayModel.make(deviated, cardName: Self.zh)
+        XCTAssertEqual(after.badge?.title, RDText.deviated)
+        XCTAssertEqual(after.badge?.dimmed, true)
+        XCTAssertEqual(after.lines.map { $0.pieces.map { $0.text } }, before.lines.map { $0.pieces.map { $0.text } })
+        XCTAssertFalse(after.lines.contains { $0.pieces.contains { $0.state == .next } })
+        XCTAssertTrue(before.lines.contains { $0.pieces.contains { $0.state == .next } })
+        // 标签行、行的种类都不增不减（面板不变形）
+        XCTAssertEqual(after.lines.map { $0.kind }, before.lines.map { $0.kind })
+        XCTAssertEqual(after.badge.map(RDPanelMetrics.hasChipRow), before.badge.map(RDPanelMetrics.hasChipRow))
+        XCTAssertEqual(after.badge?.statuses, before.badge?.statuses)
+        for width in [RDOverlayGeometry.panelMaxWidth, RDOverlayGeometry.panelMinWidth] {
+            XCTAssertEqual(RDPanelMetrics.height(badge: after.badge!, lines: after.lines, width: width),
+                           RDPanelMetrics.height(badge: before.badge!, lines: before.lines, width: width))
+        }
+
+        // 奶 16 线偏离：「回合末」那行也留着
+        var heal = Self.analysis(verdict: .provenNotLethal, damage: 16, health: 27, danger: true)
+        heal.setup = RDSetupAdvice(kind: .heal16, formula: Self.t4Formula(.heal16, done: 2))
+        var healLocked = Self.hint(heal)
+        healLocked.locked = true
+        var healDeviated = healLocked
+        healDeviated.locked = false
+        healDeviated.deviated = true
+        let healBefore = RDOverlayModel.make(healLocked, cardName: Self.zh)
+        let healAfter = RDOverlayModel.make(healDeviated, cardName: Self.zh)
+        XCTAssertEqual(healAfter.badge?.title, RDText.deviated)
+        XCTAssertEqual(healAfter.lines.map { $0.kind }, healBefore.lines.map { $0.kind })
+        XCTAssertTrue(healAfter.lines.contains { $0.kind == .leftover })
+        XCTAssertEqual(RDPanelMetrics.height(badge: healAfter.badge!, lines: healAfter.lines,
+                                             width: RDOverlayGeometry.panelMaxWidth),
+                       RDPanelMetrics.height(badge: healBefore.badge!, lines: healBefore.lines,
+                                             width: RDOverlayGeometry.panelMaxWidth))
+    }
+
+    /// 完整公式按阶段分行：打出「舞」「幻」的那一步收尾一行，只有第一行带标签
+    func testFormulaBreaksAfterBounceAndPotion() {
+        func play(_ c: RDCard, _ mana: Int) -> RDFormulaToken { return RDFormulaToken(kind: .play, card: c, mana: mana) }
+        let f = RDFormula(goal: .lethal, tokens: [play(.spiritOfTheShark, 4), play(.bounceAround, 3),
+                                                   play(.scabbsCutterbutter, 2), play(.potionOfIllusion, 1),
+                                                   play(.alexstrasza, 0)], done: 1)
+        let lines = RDOverlayModel.formulaLines(f, setup: false)
+        XCTAssertEqual(lines.map { $0.pieces.map { $0.text } }, [["鱼4", "舞3"], ["刀2", "幻1"], ["龙0"]])
+        XCTAssertEqual(lines.map { $0.label }, [RDText.lethalLabel, nil, nil])
+        XCTAssertEqual(lines.flatMap { $0.pieces.map { $0.state } }, [.done, .next, .pending, .pending, .pending])
     }
 
     /// 对方有奥秘：判定角标旁必须出「⚠ 对方有奥秘」，可斩 / 不可斩都出
@@ -214,16 +245,7 @@ class RedDragonOverlayTests: HSTrackerTests {
         XCTAssertFalse(RDOverlayModel.make(Self.hint(lethal), cardName: Self.zh).lines.contains { $0.kind == .branch(lethal: true) })
     }
 
-    /// 场面格子按占格实体排（地标也占格）：随从前面有一个地标时落在第 2 格
-    func testBoardMarksCountLocationsAsSlots() {
-        var a = Self.sampleLethal()
-        a.opponentBoardSlots = [399, 300, 301, 302]
-        let m = RDOverlayModel.make(Self.hint(a, level: .order), cardName: Self.zh)
-        XCTAssertEqual(m.boardMarks.first { $0.entityId == 301 }?.index, 2)
-        XCTAssertEqual(m.boardMarks.first { $0.entityId == 301 }?.count, 4)
-    }
-
-    // MARK: - 重编号后序号落到正确的 entity（走真的读取 + 搜索 + 展示模型）
+    // MARK: - 打出一张后重算：「下一步」跟着换（走真的读取 + 搜索 + 展示模型）
 
     private final class Table {
         var entities: [Entity] = []
@@ -303,9 +325,9 @@ class RedDragonOverlayTests: HSTrackerTests {
         return RDHintBuilder.analyze(snapshot: snap, live: live, result: result, cardName: { $0 })
     }
 
-    /// 手牌 [阿莱 a, 闪避, 阿莱 b]，对方 16 血：L2 的 1、2 落在 a、b 所在的第 1、3 张。
-    /// 打出 a 后重算：手牌变成 [闪避, b]，第 1 步落在 b、也就是现在的第 2 张（不是原来第 1 张的位置）
-    func testRenumberedStepLandsOnEntity() {
+    /// 手牌 [阿莱 a, 闪避, 阿莱 b]，对方 16 血：L2 给「下一步（共 2 步）」。
+    /// 打出 a 后重算：手牌变成 [闪避, b]，剩 1 步
+    func testNextStepFollowsAfterAPlay() {
         let t = Table(resources: 2)
         t.opponentHero[.health] = 16
         let a = t.add("LEG_CS3_031", zone: .hand, position: 1, tags: [.cost: 1, .atk: 1, .health: 1])
@@ -314,14 +336,10 @@ class RedDragonOverlayTests: HSTrackerTests {
         let b = t.add("LEG_CS3_031", zone: .hand, position: 3, tags: [.cost: 1, .atk: 1, .health: 1])
         t.enchant("SCH_352e", on: b)
 
-        let first = RDOverlayModel.make(Self.hint(analyze(t.snapshot()), level: .order), cardName: { $0 })
-        let firstSteps = first.handMarks.filter { !$0.steps.isEmpty }
-        XCTAssertEqual(Set(firstSteps.map { $0.entityId }), [a.id, b.id])
-        XCTAssertEqual(Set(firstSteps.flatMap { $0.steps }), [1, 2])
-        XCTAssertEqual(firstSteps.first { $0.entityId == a.id }?.index, 0)
-        XCTAssertEqual(firstSteps.first { $0.entityId == b.id }?.index, 2)
-        XCTAssertTrue(firstSteps.allSatisfy { $0.count == 3 })
-        XCTAssertEqual(first.heroTargetSteps, [1, 2])
+        let firstAnalysis = analyze(t.snapshot())
+        let first = RDOverlayModel.make(Self.hint(firstAnalysis, level: .order), cardName: { $0 })
+        XCTAssertEqual(firstAnalysis.totalSteps, 2)
+        XCTAssertEqual(first.lines.first?.kind, .nextStep)
 
         a[.zone] = Zone.play.rawValue
         a[.zone_position] = 1
@@ -332,13 +350,11 @@ class RedDragonOverlayTests: HSTrackerTests {
         t.opponentHero[.damage] = 8
         evasion[.zone_position] = 1
         b[.zone_position] = 2
-        let second = RDOverlayModel.make(Self.hint(analyze(t.snapshot()), level: .order), cardName: { $0 })
-        let secondSteps = second.handMarks.filter { !$0.steps.isEmpty }
-        XCTAssertEqual(secondSteps.map { $0.entityId }, [b.id])
-        XCTAssertEqual(secondSteps.first?.steps, [1])
-        XCTAssertEqual(secondSteps.first?.index, 1)
-        XCTAssertEqual(secondSteps.first?.count, 2)
-        XCTAssertNil(second.handMarks.first { $0.entityId == a.id }, "打出去的牌不再有标记")
+        let secondAnalysis = analyze(t.snapshot())
+        let second = RDOverlayModel.make(Self.hint(secondAnalysis, level: .order), cardName: { $0 })
+        XCTAssertEqual(secondAnalysis.totalSteps, 1)
+        XCTAssertEqual(secondAnalysis.steps.first?.handEntityId, b.id)
+        XCTAssertEqual(second.lines.first?.kind, .nextStep)
     }
 
     // MARK: - 几何：不和现有组件重叠
@@ -542,24 +558,6 @@ class RedDragonOverlayTests: HSTrackerTests {
                      worst * 100, worstWidth * 100))
     }
 
-    /// 场面标记挂在随从格下沿，入场序号挂在上沿（`badgeTopMargin`）：两者纵向不重叠
-    func testBoardMarksClearOfEntryOrderBadges() {
-        let canvas = CGSize(width: 1920, height: 1080)
-        let badge = RDOverlayGeometry.badgeSize(canvas)
-        for isEnemy in [false, true] {
-            let rect = RDOverlayGeometry.minionRect(isEnemy: isEnemy, index: 3, count: 7, canvas: canvas)
-            let entryTop = rect.minY + BoardOrderSlotViewModel.badgeTopMargin(height: rect.height)
-            let entry = CGRect(x: rect.midX - badge, y: entryTop, width: 2 * badge, height: badge)
-            let center = RDOverlayGeometry.boardMarkCenter(rect, canvas: canvas)
-            let mark = CGRect(x: center.x - badge, y: center.y - badge * 0.6, width: 2 * badge, height: badge * 1.2)
-            XCTAssertFalse(entry.intersects(mark))
-        }
-        // 英雄目标标记不压到对方场面中间那格的入场序号
-        let hero = RDOverlayGeometry.heroTargetCenter(canvas)
-        let middle = RDOverlayGeometry.minionRect(isEnemy: true, index: 3, count: 7, canvas: canvas)
-        XCTAssertLessThan(hero.y + badge * 0.6, middle.minY + BoardOrderSlotViewModel.badgeTopMargin(height: middle.height))
-    }
-
     // MARK: - 热切换（走真的设置通知）
 
     private func spin(until condition: () -> Bool, timeout: TimeInterval = 10) {
@@ -689,7 +687,7 @@ class RedDragonOverlayTests: HSTrackerTests {
         spin { assistant.hint.phase == .ready }
         XCTAssertEqual(assistant.hint.revealLevel, .verdict)
         RedDragonHotkeys.perform(.raise, assistant: assistant)
-        XCTAssertEqual(assistant.hint.revealLevel, .cards)
+        XCTAssertEqual(assistant.hint.revealLevel, .order)
         RedDragonHotkeys.perform(.lower, assistant: assistant)
         XCTAssertEqual(assistant.hint.revealLevel, .verdict)
         RedDragonHotkeys.perform(.quiz, assistant: assistant)
@@ -884,12 +882,8 @@ class RedDragonOverlayTests: HSTrackerTests {
                                                       .shadowcaster, .shadowstep, .evasion],
                          board: [], enemyBoard: ["CS2_179"]))
 
-        // 3. L1 参与牌
-        out.append(Scene(file: "03-L1-cards.png", title: "L1 参与牌（实线必打 / 虚线可选）",
-                         hint: hint(sampleLethal(), level: .cards), handCards: hand7, board: [.foxyFraud, .alexstrasza],
-                         enemyBoard: ["CS2_179", "CS2_179", "EX1_082"]))
-
-        // 4. L2 中途重编号：已经做了 2 步（手里少了两张），剩下的重新从 1 编
+        // 3. （原 L1 参与牌，10-06 删）
+        // 4. L2 中途：已经做了 2 步，面板给「下一步」（手牌 / 场面上不再画标记）
         let hand5Ids = [103, 104, 105, 106, 107]
         let a4 = analysis(
             verdict: .lethal, damage: 34, health: 30, tier: .advanced, hand: hand5Ids,
@@ -907,7 +901,7 @@ class RedDragonOverlayTests: HSTrackerTests {
                          RDBoardMark(entityId: 202, isEnemy: false, stepIndex: 2, role: .target),
                          RDBoardMark(entityId: 203, isEnemy: false, stepIndex: 3, role: .target)],
             next: "狐人老千 ⚔ 森金持盾卫士", board: [201, 202, 203], enemyBoard: [301, 302], actions: 2)
-        out.append(Scene(file: "04-L2-renumbered.png", title: "L2 中途重编号（已出 2 步，剩下的从 1 重编；场面目标标记）",
+        out.append(Scene(file: "04-L2-renumbered.png", title: "L2 中途（已出 2 步，面板给下一步；不画手牌 / 场面标记）",
                          hint: hint(a4, level: .order), handCards: [.scabbsCutterbutter, .etcBandManager, .shadowcaster,
                                                                      .shadowstep, .evasion],
                          board: [.foxyFraud, .alexstrasza, .spiritOfTheShark], enemyBoard: ["EX1_082", "CS2_179"]))
@@ -980,6 +974,63 @@ class RedDragonOverlayTests: HSTrackerTests {
                          hint: hint(a13), handCards: hand10, board: [], enemyBoard: ["CS2_179", "EX1_082"],
                          trackers: [player, .init(isOpponent: true, isShown: true, left: 12, top: 30, height: 70,
                                                   scaling: 100)]))
+
+        // 15–21（T4）：准备线 / 等死 / 预启动 / 锁定的完整公式（全部 / 走了几步 / 已偏离）
+        out.append(contentsOf: t4Scenes())
+        return out
+    }
+
+    static func tok(_ card: RDCard, _ mana: Int, target: RDFormulaTarget? = nil, original: Bool = false,
+                    attack: Bool = false, draws: [RDCard] = []) -> RDFormulaToken {
+        return RDFormulaToken(kind: attack ? .attack : .play, card: card, original: original, mana: mana,
+                              target: target, draws: draws)
+    }
+
+    static func t4Formula(_ goal: RDFormula.Goal, done: Int = 0) -> RDFormula {
+        let toks = [tok(.spiritOfTheShark, 4), tok(.foxyFraud, 2), tok(.scabbsCutterbutter, 2),
+                    tok(.shadowcaster, 1), tok(.etcBandManager, 1), tok(.scabbsCutterbutter, 0),
+                    tok(.darkscaleBroodmother, 4), tok(.bounceAround, 4), tok(.shadowOfDemise, 4, original: true),
+                    tok(.alexstrasza, 0, target: goal == .lethal ? .enemyHero : .ownHero)]
+        var f = RDFormula(goal: goal, tokens: toks, done: done)
+        if goal != .lethal {
+            f.leftBoard = [.spiritOfTheShark, .foxyFraud, .alexstrasza, .darkscaleBroodmother]
+            f.leftHand = [.scabbsCutterbutter, .shadowcaster]
+            f.potential = 32
+        }
+        return f
+    }
+
+    static func t4Scenes() -> [Scene] {
+        let hand7: [RDCard] = [.coin, .foxyFraud, .scabbsCutterbutter, .etcBandManager, .shadowcaster, .shadowstep, .evasion]
+        let hand7Ids = [101, 102, 103, 104, 105, 106, 107]
+        let enemy = ["EX1_082", "CS2_179", "CS2_179", "EX1_082", "CS2_179", "CS2_179"]
+        var out: [Scene] = []
+
+        func setupScene(_ file: String, _ title: String, _ kind: RDSetupAdvice.Kind, danger: Bool) -> Scene {
+            var a = analysis(verdict: .provenNotLethal, damage: 16, health: 27, hand: hand7Ids, danger: danger)
+            a.setup = RDSetupAdvice(kind: kind, formula: kind == .doomed ? nil
+                                    : t4Formula(kind == .heal16 ? .heal16 : .preLaunch))
+            return Scene(file: file, title: title, hint: hint(a), handCards: hand7, board: [], enemyBoard: enemy)
+        }
+        out.append(setupScene("15-danger-heal16.png", "危险且斩不了：奶 16 线（完整公式 + 回合末留下什么 + 下回合潜力）",
+                              .heal16, danger: true))
+        out.append(setupScene("16-doomed.png", "危险、斩不了、奶 16 凑不出：等死", .doomed, danger: true))
+        out.append(setupScene("17-prelaunch.png", "预启动线（不危险时的准备线，区别于斩杀线）", .preLaunch, danger: false))
+
+        func lethalScene(_ file: String, _ title: String, done: Int, deviated: Bool = false) -> Scene {
+            var a = sampleLethal()
+            a.boardMarks = []
+            a.formula = t4Formula(.lethal, done: done)
+            var h = hint(a, level: .order)
+            h.locked = !deviated
+            h.deviated = deviated
+            return Scene(file: file, title: title, hint: h, handCards: hand7, board: [.foxyFraud, .alexstrasza],
+                         enemyBoard: ["CS2_179", "CS2_179", "EX1_082"])
+        }
+        out.append(lethalScene("18-formula-locked.png", "「顺序」档：锁定的完整斩杀公式（一步没走）", done: 0))
+        out.append(lethalScene("19-formula-progress.png", "锁定公式走了 5 步（已完成划掉，当前步高亮）", done: 5))
+        out.append(lethalScene("20-formula-deviated.png", "锁定的线走不通：旧公式置灰留在原位，标「已偏离，重算中」",
+                               done: 3, deviated: true))
         return out
     }
 
@@ -1035,7 +1086,7 @@ class RedDragonOverlayTests: HSTrackerTests {
             Settings.redDragonQuizMode = saved.2
         }
         Settings.redDragonAssist = true
-        Settings.redDragonRevealLevel = 1
+        Settings.redDragonRevealLevel = RDRevealLevel.order.rawValue
         Settings.redDragonQuizMode = false
         for (name, appearance) in [("11-settings-light.png", NSAppearance.Name.aqua), ("12-settings-dark.png", .darkAqua)] {
             let pane = RedDragonPreferences()

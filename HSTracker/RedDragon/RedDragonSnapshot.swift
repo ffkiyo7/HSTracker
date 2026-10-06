@@ -140,16 +140,20 @@ extension RDGameSnapshot {
         }
 
         // 已被 E.T.C. 发现的边牌：发现出来的实体带 COPIED_FROM_ENTITY_ID 指回开局放在 SETASIDE 的那张乐队牌，
-        // 选中的那张离开 SETASIDE（进手 / 上场 / 进坟场），没选的留在 SETASIDE（日志实测）
+        // 选中的那张离开 SETASIDE（进手 / 上场 / 进坟场），没选的留在 SETASIDE（日志实测）。
+        // 随从被弹回手（舞动 / 暗影步）时这个 tag 被清成 0（10-06 04:18 会话第 11 局第 18658 行，另两局同）：
+        // tag 为 0 的也算已发现 —— 主牌库没有和乐队同名的牌，SETASIDE 之外出现一张就说明它被发现过
+        // （它的复制体、殒命暗影变成的那张也只在它被发现之后才会有）
         var sideboard: [String]?
         if let band = band {
             var left = band
             let bandSet = Set(band)
             for e in mine where bandSet.contains(e.cardId) && !e.isInSetAside {
                 let source = e[.copied_from_entity_id]
-                guard source > 0, let original = byId[source], original.isInSetAside,
-                      original.cardId == e.cardId, !copyStatEnchantments.contains(where: { enchantIds(e).contains($0) })
-                else { continue }
+                if source > 0 {
+                    guard let original = byId[source], original.isInSetAside, original.cardId == e.cardId,
+                          !copyStatEnchantments.contains(where: { enchantIds(e).contains($0) }) else { continue }
+                }
                 if let i = left.firstIndex(of: e.cardId) { left.remove(at: i) }
             }
             sideboard = left
@@ -189,6 +193,7 @@ extension RDGameSnapshot {
             sideboard: sideboard,
             maxEntityId: maxId,
             boardSlots: slots(inPlay),
-            opponentBoardSlots: slots(theirPlay))
+            opponentBoardSlots: slots(theirPlay),
+            heroMaxHealth: hero.map { $0[.health] } ?? 30)
     }
 }

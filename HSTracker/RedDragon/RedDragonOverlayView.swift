@@ -2,10 +2,10 @@
 //  RedDragonOverlayView.swift
 //  HSTracker
 //
-//  红龙辅助的 overlay：左下角的判定面板、手牌上的参与牌高亮和序号、场面目标标记。
-//  挂在 `RootOverlayView` 的固定像素层（canvas = 炉石窗口的真实像素）：手牌 / 场面的几何
-//  （`BoardOverlayView.handCardPosition`、`playerTop` 等）和入场序号都在这一层，标记要和它们对齐；
-//  面板和徽章的尺寸按窗口高 / 1080 缩放，效果等同于缩放层。
+//  红龙辅助的 overlay：只有左下角的判定面板（手牌 / 场面上的框和序号 10-06 删掉了）。
+//  挂在 `RootOverlayView` 的固定像素层（canvas = 炉石窗口的真实像素）：面板让位用的手牌 / 场面几何
+//  （`BoardOverlayView.handCardPosition`、`playerTop` 等）都在这一层；
+//  面板的尺寸按窗口高 / 1080 缩放，效果等同于缩放层。
 //
 //  状态只从 `RedDragonAssistant.subscribe` 来，到这里再投一次 `main.async`、在同一个 block 里一次提交
 //  （见 `RedDragonOverlayViewModel.receive`）。视图只观察自己的 view model 和记牌器位置（`RDTrackerObstacles`，
@@ -200,7 +200,6 @@ struct RedDragonOverlayView: View {
         return ZStack(alignment: .topLeading) {
             Color.clear
             if model.isVisible && usable {
-                RDMarksLayer(model: model, canvas: canvasSize)
                 if let badge = model.badge, let layout {
                     RDPanel(badge: badge, layout: layout, canvas: canvasSize)
                 }
@@ -234,6 +233,8 @@ enum RDStyle {
         case .notFound: return gold
         case .provenNotLethal: return skullGrey
         case .neutral: return gold
+        case .setup: return optional
+        case .doomed: return wrong
         }
     }
 
@@ -373,8 +374,6 @@ struct RDPanelContent: View {
                         RDSpinner(u: u)
                         Text(verbatim: RDText.computing).font(RDStyle.label(u, 11)).foregroundColor(RDStyle.dimText)
                     }
-                case .stale:
-                    RDChip(text: RDText.stale, color: RDStyle.dimText, filled: false, u: u)
                 case .truncated:
                     RDChip(text: RDText.truncated, color: RDStyle.draw, filled: false, u: u)
                 }
@@ -405,22 +404,36 @@ private struct RDLineView: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 5 * u) {
-            Text(verbatim: glyph)
+            // 公式的后续阶段行不带标签，也不重复箭头：缩进对齐在第一行下面
+            Text(verbatim: line.isFormula && line.label == nil ? "" : glyph)
                 .font(RDStyle.label(u, 11))
                 .foregroundColor(color)
                 .frame(width: 11 * u)
-            Text(verbatim: line.text)
-                .font(RDStyle.label(u, line.kind == .nextStep ? 14 : 13))
-                .foregroundColor(line.kind == .nextStep ? RDStyle.text : textColor)
-                .lineLimit(2)
+            if line.isFormula {
+                // 完整公式：流式多行排版，一步不截
+                RDFlowLayout(hSpacing: RDPanelMetrics.pieceGap * u, vSpacing: RDPanelMetrics.rowGap * u) {
+                    if let label = line.label {
+                        RDChip(text: label, color: color, filled: true, u: u)
+                    }
+                    ForEach(Array(line.pieces.enumerated()), id: \.offset) { _, p in
+                        RDPieceView(piece: p, u: u)
+                    }
+                }
                 .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text(verbatim: line.text)
+                    .font(RDStyle.label(u, line.kind == .nextStep ? 14 : 13))
+                    .foregroundColor(line.kind == .nextStep ? RDStyle.text : textColor)
+                    .lineLimit(line.kind == .leftover ? 3 : 2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
     private var glyph: String {
         switch line.kind {
-        case .nextStep: return "▶"
-        case .branch: return "↳"
+        case .nextStep, .formula: return "▶"
+        case .branch, .leftover: return "↳"
         case .missing: return "◇"
         case .insufficient: return "!"
         case .danger: return "⚠"
@@ -430,6 +443,8 @@ private struct RDLineView: View {
     private var color: Color {
         switch line.kind {
         case .nextStep: return RDStyle.step
+        case .formula(let setup): return setup ? RDStyle.optional : RDStyle.lethal
+        case .leftover: return RDStyle.dimText
         case .branch(let lethal): return lethal ? RDStyle.lethal : RDStyle.dimText
         case .missing: return RDStyle.optional
         case .insufficient: return RDStyle.draw
@@ -441,8 +456,95 @@ private struct RDLineView: View {
         switch line.kind {
         case .danger: return RDStyle.target
         case .branch(let lethal): return lethal ? RDStyle.text : RDStyle.dimText
+        case .leftover: return RDStyle.dimText
         default: return RDStyle.text
         }
+    }
+}
+
+/// 公式里的一步：已走的划掉变暗，下一步高亮，其余正常，说明（抽到什么才继续）橙色小字
+private struct RDPieceView: View {
+    let piece: RDOverlayModel.Piece
+    let u: CGFloat
+
+    /// 没走到的步骤里，乐队经理拿的牌换成金色；已走的整段一起变暗
+    private func accented(_ base: Color) -> Text {
+        guard let accent = piece.accent, let r = piece.text.range(of: accent) else {
+            return Text(verbatim: piece.text).foregroundColor(base)
+        }
+        return Text(verbatim: String(piece.text[..<r.lowerBound])).foregroundColor(base)
+            + Text(verbatim: accent).foregroundColor(RDStyle.gold)
+            + Text(verbatim: String(piece.text[r.upperBound...])).foregroundColor(base)
+    }
+
+    var body: some View {
+        switch piece.state {
+        case .done:
+            Text(verbatim: piece.text)
+                .font(RDStyle.label(u, RDPanelMetrics.formulaSize))
+                .foregroundColor(RDStyle.dimText)
+                .strikethrough(true, color: RDStyle.dimText)
+                .lineLimit(1)
+                .fixedSize()
+        case .next:
+            accented(RDStyle.step)
+                .font(RDStyle.label(u, RDPanelMetrics.formulaSize))
+                .lineLimit(1)
+                .fixedSize()
+                .padding(.horizontal, 3 * u)
+                .background(RoundedRectangle(cornerRadius: 3 * u).fill(RDStyle.step.opacity(0.22)))
+                .padding(.horizontal, -3 * u)
+        case .pending:
+            accented(RDStyle.text)
+                .font(RDStyle.label(u, RDPanelMetrics.formulaSize))
+                .lineLimit(1)
+                .fixedSize()
+        case .note:
+            Text(verbatim: piece.text)
+                .font(RDStyle.label(u, 12))
+                .foregroundColor(RDStyle.draw)
+                .lineLimit(1)
+                .fixedSize()
+        }
+    }
+}
+
+/// 从左到右排、放不下就换行。每个子视图取自己的理想尺寸（`fixedSize`），宽度到提议宽度为止
+private struct RDFlowLayout: Layout {
+    var hSpacing: CGFloat
+    var vSpacing: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        return arrange(proposal.width ?? .infinity, subviews).size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let frames = arrange(bounds.width, subviews).frames
+        for (i, f) in frames.enumerated() {
+            subviews[i].place(at: CGPoint(x: bounds.minX + f.minX, y: bounds.minY + f.minY),
+                              anchor: .topLeading, proposal: ProposedViewSize(f.size))
+        }
+    }
+
+    private func arrange(_ maxWidth: CGFloat, _ subviews: Subviews) -> (size: CGSize, frames: [CGRect]) {
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        var widest: CGFloat = 0
+        var frames: [CGRect] = []
+        for s in subviews {
+            let size = s.sizeThatFits(.unspecified)
+            if x > 0 && x + size.width > maxWidth {
+                x = 0
+                y += rowHeight + vSpacing
+                rowHeight = 0
+            }
+            frames.append(CGRect(origin: CGPoint(x: x, y: y), size: size))
+            x += size.width + hSpacing
+            rowHeight = max(rowHeight, size.height)
+            widest = max(widest, x - hSpacing)
+        }
+        return (CGSize(width: widest, height: y + rowHeight), frames)
     }
 }
 
@@ -505,105 +607,3 @@ private struct RDSpinner: View {
     }
 }
 
-// MARK: - 手牌 / 场面标记
-
-private struct RDMarksLayer: View {
-    let model: RDOverlayModel
-    let canvas: CGSize
-
-    var body: some View {
-        let badge = RDOverlayGeometry.badgeSize(canvas)
-        ZStack(alignment: .topLeading) {
-            ForEach(model.handMarks, id: \.entityId) { mark in
-                let card = RDOverlayGeometry.handCard(index: mark.index, count: mark.count, canvas: canvas)
-                RDHandMarkView(mark: mark, size: RDOverlayGeometry.handCardSize(canvas), badge: badge)
-                    .rotationEffect(.degrees(card.angle))
-                    .position(card.center)
-                    .transition(.opacity)
-            }
-            ForEach(model.boardMarks, id: \.entityId) { mark in
-                let rect = RDOverlayGeometry.minionRect(isEnemy: mark.isEnemy, index: mark.index,
-                                                        count: mark.count, canvas: canvas)
-                if mark.isTarget {
-                    Ellipse()
-                        .stroke(mark.isEnemy ? RDStyle.target : RDStyle.step, lineWidth: max(2, badge * 0.1))
-                        .frame(width: rect.width * 0.92, height: rect.height * 0.98)
-                        .shadow(color: (mark.isEnemy ? RDStyle.target : RDStyle.step).opacity(0.7), radius: badge * 0.25)
-                        .position(x: rect.midX, y: rect.midY)
-                        .transition(.opacity)
-                }
-                RDStepBadge(text: RDStepBadge.join(mark.steps), symbol: mark.isTarget ? nil : "arrowtriangle.up.fill",
-                            fill: mark.isTarget && mark.isEnemy ? RDStyle.target : RDStyle.step, height: badge)
-                    .position(RDOverlayGeometry.boardMarkCenter(rect, canvas: canvas))
-                    .transition(.opacity)
-            }
-            if !model.heroTargetSteps.isEmpty {
-                RDStepBadge(text: RDStepBadge.join(model.heroTargetSteps), symbol: "scope", fill: RDStyle.target,
-                            height: badge)
-                    .position(RDOverlayGeometry.heroTargetCenter(canvas))
-                    .transition(.opacity)
-            }
-        }
-        .frame(width: canvas.width, height: canvas.height, alignment: .topLeading)
-    }
-}
-
-private struct RDHandMarkView: View {
-    let mark: RDOverlayModel.HandMark
-    let size: CGSize
-    let badge: CGFloat
-
-    var body: some View {
-        let corner = size.width * 0.1
-        ZStack(alignment: .top) {
-            switch mark.role {
-            case .required?:
-                RoundedRectangle(cornerRadius: corner)
-                    .stroke(RDStyle.step, lineWidth: max(2, badge * 0.13))
-                    .shadow(color: RDStyle.step.opacity(0.85), radius: badge * 0.3)
-            case .optional?:
-                RoundedRectangle(cornerRadius: corner)
-                    .stroke(RDStyle.optional,
-                            style: StrokeStyle(lineWidth: max(1.5, badge * 0.1), dash: [badge * 0.3, badge * 0.2]))
-            case nil:
-                Color.clear
-            }
-            if !mark.steps.isEmpty {
-                RDStepBadge(text: RDStepBadge.join(mark.steps), fill: RDStyle.step, height: badge * 1.15)
-                    .offset(y: -badge * 0.35)
-            }
-        }
-        .frame(width: size.width, height: size.height)
-    }
-}
-
-/// 入场序号徽章（`BoardOrderBadge`）的形状：胶囊、1 px 描边、粗体数字，至少和高一样宽。
-/// 换成琥珀 / 橙红底、深色字，和黑底白字的入场序号一眼分开
-private struct RDStepBadge: View {
-    let text: String
-    /// SF Symbol：攻击方 = 向上的三角（朝对面），英雄目标 = 准星
-    var symbol: String?
-    let fill: Color
-    let height: CGFloat
-
-    static func join(_ steps: [Int]) -> String {
-        return steps.map(String.init).joined(separator: "·")
-    }
-
-    var body: some View {
-        HStack(spacing: height * 0.08) {
-            if let symbol {
-                Image(systemName: symbol).font(.system(size: max(1, height * 0.42), weight: .bold))
-            }
-            Text(verbatim: text).font(.system(size: max(1, height * 0.62), weight: .bold))
-        }
-            .foregroundColor(TrackerBarStyle.base)
-            .fixedSize()
-            .padding(EdgeInsets(top: 0, leading: height * 0.22, bottom: 1, trailing: height * 0.22))
-            .frame(minWidth: height)
-            .frame(height: height)
-            .background(Capsule().fill(fill))
-            .overlay(Capsule().strokeBorder(TrackerBarStyle.base, lineWidth: 1))
-            .shadow(color: Color.black.opacity(0.6), radius: 2, x: 0, y: 1)
-    }
-}
