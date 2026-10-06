@@ -24,5 +24,7 @@
 | 9（09-26） | `refork-s3-zone-data`（`687aa134`）、`refork-s5-refresh-perf`（`cc0fa753`）、`refork-batch2-fixes`（`d589ff8a`）、`refork-s6a-small-fixes`（`8a86299d`）、`refork-s7-red-dragon`（`aae3f397`） | 均在 `dev0923`；第二 / 三批 review（Claude + Fable + Codex）+ 09-26 实测。`batch2-fixes` 值得回看：两条真 bug（LRU 淘汰后永久缺图、高亮落到手牌区）是不看任务书的 Codex 挖出来的 |
 | 10（09-27） | `refork-s4-panel-on-canvas`（`8c2a4081`）、`refork-bug-unlocked-overlay`（`ab723fda`）、`refork-unlocked-box-outline`（`5ff7f87c`） | S4 09-26 实测 + 09-27 解锁复测过。两本解锁书值得回看：标题栏和拖动闪烁都是上游 3.6.12 原有、被 S5 高频刷新放大；HDT 的 `#4C0000FF` 染色框不是 bug 但不可用 |
 | 11（09-28） | `refork-s6b-panel-leftovers`（`a8e59f43`）、`refork-s6b-session-recap` + `refork-s6b-l10n-leftovers`（`2618be4b`）、`refork-s6b-red-dragon-test-budget`（`b12ead8c`） | 前三本 09-28 实测过；红龙那本不需实测，测试三跑全绿即验收。Codex 这批没跑起来（账号不支持默认模型），只有 Fable 核对员 |
+| 12（09-30～10-06，补登） | `refork-s6b-fixes`（`7312c31`，09-30 实测）、`phase2-27-status-icons`（`7dbc86b`，10-04 用户确认提交）、`rdr-t3-live-feedback`（`507d354`，10-06 实测） | 归档时没登记，这次补上 |
+| 13（10-06） | `rdr-t2b-live-data`（`61fbcbd`）、`rdr-t2-delivery`（T2 交付清单） | T2b ✅。交付清单里还没定的事项已挪进 `PLAN.md`「等你定」，已结的在那里写了依据。T2a / T2c 两本仍在 `docs/tasks/`（T2a 有待定项，T2c 待验收），交付清单原说「三本一起归档」，按「归档看状态」改为分开归 |
 
 `phase3-t1-diff-report.md` 不是任务书，是 gaenyong 与我们译法不同的 77 条对照表。

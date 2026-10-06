@@ -882,3 +882,14 @@ A ≤ min( 上式,
 - **幻觉药水仍按场位，待核**：本机 6 个日志目录里只有上面这份有药水，7 次全都没爆手，而且每次的场位顺序都等于上场顺序，分不出两种口径。可见的事实：`SUB_SPELL_START` 的 `Targets[k]` 按场位列，复制品按同一顺序以 `FULL_ENTITY - Updating` 进 HAND（不带 `COPIED_FROM`）。PowerTaskList 行序号（0 起）12814 / 30392 / 57547 / 71265 / 78543 / 163784 / 195512。等有一局药水爆手的日志再定。
 - 引擎改动（T2b）：`RDBoardMinion.playOrder` + `RDState.nextPlayOrder`（每次下随从取号；起手场面由读取层从 `EntityInfo.boardOrder` 填），`.bounceAllFriendly` 按 `boardIndicesByPlayOrder()` 处理；`canonicalHash` 在上场先后和场位顺序不一致时多喂一段按上场先后排的随从键（一致时哈希和以前一样）。`RDBoardOrder` / 偏序 / 落位翻译只留给药水：`boardOrderCards` 只认 `copyAllFriendlyToHand`，起手够不着药水时排法补搜不跑。
 - 公式表结论的变化见 `docs/tasks/rdr-t2a-formula-audit.md` 末尾「T2b 舞动顺序订正」：`t2-wuhu-09` 由原样通过变成公式不成立（二次舞动烧掉最后下的晦）；`t2-wuhu-03` / `t2-daoqs-02` 只剩「两张都清」一支成立。90 个案例通过 85 → 80。缺件补齐里 `t2-wuhu-10`、`t2-wuhui-04` 两个变成已知搜索漏线（线还在，默认束搜不到）。
+
+## I. 引擎全量核对的订正（2026-10-06，`docs/tasks/rdr-t5-engine-audit.md`）
+
+只追加，上文不动。
+
+- **骨刺的玩家附魔是 `REV_939e`，不是 `REV_939e2`**：§13、B1 表、B3 (b) 三处写错了。依据是 `HSTrackerTests/Fixtures/RedDragon/2026-10-01-g2-bounce-overflow.log` 第 2053 行起。
+  - `REV_939e` 的 `ATTACHED=2`（玩家实体），`CREATOR=26`（骨刺），`TAG_ONE_TURN_EFFECT=1`。
+  - `REV_939e2` 是它给每张手牌各挂一个的减费附魔（`ATTACHED=29` 等，`CREATOR=90`）。
+  - 读取层（`RedDragonReader.swift`）认的是 `REV_939e`，是对的。
+  - 另外三种玩家附魔 `BAR_552o` / `EX1_145o` / `DMF_511e` 在 fixture 里也都挂玩家实体（`ATTACHED` = 2 或 3）。
+- **两条鲨鱼同场**：代码按 2 次（不叠加，`RDEngine.triggerCount`），和 §19 末条、第三部分 #13 的「按乘 = 4 次」不一致。两边哪个对待用户确认，见 T5 C1。
