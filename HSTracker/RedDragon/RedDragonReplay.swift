@@ -170,7 +170,8 @@ enum RDContinuation {
         precondition(!lines.isEmpty)
         return RedDragonResult(maxDamage: lines.map { $0.damage }.max() ?? 0,
                                effectiveEnemyHealth: root.opponent.effectiveHealth,
-                               isLethal: true, chosenLine: lines[0], lethalLines: lines, branches: [],
+                               isLethal: true, deterministicLethal: true, chosenLine: lines[0],
+                               lethalLines: lines, branches: [],
                                missingPieces: [], missingPiecesBudgetExceeded: false,
                                termination: .reachedUpperBound, cpuTime: 0, statesExpanded: 0,
                                depthReached: lines.map { $0.actions.count }.max() ?? 0)

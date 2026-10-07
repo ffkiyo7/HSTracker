@@ -70,7 +70,8 @@ enum RDStateReader {
             .map { m in
                 RDEnemyMinion(entityId: m.entityId, attack: m.attack, health: m.health, taunt: m.taunt,
                               divineShield: m.divineShield, immune: m.immune, stealth: m.stealth,
-                              damaged: m.damage > 0)
+                              damaged: m.damage > 0, elusive: m.elusive,
+                              poisonous: m.poisonous, venomous: m.venomous)
             }
 
         let maxMana = snap.resources

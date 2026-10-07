@@ -199,6 +199,8 @@ enum RDEngine {
         if def.type == .spell {
             mirrorShadowOfDemise(&s, into: identity)
         }
+        // 同名奥秘不能同时在场：打出的这张登记上，第二张闪避本回合打不出去（card-model §14）
+        if isSecret(def) { s.secretsInPlay.append(identity) }
         removeDeadMinions(&s)
         return s
     }
@@ -268,7 +270,7 @@ enum RDEngine {
                 guard !state.board.isEmpty else { throw RDIllegal.noTarget }
                 return
             }
-            guard isLegalTarget(target, scope: def.targetScope, state: state) else {
+            guard isLegalTarget(target, def: def, state: state) else {
                 throw RDIllegal.illegalTarget
             }
             if def.targetMustBeUndamaged && !isUndamaged(target, state: state) {
@@ -291,8 +293,14 @@ enum RDEngine {
         }
     }
 
-    private static func isLegalTarget(_ target: RDTarget, scope: RDTargetScope,
+    /// 敌方随从能不能被这张牌指到：免疫的谁都指不到；扰魔的法术指不到，战吼可以
+    private static func canTarget(_ m: RDEnemyMinion, with def: RDCardDef) -> Bool {
+        return !m.immune && !(m.elusive && def.type == .spell)
+    }
+
+    private static func isLegalTarget(_ target: RDTarget, def: RDCardDef,
                                       state: RDState) -> Bool {
+        let scope = def.targetScope
         switch target {
         case .friendlyMinion(let id):
             guard scope == .friendlyMinion || scope == .anyMinion || scope == .anyCharacter else {
@@ -304,7 +312,7 @@ enum RDEngine {
                     || scope == .enemyCharacter || scope == .enemyCharacterOrOwnHero else {
                 return false
             }
-            return state.opponent.board.contains { $0.entityId == id }
+            return state.opponent.board.contains { $0.entityId == id && canTarget($0, with: def) }
         case .enemyHero:
             return scope == .anyCharacter || scope == .enemyCharacter || scope == .enemyCharacterOrOwnHero
         case .friendlyHero:
@@ -319,8 +327,9 @@ enum RDEngine {
         switch def.targetScope {
         case .none: return false
         case .friendlyMinion: return !state.board.isEmpty
-        case .enemyMinion: return !state.opponent.board.isEmpty
-        case .anyMinion: return !state.board.isEmpty || !state.opponent.board.isEmpty
+        case .enemyMinion: return state.opponent.board.contains { canTarget($0, with: def) }
+        case .anyMinion:
+            return !state.board.isEmpty || state.opponent.board.contains { canTarget($0, with: def) }
         case .anyCharacter, .enemyCharacter, .enemyCharacterOrOwnHero: return true
         }
     }
@@ -335,19 +344,19 @@ enum RDEngine {
         case .friendlyMinion:
             appendFriendlyTargets(state, into: &out)
         case .enemyMinion:
-            appendEnemyTargets(state, into: &out)
+            appendEnemyTargets(state, def: def, into: &out)
         case .anyMinion:
             appendFriendlyTargets(state, into: &out)
-            appendEnemyTargets(state, into: &out)
+            appendEnemyTargets(state, def: def, into: &out)
         case .anyCharacter:
             appendFriendlyTargets(state, into: &out)
-            appendEnemyTargets(state, into: &out)
+            appendEnemyTargets(state, def: def, into: &out)
             out.append(.enemyHero)
         case .enemyCharacter:
-            appendEnemyTargets(state, into: &out)
+            appendEnemyTargets(state, def: def, into: &out)
             out.append(.enemyHero)
         case .enemyCharacterOrOwnHero:
-            appendEnemyTargets(state, into: &out)
+            appendEnemyTargets(state, def: def, into: &out)
             out.append(.enemyHero)
             if healFriendly { out.append(.friendlyHero) }
         }
@@ -379,12 +388,12 @@ enum RDEngine {
     }
 
     /// 敌方目标：本牌组没有按敌方场序起作用的效果，所以字段全相同的敌方随从指谁都一样，合并成一个
-    private static func appendEnemyTargets(_ state: RDState, into out: inout [RDTarget]) {
-        var seen: [Int] = []
-        for m in state.opponent.board {
-            var key = (min(63, m.health) &* 64 &+ min(31, m.attack) &* 4
-                &+ (m.taunt ? 2 : 0) &+ (m.divineShield ? 1 : 0)) &* 2 &+ (m.damaged ? 1 : 0)
-            key = key &* 4 &+ (m.immune ? 2 : 0) &+ (m.stealth ? 1 : 0)
+    /// 键逐字段比，不往一个整数里挤（原来攻击力占的位数不够，2 血 0 攻和 1 血 16 攻会撞成同一个）
+    private static func appendEnemyTargets(_ state: RDState, def: RDCardDef, into out: inout [RDTarget]) {
+        var seen: [[Int]] = []
+        for m in state.opponent.board where canTarget(m, with: def) {
+            let key = [m.health, m.attack, m.taunt ? 1 : 0, m.divineShield ? 1 : 0, m.damaged ? 1 : 0,
+                       m.stealth ? 1 : 0, m.elusive ? 1 : 0, m.poisonous ? 1 : 0, m.venomous ? 1 : 0]
             if seen.contains(key) { continue }
             seen.append(key)
             out.append(.enemyMinion(m.entityId))
@@ -424,6 +433,8 @@ enum RDEngine {
                       let i = s.opponent.board.firstIndex(where: { $0.entityId == id }) {
                 s.opponent.board[i].taunt = false
                 s.opponent.board[i].divineShield = false
+                s.opponent.board[i].poisonous = false
+                s.opponent.board[i].venomous = false
             }
 
         case .bounceTarget(let costDelta):
@@ -659,7 +670,8 @@ enum RDEngine {
         // 疾速矿锄：攻击结算完、武器耐久用光也照样抽（10-01 原始 Power.log 第 4119 行：武器 DAMAGE 到 2 之后
         // 它的 TRIGGER 块仍抽了牌，块在攻击之后、单独一个顶层块）
         let drawsAfter = attacker == .friendlyHero && (s.weapon?.drawOnHeroAttack ?? false)
-        let taunts = s.opponent.board.filter { $0.taunt && !$0.stealth }
+        // 免疫的随从不能被攻击，它的嘲讽也不挡路
+        let taunts = s.opponent.board.filter { $0.taunt && !$0.stealth && !$0.immune }
         if !taunts.isEmpty {
             guard case .enemyMinion(let id) = defender,
                   taunts.contains(where: { $0.entityId == id }) else {
@@ -695,10 +707,23 @@ enum RDEngine {
             guard let i = s.opponent.board.firstIndex(where: { $0.entityId == id }) else {
                 throw RDIllegal.illegalTarget
             }
+            guard !s.opponent.board[i].immune else { throw RDIllegal.illegalTarget }
             let counter = s.opponent.board[i].attack
+            let lethalTouch = s.opponent.board[i].poisonous || s.opponent.board[i].venomous
             dealDamage(attackPower, to: .enemyMinion(id), state: &s)
             if case .friendlyMinion(let aid) = attacker {
                 dealDamage(counter, to: .friendlyMinion(aid), state: &s)
+                // 剧毒：反击造成了伤害就消灭攻击的随从（0 攻的剧毒怪不算）；一次性剧毒用掉
+                if lethalTouch, counter > 0, let a = s.boardIndex(ofEntity: aid) {
+                    s.board[a].health = 0
+                    s.opponent.board[i].venomous = false
+                }
+            } else if counter > 0 {
+                // 英雄撞随从照样吃反击；撞死自己的走法不合法
+                let toArmor = min(s.heroArmor, counter)
+                s.heroArmor -= toArmor
+                s.heroHealth -= counter - toArmor
+                guard s.heroHealth > 0 else { throw RDIllegal.cannotAttack }
             }
         default:
             throw RDIllegal.illegalTarget
@@ -802,7 +827,7 @@ enum RDEngine {
 
         let defenders: [RDTarget] = state.opponent.board.isEmpty
             ? [.enemyHero]
-            : state.opponent.board.map { .enemyMinion($0.entityId) } + [.enemyHero]
+            : state.opponent.board.filter { !$0.immune }.map { .enemyMinion($0.entityId) } + [.enemyHero]
         for m in state.board where !m.summoningSick && m.attack > 0 && m.attacksThisTurn < 1 {
             for d in defenders {
                 out.append(.attack(attacker: .friendlyMinion(m.entityId), defender: d))

@@ -41,6 +41,9 @@ struct RedDragonResult {
     var maxDamage: Int
     var effectiveEnemyHealth: Int
     var isLethal: Bool
+    /// `lethalLines` 里有不靠随机抽牌的线（`RDLineWalker.dependsOnDraw` 为 false）。`isLethal` 为真而它为假 =
+    /// 只找到「抽到才斩」的线：搜索没有在那一层收口，补搜照跑（T5 A1）
+    var deterministicLethal = false
     var chosenLine: RedDragonLine?
     var lethalLines: [RedDragonLine]
     var branches: [RedDragonBranch]
@@ -228,7 +231,9 @@ enum RedDragonSearch {
         // 所以主搜索没斩杀时再跑一遍：排法全展开，但只在每层束里争固定份额，状态数也只拿总预算的一部分。
         // T2b 起舞动按上场先后处理、不再有排法，只剩幻觉药水爆手（待核）依赖场位：起手够不着药水就不跑，
         // 否则它只是把主搜索换个小预算重跑一遍，白占采样补搜的份额
-        if !run.isLethal, !run.cancelled, let pass = config.boardOrderPass, RDEngine.boardOrderMatters(root),
+        // 「没斩杀」按「没有确定的斩杀线」算：只找到抽到才斩的线时补搜照跑（T5 A1）
+        if !run.deterministicLethal, !run.cancelled, let pass = config.boardOrderPass,
+           RDEngine.boardOrderMatters(root),
            threadCPUTime() < deadline {
             let left = config.maxStatesExpanded.map { $0 - run.statesExpanded }
             let share = config.maxStatesExpanded.map { max(1, Int(Double($0) * pass.budgetShare)) }
@@ -250,7 +255,7 @@ enum RedDragonSearch {
         // 它只在不斩杀时跑，主搜索已斩杀的局面耗时不变。
         // 状态预算两遍共用：补搜拿总量减去主搜索实际用掉的部分。
         let remaining = config.maxStatesExpanded.map { $0 - run.statesExpanded }
-        if !run.isLethal, !run.cancelled, sampling, threadCPUTime() < deadline, (remaining ?? 1) > 0 {
+        if !run.deterministicLethal, !run.cancelled, sampling, threadCPUTime() < deadline, (remaining ?? 1) > 0 {
             var sampledConfig = config
             sampledConfig.maxStatesExpanded = remaining
             let sampled = search(root, config: sampledConfig, deadline: deadline, selection: .sampled)
@@ -269,9 +274,11 @@ enum RedDragonSearch {
         return run
     }
 
-    /// 主搜索 + 采样补搜合并：斩杀线以补搜为准（主搜索没斩杀才会跑补搜），
-    /// 伤害取大，展开状态数相加。分叉表只保留主搜索的（补搜是抽样，不代表分叉全貌）。
+    /// 主搜索 + 采样补搜合并：斩杀线以补搜为准（主搜索没有确定的斩杀线才会跑补搜；主搜索已有「抽到才斩」
+    /// 的线时，补搜找到确定线才换），伤害取大，展开状态数相加。分叉表只保留主搜索的（补搜是抽样，不代表分叉全貌）。
     private static func merge(_ main: RedDragonResult, _ sampled: RedDragonResult) -> RedDragonResult {
+        var sampled = sampled
+        if main.isLethal && !sampled.deterministicLethal { sampled.isLethal = false }
         var out = main
         out.statesExpanded += sampled.statesExpanded
         out.placementTranslationFailures += sampled.placementTranslationFailures
@@ -282,9 +289,10 @@ enum RedDragonSearch {
         out.depthReached = max(main.depthReached, sampled.depthReached)
         if sampled.isLethal {
             out.isLethal = true
+            out.deterministicLethal = sampled.deterministicLethal
             out.lethalLines = sampled.lethalLines
             out.chosenLine = sampled.chosenLine
-        } else if sampled.maxDamage > main.maxDamage, let line = sampled.chosenLine {
+        } else if !main.isLethal, sampled.maxDamage > main.maxDamage, let line = sampled.chosenLine {
             out.chosenLine = line
         }
         out.maxDamage = max(main.maxDamage, sampled.maxDamage)
@@ -364,6 +372,56 @@ enum RedDragonSearch {
             return key.map { String($0.rawValue) }.joined(separator: ",")
         }
 
+        // 场面顺序翻译成落位，之后的去重 / 签名 / 重放校验都看带落位的动作
+        // 翻译不出来的线丢掉：只保证不返回假线，避免不了漏解，所以计数（测试断言公式表上为 0）
+        var translationFailures = 0
+        func placed(_ line: RedDragonLine) -> RedDragonLine? {
+            guard line.pendingBoardOrders != nil else { return line }
+            guard !isCancelled() else { return nil }
+            let out = withPlacements(line, root: root, options: config.options)
+            if out == nil { translationFailures += 1 }
+            return out
+        }
+        // 斩杀线的收尾：去重、排序、截到 `maxLethalLines`。没有随机抽牌的线排在前面（截断时先留它们），
+        // 其余按难度升序（「最简单的那条」）
+        func drawsRandomly(_ line: RedDragonLine) -> Bool {
+            return !line.branchKey.allSatisfy { RDCards.sideboardCards.contains($0) }
+        }
+        func ranked(_ lines: [RedDragonLine]) -> [RedDragonLine] {
+            var out = dedupe(lines)
+            out.sort { a, b in
+                let (x, y) = (drawsRandomly(a), drawsRandomly(b))
+                if x != y { return !x }
+                if a.difficulty != b.difficulty { return a.difficulty < b.difficulty }
+                if a.damage != b.damage { return a.damage > b.damage }
+                return signature(a) < signature(b)
+            }
+            if out.count > config.maxLethalLines {
+                out.removeSubrange(config.maxLethalLines...)
+            }
+            return out
+        }
+        /// 只找到「抽到才斩」的线的那些层留下的线（已翻译落位、已排序截断）：更深处没有确定线时拿它们兜底
+        var drawOnlyLethal: [RedDragonLine] = []
+        var deterministicLethal = false
+        /// 把这一层攒下的斩杀线收尾。有**确定**的斩杀线（重放校验过、不依赖抽到的牌）→ 留下这一层的线，返回 true；
+        /// 只有「抽到才斩」的 → 并进兜底，返回 false
+        func closeLethalLayer() -> Bool {
+            let layer = ranked(lethal.compactMap(placed))
+            lethal = []
+            guard !isCancelled() else { return false }
+            if layer.contains(where: {
+                validated($0, root: root, config: config)
+                    && !RDLineWalker.dependsOnDraw($0.actions, root: root, options: config.options)
+            }) {
+                lethal = layer
+                deterministicLethal = true
+                return true
+            }
+            drawOnlyLethal = ranked(drawOnlyLethal + layer)
+            return false
+        }
+
         outer: while !frontier.isEmpty && depth < config.maxDepth {
             var children: [Child] = []
             children.reserveCapacity(frontier.count * 8)
@@ -406,10 +464,14 @@ enum RedDragonSearch {
                     bestLine = makeLine(parent: index, action: action, state: next,
                                         branchKey: key, order: order)
                 }
+                var reachedLethal = false
                 if next.damageDealt >= threshold && threshold > 0 {
                     let line = makeLine(parent: index, action: action, state: next,
                                         branchKey: key, order: order)
-                    if !line.truncated { lethal.append(line) }
+                    if !line.truncated {
+                        lethal.append(line)
+                        reachedLethal = true
+                    }
                 }
                 // 伤害比该分叉已记的线低就不用造线（造线要算难度分，是这里最贵的一步）
                 let bid = key.isEmpty ? "" : branchId(key)
@@ -425,6 +487,9 @@ enum RedDragonSearch {
                         bestByBranch[bid] = line
                     }
                 }
+                // 已经致死的局面不再往下展开：这一层只有「抽到才斩」的线时搜索接着往深处找确定线，
+                // 它们的后代只是同一条线后面加废步
+                if reachedLethal { return }
                 let eval = evaluate(next)
                 children.append(Child(state: next, parent: index, action: action,
                                       branchKey: key, score: eval.greedy,
@@ -482,9 +547,18 @@ enum RedDragonSearch {
 
             depth += 1
             if !lethal.isEmpty {
-                // 最浅的一层就有斩杀 —— 同层的线操作数相同，正是「最简单的那条」所在的层
-                termination = .reachedUpperBound
-                break outer
+                // 最浅的一层就有斩杀 —— 同层的线操作数相同，正是「最简单的那条」所在的层。
+                // 只在这一层有**确定**的斩杀线时收口（T5 A1）：行骗 / 挖宝 / 帷幕 / 矿锄的抽牌按牌库逐种分叉，
+                // 「抽到 X 就斩」的线常比确定线浅一两层，在它那里收口会把确定线丢掉，面板只剩「需抽到才斩杀」
+                if closeLethalLayer() {
+                    termination = .reachedUpperBound
+                    break outer
+                }
+                if isCancelled() {
+                    termination = .budgetExceeded
+                    cancelled = true
+                    break outer
+                }
             }
             if children.isEmpty { break }
 
@@ -501,7 +575,12 @@ enum RedDragonSearch {
                     case .scored:
                         return setupGoal == .heal16
                             ? selectBeam(cs, width: w, bucket: { min($0.healedRaw, RDSetup.healTarget) })
-                            : selectBeam(cs, width: w)
+                            // 桶 = 已造成伤害 × 场上有没有阿莱：舞动把全场收回手里的节点分数骤降，和「场上还有
+                            // 阿莱」的节点挤同一个伤害桶时排在桶底、保底名额轮不到（T5 A2：t2-wuhu-10 补狐在
+                            // 第二次舞动那一层掉，t2-wuhui-04 补晦分开后就能搜到）
+                            : selectBeam(cs, width: w, bucket: { s in
+                                s.damageDealt &* 2 &+ (s.board.contains { $0.card == .alexstrasza } ? 1 : 0)
+                            })
                     case .sampled: return sampleBeam(cs, width: w)
                     }
                 }
@@ -545,16 +624,6 @@ enum RedDragonSearch {
         if cancelled { return cancelledResult() }
 
         // 收尾（落位翻译、去重排序、重放校验）每条线都要重放，线多时不便宜：每一步之间、每条线之前都看取消
-        // 场面顺序翻译成落位，之后的去重 / 签名 / 重放校验都看带落位的动作
-        // 翻译不出来的线丢掉：只保证不返回假线，避免不了漏解，所以计数（测试断言公式表上为 0）
-        var translationFailures = 0
-        func placed(_ line: RedDragonLine) -> RedDragonLine? {
-            guard line.pendingBoardOrders != nil else { return line }
-            guard !isCancelled() else { return nil }
-            let out = withPlacements(line, root: root, options: config.options)
-            if out == nil { translationFailures += 1 }
-            return out
-        }
         if let goal = setupGoal {
             var lines = setupKept.compactMap { placed($0.line) }
             if isCancelled() { return cancelledResult() }
@@ -576,22 +645,13 @@ enum RedDragonSearch {
             out.setupLines = lines
             return out
         }
-        lethal = lethal.compactMap(placed)
+        // 斩杀线在收口的那一层已经翻译、去重、排序、截断过。预算在半层用完时，这半层攒下的线照样收尾；
+        // 没有确定线时用只靠抽牌的那些兜底
+        if !deterministicLethal, !closeLethalLayer() { lethal = drawOnlyLethal }
         if let best = bestLine { bestLine = placed(best) }
         for (bid, line) in bestByBranch where line.pendingBoardOrders != nil {
             if isCancelled() { break }
             bestByBranch[bid] = placed(line)
-        }
-        if isCancelled() { return cancelledResult() }
-        lethal = dedupe(lethal)
-        if isCancelled() { return cancelledResult() }
-        lethal.sort { a, b in
-            if a.difficulty != b.difficulty { return a.difficulty < b.difficulty }
-            if a.damage != b.damage { return a.damage > b.damage }
-            return signature(a) < signature(b)
-        }
-        if lethal.count > config.maxLethalLines {
-            lethal.removeSubrange(config.maxLethalLines...)
         }
         if isCancelled() { return cancelledResult() }
 
@@ -623,6 +683,7 @@ enum RedDragonSearch {
         return RedDragonResult(maxDamage: maxDamage,
                                effectiveEnemyHealth: enemyHealth,
                                isLethal: !lethal.isEmpty,
+                               deterministicLethal: deterministicLethal && !lethal.isEmpty,
                                chosenLine: chosen,
                                lethalLines: lethal,
                                branches: branches,
@@ -637,8 +698,8 @@ enum RedDragonSearch {
                                exhaustive: termination == .exhausted && !pruned)
     }
 
-    /// 三件事：① 按「已造成伤害」分桶保底（只取全局 Top-K 会把「龙数低、还在蓄力」的桶整个砍掉，
-    /// 那正是 48 / 64 线所在的桶）；② 共识分占一半；③ 蓄力分（正交）占另一半。
+    /// 三件事：① 分桶保底（斩杀搜索按「已造成伤害 × 场上有没有阿莱」，见调用处；只取全局 Top-K 会把
+    /// 「龙数低、还在蓄力」的桶整个砍掉，那正是 48 / 64 线所在的桶）；② 共识分占一半；③ 蓄力分（正交）占另一半。
     /// `children` 必须已按共识分降序排好。
     private static func selectBeam(_ children: [Child], width: Int,
                                    bucket bucketOf: (RDState) -> Int = { $0.damageDealt }) -> [Child] {
@@ -799,6 +860,7 @@ enum RedDragonSearch {
 
         var handDiscount = 0
         var spellFaceDamage = 0
+        var alexCosts: [Int] = []
         for c in s.hand {
             let def = RDCards.def(c.identity(at: 0))
             if !def.isPlaceholder {
@@ -809,6 +871,7 @@ enum RedDragonSearch {
                 case .damageTarget(let n, _) where RDCards.canTargetEnemyHero(def):
                     if def.type == .minion {
                         alexInHand += 1
+                        alexCosts.append(s.cost(of: c, as: c.identity(at: 0)))
                         faceDamagePerTrigger = max(faceDamagePerTrigger, n)
                     } else {
                         // 打脸法术（袋底藏沙）只打一次，不吃弹回 / 复制的放大
@@ -870,9 +933,25 @@ enum RedDragonSearch {
         // 不计它时，「弹回之后、龙还没下」的节点分数骤降，48 / 64 长线在弹回后一层掉出束。
         // 权重 3 / 4 是 2026-10-04 在 65 个公式案例上扫出来的（0/0 过 61，2/3、3/4、4/4 都是 64，
         // 3/6、6/8、10/14 反而变差），取中间值。
+        // ready：手里现在就打得出的阿莱（按当前费用从便宜的起、法力和格子够几条算几条，鲨鱼在场才翻倍）。
+        // 乐观估计只数「够得着几次触发」、不看费用：鲨鱼 / 刀油 / 晦鳞已下场、手里两条 1 费阿莱的局面，和手里
+        // 三条 9 费阿莱却没法力的局面比，前者分数反而低，在收口前一步掉出束（T5 A2：t2-wuhu-10 补狐在第 19 步掉）。
+        // 权重 8 是在两条已知漏线上试出来的（只试了这一个值）；公式表 80 个案例达标数不变（齐件 53、缺件 27），
+        // 只有 t1-48p-04 的搜索伤害 65 → 64（目标 64）
+        var ready = 0
+        if !alexCosts.isEmpty {
+            alexCosts.sort()
+            var left = s.availableMana
+            var slots = s.boardSlotsFree
+            for cost in alexCosts where cost <= left && slots > 0 {
+                left -= cost
+                slots -= 1
+                ready += faceDamagePerTrigger * (s.sharkAuraActive ? 2 : 1)
+            }
+        }
         let greedy = ub * 10 + s.damageDealt * 4 + s.availableMana * 6
             + layerValue * 4 + s.boardSlotsFree * 2 + (s.sharkAuraActive ? 20 : 0)
-            + handDiscount * 3
+            + handDiscount * 3 + ready * 8
         let builder = s.availableMana * 8 + layerValue * 8 + s.boardSlotsFree * 6
             + s.handSlotsFree * 2 + (s.sharkAuraActive ? 40 : 0)
             + handDiscount * 4

@@ -45,6 +45,10 @@ struct RDGameSnapshot: Hashable {
         var stealth: Bool
         var dormant: Bool
         var untouchable: Bool
+        /// 不能成为法术的目标（`CANT_BE_TARGETED_BY_SPELLS`，扰魔）；剧毒 / 一次性剧毒。只有敌方随从用得上
+        var elusive = false
+        var poisonous = false
+        var venomous = false
         var enchantments: [String]
         /// `EntityInfo.boardOrder`：每次进 PLAY 时解析器发的递增号（上场先后，舞动按它处理）。
         /// 直接建在场上的实体没有

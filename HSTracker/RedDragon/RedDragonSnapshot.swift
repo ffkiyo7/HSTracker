@@ -97,7 +97,10 @@ extension RDGameSnapshot {
                           windfury: e.has(tag: .windfury), taunt: e.has(tag: .taunt),
                           divineShield: e.has(tag: .divine_shield), immune: e.has(tag: .immune),
                           stealth: e.has(tag: .stealth), dormant: e.has(tag: .dormant),
-                          untouchable: e.has(tag: .untouchable), enchantments: enchantIds(e),
+                          untouchable: e.has(tag: .untouchable),
+                          elusive: e.has(tag: .cant_be_targeted_by_abilities),
+                          poisonous: e.has(tag: .poisonous), venomous: e.has(tag: .venomous),
+                          enchantments: enchantIds(e),
                           playOrder: e.info.boardOrder)
         }
 

@@ -1393,4 +1393,189 @@ class RedDragonTests: HSTrackerTests {
         XCTAssertEqual(u.canonicalHash(), h)
         XCTAssertEqual(u.cost(of: u.hand[0], as: .pocketSand), 2)
     }
+
+    // MARK: - 8. T5 引擎核对
+
+    private func enemy(_ s: inout RDState, attack: Int, health: Int, taunt: Bool = false,
+                       immune: Bool = false) -> Int {
+        let id = s.takeEntityId()
+        s.opponent.board.append(RDEnemyMinion(entityId: id, attack: attack, health: health, taunt: taunt,
+                                              divineShield: false, immune: immune, stealth: false))
+        return id
+    }
+
+    /// T5 A1：浅层只有「抽到才斩」的线时不能在那一层收口。
+    /// 7 费，场上一只召唤失调的阿莱，手里阿莱 + 两张币，装着疾速矿锄，牌库暗影步 + 伺机待发，对手 9 血。
+    /// - 3 步：英雄打脸 1（抽到暗影步）→ 暗影步收回阿莱 → 7 费下阿莱 8 = 9，换成抽到伺机待发就打不出；
+    /// - 4 步：币 → 币 → 9 费下手里的阿莱 8 → 英雄打脸 1 = 9，抽到什么都一样。
+    /// 原来在第 3 层收口，只返回抽牌线，面板判「需抽到才斩杀」
+    func testDrawOnlyLethalLayerDoesNotHideDeeperDeterministicLethal() throws {
+        var s = stateWith(hand: [.alexstrasza, .coin, .coin], board: [.alexstrasza], mana: 7, maxMana: 7)
+        s.sideboard = []
+        s.board[0].summoningSick = true
+        s.weapon = RDWeapon(attack: 1, durability: 2, drawOnHeroAttack: true)
+        s.deck = RDDeck([(.shadowstep, 1), (.preparation, 1)])
+        s.opponent = RDOpponent(health: 9)
+
+        for (name, config) in [("精确", RedDragonConfig.exact), ("默认", RedDragonConfig())] {
+            let r = RedDragonSearch.solve(s, config: config)
+            XCTAssertTrue(r.isLethal, name)
+            XCTAssertTrue(r.deterministicLethal, name)
+            XCTAssertEqual(r.depthReached, 4, "\(name)：第 3 层只有抽牌线，要搜到第 4 层")
+            let line = try XCTUnwrap(r.lethalLines.first, name)
+            XCTAssertFalse(RDLineWalker.dependsOnDraw(line.actions, root: s), name)
+            XCTAssertNotNil(RDReplay.validate(line.actions, from: s, expectedDamage: line.damage), name)
+        }
+
+        // 更深处也没有确定线（手里没有阿莱和币）：留着抽牌线兜底，仍判「抽到才斩」
+        var d = s
+        d.hand = []
+        let r = RedDragonSearch.solve(d, config: .exact)
+        XCTAssertTrue(r.isLethal)
+        XCTAssertFalse(r.deterministicLethal)
+        XCTAssertFalse(r.lethalLines.isEmpty)
+        for l in r.lethalLines { XCTAssertTrue(RDLineWalker.dependsOnDraw(l.actions, root: d)) }
+    }
+
+    /// T5 B1：扰魔的敌方随从法术指不到（骨刺 / 致聋 / 背刺），随从攻击和阿莱的战吼照常
+    func testElusiveEnemyMinionCannotBeTargetedBySpells() throws {
+        var s = stateWith(hand: [.serratedBoneSpike, .deafen, .backstab, .alexstrasza], board: [.foxyFraud],
+                          mana: 10, maxMana: 10)
+        let elusive = enemy(&s, attack: 2, health: 2, taunt: true)
+        s.opponent.board[0].elusive = true
+        let plain = enemy(&s, attack: 1, health: 5)
+
+        let actions = RDEngine.legalActions(s)
+        for a in actions {
+            guard case .play(_, let identity, .enemyMinion(let id), _, _) = a else { continue }
+            if identity == .alexstrasza { continue }
+            XCTAssertNotEqual(id, elusive, "\(identity) 指向了扰魔随从")
+        }
+        for (i, card) in [RDCard.serratedBoneSpike, .deafen, .backstab].enumerated() {
+            XCTAssertTrue(actions.contains(.play(entityId: s.hand[i].entityId, identity: card,
+                                                 target: .enemyMinion(plain), choices: [])), "\(card)")
+            XCTAssertThrowsError(try RDEngine.apply(.play(entityId: s.hand[i].entityId, identity: card,
+                                                          target: .enemyMinion(elusive), choices: []), to: s)) {
+                XCTAssertEqual($0 as? RDIllegal, .illegalTarget)
+            }
+        }
+        XCTAssertTrue(actions.contains(.play(entityId: s.hand[3].entityId, identity: .alexstrasza,
+                                             target: .enemyMinion(elusive), choices: [])), "战吼不受扰魔限制")
+        XCTAssertNoThrow(try RDEngine.apply(.attack(attacker: .friendlyMinion(s.board[0].entityId),
+                                                    defender: .enemyMinion(elusive)), to: s))
+
+        // 对方只有一个带扰魔的嘲讽：搜索给不出骨刺 / 致聋指它的线
+        var only = s
+        only.opponent.board.removeLast()
+        let r = RedDragonSearch.solve(only, config: .exact)
+        for l in r.lethalLines + [r.chosenLine].compactMap({ $0 }) {
+            for a in l.actions {
+                if case .play(_, let identity, .enemyMinion, _, _) = a {
+                    XCTAssertEqual(identity, .alexstrasza)
+                }
+            }
+        }
+    }
+
+    /// T5 B2：撞剧毒随从，反击造成伤害就死；0 攻的剧毒不算；一次性剧毒只生效一次；致聋沉默掉剧毒
+    func testPoisonousCounterAttackKillsFriendlyAttacker() throws {
+        var s = stateWith(hand: [.deafen], board: [.etcBandManager, .etcBandManager], mana: 10, maxMana: 10)
+        let etc = s.board[0].entityId, etc2 = s.board[1].entityId
+        let snake = enemy(&s, attack: 1, health: 9)
+        s.opponent.board[0].poisonous = true
+
+        let hit = try RDEngine.apply(.attack(attacker: .friendlyMinion(etc), defender: .enemyMinion(snake)), to: s)
+        XCTAssertNil(hit.boardIndex(ofEntity: etc), "4/4 撞 1 攻剧毒：死")
+        XCTAssertEqual(hit.board.count, 1)
+        XCTAssertNotEqual(hit.canonicalHash(), s.canonicalHash())
+
+        var harmless = s
+        harmless.opponent.board[0].attack = 0
+        let alive = try RDEngine.apply(.attack(attacker: .friendlyMinion(etc), defender: .enemyMinion(snake)),
+                                       to: harmless)
+        XCTAssertEqual(alive.board.first { $0.entityId == etc }?.health, 4, "0 攻的剧毒没造成伤害")
+
+        var once = s
+        once.opponent.board[0].poisonous = false
+        once.opponent.board[0].venomous = true
+        let first = try RDEngine.apply(.attack(attacker: .friendlyMinion(etc), defender: .enemyMinion(snake)), to: once)
+        XCTAssertNil(first.boardIndex(ofEntity: etc))
+        let second = try RDEngine.apply(.attack(attacker: .friendlyMinion(etc2), defender: .enemyMinion(snake)),
+                                        to: first)
+        XCTAssertEqual(second.board.first { $0.entityId == etc2 }?.health, 3, "一次性剧毒已经用掉")
+
+        let silenced = try RDEngine.apply(.play(entityId: s.hand[0].entityId, identity: .deafen,
+                                                target: .enemyMinion(snake), choices: []), to: s)
+        XCTAssertNotEqual(silenced.canonicalHash(), s.canonicalHash())
+        let after = try RDEngine.apply(.attack(attacker: .friendlyMinion(etc), defender: .enemyMinion(snake)),
+                                       to: silenced)
+        XCTAssertEqual(after.board.first { $0.entityId == etc }?.health, 3, "剧毒被沉默掉，只吃 1 点反击")
+    }
+
+    /// 同名奥秘不能同时在场：本回合打出一张闪避后，第二张打不出去（不能拿它再腾一个手牌格）
+    func testSecondEvasionCannotBePlayedAfterTheFirst() throws {
+        let s = stateWith(hand: [.evasion, .evasion], board: [], mana: 10, maxMana: 10)
+        let t = try RDEngine.apply(.play(entityId: s.hand[0].entityId, identity: .evasion, target: .none,
+                                         choices: []), to: s)
+        XCTAssertEqual(t.secretsInPlay, [.evasion])
+        XCTAssertThrowsError(try RDEngine.apply(.play(entityId: s.hand[1].entityId, identity: .evasion,
+                                                      target: .none, choices: []), to: t)) {
+            XCTAssertEqual($0 as? RDIllegal, .duplicateSecret)
+        }
+        XCTAssertFalse(RDEngine.legalActions(t).contains { a in
+            if case .play(_, .evasion, _, _, _) = a { return true }
+            return false
+        })
+    }
+
+    /// 免疫的敌方随从不能被攻击、不能被指向，它的嘲讽不挡路
+    func testImmuneEnemyMinionIsNeitherTargetNorTaunt() throws {
+        var s = stateWith(hand: [.serratedBoneSpike, .alexstrasza], board: [.etcBandManager], mana: 10, maxMana: 10)
+        let etc = s.board[0].entityId
+        let wall = enemy(&s, attack: 5, health: 5, taunt: true, immune: true)
+        let actions = RDEngine.legalActions(s)
+        XCTAssertFalse(actions.contains { a in
+            switch a {
+            case .play(_, _, .enemyMinion(let id), _, _): return id == wall
+            case .attack(_, .enemyMinion(let id), _): return id == wall
+            default: return false
+            }
+        })
+        XCTAssertThrowsError(try RDEngine.apply(.attack(attacker: .friendlyMinion(etc),
+                                                        defender: .enemyMinion(wall)), to: s))
+        let face = try RDEngine.apply(.attack(attacker: .friendlyMinion(etc), defender: .enemyHero), to: s)
+        XCTAssertEqual(face.damageDealt, 4, "免疫的嘲讽不挡路")
+    }
+
+    /// 敌方目标的合并键：2 血 0 攻 和 1 血 16 攻 是两个不同的目标（原来挤在一个整数里会撞）
+    func testEnemyTargetKeyDoesNotCollide() {
+        var s = stateWith(hand: [.serratedBoneSpike], board: [], mana: 10, maxMana: 10)
+        let a = enemy(&s, attack: 0, health: 2)
+        let b = enemy(&s, attack: 16, health: 1)
+        let targets = RDEngine.legalActions(s).compactMap { act -> RDTarget? in
+            guard case .play(_, .serratedBoneSpike, let t, _, _) = act else { return nil }
+            return t
+        }
+        XCTAssertTrue(targets.contains(.enemyMinion(a)))
+        XCTAssertTrue(targets.contains(.enemyMinion(b)))
+    }
+
+    /// 英雄撞随从吃反击（先扣护甲）；撞死自己的走法不合法
+    func testHeroTakesCounterDamageWhenAttackingAMinion() throws {
+        var s = stateWith(hand: [], board: [], mana: 0, maxMana: 10)
+        s.weapon = RDWeapon(attack: 2, durability: 2, drawOnHeroAttack: false)
+        s.heroHealth = 5
+        s.heroArmor = 1
+        let ogre = enemy(&s, attack: 3, health: 2, taunt: true)
+        let hit = try RDEngine.apply(.attack(attacker: .friendlyHero, defender: .enemyMinion(ogre)), to: s)
+        XCTAssertEqual(hit.heroArmor, 0)
+        XCTAssertEqual(hit.heroHealth, 3)
+        XCTAssertTrue(hit.opponent.board.isEmpty)
+
+        s.heroHealth = 2
+        XCTAssertThrowsError(try RDEngine.apply(.attack(attacker: .friendlyHero, defender: .enemyMinion(ogre)),
+                                                to: s)) {
+            XCTAssertEqual($0 as? RDIllegal, .cannotAttack)
+        }
+    }
 }

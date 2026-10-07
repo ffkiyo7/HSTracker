@@ -142,4 +142,47 @@
 
 ## 执行结果
 
-（待填）
+### 10-07 核实 + 修复（本机，未提交）
+
+核实：我逐条读代码，另起本机 Codex（`gpt-6-astra`，medium，只读）独立核对。书里的条目**全部属实**，两处表述收紧：
+
+- A1「同层确定线多于 12 条会被截」不准：只有总线数超过 12、且确定线全排在第 12 条之后才会。
+- A3「没有测试量过」不准：`RedDragonTests` 有 4 条直接测生产缺件路径（返回、状态闸门、CPU 截断），没量的是公式表缺件案例上的召回。
+- C1：代码的 2 次是对的（官方卡文是「触发两次」，多条鲨鱼 / 布莱恩不相乘），该改的是 card-model §19 末条和 #13。仍等用户点头，文档没动。
+
+| # | 结果 | 改了什么 / 依据 |
+|---|---|---|
+| A1 | ✅ 已修 | `RedDragonSearch.search`：一层的斩杀线先收尾（`closeLethalLayer`），有确定线（重放校验过且 `dependsOnDraw` 为 false）才收口；只有抽牌线就留作兜底、接着往深处搜，已致死的局面不再展开。截 12 条时没有随机抽牌的线排前面。`RedDragonResult.deterministicLethal` 新增，排法补搜 / 采样补搜按它判断跑不跑。缺件和奶 16 仍按 `isLethal`（T4「等你定」③ 没动）。单测 `testDrawOnlyLethalLayerDoesNotHideDeeperDeterministicLethal` |
+| A2 | ✅ 已修 | 探针定位：`t2-wuhu-10` 补狐的正确线在主搜索第 16 步（第二次舞动收回全场）掉出束，采样补搜到第 15 层预算用完。两处改动：① 束的保底桶从「已造成伤害」改成「已造成伤害 × 场上有没有阿莱」；② `evaluate` 的共识分加「手里现在就打得出的阿莱」一项（权重 8，只试了这一个值）。结果 `t2-wuhu-10` 65 → 80、`t2-wuhui-04` 56 → 64，`rdExpectedSupplementMisses` 清空。试过没用的：让手里的复制 / 弹回牌在「阿莱在手」时也算进乐观估计（`t1-48p-07` 掉到 57/80，已撤回） |
+| A3 | ⬜ 没做 | 召回没量 |
+| A4 | ⬜ 没做 | G3 T9 修完后仍判可斩（32 对 28，16 步，0.32 s），没有逐步对日志 |
+| B1 | ✅ 已修 | 快照读 `cant_be_targeted_by_abilities`（311，日志里叫 `CANT_BE_TARGETED_BY_SPELLS`），`RDEnemyMinion.elusive`；法术的目标枚举和 `apply` 校验都排除，战吼和攻击照常。单测 `testElusiveEnemyMinionCannotBeTargetedBySpells` |
+| B2 | ✅ 已修 | 读 `poisonous` / `venomous`；反击造成伤害就消灭我方随从，一次性剧毒用掉，致聋沉默掉剧毒，进哈希。单测 `testPoisonousCounterAttackKillsFriendlyAttacker` |
+
+Codex 另外报的 8 条，我核实后的处理：
+
+| 问题 | 结果 |
+|---|---|
+| 英雄撞随从不掉血（原 B3 / T4 ⑨） | ✅ 已修：扣护甲再扣血，撞死自己不合法。`testHeroTakesCounterDamageWhenAttackingAMinion` |
+| 本回合打出的闪避没登记，第二张还能打（card-model §14 明确要防） | ✅ 已修：`secretsInPlay` 登记。`testSecondEvasionCannotBePlayedAfterTheFirst` |
+| 免疫的敌方随从还能被指向 / 攻击，免疫嘲讽还挡路 | ✅ 已修。`testImmuneEnemyMinionIsNeitherTargetNorTaunt` |
+| 敌方目标合并键位数不够（2 血 0 攻 = 1 血 16 攻） | ✅ 已修：逐字段比。`testEnemyTargetKeyDoesNotCollide` |
+| 我方随从的圣盾 / 免疫读了没用（骨刺打带盾的复制体会算成击杀） | ⬜ 没修。本牌组的随从自己没有圣盾，要对手给才会出现 |
+| 敌方随从被致聋沉默后不恢复身材（只清嘲讽 / 圣盾 / 剧毒） | ⬜ 没修。要存敌方随从的卡牌身份和基础身材 |
+| 我方随从的冻结折成了召唤失调，沉默解不了冻 | ⬜ 没修。漏斩方向 |
+| `dependsOnDraw` 每次只换一处抽牌（两处同时换没验）；牌库里有边牌同名牌时抽到当发现 | ⬜ 没修。第二点就是 T4 ⑨ 的另一半 |
+
+### 数据
+
+- 红龙测试组 153 条，0 失败（`RedDragonTests` 49 → 56）。
+- 全套（受限环境，跑了两遍）：482 条，5 跳过，第二遍只挂两条老的（签名、`LocalizationFormatTests`）。第一遍多挂一条 `RedDragonSetupTests.testAssistantLocksTheFormulaAndFollowsWithoutStaleness`（已走步数只到 6，要求 ≥ 8）；它按墙钟等后台计算，单独重跑 4 次、红龙组里 2 次都过，6 次里失败这 1 次。没查它在改动前的全套里会不会也偶发。
+- 公式表：通过 80 / 未验证 10 不变；齐件 53/53、缺件 27/27 达标不变。80 个案例里搜索伤害只变了一个：`t1-48p-04` 65 → 64（目标 64）。
+- 耗时（同一台机器，引擎包本来就是 -O 编的）：单案例平均 0.202 → 0.253 s，最慢 1.77 → 1.81 s（`t2-wuhui-03`）。多出来的几乎全在 `t2-chou-01` 三个帷幕抽牌案例（约 3.3–4.6 万 → 22–29 万态，约 0.1 → 1.0 s）：`dependsOnDraw` 把「帷幕两张都抽到、只是先后不同」也判成依赖抽牌，所以 A1 之后它们不再提前收口，三遍搜索跑满。结论没变（修前修后面板都显示「需抽到才斩杀」）。
+- 回放 18 个回合：斩杀判定逐回合一致；平均 0.21 → 0.27 s，最差 1.19 → 1.24 s。
+- 锁定回放有变化（A2 改了束，找到的线更短）：`g2-dance-lost` T13 锁定线 18 步（9 条候选）→ 17 步（1 条），`g4-dance-won` T11 22 → 21 步，`g7-rewind` T13 奶 16 线 15 → 12 步。用户当时打的是旧的那条，所以回放里的偏离从 20 次变成 22 次（多出的两次都在重算后重新锁上）。要 🎮 复测跟手。
+
+### 留给下一步
+
+- A3、A4 没做；上表 4 条没修的。
+- C1 等用户定后改 card-model 两处。
+- `dependsOnDraw` 对「抽到的是同一批牌、只是顺序不同」过于保守，是上面耗时变化的来源。

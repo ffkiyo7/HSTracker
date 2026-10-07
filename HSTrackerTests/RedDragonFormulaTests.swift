@@ -126,18 +126,9 @@ private struct RDSupplementMiss {
     var note: String
 }
 
-private let rdExpectedSupplementMisses: [String: RDSupplementMiss] = [
-    "t2-wuhu-10": RDSupplementMiss(
-        floor: 65,
-        note: "T2b 舞动改按上场先后后，补狐的起手默认配置只搜到 65/80。本案例自己的线补齐后严格重放到 80 仍成立，"
-            + "线存在、束丢了：-O 基准从这条线走完前 6 步的局面起搜能找到，起手到第 5 步都找不到；"
-            + "状态闸门放到 160 万、束宽翻倍、采样束翻倍都还是 65。T2a 时搜到 80，推测是舞动爆手的排法变体（按场位、多出的子节点）"
-            + "改变了束里留下的局面（未逐层核实）"),
-    "t2-wuhui-04": RDSupplementMiss(
-        floor: 49,
-        note: "同上，补晦的起手默认配置 49/64（目标取参照 t1-48p-03 的 64）；状态闸门放到 80 万为 56，"
-            + "束宽 / 采样束翻倍仍 49。T2a 时搜到 64，推测原因同上")
-]
+/// T5 A2（10-07）：原来表里的 `t2-wuhu-10` 补狐（65/80）、`t2-wuhui-04` 补晦（49/64）已修，表现在是空的。
+/// 定因：束的保底桶只按伤害分，舞动收回全场的节点排在桶底；估值不看阿莱现在打不打得出（`RedDragonSearch.evaluate`）
+private let rdExpectedSupplementMisses: [String: RDSupplementMiss] = [:]
 
 // MARK: - fixture 数据
 

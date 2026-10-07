@@ -125,6 +125,11 @@ struct RDEnemyMinion {
     var stealth: Bool
     /// 本回合受过伤（背刺只能指未受伤的随从）。开局状态按未受伤算
     var damaged = false
+    /// 不能成为法术的目标（扰魔）：骨刺 / 致聋 / 背刺指不到它，随从攻击和阿莱的战吼照常（T5 B1）
+    var elusive = false
+    /// 剧毒：反击对我方随从造成伤害就消灭它（T5 B2）。`venomous` 是只生效一次的剧毒
+    var poisonous = false
+    var venomous = false
 }
 
 struct RDOpponent {
@@ -360,7 +365,7 @@ struct RDState {
     /// 不进哈希的字段，都是一次搜索里恒定、或由已入哈希的字段决定的：
     /// - `handLimit` / `boardLimit` / `spellDamage`：没有牌会改它们，整次搜索恒定；
     /// - `nextEntityId` 和所有 entityId：只是编号，两条路径编号不同但局面相同时应当合并；
-    /// - `opponent.immune` / `opponent.secretCount`、敌方随从的 `immune` / `stealth`：本牌组没有牌改它们；
+    /// - `opponent.immune` / `opponent.secretCount`、敌方随从的 `immune` / `stealth` / `elusive`：本牌组没有牌改它们；
     /// - 我方随从的 `maxHealth` / `statsSetTo1x1`：由卡 + 当前身材 + 是否沉默决定（只有 1/1 复制体会是 1/1）；
     /// - 手牌的 `pool` / `poolFromSideboard`：只有 `.replay` 口径会产生，搜索口径恒为空；
     /// - 手牌的 `unmodeledCardId`：所有杂牌对搜索等价（见该字段注释）；
@@ -445,6 +450,8 @@ struct RDState {
         for m in opponent.board {
             feed(m.attack); feed(m.health); feed(m.taunt ? 1 : 0); feed(m.divineShield ? 1 : 0)
             feed(m.damaged ? 1 : 0)
+            // 剧毒会被致聋沉默掉、一次性剧毒打过就没，要进哈希；只在有时喂，别的局面哈希不变
+            if m.poisonous || m.venomous { feed(m.poisonous ? -13 : -14) }
         }
         return h
     }

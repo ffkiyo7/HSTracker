@@ -737,7 +737,7 @@ enum RDLineWalker {
     /// 打到致死（或这一步结算完已经致死），这次抽牌就不降低确定性。抽到的牌后面没用上、或抽牌发生在致死之后，
     /// 都属于这一类；抽到的牌后面要打（换一张就打不出、编号对不上）就依赖。
     /// 每一步单独换（其余步骤保持原样）；换了之后后面的抽牌对不上的，按依赖算（保守）
-    static func dependsOnDraw(_ actions: [RDAction], root: RDState) -> Bool {
+    static func dependsOnDraw(_ actions: [RDAction], root: RDState, options: RDOptions = .search) -> Bool {
         func isDraw(_ c: RDChoice) -> Bool {
             if case .pick(let card) = c { return !RDCards.sideboardCards.contains(card) }
             return false
@@ -750,17 +750,21 @@ enum RDLineWalker {
             if a.choices.contains(where: isDraw) {
                 guard let variants = RDEngine.choiceVariants(for: a, in: s) else { return true }
                 for v in variants where discoverPicks(v) == discoverPicks(a.choices) {
-                    guard var t = try? RDEngine.apply(a.replacingChoices(v), to: s) else { return true }
+                    guard var t = try? RDEngine.apply(a.replacingChoices(v), to: s, options: options) else {
+                        return true
+                    }
                     var k = i + 1
                     while !lethal(t) && k < actions.count {
-                        guard let next = try? RDEngine.apply(actions[k], to: t) else { return true }
+                        guard let next = try? RDEngine.apply(actions[k], to: t, options: options) else {
+                            return true
+                        }
                         t = next
                         k += 1
                     }
                     if !lethal(t) { return true }
                 }
             }
-            guard let next = try? RDEngine.apply(a, to: s) else { return true }
+            guard let next = try? RDEngine.apply(a, to: s, options: options) else { return true }
             s = next
         }
         return false
