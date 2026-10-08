@@ -1,6 +1,6 @@
 # HSTracker 个人分支：计划与进度
 
-最后更新 2026-10-06。本文件是唯一的计划 + 进度文档（原 `PLAN.md` / `PROGRESS.md` 全文归档在
+最后更新 2026-10-08。本文件是唯一的计划 + 进度文档（原 `PLAN.md` / `PROGRESS.md` 全文归档在
 `docs/archive/plan-2026-09-22.md` / `progress-2026-09-22.md`，决策理由、实测数据、排查经过都在那里）。
 主线换轨见 `docs/REFORK.md`；上游合并见 `docs/upstream-merges.md`；任务书在做的放 `docs/tasks/`，完成的放 `docs/archive/tasks/`。
 
@@ -25,7 +25,7 @@
 | Phase 0 地基（驱动循环 / 窗口层 / 部署目标 14.0） | ✅ T0–T6 | T6 于 08-31 收在测量阶段，不做延迟优化 |
 | Phase 1 SwiftUI 记牌器 | ✅ 8 / 8 | T1–T7 实战（卡点 ①②③）；T8 动效 `2e9713b5`，09-23 卡点 ④ 通过（120 fps 录像零掉帧；数据在 `docs/archive/tasks/phase1-t8-tracker-motion.md`） |
 | Phase U / U2 / U3 / U4 合上游 3.6.7 / 3.6.8 / 3.6.9 / 3.6.13 | ✅ | `docs/upstream-merges.md`；U4 09-29：HearthMirror 留 `912e88ea` + `Fork/HearthMirrorMinionPoolShim.swift`（上游 pin 的 `1a6012b5` CDN 404），撤法在 §4 U4 |
-| Phase 2 分区 + 视觉重做 | 🚧 | T1 分区 `1c44b212`；Bug T6 `e9a67db6` / T7 `7bd3192b` / T8+T9 `68ccc14e` / T10 `04dae47a` / T11 护栏 `f8fa4c86`；V1 `e3797ba8`；V2a+V2b `1745adfa`；Perf P1+P2 `143db6f3`；2.7 状态图标 + 套牌外的牌进已打出 `7dbc86b1`（10-04 用户确认提交，任务书归档 `docs/archive/tasks/phase2-27-status-icons.md`）。**余：V2 折叠 + 拖拽吸附 + 套牌名截断、2.6 高亮加强** |
+| Phase 2 分区 + 视觉重做 | 🚧 | T1 分区 `1c44b212`；Bug T6 `e9a67db6` / T7 `7bd3192b` / T8+T9 `68ccc14e` / T10 `04dae47a` / T11 护栏 `f8fa4c86`；V1 `e3797ba8`；V2a+V2b `1745adfa`；Perf P1+P2 `143db6f3`；2.7 状态图标 + 套牌外的牌进已打出 `7dbc86b1`（10-04 用户确认提交，任务书归档 `docs/archive/tasks/phase2-27-status-icons.md`）。**余：固定行高 + 滚动、段头折叠（⬜ `docs/tasks/phase2-scroll-collapse.md`，10-08 定）；V2 拖拽吸附 + 套牌名截断；2.6 高亮加强** |
 | Phase 3 简体中文 | ✅ | 945 / 945；动 `.xcstrings` 必须过 `docs/tasks/tools/check_xcstrings.py --baseline <ref>` |
 | Phase 4 设置 + Dock | 🟡 | 4.1 Dock 打勾 + Toast、4.2 菜单栏改 tag 定位 ✅ `35fea72a`（S6a 已搬新线）；4.3 **其余 8 页 ❌ 撤**：上游 3.6.13 把设置窗改成侧栏分组 + 搜索并新增 Counters 页（见 REFORK「上游 3.6.13 评估」），合入后只补 fork 自有开关（`keep_power_log` / `show_constructed_session_recap` / 分区）进 Trackers 页 |
 | Phase 5 计数器可拖动 | ❌ | 上游 `0b8dfd16` 已做，REFORK 不搬 |
@@ -35,7 +35,7 @@
 | 红龙贼 combo 提示器 | 🚧 | T0 + T1 ✅ `0a921d6b`（REFORK S7 原样搬）。T2a 公式表全量验证 ✅ `d73f8a6`（90 案例，T2b 后通过 80 / 未验证 10；5 项待定，任务书留 `docs/tasks/rdr-t2a-formula-audit.md` 至定完）。T2b 接对局数据 + 开关 ✅ `61fbcbd`（任务书和 T2 交付清单已归档）。T2c overlay + 设置页 🖥️ `359916c`，待效果图验收 + 🎮 一局（`rdr-t2c-overlay.md`）。T3 跟手 ✅ `507d354`，10-06 实测过。T4 奶 16 + 完整公式锁定 🎮 `a3326ac`。T5 引擎全量核对 🚧 10-07 A1 / A2 / B1 / B2 已修未提交（`docs/tasks/rdr-t5-engine-audit.md`）。流程：每本由子代理实现，我读 diff，本机 Codex review 后提交 |
 | **REFORK**：在上游新画布上重建 | 🚧 | `docs/REFORK.md`；新线 `dev0923`（09-30 起主仓库直接 checkout）。S0–S5、S6a、S7 ✅（09-26 实测，S4 的解锁复测 09-27 过）；S6b ✅ 09-28 四本一批（`a8e59f43` / `2618be4b` / `b12ead8c`）同日实测过，09-29 Codex 打回小结窗两条必修 `7312c31c` 修复、09-30 实测过；S8 ✅ 09-29：文档 / `AGENTS.md` / 代理定义 / 注入脚本搬上新线，`upstream-merges.md` 热点表按新线重写，`dev0923` 推到 origin；3.6.13 ✅ 09-29 合入（Phase U4），09-30 实测过（排队牌组、rewind 分区）。**余：REFORK「S6b 余项」（Trackers 设置页 = 4.3）+「回到主线的标准」第 2 条收口局** |
 
-**顺序**：红龙 T4 复测 → 红龙 T5 引擎核对（本机做，云端没有 Swift 工具链）→ Phase 2 / V2 余项 → 4.3 fork 开关补进上游设置页（3.6.13 已合，可做）。
+**顺序**：红龙 T4 复测 → 红龙 T5 引擎核对（本机做，云端没有 Swift 工具链）→ Phase 2 滚动 + 折叠（`docs/tasks/phase2-scroll-collapse.md`）→ V2 其余 → 4.3 fork 开关补进上游设置页（3.6.13 已合，可做）。
 
 - 🚧 **红龙 T5 引擎全量核对**（`docs/tasks/rdr-t5-engine-audit.md`，结果和数字在书末）。10-07 本机核实（我 + Codex 交叉）：书里的条目全部属实。**改动在工作区，没提交、没过 Codex review。**
   - ✅ 已修：A1 抽牌线抢先收口；A2 两条束搜索漏线（`t2-wuhu-10` 补狐 80/80、`t2-wuhui-04` 补晦 64/64）；B1 扰魔；B2 剧毒。
@@ -84,8 +84,7 @@
 - **小结窗被点掉**：10-06 定因——弹出 2.3 秒后被一次鼠标点击关掉，开着「炉石关闭时退出」所以 HSTracker 跟着退。选项：弹出后头几秒不响应关闭 / 关小结窗不再退出 HSTracker / 不改。
 - **本机签名**：10-06 `Config.xcconfig` 改成个人 Apple ID 的 Apple Development 证书（Team `DY725KK25V`，2027-10-05 到期，Xcode 自动续），辅助功能授权不再随重编失效；改动在主仓库未提交，要不要提交。
 
-- **V2 余项**：折叠 / 拖拽 / 吸附共用一个鼠标模型（不锁定 + 边缘吸附 + 锚点持久化，已决 09-15，细节在 `docs/tasks/phase2-v-visual-redesign.md`）；三行头 40 → 21 实机看。
-- **卡条行高一局之内会变**（上游行为，行高按当前行数压缩）：V1 已让宽度跟着缩；是否改成固定行高 + 滚动 / 截断，用户说优先级不高。
+- **V2 余项**：拖拽 / 吸附（不锁定 + 边缘吸附 + 锚点持久化，已决 09-15，细节在 `docs/tasks/phase2-v-visual-redesign.md`）；三行头 40 → 21 实机看。折叠 10-08 拆出，进 `docs/tasks/phase2-scroll-collapse.md`：换轨后记牌器在上游画布上，锁定时箭头格自己报交互区就能收点击，不用等这套鼠标模型。
 - Phase 7 要不要回看历史会话（首版没做）。
 - 「高亮手牌」在分区模式下是否强制关；备牌浮窗要不要受「显示相关牌」开关管（现在不受，dev 同）。
 
@@ -94,7 +93,7 @@
 | 问题 | 根因 / 位置 | 归属 |
 |---|---|---|
 | Discover 开着时悬停记牌器，OutFinder 池消失 | 备牌浮窗与 OutFinder 共用 `RelatedCardsTooltipPanel.shared`；`DiscoverStateWatcher` 只在状态变化时回调 | REFORK S4 接上游悬停路由时解决 |
-| 段头折叠箭头只画不点 | V2a 画了 chevron，折叠未实现 | V2 余项 |
+| 段头折叠箭头只画不点 | V2a 画了 chevron，折叠未实现 | `docs/tasks/phase2-scroll-collapse.md` |
 | 3.6.12 新增 `Watchers.swift:217` arena `main.sync`，停日志读取时主线程最多卡 5s | 上游问题，3.6.13 未改 | S6b |
 | 测试宿主启动约 0.2s 崩一次，xcodebuild 自动重启后全过，但退出码 65 | 上游 3.6.13 `AnomalyGuideMulliganTriggerView.swift:78` 解包 nil 的 `coreManager`（由 `RootOverlayView.swift:550` 触发）；09-30 2.7 核对时发现 | 看测试结果以条数为准，别只看退出码 |
 | 「只换顺序 + 一次张数变化」的刷新会滑一下重排 | T8 判定只看 id 和张数 | 🎮 后看要不要收 |
@@ -131,6 +130,7 @@
 - **Firestone 不做卡条动画是选择**（transition 注释掉修 flicker）；HDT 的三段 storyboard 是我们 T8 的参照，时长减半、数字立即更新。调研在 `docs/research/`。
 - **红龙揭示档**：设置选「顺序」时，斩杀线一律给顺序，连招中途重算出基础线也不降档（10-05 实测：中途降档后公式消失，`507d354`）。T3 跟手的数字在 `docs/archive/tasks/rdr-t3-live-feedback.md`：同口径中位 348 → 30 ms，36 步里 2 步没赶上下一次点击；炉石写日志本身的等待仍约 3 秒，不归我们管。
 - **T8 动效常量定稿**（09-23 卡点 ④）：`TrackerMotion.swift` 塌陷 0.28s / 闪光 0.4s / 峰值 0.38；离场行只塌陷不闪（收敛性取舍）；行高不动画、压缩态一律瞬切；诊断键 `tracker_motion` + 系统「减弱动态效果」都能关。
+- **记牌器放不下改滚动**（10-08 用户定，取代上游按行数压缩行高、V1 让宽度跟着缩的做法）：固定行高；三行头固定、卡段滚；刷新后保持位置，夹回合法范围；两侧同一套；视口底边淡出。实现见 `docs/tasks/phase2-scroll-collapse.md`。
 
 ## 操作备忘
 
