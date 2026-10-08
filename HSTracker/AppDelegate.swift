@@ -479,20 +479,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
                 self.completeSetup()
             }
 
-#if !HSTTEST
-            // Bob's Buddy is only needed in Battlegrounds combat, and the mono runtime takes
-            // several seconds to start, so the trackers come up without waiting for it.
-            // BobsBuddyInvoker stays unavailable until MonoHelper.isReady.
-            DispatchQueue.global(qos: .userInitiated).async {
-                MonoHelper.start()
-#if DEBUG
-                // Developer smoke test only. It runs a full 1000 iteration, 4 thread
-                // simulation, which is not something a shipping build should do on
-                // every launch (Sentry HSTRACKER-2XX).
-                if MonoHelper.isReady {
-                    MonoHelper.testSimulation()
-                }
-#endif
+#if !HSTTEST && DEBUG
+            // Bob's Buddy now starts on the first Battlegrounds scene or match
+            // (MonoHelper.startIfNeeded); the smoke test needs it up without one.
+            if MonoHelper.smokeTestRequested {
+                MonoHelper.startIfNeeded()
             }
 #endif
         }

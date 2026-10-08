@@ -392,6 +392,41 @@ class MonoHelper {
         logger.info("Bob's Buddy is ready")
     }
 
+    private static let startLock = NSLock()
+    private static var _startRequested = false
+
+    // Only Battlegrounds uses Bob's Buddy, and the runtime pulls the whole HearthDb card table
+    // into the mono heap, so it starts on the first Battlegrounds scene or match instead of at
+    // launch. Only the first call does anything; the test host never starts mono.
+    static func startIfNeeded() {
+#if !HSTTEST
+        startLock.lock()
+        let alreadyRequested = _startRequested
+        _startRequested = true
+        startLock.unlock()
+        guard !alreadyRequested else {
+            return
+        }
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            MonoHelper.start()
+#if DEBUG
+            // Developer smoke test only: a full 1000 iteration, 4 thread simulation
+            // (Sentry HSTRACKER-2XX), so it needs HSTRACKER_BOBS_BUDDY_SMOKE=1.
+            if MonoHelper.isReady && MonoHelper.smokeTestRequested {
+                MonoHelper.testSimulation()
+            }
+#endif
+        }
+#endif
+    }
+
+#if DEBUG
+    static var smokeTestRequested: Bool {
+        return ProcessInfo.processInfo.environment["HSTRACKER_BOBS_BUDDY_SMOKE"] == "1"
+    }
+#endif
+
     static func load() -> Bool {
         #if !HSTTEST
         guard let path = Bundle.main.resourceURL else {

@@ -2676,6 +2676,9 @@ class Game: NSObject, PowerEventHandler {
             }
             
             if isBattlegroundsMatch() {
+                // A match reached without the Battlegrounds lobby (HSTracker started mid-game,
+                // reconnect). Every turn re-checks; Bob's Buddy may miss the first combat.
+                MonoHelper.startIfNeeded()
                 DispatchQueue.main.async { [self] in
                     self.primaryPlayerId = self.player.id
                     self.isBattlegroundsCombatPhase = false
