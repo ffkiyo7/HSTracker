@@ -11,11 +11,12 @@
 import Foundation
 
 /// Where a copy in the played section ended up (Phase 2 / 2.7), drawn as the
-/// row's trailing status icon. `.none` is a copy that is still out there: a
-/// minion on the board, an equipped weapon, a secret that has not fired.
+/// row's trailing status icon. `.none` is a copy that was played and was not a
+/// minion that died: a minion on the board, a spell that was cast, a weapon
+/// equipped or used up, a secret, a location.
 enum CardZoneStatus: Int {
     case none = 0
-    /// Played, and in the graveyard now.
+    /// A minion that died on this side (2.9): the graveyard, and minions only.
     case graveyard
     /// Left without being played: discarded, burned by a full hand, destroyed
     /// or torn out of the deck, or taken by the other side.
@@ -46,6 +47,14 @@ struct CardZoneGroups {
     /// moves between zones; the flat list cannot state it, because it forces
     /// every card that left the deck to `count = 0`.
     ///
+    /// 2.9 adds the graveyard to "known to exist": on top of the deck list, the
+    /// copies shuffled in and the gifts that went through the hand, every
+    /// minion that died on this side counts once under the card it died as,
+    /// unless it is already counted under that card. So a token that never was
+    /// in hand adds one when it dies, and a minion that died as something else
+    /// adds one under its new card while the card it was played as keeps its
+    /// own.
+    ///
     /// Everything is counted from the zone the entities are actually in, not
     /// from `EntityInfo.created`: the game reveals a card while it is still in
     /// the deck, so most ordinary draws end up flagged created (bug T6) and any
@@ -67,8 +76,10 @@ struct CardZoneGroups {
     ///   in hand, how many there are per row state. A card id missing here is
     ///   one plain row, as before 2.7.
     /// - Parameter giftsPlayed: copies from outside the deck list that went
-    ///   through our hand and left it (played, discarded, taken), grouped by
-    ///   card id and status. They are on top of everything above.
+    ///   through our hand and left it (played, discarded, taken), and the
+    ///   minions that died on our side as a card nothing above counts them
+    ///   under, grouped by card id and status. They are on top of everything
+    ///   above.
     /// - Parameter giftsInDeck: of the known cards in the deck, how many per
     ///   card id are gifts, latched or not. `nil` means the latched ones only
     ///   (`shuffledIntoDeck`).
@@ -400,9 +411,59 @@ extension Player {
         return Set(cardsPlayedThisMatch.map { $0.id }).union(spellsPlayedCards.map { $0.id })
     }
 
-    /// Of a copy in the played section: thrown away, or taken off us without
-    /// being played, is burned; otherwise the graveyard is a skull and anything
-    /// still out there has no status. `info.discarded` is what upstream sets on
+    // MARK: - Phase 2 / 2.9: the graveyard is the minions that died
+
+    /// Minions that died under this player's control. `playToGraveyard` is
+    /// upstream's handler for a ZONE change PLAY → GRAVEYARD, filed under
+    /// whoever controls the entity at that moment, and it keeps the minions in
+    /// `deadMinionsCards`. A minion card can reach the graveyard without dying
+    /// (discarded, milled, a discover option nobody picked), so the zone alone
+    /// is not the signal.
+    private var idsOfMinionsThatDied: Set<Int> {
+        return Set(deadMinionsCards.map { $0.id })
+    }
+
+    /// Dead, and still in our graveyard: one the game moved back out of it is
+    /// not there to be resurrected any more.
+    private func isInOurGraveyard(_ entity: Entity, died: Set<Int>) -> Bool {
+        return died.contains(entity.id) && entity.isMinion
+            && entity.isInGraveyard && entity.isControlled(by: id)
+    }
+
+    /// What a minion was when it died. A transformation in play is a
+    /// CHANGE_ENTITY on the same entity; the parser leaves `cardId` on the
+    /// card it started as and keeps the new one in `info.latestCardId`.
+    /// Silence and buffs are enchantments, they change neither.
+    ///
+    /// Only a change on the board counts. A card that changed in hand or in
+    /// the deck (infuse, corrupt, a card that shifts every turn) differs from
+    /// its `cardId` the same way, but it was played as what it had become, so
+    /// it dies as the card its row already is: the sections key every copy on
+    /// `cardId` from the deck on, which is what the deck list is written in.
+    /// `cardIdOnEnteringPlay` is latched on the ZONE change into PLAY
+    /// (`TagChangeActions.updateZoneLatches`); without it — the tracker was
+    /// started mid game — nothing says where the change happened, and the
+    /// minion keeps its one row.
+    private func cardIdAtDeath(_ entity: Entity) -> String {
+        let latest = entity.info.latestCardId
+        guard let entered = entity.cardIdOnEnteringPlay, latest != entered,
+              latest != entity.cardId, let card = Cards.by(cardId: latest) else {
+            return zoneCardId(entity)
+        }
+        return card.zilliaxCustomizableCosmeticModule
+            ? CardIds.Collectible.Neutral.ZilliaxDeluxe3000 : latest
+    }
+
+    /// Of a copy in the played section. A minion that died on our side as the
+    /// card this row is for carries the skull; one that died as something else
+    /// gets its skull on a row of that card (`giftsInThePlayedSection`),
+    /// and here it is only a card that was played. Dying is the last thing
+    /// that happens to an entity, so it outranks whatever `info.discarded` has
+    /// left over from earlier. Anything else that is not a dead minion — a
+    /// spell cast, a weapon used up, a secret, a location — has no status.
+    ///
+    /// Thrown away, or taken off us without being played, is burned, as in
+    /// 2.7. `info.discarded` is what upstream sets on
     /// a hand discard and on every way out of the deck that is not a draw or a
     /// summon (full hand, mill, a card destroyed or torn out of the deck). It
     /// outranks having been played (review #3): the flag a discover out of the
@@ -424,7 +485,11 @@ extension Player {
     /// away, so it gets no status. A card destroyed out of the hand passes
     /// through SETASIDE and ends in the graveyard (16605 → 16610), so by the
     /// time it is at rest it is burned as before.
-    private func zoneStatus(of entity: Entity, playedFromHand: Set<Int>) -> CardZoneStatus {
+    private func zoneStatus(of entity: Entity, playedFromHand: Set<Int>,
+                            died: Set<Int>) -> CardZoneStatus {
+        if isInOurGraveyard(entity, died: died) {
+            return cardIdAtDeath(entity) == zoneCardId(entity) ? .graveyard : .none
+        }
         let played = playedFromHand.contains(entity.id)
         if !entity.isControlled(by: id) && !played {
             return .burned
@@ -435,17 +500,18 @@ extension Player {
         if entity.info.discarded && (!played || entity.info.returned) {
             return .burned
         }
-        return entity.isInGraveyard ? .graveyard : .none
+        return .none
     }
 
     /// The breakdown of the played section's deck side by row state: the same
     /// entities `cardsThatLeftTheDeck` minus `cardsInHandFromDeck` count.
-    private func playedStates(leftDeck: [Entity],
-                              playedFromHand: Set<Int>) -> [String: [CardZoneRowState: Int]] {
+    private func playedStates(leftDeck: [Entity], playedFromHand: Set<Int>,
+                              died: Set<Int>) -> [String: [CardZoneRowState: Int]] {
         var result = [String: [CardZoneRowState: Int]]()
         for entity in leftDeck where !(entity.isInHand && entity.isControlled(by: id)) {
             let state = CardZoneRowState(gift: isFromOutsideTheDeck(entity),
-                                         status: zoneStatus(of: entity, playedFromHand: playedFromHand))
+                                         status: zoneStatus(of: entity, playedFromHand: playedFromHand,
+                                                            died: died))
             result[zoneCardId(entity), default: [:]][state, default: 0] += 1
         }
         return result
@@ -477,27 +543,48 @@ extension Player {
     /// enchantments are never cards of the list, so they are left out whatever
     /// the records say. Sideboard cards set aside at setup (bug T9) never were
     /// in hand; E.T.C.'s pick is a card made in hand and counts like any gift.
-    private func giftsThatLeftTheHand(revealed: [Entity], leftDeck: [Entity],
-                                      playedFromHand: Set<Int>) -> [Card] {
+    private func isGiftThatLeftTheHand(_ entity: Entity, playedFromHand: Set<Int>,
+                                       discardedFromHand: Set<Int>) -> Bool {
+        guard isFromOutsideTheDeck(entity) else { return false }
+        guard !entity.isInDeck, !(entity.isInHand && entity.isControlled(by: id)) else { return false }
+        guard !(entity.isInSetAside && !playedFromHand.contains(entity.id)) else { return false }
+        guard !(entity.isHero && !entity.isPlayableHero), !entity.isHeroPower,
+              !entity.isEnchantment, !entity.wasSetAsideAtSetup else { return false }
+        return hasBeenInHand(entity, playedFromHand: playedFromHand,
+                             discardedFromHand: discardedFromHand)
+    }
+
+    /// The gift rows of the played section: the gifts above under the card
+    /// they were played as, and (2.9) the minions in our graveyard that no row
+    /// counts under the card they died as. That is a token summoned straight
+    /// onto the board, which has no row at all until it dies, and a minion
+    /// that died transformed, whose own row — the deck side's or a gift's —
+    /// stays behind without a skull. Whatever it started as, the card it died
+    /// as is not one the deck list owned, so the row is a gift's.
+    private func giftsInThePlayedSection(revealed: [Entity], leftDeck: [Entity],
+                                         playedFromHand: Set<Int>, died: Set<Int>) -> [Card] {
         let fromDeck = Set(leftDeck.map { $0.id })
         let discardedFromHand = Set(entitiesDiscardedFromHand.map { $0.id })
-        let gifts = revealed.filter { entity in
-            guard !fromDeck.contains(entity.id), isFromOutsideTheDeck(entity) else { return false }
-            guard !entity.isInDeck, !(entity.isInHand && entity.isControlled(by: id)) else { return false }
-            guard !(entity.isInSetAside && !playedFromHand.contains(entity.id)) else { return false }
-            guard !(entity.isHero && !entity.isPlayableHero), !entity.isHeroPower,
-                  !entity.isEnchantment, !entity.wasSetAsideAtSetup else { return false }
-            return hasBeenInHand(entity, playedFromHand: playedFromHand,
-                                 discardedFromHand: discardedFromHand)
-        }
         var counts = [String: [CardZoneStatus: Int]]()
         var order = [String]()
-        for entity in gifts {
-            let cardId = zoneCardId(entity)
+        func add(_ cardId: String, _ status: CardZoneStatus) {
             if counts[cardId] == nil {
                 order.append(cardId)
             }
-            counts[cardId, default: [:]][zoneStatus(of: entity, playedFromHand: playedFromHand), default: 0] += 1
+            counts[cardId, default: [:]][status, default: 0] += 1
+        }
+        for entity in revealed {
+            var counted = fromDeck.contains(entity.id)
+            if !counted && isGiftThatLeftTheHand(entity, playedFromHand: playedFromHand,
+                                                 discardedFromHand: discardedFromHand) {
+                add(zoneCardId(entity), zoneStatus(of: entity, playedFromHand: playedFromHand, died: died))
+                counted = true
+            }
+            guard isInOurGraveyard(entity, died: died) else { continue }
+            let diedAs = cardIdAtDeath(entity)
+            if !counted || diedAs != zoneCardId(entity) {
+                add(diedAs, .graveyard)
+            }
         }
         return order.flatMap { cardId -> [Card] in
             (counts[cardId] ?? [:]).sorted { $0.key.rawValue < $1.key.rawValue }.compactMap { status, count in
@@ -523,6 +610,7 @@ extension Player {
         }
         let leftDeck = entitiesThatLeftTheDeck(revealed)
         let playedFromHand = idsPlayedFromHand
+        let died = idsOfMinionsThatDied
 
         let knownInDeck = knownCardsInDeckZone(deck)
         let predictedInDeck = getPredictedCardsInDeck(hidden: false)
@@ -536,10 +624,12 @@ extension Player {
                                    shuffledLeftDeck: shuffledCopiesThatLeftTheDeck(leftDeck),
                                    inHandFromDeck: cardsInHandFromDeck(leftDeck),
                                    playedStates: playedStates(leftDeck: leftDeck,
-                                                              playedFromHand: playedFromHand),
-                                   giftsPlayed: giftsThatLeftTheHand(revealed: revealed,
-                                                                     leftDeck: leftDeck,
-                                                                     playedFromHand: playedFromHand),
+                                                              playedFromHand: playedFromHand,
+                                                              died: died),
+                                   giftsPlayed: giftsInThePlayedSection(revealed: revealed,
+                                                                        leftDeck: leftDeck,
+                                                                        playedFromHand: playedFromHand,
+                                                                        died: died),
                                    giftsInDeck: giftsInDeckByCardId(deck))
     }
 

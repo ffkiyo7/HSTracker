@@ -18,6 +18,13 @@ extension TagChangeActions {
         if value == Zone.deck.rawValue {
             entity.wasSetAsideAtSetup = false
         }
+        // 2.9: what the entity is as it comes into play. A card can change in
+        // hand or in the deck (infuse, corrupt, a card that shifts every turn)
+        // and `info.latestCardId` cannot tell that from a transformation on
+        // the board; only the second makes a minion die as another card.
+        if value == Zone.play.rawValue {
+            entity.cardIdOnEnteringPlay = entity.info.latestCardId
+        }
         markShuffledIntoDeck(eventHandler: eventHandler, id: id)
     }
 

@@ -28,6 +28,7 @@ class Entity {
     // Fork zone sections: latched while parsing, see `TagChangeActions+ZoneLatches.swift`.
     var wasShuffledIntoDeck = false
     var wasSetAsideAtSetup = false
+    var cardIdOnEnteringPlay: String?
 
     init() {
         self.id = -1
@@ -269,6 +270,7 @@ extension Entity: NSCopying {
         e.info.originalCardId = info.originalCardId
         e.wasShuffledIntoDeck = wasShuffledIntoDeck
         e.wasSetAsideAtSetup = wasSetAsideAtSetup
+        e.cardIdOnEnteringPlay = cardIdOnEnteringPlay
 
         return e
     }

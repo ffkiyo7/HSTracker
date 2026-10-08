@@ -500,6 +500,80 @@ class ZoneGroupsT10ReplayTests: HSTrackerTests {
             }
         }
     }
+
+    // MARK: - Phase 2 / 2.9: the skull is a minion that died
+
+    private func states(_ cardId: String) -> [CardZoneRowState: Int] {
+        var result = [CardZoneRowState: Int]()
+        for card in groups().played where card.id == cardId {
+            result[CardZoneRowState(gift: card.isCreated, status: card.zoneStatus), default: 0] += abs(card.count)
+        }
+        return result
+    }
+
+    private let skull = CardZoneRowState(gift: false, status: .graveyard)
+    private let giftSkull = CardZoneRowState(gift: true, status: .graveyard)
+
+    /// The same checkpoints, fed the way the live app is: the PowerTaskList
+    /// half only (see `ZoneGroupsT11ReplayTests.feedOne`). Feeding both, as
+    /// `feed` above does, lands the tag block of a GameState `FULL_ENTITY -
+    /// Creating` on the entity before it, which here leaves a spell
+    /// (小型法术欧珀石) tagged CARDTYPE=MINION — harmless to the counts the
+    /// tests above read, not to a rule that asks whether a card is a minion.
+    private func feedLive(upTo marker: String) {
+        let live = "PowerTaskList.DebugPrintPower() - " + marker
+        guard let stop = lines[cursor...].firstIndex(where: { $0.contains(live) }) else {
+            XCTFail("checkpoint not found in the fixture: \(live)")
+            return
+        }
+        while cursor < stop {
+            let logLine = LogLine(namespace: .power, line: lines[cursor])
+            if logLine.content.hasPrefix("PowerTaskList.DebugPrintPower") {
+                parser.handle(logLine: logLine)
+            }
+            cursor += 1
+        }
+    }
+
+    /// The user's report on the real log, at the screenshot moment. By then
+    /// 发挥优势 (59) and 幽灵视觉 (68) have been cast and 疾速矿锄 (55) has been
+    /// used up (`zone=PLAY … tag=ZONE value=GRAVEYARD` at fixture line 4739):
+    /// all three are in the graveyard zone and none of them is a minion.
+    func testSpellsAndWeaponsInTheGraveyardZoneHaveNoSkull() {
+        feedLive(upTo: Self.beforeAxePlayed)
+        for id in [55, 59, 68] {
+            XCTAssertTrue(game.entities[id]?.isInGraveyard ?? false, "\(id) is in the graveyard zone by now")
+        }
+        XCTAssertEqual(states("END_007"), [.plain: 1], "发挥优势 was cast")
+        XCTAssertEqual(states("CORE_BT_491"), [.plain: 1], "幽灵视觉 was cast")
+        XCTAssertEqual(states("DEEP_014"), [.plain: 1], "疾速矿锄 was used up")
+        for card in groups().played where card.zoneStatus == .graveyard {
+            XCTAssertEqual(Cards.any(byId: card.id)?.type, .minion, "\(card.id) carries a skull")
+        }
+    }
+
+    /// Minions that die in the window, each `zone=PLAY … tag=ZONE
+    /// value=GRAVEYARD` in the fixture: two 伊利达雷新兵 (169 / 170, lines
+    /// 11434 / 11676) and the 巨怪塔迪乌斯 copy 155 (14306) are summoned straight
+    /// onto the board, so they only join the played section now, as gifts;
+    /// 案卷书虫 53 and 巴内斯 67 (17286 / 17355) are deck list cards.
+    func testMinionsThatDieCarryTheSkullTokensIncluded() {
+        feedLive(upTo: Self.beforeAxePlayed)
+        XCTAssertEqual(states("BT_036t")[giftSkull],
+                       game.player.graveyard.filter { $0.cardId == "BT_036t" }.count)
+        XCTAssertGreaterThanOrEqual(states("BT_036t")[giftSkull] ?? 0, 2)
+        XCTAssertEqual(states("NX2_033"), [giftSkull: 1],
+                       "the copy that died; the deck list's own is still in hand")
+        XCTAssertEqual(counts(groups().hand)["NX2_033"], 1)
+        XCTAssertNil(states("REV_511")[skull], "案卷书虫 is still alive")
+
+        feedLive(upTo: Self.beforeSpectralSightPlayed)
+        XCTAssertEqual(states("REV_511"), [skull: 1])
+        XCTAssertEqual(states("KAR_114"), [skull: 1])
+        XCTAssertEqual(states("EDR_840t1")[giftSkull],
+                       game.player.graveyard.filter { $0.cardId == "EDR_840t1" }.count)
+        XCTAssertGreaterThanOrEqual(states("EDR_840t1")[giftSkull] ?? 0, 1, "鸦魔之种 175 died at 17371")
+    }
 }
 
 /// Bug T11, symptom ①: the 2026-09-20 Power.log, wild ladder, one whole game
@@ -650,8 +724,20 @@ class ZoneGroupsT11ReplayTests: HSTrackerTests {
     private func feedOne(_ line: String) {
         let logLine = LogLine(namespace: .power, line: line)
         guard logLine.content.hasPrefix("PowerTaskList.DebugPrintPower") else { return }
+        if let match = Self.leftPlayForTheGraveyard.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
+           let range = Range(match.range(at: 1), in: line), let id = Int(line[range]) {
+            wentFromPlayToTheGraveyard.insert(id)
+        }
         parser.handle(logLine: logLine)
     }
+
+    /// 2.9: what the log itself says a death is — an entity printed as
+    /// `zone=PLAY` whose ZONE becomes GRAVEYARD. Read off the raw line, so the
+    /// sweep below does not lean on the list the code under test reads.
+    // swiftlint:disable:next force_try
+    private static let leftPlayForTheGraveyard = try! NSRegularExpression(
+        pattern: #"TAG_CHANGE Entity=\[.* id=(\d+) zone=PLAY .*\] tag=ZONE value=GRAVEYARD"#)
+    private var wentFromPlayToTheGraveyard = Set<Int>()
 
     private func feed(upTo marker: String) {
         guard let stop = lines[cursor...].firstIndex(where: { $0.contains(marker) }) else {
@@ -899,6 +985,37 @@ class ZoneGroupsT11ReplayTests: HSTrackerTests {
             seen = max(seen, expected.values.reduce(0, +))
         }
         XCTAssertGreaterThan(seen, 0, "the game never played a card made in hand, the sweep proved nothing")
+    }
+
+    /// 2.9, swept over the whole game, reconnect included: the skulls of the
+    /// played section are exactly our minions that went PLAY → GRAVEYARD in
+    /// the log and are still there, each under the card it was at that
+    /// moment. No spell, weapon or location among them, and no dead minion
+    /// missing, whether it came out of the deck, the hand or nowhere.
+    func testTheSkullsAreExactlyTheMinionsThatDiedOnOurSide() {
+        var seen = 0
+        var tokens = 0
+        sweep { checkpoint in
+            var expected = [String: Int]()
+            for id in wentFromPlayToTheGraveyard {
+                guard let entity = game.entities[id], entity.isMinion, entity.isInGraveyard,
+                      entity.isControlled(by: game.player.id) else { continue }
+                expected[entity.info.latestCardId, default: 0] += 1
+                if entity.info.originalZone == .play {
+                    tokens += 1
+                }
+            }
+            var skulls = [String: Int]()
+            for card in groups().played where card.zoneStatus == .graveyard {
+                skulls[card.id, default: 0] += abs(card.count)
+                XCTAssertEqual(Cards.any(byId: card.id)?.type, .minion,
+                               "\(card.id) carries a skull at line \(checkpoint)")
+            }
+            XCTAssertEqual(skulls, expected, "the skulls are not our graveyard at line \(checkpoint)")
+            seen = max(seen, expected.values.reduce(0, +))
+        }
+        XCTAssertGreaterThan(seen, 3, "hardly a minion died, the sweep proved nothing")
+        XCTAssertGreaterThan(tokens, 0, "no token died, the sweep did not cover them")
     }
 
     /// Feeds the fixture in chunks and runs `check` at every boundary, so an

@@ -844,6 +844,7 @@ class CardZoneGroupsTests: HSTrackerTests {
         let dead = addEntity(game, id: 10, cardId: "BT_753", zone: .graveyard, controller: 2,
                              originalZone: .deck, originalController: 2)
         opponent.cardsPlayedThisMatch.append(dead)
+        opponent.playToGraveyard(entity: dead, turn: 3)
         // Its second copy, discarded out of the hand: burned.
         let discarded = addEntity(game, id: 11, cardId: "BT_753", zone: .graveyard, controller: 2,
                                   originalZone: .deck, originalController: 2)
@@ -865,9 +866,11 @@ class CardZoneGroupsTests: HSTrackerTests {
         // A card made in hand and still there: a gift.
         _ = addEntity(game, id: 15, cardId: "SW_039", zone: .hand, controller: 2,
                       originalZone: .hand, originalController: 2)
-        // A token summoned straight onto the board and dead: in no section.
-        _ = addEntity(game, id: 16, cardId: "VAC_933t", zone: .graveyard, controller: 2,
-                      originalZone: .play, originalController: 2)
+        // A token summoned straight onto the board and dead: 2.9, it is in the
+        // graveyard like any minion that died, so it is a gift with a skull.
+        let token = addEntity(game, id: 16, cardId: "VAC_933t", zone: .graveyard, controller: 2,
+                              originalZone: .play, originalController: 2)
+        opponent.playToGraveyard(entity: token, turn: 3)
 
         guard let groups = opponent.opponentCardGroups else {
             return XCTFail("a linked opponent deck is grouped")
@@ -879,12 +882,11 @@ class CardZoneGroupsTests: HSTrackerTests {
         XCTAssertEqual(rowStates(groups.hand, "SC_010"), [.plain: 1],
                        "an ordinary draw is not a gift, whatever info.created says")
         XCTAssertEqual(rowStates(groups.hand, "SW_039"), [CardZoneRowState(gift: true, status: .none): 1])
-        for section in [groups.deck, groups.hand, groups.played] {
-            XCTAssertNil(totals(section)["VAC_933t"], "a token that never was in hand is in no section")
-        }
+        XCTAssertEqual(rowStates(groups.played, "VAC_933t"), [giftInGraveyard: 1],
+                       "a token that died is in the graveyard")
         XCTAssertTrue(groups.deck.all { !$0.isCreated && $0.zoneStatus == .none })
         assertNoCardIsLost(groups, known: ["BT_753": 2, "SC_010": 1, "SW_041": 1,
-                                           "VAC_933": 1, "SW_039": 1])
+                                           "VAC_933": 1, "SW_039": 1, "VAC_933t": 1])
     }
 
     /// Taken by the other side without being played is burned, for a deck
@@ -957,6 +959,7 @@ class CardZoneGroupsTests: HSTrackerTests {
         XCTAssertEqual(rowStates(onBoard.played, "VAC_933"), [gift: 1])
 
         pulled[.zone] = Zone.graveyard.rawValue
+        game.opponent.playToGraveyard(entity: pulled, turn: 4)
         guard let dead = game.opponent.opponentCardGroups else {
             return XCTFail("a linked opponent deck is grouped")
         }
@@ -965,7 +968,8 @@ class CardZoneGroupsTests: HSTrackerTests {
 
     /// Review #2: a secret they discovered is played face down, so it never
     /// reaches `spellsPlayedCards`; once it fires and shows its card id it has
-    /// to be in the played section like any other gift.
+    /// to be in the played section like any other gift. 2.9: a secret is not a
+    /// minion, so being in the graveyard gives it no skull.
     func testARevealedSecretTheOpponentDiscoveredIsInThePlayedSection() {
         let previous = Player.knownOpponentDeck
         defer { Player.knownOpponentDeck = previous }
@@ -979,7 +983,7 @@ class CardZoneGroupsTests: HSTrackerTests {
         guard let groups = game.opponent.opponentCardGroups else {
             return XCTFail("a linked opponent deck is grouped")
         }
-        XCTAssertEqual(rowStates(groups.played, "EX1_610"), [giftInGraveyard: 1])
+        XCTAssertEqual(rowStates(groups.played, "EX1_610"), [gift: 1])
     }
 
     /// Review #3: played, bounced back to hand, then discarded. What happened
@@ -1065,7 +1069,8 @@ class CardZoneGroupsTests: HSTrackerTests {
             return XCTFail("an active deck is grouped by zone")
         }
         XCTAssertEqual(totals(groups.played), ["ETC_080": 1, "TOY_644": 1])
-        XCTAssertEqual(rowStates(groups.played, "TOY_644"), [giftInGraveyard: 1])
+        // 2.9: the pick is a spell, a spell that was cast has no skull.
+        XCTAssertEqual(rowStates(groups.played, "TOY_644"), [gift: 1])
     }
 
     // MARK: - 2.7 review round 3
@@ -1088,7 +1093,7 @@ class CardZoneGroupsTests: HSTrackerTests {
         guard let groups = game.player.playerCardGroups else {
             return XCTFail("an active deck is grouped by zone")
         }
-        XCTAssertEqual(rowStates(groups.played, "TOY_644"), [giftInGraveyard: 1])
+        XCTAssertEqual(rowStates(groups.played, "TOY_644"), [gift: 1])
     }
 
     /// Round 3 #2: a gift set aside out of the hand and handed back (upstream
@@ -1106,6 +1111,7 @@ class CardZoneGroupsTests: HSTrackerTests {
                              originalZone: .hand, originalController: 2)
         opponent.handDiscard(entity: gift, turn: 3)
         opponent.cardsPlayedThisMatch.append(gift)
+        opponent.playToGraveyard(entity: gift, turn: 4)
 
         guard let groups = opponent.opponentCardGroups else {
             return XCTFail("a linked opponent deck is grouped")
@@ -1176,5 +1182,354 @@ class CardZoneGroupsTests: HSTrackerTests {
             return XCTFail("a linked opponent deck is grouped")
         }
         XCTAssertEqual(rowStates(groups.played, "VAC_933"), [gift: 1])
+    }
+
+    // MARK: - Phase 2 / 2.9: the skull is a minion that died
+
+    /// A minion on the board that then dies the way the parser reports it:
+    /// PLAY → GRAVEYARD under `controller`.
+    private func die(_ entity: Entity, _ player: Player) {
+        entity[.zone] = Zone.graveyard.rawValue
+        player.playToGraveyard(entity: entity, turn: 5)
+    }
+
+    /// The user's report: a spell that was cast and a weapon that was used up
+    /// are in the graveyard zone too, and used to carry the skull. Only the
+    /// minion that died does. A minion card that reached the graveyard zone
+    /// without dying (a discover option nobody picked goes there) has none.
+    func testOnlyAMinionThatDiedCarriesTheSkull() {
+        let previous = Player.knownOpponentDeck
+        defer { Player.knownOpponentDeck = previous }
+
+        for id in ["BT_753", "SC_010", "SW_041", "VAC_933", "SW_039", "EX1_610"] {
+            waitForCard(id)
+        }
+        let game = makeGame()
+        let opponent: Player = game.opponent
+        Player.knownOpponentDeck = [card("BT_753", 1), card("SC_010", 1), card("SW_041", 1),
+                                    card("VAC_933", 1), card("SW_039", 1)]
+
+        let spell = addEntity(game, id: 10, cardId: "BT_753", zone: .graveyard, controller: 2,
+                              originalZone: .deck, originalController: 2, type: .spell)
+        opponent.cardsPlayedThisMatch.append(spell)
+        opponent.spellsPlayedCards.append(spell)
+        let weapon = addEntity(game, id: 11, cardId: "SC_010", zone: .graveyard, controller: 2,
+                               originalZone: .deck, originalController: 2, type: .weapon)
+        opponent.cardsPlayedThisMatch.append(weapon)
+        // Upstream files a weapon and a location leaving play under the same
+        // handler as a death; neither is a minion.
+        opponent.playToGraveyard(entity: weapon, turn: 4)
+        let location = addEntity(game, id: 12, cardId: "SW_041", zone: .graveyard, controller: 2,
+                                 originalZone: .deck, originalController: 2, type: .location)
+        opponent.cardsPlayedThisMatch.append(location)
+        opponent.playToGraveyard(entity: location, turn: 4)
+        // A minion that died silenced and buffed is still its own card.
+        let minion = addEntity(game, id: 13, cardId: "VAC_933", zone: .play, controller: 2,
+                               originalZone: .deck, originalController: 2)
+        minion[.silenced] = 1
+        minion[.atk] = 9
+        opponent.cardsPlayedThisMatch.append(minion)
+        die(minion, opponent)
+        // A gift secret that fired, and a minion card in the graveyard zone
+        // that never was on the board.
+        _ = addEntity(game, id: 14, cardId: "EX1_610", zone: .graveyard, controller: 2,
+                      originalZone: .hand, originalController: 2, type: .spell)
+        let notDead = addEntity(game, id: 15, cardId: "SW_039", zone: .graveyard, controller: 2,
+                                originalZone: .deck, originalController: 2)
+        opponent.cardsPlayedThisMatch.append(notDead)
+
+        guard let groups = opponent.opponentCardGroups else {
+            return XCTFail("a linked opponent deck is grouped")
+        }
+        XCTAssertEqual(rowStates(groups.played, "BT_753"), [.plain: 1], "a spell that was cast")
+        XCTAssertEqual(rowStates(groups.played, "SC_010"), [.plain: 1], "a weapon that was used up")
+        XCTAssertEqual(rowStates(groups.played, "SW_041"), [.plain: 1], "a location that was used up")
+        XCTAssertEqual(rowStates(groups.played, "VAC_933"), [graveyard: 1], "the minion that died")
+        XCTAssertEqual(rowStates(groups.played, "EX1_610"), [gift: 1], "a secret that fired")
+        XCTAssertEqual(rowStates(groups.played, "SW_039"), [.plain: 1],
+                       "in the graveyard zone, but it did not die")
+        assertNoCardIsLost(groups, known: ["BT_753": 1, "SC_010": 1, "SW_041": 1,
+                                           "VAC_933": 1, "SW_039": 1, "EX1_610": 1])
+    }
+
+    /// User, 10-07: a token summoned straight onto the board is in no section
+    /// while it lives (2.7), and in the played section with a skull once it is
+    /// dead. The invariant grows by exactly the minions that died.
+    func testATokenJoinsThePlayedSectionWhenItDies() {
+        let previous = Player.knownOpponentDeck
+        defer { Player.knownOpponentDeck = previous }
+
+        waitForCard("BT_753")
+        waitForCard("VAC_933t")
+        let game = makeGame()
+        let opponent: Player = game.opponent
+        Player.knownOpponentDeck = [card("BT_753", 1)]
+        let first = addEntity(game, id: 10, cardId: "VAC_933t", zone: .play, controller: 2,
+                              originalZone: .play, originalController: 2)
+        let second = addEntity(game, id: 11, cardId: "VAC_933t", zone: .play, controller: 2,
+                               originalZone: .play, originalController: 2)
+        // A token copy of a deck list card: its skull may not land on, or
+        // take away, the list's own copy.
+        let copy = addEntity(game, id: 12, cardId: "BT_753", zone: .play, controller: 2,
+                             originalZone: .play, originalController: 2)
+
+        guard let alive = opponent.opponentCardGroups else {
+            return XCTFail("a linked opponent deck is grouped")
+        }
+        XCTAssertTrue(alive.played.isEmpty, "a living token is in no section")
+        assertNoCardIsLost(alive, known: ["BT_753": 1])
+
+        die(first, opponent)
+        die(copy, opponent)
+        guard let oneDead = opponent.opponentCardGroups else {
+            return XCTFail("a linked opponent deck is grouped")
+        }
+        XCTAssertEqual(rowStates(oneDead.played, "VAC_933t"), [giftInGraveyard: 1])
+        XCTAssertEqual(rowStates(oneDead.played, "BT_753"), [giftInGraveyard: 1])
+        XCTAssertEqual(rowStates(oneDead.deck, "BT_753"), [.plain: 1], "the list's copy is still in the deck")
+        assertNoCardIsLost(oneDead, known: ["BT_753": 2, "VAC_933t": 1])
+
+        die(second, opponent)
+        guard let bothDead = opponent.opponentCardGroups else {
+            return XCTFail("a linked opponent deck is grouped")
+        }
+        XCTAssertEqual(rowStates(bothDead.played, "VAC_933t"), [giftInGraveyard: 2])
+        assertNoCardIsLost(bothDead, known: ["BT_753": 2, "VAC_933t": 2])
+    }
+
+    /// The transformation the user reported, fed through the real parser with
+    /// the lines of the 2026-10-07 Power.log (16:37:50 / 16:38:57): entity 139
+    /// is a 索利托斯 token on our board, CHANGE_ENTITY turns it into
+    /// 希拉柯丝教徒 (TSC_955) in place, and that is what dies. The parser keeps
+    /// `cardId` on the token and the new card in `info.latestCardId`.
+    func testAMinionTransformedInPlayDiesAsWhatItBecame() {
+        waitForCard("TLC_817t5")
+        waitForCard("TSC_955")
+        waitForCard("BT_753")
+        let launched = Date().addingTimeInterval(30)
+        while AppDelegate.instance().coreManager == nil && Date() < launched {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+        }
+
+        let game = makeGame()
+        game.player.id = 2
+        game.opponent.id = 1
+        setActiveDeck(game, [("BT_753", 1)])
+        let token = addEntity(game, id: 139, cardId: "TLC_817t5", zone: .play, controller: 2,
+                              originalZone: .play, originalController: 2)
+        // It was summoned as the token; the latch itself is fed through the
+        // parser in `testAMinionThatChangedInHandDiesOnItsOwnRow`.
+        token.cardIdOnEnteringPlay = "TLC_817t5"
+
+        let parser = PowerGameStateParser(with: game)
+        // swiftlint:disable line_length
+        let lines = [
+            "D 16:37:50.2525630 PowerTaskList.DebugPrintPower() -     CHANGE_ENTITY - Updating Entity=[entityName=索利托斯，循环新生 id=139 zone=PLAY zonePos=1 cardId=TLC_817t5 player=2] CardID=TSC_955",
+            "D 16:37:50.2525630 PowerTaskList.DebugPrintPower() -         tag=CARDTYPE value=MINION",
+            "D 16:38:57.3923170 PowerTaskList.DebugPrintPower() -     TAG_CHANGE Entity=[entityName=希拉柯丝教徒 id=139 zone=PLAY zonePos=1 cardId=TSC_955 player=2] tag=ZONE value=GRAVEYARD "
+        ]
+        // swiftlint:enable line_length
+        parser.handle(logLine: LogLine(namespace: .power, line: lines[0]))
+        parser.handle(logLine: LogLine(namespace: .power, line: lines[1]))
+        guard let transformed = game.player.playerCardGroups else {
+            return XCTFail("an active deck is grouped by zone")
+        }
+        XCTAssertTrue(transformed.played.isEmpty, "still a living token")
+
+        parser.handle(logLine: LogLine(namespace: .power, line: lines[2]))
+        XCTAssertEqual(game.entities[139]?.cardId, "TLC_817t5", "the parser keeps the card it started as")
+        XCTAssertEqual(game.entities[139]?.info.latestCardId, "TSC_955")
+        XCTAssertTrue(game.entities[139]?.isInGraveyard ?? false)
+        XCTAssertTrue(game.player.deadMinionsCards.contains { $0.id == 139 },
+                      "PLAY → GRAVEYARD is what upstream records as a minion's death")
+
+        guard let groups = game.player.playerCardGroups else {
+            return XCTFail("an active deck is grouped by zone")
+        }
+        XCTAssertEqual(rowStates(groups.played, "TSC_955"), [giftInGraveyard: 1],
+                       "the graveyard holds what it was when it died")
+        XCTAssertNil(totals(groups.played)["TLC_817t5"], "the token itself never was in hand and did not die")
+        assertNoCardIsLost(groups, known: ["BT_753": 1, "TSC_955": 1])
+    }
+
+    /// User, 10-07: a card played from hand, transformed on the board and then
+    /// dead is two rows — the card that was played, without an icon, and what
+    /// it died as, with the skull. For a deck list card and for a gift alike.
+    func testAPlayedCardThatDiedTransformedKeepsARowWithoutAnIcon() {
+        let previous = Player.knownOpponentDeck
+        defer { Player.knownOpponentDeck = previous }
+
+        for id in ["BT_753", "VAC_933", "TSC_955"] {
+            waitForCard(id)
+        }
+        let game = makeGame()
+        let opponent: Player = game.opponent
+        Player.knownOpponentDeck = [card("BT_753", 1)]
+        let listed = addEntity(game, id: 10, cardId: "BT_753", zone: .play, controller: 2,
+                               originalZone: .deck, originalController: 2)
+        opponent.cardsPlayedThisMatch.append(listed)
+        let discovered = addEntity(game, id: 11, cardId: "VAC_933", zone: .play, controller: 2,
+                                   originalZone: .hand, originalController: 2)
+        opponent.cardsPlayedThisMatch.append(discovered)
+        for entity in [listed, discovered] {
+            entity.cardIdOnEnteringPlay = entity.cardId
+            entity.info.latestCardId = "TSC_955"
+        }
+
+        guard let alive = opponent.opponentCardGroups else {
+            return XCTFail("a linked opponent deck is grouped")
+        }
+        XCTAssertEqual(rowStates(alive.played, "BT_753"), [.plain: 1])
+        XCTAssertEqual(rowStates(alive.played, "VAC_933"), [gift: 1])
+        XCTAssertNil(totals(alive.played)["TSC_955"], "nothing died yet")
+
+        die(listed, opponent)
+        die(discovered, opponent)
+        guard let groups = opponent.opponentCardGroups else {
+            return XCTFail("a linked opponent deck is grouped")
+        }
+        XCTAssertEqual(rowStates(groups.played, "BT_753"), [.plain: 1], "played, but it did not die as this")
+        XCTAssertEqual(rowStates(groups.played, "VAC_933"), [gift: 1])
+        XCTAssertEqual(rowStates(groups.played, "TSC_955"), [giftInGraveyard: 2])
+        XCTAssertNil(totals(groups.deck)["BT_753"], "the list's copy left the deck")
+        assertNoCardIsLost(groups, known: ["BT_753": 1, "VAC_933": 1, "TSC_955": 2])
+    }
+
+    // MARK: - 2.9 round 2: a card that changed in hand is not a transformation
+
+    /// A deck list card of ours in hand, fed through the real parser from
+    /// there on. The user's logs only hold hand CHANGE_ENTITY on spells, so
+    /// the first line is one of those verbatim (2026-10-07 Power.log line
+    /// 13633, 造物协议 TTN_430 → TTN_430t being forged) and the entity it lands
+    /// on is tagged a minion by hand: what is under test is where the parser
+    /// leaves `cardId` / `latestCardId` and what the latch reads when the
+    /// entity enters play, neither of which looks at the card type. The ZONE
+    /// lines are that log's own lines 2614 and 43333 with the entity swapped.
+    // swiftlint:disable line_length
+    private static let changedInHand =
+        "D 16:28:32.2215440 PowerTaskList.DebugPrintPower() -     CHANGE_ENTITY - Updating Entity=[entityName=造物协议 id=41 zone=HAND zonePos=2 cardId=TTN_430 player=2] CardID=TTN_430t"
+    private static let played =
+        "D 16:28:40.0860650 PowerTaskList.DebugPrintPower() -     TAG_CHANGE Entity=[entityName=造物协议 id=41 zone=HAND zonePos=2 cardId=TTN_430t player=2] tag=ZONE value=PLAY "
+    private static let transformedInPlay =
+        "D 16:37:50.2525630 PowerTaskList.DebugPrintPower() -     CHANGE_ENTITY - Updating Entity=[entityName=造物协议 id=41 zone=PLAY zonePos=1 cardId=TTN_430t player=2] CardID=TSC_955"
+    private static let died =
+        "D 16:38:57.3923170 PowerTaskList.DebugPrintPower() -     TAG_CHANGE Entity=[entityName=造物协议 id=41 zone=PLAY zonePos=1 cardId=TTN_430t player=2] tag=ZONE value=GRAVEYARD "
+    // swiftlint:enable line_length
+
+    private func ourGameWithACardInHand() -> (Game, PowerGameStateParser) {
+        for id in ["TTN_430", "TTN_430t", "TSC_955"] {
+            waitForCard(id)
+        }
+        let launched = Date().addingTimeInterval(30)
+        while AppDelegate.instance().coreManager == nil && Date() < launched {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+        }
+        let game = makeGame()
+        game.player.id = 2
+        game.opponent.id = 1
+        setActiveDeck(game, [("TTN_430", 1)])
+        _ = addEntity(game, id: 41, cardId: "TTN_430", zone: .hand, controller: 2,
+                      originalZone: .deck, originalController: 2)
+        return (game, PowerGameStateParser(with: game))
+    }
+
+    /// Changed in hand, played, dead: one row, the deck list's card, with the
+    /// skull. No second row for what it had become, and no gift.
+    func testAMinionThatChangedInHandDiesOnItsOwnRow() {
+        let (game, parser) = ourGameWithACardInHand()
+        for line in [Self.changedInHand, Self.played] {
+            parser.handle(logLine: LogLine(namespace: .power, line: line))
+        }
+        XCTAssertEqual(game.entities[41]?.cardId, "TTN_430")
+        XCTAssertEqual(game.entities[41]?.info.latestCardId, "TTN_430t")
+        XCTAssertEqual(game.entities[41]?.cardIdOnEnteringPlay, "TTN_430t",
+                       "it came into play as what it had become in hand")
+        XCTAssertTrue(game.entities[41]?.isInPlay ?? false)
+
+        parser.handle(logLine: LogLine(namespace: .power, line: Self.died))
+        XCTAssertTrue(game.player.deadMinionsCards.contains { $0.id == 41 })
+        guard let groups = game.player.playerCardGroups else {
+            return XCTFail("an active deck is grouped by zone")
+        }
+        XCTAssertEqual(rowStates(groups.played, "TTN_430"), [graveyard: 1])
+        XCTAssertNil(totals(groups.played)["TTN_430t"], "a change in hand is not a second card")
+        assertNoCardIsLost(groups, known: ["TTN_430": 1])
+    }
+
+    /// Changed in hand, played, transformed on the board, dead: the board
+    /// transformation is the one that counts, so the played card keeps a row
+    /// without an icon and the skull is on what it died as.
+    func testAMinionThatChangedInHandAndWasTransformedInPlayDiesAsWhatItBecame() {
+        let (game, parser) = ourGameWithACardInHand()
+        for line in [Self.changedInHand, Self.played, Self.transformedInPlay, Self.died] {
+            parser.handle(logLine: LogLine(namespace: .power, line: line))
+        }
+        XCTAssertEqual(game.entities[41]?.cardIdOnEnteringPlay, "TTN_430t")
+        XCTAssertEqual(game.entities[41]?.info.latestCardId, "TSC_955")
+        guard let groups = game.player.playerCardGroups else {
+            return XCTFail("an active deck is grouped by zone")
+        }
+        XCTAssertEqual(rowStates(groups.played, "TTN_430"), [.plain: 1])
+        XCTAssertEqual(rowStates(groups.played, "TSC_955"), [giftInGraveyard: 1])
+        XCTAssertNil(totals(groups.played)["TTN_430t"])
+        assertNoCardIsLost(groups, known: ["TTN_430": 1, "TSC_955": 1])
+    }
+
+    /// A gift that changed in hand before it was played and died: one gift
+    /// row with the skull. And without the latch (the tracker was started
+    /// after the minion came into play) a dead minion keeps its one row.
+    func testAGiftThatChangedInHandDiesOnItsOwnRow() {
+        let previous = Player.knownOpponentDeck
+        defer { Player.knownOpponentDeck = previous }
+
+        for id in ["BT_753", "VAC_933", "TSC_955"] {
+            waitForCard(id)
+        }
+        let game = makeGame()
+        let opponent: Player = game.opponent
+        Player.knownOpponentDeck = [card("BT_753", 1)]
+        let discovered = addEntity(game, id: 10, cardId: "VAC_933", zone: .play, controller: 2,
+                                   originalZone: .hand, originalController: 2)
+        discovered.info.latestCardId = "TSC_955"
+        discovered.cardIdOnEnteringPlay = "TSC_955"
+        opponent.cardsPlayedThisMatch.append(discovered)
+        let unlatched = addEntity(game, id: 11, cardId: "BT_753", zone: .play, controller: 2,
+                                  originalZone: .deck, originalController: 2)
+        unlatched.info.latestCardId = "TSC_955"
+        opponent.cardsPlayedThisMatch.append(unlatched)
+        die(discovered, opponent)
+        die(unlatched, opponent)
+
+        guard let groups = opponent.opponentCardGroups else {
+            return XCTFail("a linked opponent deck is grouped")
+        }
+        XCTAssertEqual(rowStates(groups.played, "VAC_933"), [giftInGraveyard: 1])
+        XCTAssertEqual(rowStates(groups.played, "BT_753"), [graveyard: 1])
+        XCTAssertNil(totals(groups.played)["TSC_955"])
+        assertNoCardIsLost(groups, known: ["BT_753": 1, "VAC_933": 1])
+    }
+
+    /// The graveyard is the side the minion died on. Ours, played from hand,
+    /// taken by them and killed over there: on our side a card that was
+    /// played, on theirs a minion that died.
+    func testAMinionDiesInTheGraveyardOfWhoeverControlledIt() {
+        let previous = Player.knownOpponentDeck
+        defer { Player.knownOpponentDeck = previous }
+
+        waitForCard("BT_753")
+        waitForCard("SC_010")
+        let game = makeGame()
+        setActiveDeck(game, [("BT_753", 1)])
+        Player.knownOpponentDeck = [card("SC_010", 1)]
+        let taken = addEntity(game, id: 10, cardId: "BT_753", zone: .play, controller: 2,
+                              originalZone: .deck, originalController: 1)
+        game.player.cardsPlayedThisMatch.append(taken)
+        die(taken, game.opponent)
+
+        guard let ours = game.player.playerCardGroups, let theirs = game.opponent.opponentCardGroups else {
+            return XCTFail("both sides are grouped")
+        }
+        XCTAssertEqual(rowStates(ours.played, "BT_753"), [.plain: 1])
+        XCTAssertEqual(rowStates(theirs.played, "BT_753"), [giftInGraveyard: 1])
     }
 }
