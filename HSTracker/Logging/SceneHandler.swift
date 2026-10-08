@@ -99,6 +99,7 @@ class SceneHandler {
                 game.updateMulliganGuidePreLobby()
             }
         } else if to == .bacon {
+            MonoHelper.startIfNeeded()
             game.cacheBattlegroundRatingInfo()
             
             DispatchQueue.main.async {
