@@ -10,10 +10,10 @@
 - 改文件只用编辑工具，禁止 shell 写文件（`sed -i`、heredoc、`cat >`、脚本落盘）。读文件不限。
 - zsh 不做单词分词：不写 `for a in $VAR`、`$CMD args`。
 
-## Commit
+## Commit 与 PR
 
 - Conventional Commits 前缀（`feat` / `fix` / `perf` / `docs` / `chore` / `build` / `test`），merge commit 不加。
-- 保留 `Co-Authored-By:`；不写 `Claude-Session:` 和 `claude.ai/code/session_...` 链接。
+- 保留 `Co-Authored-By:`。commit message、PR 标题和描述、PR / issue 评论里不写 `Claude-Session:`、任何 `claude.ai` 会话 / 项目 / 线程链接（含「Requested by … · project thread」）和「Generated with / by Claude Code」行；工具自动加上的，发完立刻删掉。
 
 ## 线程与时序
 
