@@ -173,6 +173,22 @@ struct RootOverlayOpacityMaskView: View {
     }
 }
 
+// Fork: applies the mask unless overlay_perf_mode turns it off
+// (Settings.overlayPerfMode). Only ever flips through `defaults write`.
+struct OverlayPerfOptionalMask<Mask: View>: ViewModifier {
+    let enabled: Bool
+    let mask: Mask
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if enabled {
+            content.mask(mask)
+        } else {
+            content
+        }
+    }
+}
+
 // The debug counterpart to the mask: every masked region outlined in red and
 // named by the key that put it there. Draws nothing at all unless
 // OverlayOpacityMask.debugShowRegions is on, and takes no hit testing either

@@ -18,6 +18,7 @@ class RootOverlayWindow: OverWindowController {
     private var globalMouseMonitor: Any?
     private var localMouseMonitor: Any?
     private var fallbackTimer: Timer?
+    private var perfModeTimer: Timer?
     private var hoveredTooltip: OverlayTooltip?
     private weak var hoveredView: CardHoverNSView?
 
@@ -44,6 +45,19 @@ class RootOverlayWindow: OverWindowController {
         // the pixel, including right up to that child's own edge.
         window?.ignoresMouseEvents = true
         installMouseMonitors()
+        perfModeTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            self?.applyPerfMode()
+        }
+    }
+
+    // Fork: overlay GPU A/B (Settings.overlayPerfMode). Polled rather than
+    // observed so a `defaults write` from Terminal lands mid-game.
+    private func applyPerfMode() {
+        let mode = Settings.overlayPerfMode
+        guard mode != viewModel.perfMode else { return }
+        viewModel.perfMode = mode
+        hostingView?.isHidden = mode == 2
+        AppDelegate.instance().coreManager.game.updateRootOverlay()
     }
 
     deinit {
@@ -54,6 +68,7 @@ class RootOverlayWindow: OverWindowController {
             NSEvent.removeMonitor(monitor)
         }
         fallbackTimer?.invalidate()
+        perfModeTimer?.invalidate()
     }
 
     private func installMouseMonitors() {

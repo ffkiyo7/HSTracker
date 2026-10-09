@@ -627,7 +627,12 @@ struct RootOverlayView: View {
         // scaled game-relative subtree and the fixed-pixel chrome. Applied
         // to the same ZStack here, in the outer geometry's own space, which
         // is the normalized space the regions were computed in.
-        .mask(RootOverlayOpacityMaskView(mask: viewModel.opacityMask, size: geometry.size))
+        //
+        // Fork: overlay_perf_mode 3 drops the mask for the GPU A/B; the
+        // switch rebuilds the canvas once, which is fine for a diagnostic.
+        .modifier(OverlayPerfOptionalMask(enabled: viewModel.perfMode != 3,
+                                          mask: RootOverlayOpacityMaskView(mask: viewModel.opacityMask,
+                                                                           size: geometry.size)))
         // Applied after the mask, so the outlines this draws are not
         // themselves cut away. Inert unless
         // OverlayOpacityMask.debugShowRegions is flipped on.

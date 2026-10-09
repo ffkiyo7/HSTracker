@@ -137,6 +137,8 @@ class RootOverlayViewModel: ObservableObject {
     // grip - exactly while the overlay is unlocked, so the views have to
     // re-render when it is toggled.
     @Published var windowsLocked = Settings.windowsLocked
+    // Settings.overlayPerfMode as RootOverlayWindow last applied it.
+    @Published var perfMode = 0
     private var windowsLockedObserver: NSObjectProtocol?
 
     init() {
