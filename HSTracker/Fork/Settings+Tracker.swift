@@ -15,6 +15,7 @@ extension Settings {
     static let tracker_perf_no_card_art = "tracker_perf_no_card_art"
     static let tracker_perf_force_opaque = "tracker_perf_force_opaque"
     static let tracker_motion = "tracker_motion"
+    static let overlay_perf_mode = "overlay_perf_mode"
 
     /// Splits the main list into deck / hand / played (PLAN Phase 2) and draws
     /// the fork's panel inside the upstream shell. Off falls back to the
@@ -38,4 +39,11 @@ extension Settings {
     /// and the first bisection step if frames go missing.
     @UserDefault(key: Settings.tracker_motion, defaultValue: true)
     static var trackerMotion: Bool
+    /// Overlay GPU cost A/B (docs/tasks/perf-p4-overlay-mask.md), same
+    /// contract as the keys above but read live: RootOverlayWindow polls it
+    /// once a second, so `defaults write` switches it in the middle of a game.
+    /// 0 normal; 1 overlay window hidden; 2 window shown with nothing drawn in
+    /// it; 3 drawn without the cut-out mask (cut-outs stop working).
+    @UserDefault(key: Settings.overlay_perf_mode, defaultValue: 0)
+    static var overlayPerfMode: Int
 }

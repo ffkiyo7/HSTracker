@@ -586,13 +586,19 @@ class Game: NSObject, PowerEventHandler {
     // without an error or card stats), so there's nothing to see when idle -
     // this just avoids the hidden->visible transition that was glitching.
     private var rootOverlayLastFullscreenState: Bool?
+    // Fork: overlay_perf_mode 1 hid the window; coming back is the same
+    // hidden->visible transition as above, so it gets the same forced reshow.
+    private var rootOverlayPerfHidden = false
 
     func updateRootOverlay() {
         DispatchQueue.main.async { [self] in
             guard let win = windowManager.rootOverlay else { return }
             let hsActive = hearthstoneRunState.isActive
+            let perfHidden = Settings.overlayPerfMode == 1
+            let leftPerfHidden = rootOverlayPerfHidden && !perfHidden
+            rootOverlayPerfHidden = perfHidden
 
-            if (Settings.hideAllWhenGameInBackground && hsActive) || !Settings.hideAllWhenGameInBackground {
+            if !perfHidden && ((Settings.hideAllWhenGameInBackground && hsActive) || !Settings.hideAllWhenGameInBackground) {
                 let frame = SizeHelper.overHearthstoneFrame()
                 let isFullscreen = SizeHelper.hearthstoneWindow.isFullscreen()
                 let fullscreenChanged = rootOverlayLastFullscreenState != nil && rootOverlayLastFullscreenState != isFullscreen
@@ -611,7 +617,7 @@ class Game: NSObject, PowerEventHandler {
                 }
 
                 windowManager.show(controller: win, show: true, frame: frame, overlay: true)
-                if fullscreenChanged {
+                if fullscreenChanged || leftPerfHidden {
                     win.window?.orderFrontRegardless()
                 }
             } else {
