@@ -336,6 +336,7 @@
 		B8FC0F00000000000000B003 /* RealmHelper+CardCountFix.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FC0F00000000000000A003 /* RealmHelper+CardCountFix.swift */; };
 		B8FC0F00000000000000B004 /* Settings+Tracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FC0F00000000000000A004 /* Settings+Tracker.swift */; };
 		B8FC0F00000000000000B005 /* LatencyProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FC0F00000000000000A005 /* LatencyProbe.swift */; };
+		B8FC0F00000000000000B00E /* PerfLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FC0F00000000000000A00E /* PerfLog.swift */; };
 		B8FC0F00000000000000B006 /* OverlayRefreshScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FC0F00000000000000A006 /* OverlayRefreshScheduler.swift */; };
 		B8FC0F00000000000000B007 /* OverlayOrderFrontGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FC0F00000000000000A007 /* OverlayOrderFrontGate.swift */; };
 		B8FC0F00000000000000B008 /* SynchronizedLRUCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FC0F00000000000000A008 /* SynchronizedLRUCache.swift */; };
@@ -2355,6 +2356,7 @@
 		B8FC0F00000000000000A003 /* RealmHelper+CardCountFix.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RealmHelper+CardCountFix.swift"; sourceTree = "<group>"; };
 		B8FC0F00000000000000A004 /* Settings+Tracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Settings+Tracker.swift"; sourceTree = "<group>"; };
 		B8FC0F00000000000000A005 /* LatencyProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LatencyProbe.swift; sourceTree = "<group>"; };
+		B8FC0F00000000000000A00E /* PerfLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerfLog.swift; sourceTree = "<group>"; };
 		B8FC0F00000000000000A006 /* OverlayRefreshScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayRefreshScheduler.swift; sourceTree = "<group>"; };
 		B8FC0F00000000000000A007 /* OverlayOrderFrontGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayOrderFrontGate.swift; sourceTree = "<group>"; };
 		B8FC0F00000000000000A008 /* SynchronizedLRUCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynchronizedLRUCache.swift; sourceTree = "<group>"; };
@@ -4261,6 +4263,7 @@
 				B8FDE9262CD99D840093BFF7 /* ReflectionHelper.swift */,
 				B8BD84562861394100F4F224 /* Regex.swift */,
 				B8FC0F00000000000000A005 /* LatencyProbe.swift */,
+				B8FC0F00000000000000A00E /* PerfLog.swift */,
 				B8820CCF25603FB00072ECBC /* RemoteConfig.swift */,
 				B8832DD926057A5000646BA4 /* RepeatingTimer.swift */,
 				B8FE1F982875BD15004C397C /* SynchronizedArray.swift */,
@@ -8322,6 +8325,7 @@
 				B8FC0F00000000000000B003 /* RealmHelper+CardCountFix.swift in Sources */,
 				B8FC0F00000000000000B004 /* Settings+Tracker.swift in Sources */,
 				B8FC0F00000000000000B005 /* LatencyProbe.swift in Sources */,
+				B8FC0F00000000000000B00E /* PerfLog.swift in Sources */,
 				B8FC0F00000000000000B006 /* OverlayRefreshScheduler.swift in Sources */,
 				B8FC0F00000000000000B007 /* OverlayOrderFrontGate.swift in Sources */,
 				B8FC0F00000000000000B008 /* SynchronizedLRUCache.swift in Sources */,

@@ -392,6 +392,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        PerfLog.shared.appWillTerminate()
         coreManager?.stopTracking()
         if appWillRestart {
             let appPath = Bundle.main.bundlePath

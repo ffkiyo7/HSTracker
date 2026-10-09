@@ -1971,6 +1971,8 @@ class Game: NSObject, PowerEventHandler {
             + "lastGameStartTimestamp: \(lastGameStartTimestamp), " +
             "timestamp: \(timestamp)")
         AppHealth.instance.setHearthstoneGameRunning(flag: true)
+        PerfLog.shared.gameStarted(mode: "\(currentGameMode)", gameType: "\(currentGameType)",
+                                   format: "\(currentFormatType)")
 
         NotificationManager.showNotification(type: .gameStart)
 
@@ -2124,6 +2126,7 @@ class Game: NSObject, PowerEventHandler {
         logger.info("----- Game End -----")
         Influx.breadcrumb(eventName: "match_ended")
         AppHealth.instance.setHearthstoneGameRunning(flag: false)
+        PerfLog.shared.gameEnded(mode: "\(currentGameMode)")
 		
         handleEndGame()
         self.powerLog = []

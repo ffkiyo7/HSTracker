@@ -24,6 +24,19 @@ extension Settings {
     @UserDefault(key: Settings.show_constructed_session_recap, defaultValue: true)
     static var showConstructedSessionRecap: Bool
 
+    static let perf_log = "perf_log"
+
+    #if DEBUG
+    static let perfLogDefault = false
+    #else
+    static let perfLogDefault = true
+    #endif
+
+    /// Per-game performance log (Utility/PerfLog.swift). On in Release, where
+    /// the numbers mean something; read once per game start.
+    @UserDefault(key: Settings.perf_log, defaultValue: Settings.perfLogDefault)
+    static var perfLog: Bool
+
     static let red_dragon_assist = "red_dragon_assist"
     static let red_dragon_reveal_level = "red_dragon_reveal_level"
     static let red_dragon_quiz_mode = "red_dragon_quiz_mode"

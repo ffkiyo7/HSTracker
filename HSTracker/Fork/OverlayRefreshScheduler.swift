@@ -61,6 +61,7 @@ final class OverlayRefreshScheduler {
         let reset = resets
         resets = false
         inFlight = true
+        let started = ProcessInfo.processInfo.systemUptime
         refresh(reset)
         // `refresh` only enqueues its blocks on the main queue, which is FIFO, and
         // some of them enqueue one more level while they run: the second marker
@@ -70,6 +71,8 @@ final class OverlayRefreshScheduler {
         DispatchQueue.main.async {
             DispatchQueue.main.async {
                 LatencyProbe.shared.updateCommitted()
+                PerfLog.shared.overlayRefreshed(
+                    milliseconds: (ProcessInfo.processInfo.systemUptime - started) * 1000.0)
                 self.queue.async {
                     self.inFlight = false
                     if self.needsUpdate {
