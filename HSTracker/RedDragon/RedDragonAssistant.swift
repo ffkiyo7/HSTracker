@@ -12,13 +12,18 @@
 //     不是红龙套牌 / 不在对局 → `.inactive`，和上次投递的相同就什么都不做（非本牌组的对局一次 main.async 都不投）。
 //     拷出的输入和上次投递的不同 → 局面版本 +1、作废在算的那次、投 **`main.async`（第 1 跳）**。
 //     BLOCK 还开着时来了新行、上次投递的是局面 → 先作废（版本 +1、取消在算的），投 `main.async` 让主线程
-//     把结果标过时（`markStale`），每段只投一次；到一致边界再拷、再投（即使和上次相同）
+//     把结果标过时（`markStale`），每段只投一次；到一致边界再拷、再投（即使和上次相同）。
+//     批中间也有一致边界（T7）：一行把最外层 BLOCK 闭合时 `parserTopBlockDidClose` 当场拷、同样投第 1 跳
+//     —— 连着出牌时上一个 BLOCK_END 和下一个 BLOCK_START 同批，只在批尾拷会一直拷不到。
+//     锁定公式的核对不被「BLOCK 开着来新行」作废（解析线程不取消它、`markStale` 不动它、它的结果按
+//     最近一次投递的版本核对），只被更新的投递作废
 //  2. 主线程 `submit`：开关（`env.isEnabled()`）再查一次；记下版本，标「正在算」，
 //     `workQueue.asyncAfter(debounce)`。屏上是本回合的斩杀线时改成 `workQueue.async`（不去抖）
 //  3. 后台串行队列：读取 + 搜索 + 生成结论；被作废就半路退出（搜索主循环和收尾都看取消标记）
 //     → **`main.async`（第 2 跳）**。不去抖的那次先试「接着用」（`RDContinuation`：新局面就是屏上那条线
 //     推出来的局面，剩下的步骤在真实局面上重放校验通过）；对不上就在这条队列上再 `asyncAfter(debounce)` 走搜索
-//  4. 主线程 `commit`：代号是最新的、局面版本等于解析线程最新拷出的版本、对局身份没变、开关还开着
+//  4. 主线程 `commit`：代号是最新的、局面版本等于解析线程最新的版本（锁定公式的核对：等于最近一次投递的版本）、
+//     对局身份没变、开关还开着
 //     → 结论 + 揭示档 + 答题判定在同一个 block 里提交，回调 `onChange`
 //
 
@@ -82,14 +87,19 @@ final class RedDragonAssistant {
     private var pendingCapture = false
     /// 最近一次投递到主线程的输入。初值 `.inactive`：不是本牌组时永远不投递
     private var lastFed: RDAssistantInput = .inactive
-    /// 解析线程拷出的局面版本（每投递一个不同的输入 +1）
+    /// 解析线程拷出的局面版本（每投递一个不同的输入 +1，BLOCK 开着来新行作废时也 +1）
     private var parsedVersion = 0
+    /// 最近一次投递时的 `parsedVersion`：作废不动它。锁定公式的核对按它判新旧 —— 下一个 BLOCK 打开只说明
+    /// 局面又要变，不说明已经拷出了更新的局面
+    private var fedVersion = 0
     /// 最近一次投递的快照的对局身份
     private var parsedMatch: Date?
     /// 键带上 sideboard 张数：同一副牌的乐队可能在会话中途才被补进来（导入时缺了、下次匹配时更新）
     private var deckGateCache: (id: String, sideboardCards: Int, eligible: Bool)?
     /// 在算的那次的取消标记（主线程调度时放进来，解析线程拷出新局面时作废）
     private var sharedToken: RDCancellation?
+    /// `sharedToken` 是锁定公式的那次核对：只有新局面投递才取消它，BLOCK 开着来新行的作废不取消
+    private var sharedTokenLocked = false
     /// 上次投递之后、一致边界之前，局面已经作废过（BLOCK 开着时来了新行）。下一个一致边界上的快照
     /// 即使和上次投递的相同也要再投（主线程已经把结果标过时、作废了在算的）
     private var staleMarked = false
@@ -153,6 +163,8 @@ final class RedDragonAssistant {
 
     private var generation = 0
     private var inFlight: RDCancellation?
+    /// 在算的是锁定公式的核对（`schedule` 里的 `locking`）
+    private var inFlightLocked = false
     private var followBase: FollowBase?
     private var lastSnapshot: RDGameSnapshot?
     private var turn: Int?
@@ -205,8 +217,11 @@ final class RedDragonAssistant {
             staleMarked = true
             parsedVersion += 1
             staleVersion = parsedVersion
-            stale = sharedToken
-            sharedToken = nil
+            // 锁定公式的核对不在这里取消：它核对的是上一个 BLOCK 闭合时的局面，结论要上屏（T7）
+            if !sharedTokenLocked {
+                stale = sharedToken
+                sharedToken = nil
+            }
         }
         let capture = pendingCapture && idle
         if capture { pendingCapture = false }
@@ -218,6 +233,21 @@ final class RedDragonAssistant {
             }
         }
         guard capture else { return }
+        captureAndFeed(game)
+    }
+
+    /// `LogReaderManager` 在一行把最外层 BLOCK 闭合时调（T7）。连着出牌时上一个 BLOCK 的 BLOCK_END 和下一个的
+    /// BLOCK_START 落在同一批（同一时间戳），批尾永远不是一致边界：10-13 实测鱼 / 狐 / 刀连出，6.3 秒没拷到一个局面。
+    /// 这一行处理完的那一刻没有未闭合的 BLOCK，和批尾一样只有本线程写实体，可以拷
+    func parserTopBlockDidClose(_ game: Game) {
+        lock.lock()
+        let enabled = enabledCache
+        lock.unlock()
+        guard enabled else { return }
+        captureAndFeed(game)
+    }
+
+    private func captureAndFeed(_ game: Game) {
         let start = recordsFeeds ? DispatchTime.now().uptimeNanoseconds : 0
         feed(input(from: game))
         if recordsFeeds {
@@ -277,10 +307,12 @@ final class RedDragonAssistant {
         lastFed = input
         if recordsFeeds { fedHistory.append(input) }
         parsedVersion += 1
+        fedVersion = parsedVersion
         let version = parsedVersion
         if case .snapshot(let snap) = input { parsedMatch = snap.match }
         let stale = sharedToken
         sharedToken = nil
+        sharedTokenLocked = false
         lock.unlock()
         stale?.cancel()
         DispatchQueue.main.async { [weak self] in
@@ -298,11 +330,11 @@ final class RedDragonAssistant {
         return x == y
     }
 
-    /// 解析线程最新拷出的局面版本和对局身份
-    private func parsedState() -> (version: Int, match: Date?) {
+    /// 解析线程最新的局面版本、最近一次投递的版本和对局身份
+    private func parsedState() -> (version: Int, fed: Int, match: Date?) {
         lock.lock()
         defer { lock.unlock() }
-        return (parsedVersion, parsedMatch)
+        return (parsedVersion, fedVersion, parsedMatch)
     }
 
     // MARK: - 主线程
@@ -355,9 +387,12 @@ final class RedDragonAssistant {
     /// `version` 只用来在测试里对得上号；作废本身不看它
     private func markStale(version: Int) {
         guard env.isEnabled() else { return }
-        invalidate()
         // 一致边界上的快照可能和上一份相同（这段日志没改到相关实体），那也要重算
         lastSnapshot = nil
+        // 锁定的公式正在核对上一个 BLOCK 闭合时的局面（或核对出偏离、在搜新线）：让它算完上屏。
+        // 连着出牌时下一个 BLOCK 紧跟着打开，在这里作废的话每一步的进度都丢（T7）；更新的局面投递时照常作废它
+        guard !inFlightLocked else { return }
+        invalidate()
         guard hint.phase == .ready || hint.phase == .computing else { return }
         // 锁定的公式：炉石日志晚到的窗口里照常显示，不标过时
         guard !hint.locked else { return }
@@ -371,15 +406,17 @@ final class RedDragonAssistant {
         invalidate()
         let gen = generation
         let token = RDCancellation()
-        inFlight = token
-        lock.lock()
-        sharedToken = token
-        lock.unlock()
-        scheduledComputations += 1
         // 锁定模式下屏上有锁定的线：新局面来了先不变暗，等核对结果（毫秒级）
         // （走完了的准备线不算：之后再怎么打都不是「偏离」）
         let locking = lockMode && followBase?.turn == snap.turn && followBase?.match == snap.match
             && followBase?.candidates.first.map({ $0.formula.done < $0.formula.tokens.count }) == true
+        inFlight = token
+        inFlightLocked = locking
+        lock.lock()
+        sharedToken = token
+        sharedTokenLocked = locking
+        lock.unlock()
+        scheduledComputations += 1
         if !locking {
             var h = hint
             h.phase = .computing
@@ -395,9 +432,10 @@ final class RedDragonAssistant {
             DispatchQueue.main.async {
                 guard let self, gen == self.generation, self.env.isEnabled() else { return }
                 if let version {
-                    // 解析线程已经拷出更新的局面（主线程可能还没收到）、或者换了局：这个结果过时了
+                    // 解析线程已经拷出更新的局面（主线程可能还没收到）、或者换了局：这个结果过时了。
+                    // 锁定公式的核对只看有没有更新的投递（`locking` 的那次不因 BLOCK 开着来新行作废）
                     let parsed = self.parsedState()
-                    guard parsed.version == version, parsed.match == snap.match else {
+                    guard (locking ? parsed.fed : parsed.version) == version, parsed.match == snap.match else {
                         self.discardedComputations += 1
                         return
                     }
@@ -412,7 +450,7 @@ final class RedDragonAssistant {
                 guard let self, gen == self.generation, self.env.isEnabled() else { return }
                 if let version {
                     let parsed = self.parsedState()
-                    guard parsed.version == version, parsed.match == snap.match else { return }
+                    guard (locking ? parsed.fed : parsed.version) == version, parsed.match == snap.match else { return }
                 }
                 self.commitSetup(analysis, base: base)
             }
@@ -525,6 +563,7 @@ final class RedDragonAssistant {
 
     private func commit(_ analysis: RDAnalysis, snapshot: RDGameSnapshot, base: FollowBase?) {
         inFlight = nil
+        inFlightLocked = false
         followBase = base
         committedComputations += 1
         quizState = RDQuizState.next(quizState, snapshot: snapshot, verdict: analysis.verdict)
@@ -629,6 +668,7 @@ final class RedDragonAssistant {
         generation += 1
         inFlight?.cancel()
         inFlight = nil
+        inFlightLocked = false
     }
 
     private func resetTurn(_ newTurn: Int?) {

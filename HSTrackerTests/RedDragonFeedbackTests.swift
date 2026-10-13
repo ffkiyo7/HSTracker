@@ -686,4 +686,199 @@ class RedDragonFeedbackTests: HSTrackerTests {
             print("[lat] 同步骤 GameState 完成到绘制：\(Self.quantiles(endToEnd))")
         }
     }
+
+    // MARK: - T7：连着出牌，顶层 BLOCK 首尾相接
+
+    /// 屏上换了一次内容（`subscribe` 回调）
+    struct ChainShown {
+        /// 这之前本回合已经闭合了几个顶层 PLAY 块（= 已经打完几张牌）
+        var plays: Int
+        var formula: String
+        var done: Int
+        var deviated: Bool
+        var locked: Bool
+        var phase: RedDragonHint.Phase
+    }
+
+    struct ChainRun {
+        var shown: [ChainShown] = []
+        /// 本回合闭合的顶层 PLAY 块打的牌（按闭合先后）
+        var plays: [String] = []
+        var captures: [Double] = []
+        var fedSnapshots = 0
+        var final = RedDragonHint.inactive
+    }
+
+    /// 10-13 那一局的 T9（fixture 第 7050 行起），设置「顺序」、不开答题 = 锁定模式，线上的去抖和搜索配置。
+    /// 和线上读日志一样分批：同一时间戳的 PowerTaskList 行一批，逐行照 `LogReaderManager.processLine` 判
+    /// 「最外层 BLOCK 刚闭合」，批尾调 `parserBatchDidEnd`；批与批之间按日志时间间隔跑主线程 runloop
+    /// （结论已经算好就提前走，最少等 0.1 秒或日志间隔）。
+    /// - `topBlockHook`：false = T7 之前的线上行为（只在批尾拷）
+    /// - `burst`：第一张牌的 PLAY 打开到第四张闭合之间主线程一下都不跑（积压的日志一口气读完）
+    /// - `throughTurnEnd`：读到对方回合为止；否则读到第四张牌闭合、结论上屏为止
+    func replayChain(topBlockHook: Bool, burst: Bool = false, throughTurnEnd: Bool = false) -> ChainRun {
+        let lines = Self.lines("2026-10-13-g12-chain")
+        let playerId = 1
+        let game = Self.makeGame(playerId: playerId)
+        let assistant = RedDragonAssistant(environment: Self.environment(debounce: 0.12, reveal: .order),
+                                           recordsFeeds: true)
+        var run = ChainRun()
+        let token = assistant.subscribe { h in
+            let f = h.analysis?.formula
+            run.shown.append(ChainShown(
+                plays: run.plays.count,
+                formula: f?.tokens.map { RDText.formulaToken($0) }.joined(separator: " ") ?? "",
+                done: f?.done ?? -1, deviated: h.deviated, locked: h.locked, phase: h.phase))
+        }
+        defer { assistant.unsubscribe(token) }
+        func now() -> Double { return CFAbsoluteTimeGetCurrent() }
+        func settled() -> Bool { return assistant.hint.phase != .computing && !assistant.hint.isStale }
+        func pump(atLeast: Double, atMost: Double) {
+            let start = now()
+            repeat {
+                RunLoop.current.run(mode: .default, before: Date(timeIntervalSinceNow: 0.002))
+            } while now() - start < atMost && (now() - start < atLeast || !settled())
+        }
+
+        var nextStamp = [Substring](repeating: "", count: lines.count + 1)
+        for i in stride(from: lines.count - 1, through: 0, by: -1) {
+            nextStamp[i] = lines[i].contains("PowerTaskList.DebugPrintPower") ? lines[i].prefix(18) : nextStamp[i + 1]
+        }
+        var nextTime = [Double](repeating: 0, count: lines.count + 1)
+        for i in stride(from: lines.count - 1, through: 0, by: -1) {
+            nextTime[i] = lines[i].contains("PowerTaskList.DebugPrintPower")
+                ? Self.absolute(LogLine(namespace: .power, line: lines[i]).time) : nextTime[i + 1]
+        }
+
+        let parser = PowerGameStateParser(with: game)
+        var topBlock = ""
+        var holding = false
+        for i in 0..<lines.count {
+            let line = lines[i]
+            if let r = line.range(of: "GameState.DebugPrintGame() - PlayerID=") {
+                let parts = line[r.upperBound...].components(separatedBy: ", PlayerName=")
+                if parts.count == 2, let pid = Int(parts[0]) {
+                    let name = parts[1].trimmingCharacters(in: .whitespaces)
+                    if pid == playerId { game.player.name = name } else { game.opponent.name = name }
+                }
+                continue
+            }
+            guard line.contains("PowerTaskList.DebugPrintPower") else { continue }
+            if line.contains("CREATE_GAME") {
+                game.isInMenu = false
+                game.gameEnded = false
+            }
+            let inBlock = parser.currentBlock != nil
+            if !inBlock && line.contains("BLOCK_START") { topBlock = line }
+            parser.handle(logLine: LogLine(namespace: .power, line: line))
+            if game.player.id != playerId && line.contains("tag=STEP value=") {
+                game.player.id = playerId
+                game.opponent.id = playerId == 1 ? 2 : 1
+            }
+            let turn = game.gameEntity?[.turn] ?? 0
+            guard turn >= 9 else { continue }
+            let closed = inBlock && parser.currentBlock == nil
+            if closed && topBlockHook { assistant.parserTopBlockDidClose(game) }
+            if turn == 9 && !inBlock && topBlock.contains("BlockType=PLAY") && line.contains("BLOCK_START") {
+                if burst && run.plays.isEmpty { holding = true }
+            }
+            if turn == 9 && closed && topBlock.contains("BlockType=PLAY") {
+                run.plays.append(Self.blockCard(topBlock))
+            }
+            guard nextStamp[i + 1] != line.prefix(18) else { continue }
+            assistant.parserBatchDidEnd(game, linesProcessed: true, idle: parser.currentBlock == nil)
+            let gap = max(0, nextTime[i + 1] - nextTime[i])
+            let done = run.plays.count >= 4 && parser.currentBlock == nil
+            if done { holding = false }
+            if !holding {
+                pump(atLeast: done ? 0.3 : min(gap, 0.1), atMost: done ? 10 : max(gap, 0.002))
+            }
+            if done && !throughTurnEnd { break }
+            // 读到对局结束会走 `Game.gameEnd` → HearthMirror，测试进程里会崩：对方回合一到就停
+            if throughTurnEnd, assistant.fedInputs.last == .opponentTurn {
+                pump(atLeast: 0.5, atMost: 0.5)
+                break
+            }
+        }
+        run.captures = assistant.captureTimings
+        run.fedSnapshots = assistant.fedInputs.filter { if case .snapshot = $0 { return true } else { return false } }.count
+        run.final = assistant.hint
+        return run
+    }
+
+    /// 10-13 23:19 的 T9：币、鱼、狐、刀连出。鱼的 BLOCK_END 和狐的 BLOCK_START 同一时间戳（fixture 第 7756 /
+    /// 7763 行），狐的 BLOCK_END 和刀的 BLOCK_START 也是（第 8294 / 8301 行）。只在批尾拷的话鱼打开到刀闭合之间
+    /// 一个局面都拷不到，面板停在 1/21；现在每个顶层块闭合都拷，进度一步一步跟上
+    func testBackToBackPlaysAdvanceTheLockedFormula() throws {
+        let old = replayChain(topBlockHook: false)
+        let new = replayChain(topBlockHook: true)
+        for (tag, r) in [("批尾", old), ("块闭合", new)] {
+            print("[chain] \(tag)：打出 \(r.plays)，投递局面 \(r.fedSnapshots) 次")
+            for s in r.shown {
+                print("[chain] \(tag) 第 \(s.plays) 张之后 \(s.phase) \(s.done) \(s.locked ? "锁定" : "")"
+                      + "\(s.deviated ? " 已偏离" : "") \(s.formula)")
+            }
+        }
+        XCTAssertEqual(new.plays, ["PLAY:CFM_630", "PLAY:TRL_092", "PLAY:CORE_DMF_511", "PLAY:BAR_552"])
+        XCTAssertEqual(old.plays, new.plays)
+
+        // 回合开始锁定的公式：和线上那次一样先币、鱼、狐，第四步不是刀（线上是伺机待发）
+        let first = try XCTUnwrap(new.shown.first { $0.locked && $0.plays == 0 && $0.done == 0 })
+        XCTAssertTrue(first.formula.hasPrefix("币6 鱼2 狐0 "), first.formula)
+        XCTAssertFalse(first.formula.hasPrefix("币6 鱼2 狐0 刀"), first.formula)
+
+        // 修前：鱼、狐闭合之后（刀闭合之前）屏上没动过，还是 1 步
+        XCTAssertTrue(old.shown.contains { $0.plays == 1 && $0.done == 1 && $0.formula == first.formula })
+        XCTAssertTrue(old.shown.filter { $0.plays == 2 || $0.plays == 3 }.isEmpty,
+                      "只在批尾拷：鱼、狐之后没有任何结论上屏")
+
+        // 修后：每张牌闭合之后、下一张闭合之前，进度到了那一步；一直锁定、没置灰
+        for n in 1...3 {
+            let after = new.shown.filter { $0.plays == n }
+            XCTAssertEqual(after.last?.done, n, "第 \(n) 张之后")
+            XCTAssertTrue(after.allSatisfy { $0.formula == first.formula && $0.locked && !$0.deviated && $0.phase == .ready },
+                          "第 \(n) 张之后公式不换、不置灰")
+        }
+        // 刀：跳过了公式的第四步 → 标偏离，再换成新公式
+        let afterKnife = new.shown.filter { $0.plays == 4 }
+        XCTAssertEqual(afterKnife.first?.deviated, true)
+        XCTAssertEqual(afterKnife.first?.formula, first.formula, "旧公式置灰留在原位")
+        XCTAssertEqual(afterKnife.last?.phase, .ready)
+        XCTAssertEqual(afterKnife.last?.locked, true)
+        XCTAssertEqual(afterKnife.last?.done, 0)
+        XCTAssertNotEqual(afterKnife.last?.formula, first.formula)
+
+        // 顺序不乱：同一条公式的进度只增不减
+        var progress: [String: Int] = [:]
+        for s in new.shown where s.done >= 0 {
+            XCTAssertGreaterThanOrEqual(s.done, progress[s.formula] ?? 0, s.formula)
+            progress[s.formula] = s.done
+        }
+        let sorted = new.captures.sorted()
+        print(String(format: "[chain] 读局面 %d 次，平均 %.1f µs，中位 %.1f µs，最大 %.1f µs", sorted.count,
+                     sorted.reduce(0, +) / Double(max(1, sorted.count)) * 1e6,
+                     (sorted.isEmpty ? 0 : sorted[sorted.count / 2]) * 1e6, (sorted.last ?? 0) * 1e6))
+    }
+
+    /// 不倒退：四张牌的日志一口气读完（主线程中间一下都不跑），四个块闭合时的局面都投递了，上屏的只能是
+    /// 最后一个的结论，前三个在算的 / 算完的都不上屏。再读到对方回合：T9 的结论清掉，之后不再上屏
+    func testBurstOfBlocksOnlyShowsTheLatestAndTurnEndClears() throws {
+        let r = replayChain(topBlockHook: true, burst: true, throughTurnEnd: true)
+        XCTAssertGreaterThanOrEqual(r.plays.count, 4)
+        let first = try XCTUnwrap(r.shown.first { $0.locked && $0.plays == 0 && $0.done == 0 })
+        let burst = r.shown.filter { $0.plays >= 1 && $0.phase != .opponentTurn }
+        // 积压期间屏上不动；读完之后（plays >= 4）才有东西上屏
+        XCTAssertTrue(burst.filter { $0.plays < 4 }.isEmpty, "\(burst)")
+        XCTAssertFalse(burst.isEmpty)
+        // 旧公式的 1 / 2 / 3 步都不该在第四张之后冒出来：要么直接标偏离，要么已经是新公式
+        for s in burst where s.formula == first.formula {
+            XCTAssertTrue(s.deviated, "第四张之后旧公式只能是「已偏离」：\(s)")
+        }
+        XCTAssertTrue(burst.contains { $0.phase == .ready && $0.locked && $0.formula != first.formula }, "\(burst)")
+
+        let end = try XCTUnwrap(r.shown.firstIndex { $0.phase == .opponentTurn })
+        XCTAssertTrue(r.shown[end...].allSatisfy { $0.phase == .opponentTurn }, "换回合之后旧结论不上屏")
+        XCTAssertEqual(r.final.phase, .opponentTurn)
+        XCTAssertNil(r.final.analysis)
+    }
 }

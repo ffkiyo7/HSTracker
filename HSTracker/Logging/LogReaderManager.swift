@@ -257,8 +257,14 @@ final class LogReaderManager {
             } else if line.content.hasPrefix("PowerProcessor.EndCurrentTaskList") {
                 choicesHandler.handle(logLine: line)
             } else {
+                let inBlock = powerGameStateParser.currentBlock != nil
                 self.powerGameStateParser.handle(logLine: line)
                 choicesHandler.flush()
+                // Fork: the outermost block just closed - a consistent point even when the next
+                // block opens later in this same batch (cards played back to back).
+                if inBlock && powerGameStateParser.currentBlock == nil {
+                    RedDragonAssistant.shared.parserTopBlockDidClose(coreManager.game)
+                }
             }
         case .rachelle: self.rachelleHandler.handle(logLine: line)
         case .arena: self.arenaHandler.handle(logLine: line)
