@@ -59,7 +59,7 @@
 同 `docs/archive/tasks/rdr-t3-live-feedback.md`。
 
 本任务在独立 worktree 里做，签名配置和包缓存借主仓库的，构建产物放独立目录（T3 先例）：在 `AGENTS.md` 构建命令上追加
-`-xcconfig /Users/wadorudi/Desktop/dev/HSTracker/Config.xcconfig -derivedDataPath /private/tmp/HSTracker-rdr-t4-build -clonedSourcePackagesDirPath /Users/wadorudi/Library/Developer/Xcode/DerivedData/HSTracker-cgfkydaatbcvlygsoujdqwiezsjx/SourcePackages -disableAutomaticPackageResolution -skipPackageUpdates -parallel-testing-enabled NO`。
+`-xcconfig /Users/wadorudi/Developer/forks/HSTracker/Config.xcconfig -derivedDataPath /private/tmp/HSTracker-rdr-t4-build -clonedSourcePackagesDirPath /Users/wadorudi/Library/Developer/Xcode/DerivedData/HSTracker-<主仓库当前哈希>/SourcePackages -disableAutomaticPackageResolution -skipPackageUpdates -parallel-testing-enabled NO`。
 
 ## 验收
 
