@@ -647,6 +647,12 @@ final class Settings {
     static var deckPanelOrderPlayer: [String]
     @UserDefault(key: Settings.deck_panel_order_opponent, defaultValue: DeckPanel.defaultOpponentOrder.map { $0.rawValue })
     static var deckPanelOrderOpponent: [String]
+    // Fork: the zone panel's collapsed sections per side ("top", "deck",
+    // "hand", "played", "bottom", "related"); empty means all expanded.
+    @UserDefault(key: Settings.player_tracker_collapsed_sections, defaultValue: [])
+    static var playerTrackerCollapsedSections: [String]
+    @UserDefault(key: Settings.opponent_tracker_collapsed_sections, defaultValue: [])
+    static var opponentTrackerCollapsedSections: [String]
 
     // The secrets panel, which moved onto the canvas with the trackers. HDT's
     // SecretsTop / SecretsLeft / SecretsPanelHeight / SecretsPanelScaling - note
@@ -1043,6 +1049,8 @@ extension Settings {
     static let opponent_opacity = "opponent_opacity"
     static let deck_panel_order_player = "deck_panel_order_player"
     static let deck_panel_order_opponent = "deck_panel_order_opponent"
+    static let player_tracker_collapsed_sections = "player_tracker_collapsed_sections"
+    static let opponent_tracker_collapsed_sections = "opponent_tracker_collapsed_sections"
     static let secrets_panel_top = "secrets_panel_top"
     static let secrets_panel_left = "secrets_panel_left"
     static let secrets_panel_height = "secrets_panel_height"

@@ -75,6 +75,9 @@ final class TrackerCardListViewModel: ObservableObject {
     @Published var showRarityColors: Bool = Settings.showRarityColors
     @Published var playerType: PlayerType = .player
     @Published var sectionHeaderHeight: CGFloat = 40
+    /// B: the section shows its header alone. Owned and persisted by
+    /// `TrackerViewModel`.
+    @Published var isCollapsed = false
     /// The panel base's alpha. It reaches the rows through the view model so a
     /// change to `tracker_opacity` alone still repaints them: `updateLayout`
     /// runs `syncAppearance()` on every refresh, and a published change is the
@@ -145,9 +148,8 @@ final class TrackerCardListViewModel: ObservableObject {
         guard next != rows else { return }
 
         // Always a plain assignment. Nothing here knows yet whether the row
-        // grid is about to move under these rows: in the compressed state
-        // `cardHeight` is `(availableHeight - offset) / totalCards`, so losing
-        // a row makes every row taller. Deciding here and letting the geometry
+        // grid is about to move under these rows, or whether the scroll
+        // position has to be clamped with them. Deciding here and letting the geometry
         // veto later is exactly the "one flies while the other jumps" split
         // this file used to have.
         switch motionPlan(for: next) {

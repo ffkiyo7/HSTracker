@@ -91,6 +91,7 @@ private struct TrackerCardRowHitArea: View {
     let rowHeight: CGFloat
 
     @Environment(\.trackerRowMotion) private var motion
+    @Environment(\.trackerViewportHeight) private var viewportHeight
 
     var body: some View {
         let progress = max(0, min(1, motion))
@@ -98,11 +99,16 @@ private struct TrackerCardRowHitArea: View {
             .frame(width: width, height: rowHeight * progress, alignment: .top)
             .background(
                 GeometryReader { proxy in
+                    // A6: scrolled out of the viewport, or the hidden part of
+                    // a row cut by its edge, answers no hover.
+                    let rect = TrackerViewport.visible(canvas: proxy.frame(in: .rootOverlayCanvas),
+                                                       local: proxy.frame(in: .named(TrackerViewport.space)),
+                                                       viewportHeight: viewportHeight)
                     Color.clear.preference(
                         key: TrackerRowHoverKey.self,
-                        value: [TrackerRowHover(rect: proxy.frame(in: .rootOverlayCanvas),
-                                                card: card,
-                                                kind: progress >= 1 ? kind : .none)])
+                        value: rect.map { [TrackerRowHover(rect: $0,
+                                                           card: card,
+                                                           kind: progress >= 1 ? kind : .none)] } ?? [])
                 }
             )
             .allowsHitTesting(false)

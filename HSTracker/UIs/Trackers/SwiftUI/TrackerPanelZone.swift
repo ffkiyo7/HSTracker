@@ -32,9 +32,13 @@ struct TrackerZoneShell: Equatable {
     /// they are laid out at that width and scaled by this onto the panel's.
     let fitScale: CGFloat
     let sections: [TrackerPanelLayout.Section]
+    /// The block has more than its viewport shows, so the panel reports the
+    /// viewport for the scroll wheel.
+    var scrolls = false
 
     static func == (lhs: TrackerZoneShell, rhs: TrackerZoneShell) -> Bool {
-        lhs.width == rhs.width
+        lhs.scrolls == rhs.scrolls
+            && lhs.width == rhs.width
             && lhs.cardHeight == rhs.cardHeight
             && lhs.smallFrameHeight == rhs.smallFrameHeight
             && lhs.bigFrameHeight == rhs.bigFrameHeight
@@ -75,6 +79,7 @@ extension TrackerViewModel {
         hoverKind = playerType == .opponent ? .opponentDeck : .playerDeck
         propagatePlayerType()
         propagateHoverKind()
+        loadCollapsedSections()
     }
 }
 
@@ -137,6 +142,9 @@ extension TrackerPanelViewModel {
         if reset && playerType == .player {
             zonePanel.headerStats.needsRefresh = true
         }
+        if reset {
+            zonePanel.resetScroll()
+        }
         zonePanel.update(cards: cards, top: top, bottom: bottom, relatedCards: relatedCards, groups: groups)
     }
 
@@ -186,12 +194,39 @@ extension TrackerPanelViewModel {
                                      bigFrameHeight: frames.big,
                                      heroHeight: frames.hero,
                                      fitScale: frames.fitScale,
-                                     sections: sections)
+                                     sections: sections,
+                                     scrolls: zone.layout.maxScroll > 0)
         if zone.shell != shell {
             // The panel lays itself out from the shell, which is not published.
             objectWillChange.send()
             zone.shell = shell
         }
+    }
+
+    /// The hover region the panel reports over the block's scroll viewport,
+    /// which `RootOverlayWindow` matches the scroll wheel against.
+    var zoneViewportHoverRegionID: String {
+        playerType == .opponent ? "opponentTrackerViewport" : "playerTrackerViewport"
+    }
+
+    /// One scroll-wheel event over this side's viewport. Main thread.
+    ///
+    /// A trackpad's deltas are points on the screen, so they move the content
+    /// by as much as the fingers moved: divided by the panel's scaling to get
+    /// the block's own units. A wheel's are lines, and each line is one row.
+    /// The sign is AppKit's, which already follows the "natural scrolling"
+    /// setting: a positive delta shows what is above.
+    func scrollZonePanel(deltaY: CGFloat, precise: Bool) {
+        guard deltaY != 0 else { return }
+        let zone = zonePanel
+        let step: CGFloat
+        if precise {
+            step = deltaY / max(CGFloat(scaling) / 100.0, 0.01)
+        } else {
+            let lines = max(abs(deltaY).rounded(), 1)
+            step = (deltaY < 0 ? -lines : lines) * zone.layout.cardHeight
+        }
+        zone.scroll(by: -step)
     }
 
     /// Upstream's `PlayerStackHeight`: the box the stack fits into, in its own
@@ -347,7 +382,11 @@ struct TrackerZonePanelStack: View {
                         relatedTitle: String.localizedString("Related_Cards", comment: ""),
                         deckTitle: String.localizedString("Zone_Deck", comment: ""),
                         handTitle: String.localizedString("Zone_Hand", comment: ""),
-                        playedTitle: String.localizedString("Zone_Played", comment: ""))
+                        playedTitle: String.localizedString("Zone_Played", comment: ""),
+                        onToggleSection: { [viewModel, zone] list in
+                            zone.toggleCollapsed(list)
+                            viewModel.relayoutZonePanel()
+                        })
         case .deckPanel(.deckTitle):
             CardTileView(card: heroCard, playerType: .hero,
                          playerName: viewModel.playerName,

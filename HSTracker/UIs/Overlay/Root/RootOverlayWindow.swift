@@ -17,6 +17,8 @@ class RootOverlayWindow: OverWindowController {
     private var regionSubscription: AnyCancellable?
     private var globalMouseMonitor: Any?
     private var localMouseMonitor: Any?
+    private var globalScrollMonitor: Any?
+    private var localScrollMonitor: Any?
     private var fallbackTimer: Timer?
     private var hoveredTooltip: OverlayTooltip?
     private weak var hoveredView: CardHoverNSView?
@@ -53,6 +55,12 @@ class RootOverlayWindow: OverWindowController {
         if let monitor = localMouseMonitor {
             NSEvent.removeMonitor(monitor)
         }
+        if let monitor = globalScrollMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        if let monitor = localScrollMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
         fallbackTimer?.invalidate()
     }
 
@@ -72,6 +80,18 @@ class RootOverlayWindow: OverWindowController {
             self?.updateMouseThrough()
             return event
         }
+        // Fork: the deck trackers scroll under the cursor, the same pair for
+        // the same reason - the canvas over them is click-through, so the
+        // wheel goes to Hearthstone and is only seen by the global monitor;
+        // over an arrow cell the window takes it and the local one sees it.
+        // Neither consumes it, so Hearthstone still gets every wheel event.
+        globalScrollMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.scrollWheel]) { [weak self] event in
+            self?.scrollTracker(event)
+        }
+        localScrollMonitor = NSEvent.addLocalMonitorForEvents(matching: [.scrollWheel]) { [weak self] event in
+            self?.scrollTracker(event)
+            return event
+        }
         regionSubscription = viewModel.$interactiveRegions.sink { [weak self] _ in
             self?.updateMouseThrough()
         }
@@ -81,6 +101,31 @@ class RootOverlayWindow: OverWindowController {
         // ~150ms instead of the window getting stuck non-click-through.
         fallbackTimer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true) { [weak self] _ in
             self?.updateMouseThrough()
+        }
+    }
+
+    /// Only the side whose scroll viewport is under the cursor moves; locked or
+    /// not, as the panel reports its viewport either way.
+    private func scrollTracker(_ event: NSEvent) {
+        let deltaY = event.scrollingDeltaY
+        let precise = event.hasPreciseScrollingDeltas
+        guard deltaY != 0 else { return }
+        let scroll = { [weak self] in
+            guard let self, let window = self.window, let hostingView = self.hostingView else { return }
+            let windowPoint = window.convertPoint(fromScreen: NSEvent.mouseLocation)
+            let viewPoint = hostingView.convert(windowPoint, from: nil)
+            for tracker in [self.viewModel.playerTracker, self.viewModel.opponentTracker]
+            where self.viewModel.hoverRegions.contains(where: {
+                $0.id == tracker.zoneViewportHoverRegionID && $0.rect.contains(viewPoint)
+            }) {
+                tracker.scrollZonePanel(deltaY: deltaY, precise: precise)
+                return
+            }
+        }
+        if Thread.isMainThread {
+            scroll()
+        } else {
+            DispatchQueue.main.async(execute: scroll)
         }
     }
 

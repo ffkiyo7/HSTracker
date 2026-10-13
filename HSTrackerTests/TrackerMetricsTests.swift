@@ -95,27 +95,29 @@ class TrackerMetricsTests: HSTrackerTests {
         XCTAssertEqual(layout.barWidth, 171, accuracy: 0.5)
     }
 
-    /// PLAN 2.8 third cause: the row height was squeezed while the width stayed
-    /// put, flattening the bars. Width now follows height.
+    /// phase2-scroll-collapse A1: a list that does not fit keeps the base row
+    /// and the full panel width; it scrolls instead.
     func testCompressionKeepsTheAspect() {
         let layout = layout(cards: 40, availableHeight: 500)
-        XCTAssertLessThan(layout.cardHeight, 21)
-        XCTAssertLessThan(layout.barWidth, 171)
-        XCTAssertEqual(layout.barWidth / layout.cardHeight, TrackerMetrics.aspect,
-                       accuracy: accuracy)
+        XCTAssertEqual(layout.cardHeight, 21, accuracy: 0.1)
+        XCTAssertEqual(layout.barWidth, 171, accuracy: 0.5)
+        XCTAssertGreaterThan(layout.maxScroll, 0, "40 rows fit in 500pt; the test proves nothing")
     }
 
-    /// `Tracker.bottomY` is `availableHeight - contentHeight`; the rows have to
-    /// end inside the window for that to stay non-negative.
+    /// The header plus the viewport stay inside the box, and what is left over
+    /// is exactly how far the list scrolls.
     func testContentFitsTheAvailableHeight() {
         let available: CGFloat = 500
         let layout = layout(cards: 40, availableHeight: available)
-        XCTAssertLessThanOrEqual(layout.contentHeight, available)
-        XCTAssertGreaterThanOrEqual(available - layout.contentHeight, 0)
+        XCTAssertLessThanOrEqual(layout.headerHeight + layout.viewportHeight, available + accuracy)
+        XCTAssertLessThanOrEqual(layout.contentHeight, available + accuracy)
+        XCTAssertEqual(layout.maxScroll, layout.scrollContentHeight - layout.viewportHeight,
+                       accuracy: accuracy)
+        XCTAssertEqual(layout.scrollContentHeight, 40 * 21, accuracy: 1)
     }
 
-    /// Zone mode: three section headers plus their bottom padding have to be
-    /// inside the compression budget, or `bottomY` goes negative.
+    /// Zone mode: three section headers plus their bottom padding scroll with
+    /// the rows, and the viewport still ends inside the box.
     func testZoneSectionsStayInsideTheWindowWhenCompressed() {
         let available: CGFloat = 400
         let panelWidth: CGFloat = 171
@@ -138,10 +140,14 @@ class TrackerMetricsTests: HSTrackerTests {
                                    rowHeight: TrackerMetrics.rowHeight(panelWidth: panelWidth)),
                                reserveGraveyardRow: false)
         let layout = viewModel.layout
-        XCTAssertLessThan(layout.cardHeight, TrackerMetrics.rowHeight(panelWidth: panelWidth))
-        XCTAssertEqual(layout.barWidth / layout.cardHeight, TrackerMetrics.aspect,
+        let rowHeight = TrackerMetrics.rowHeight(panelWidth: panelWidth)
+        let chrome = TrackerMetrics.sectionHeaderHeight(rowHeight: rowHeight) + 5
+        XCTAssertEqual(layout.cardHeight, rowHeight, accuracy: accuracy)
+        XCTAssertEqual(layout.barWidth, panelWidth, accuracy: 0.5)
+        XCTAssertEqual(layout.scrollContentHeight, 60 * rowHeight + 3 * chrome, accuracy: accuracy)
+        XCTAssertLessThanOrEqual(layout.headerHeight + layout.viewportHeight, available + accuracy)
+        XCTAssertEqual(layout.maxScroll, layout.scrollContentHeight - layout.viewportHeight,
                        accuracy: accuracy)
-        XCTAssertLessThanOrEqual(layout.contentHeight, available + accuracy)
     }
 
     func testEmptyListHasNoContent() {
@@ -177,9 +183,8 @@ class TrackerMetricsTests: HSTrackerTests {
         XCTAssertGreaterThanOrEqual(TrackerMetrics.panelWidth - fixed, 80)
     }
 
-    /// V1 left the header's columns frozen to the uncompressed row height, so a
-    /// heavily compressed panel squeezed the deck name to nothing. The header
-    /// now gets the compressed bar width.
+    /// A panel that has to scroll keeps the header at the full panel width;
+    /// nothing narrows any more.
     func testCompressedPanelNarrowsTheHeaderColumns() {
         let viewModel = TrackerViewModel()
         let deck = (0..<40).map { index -> Card in
@@ -194,7 +199,8 @@ class TrackerMetricsTests: HSTrackerTests {
                                panelWidth: 171,
                                frameHeight: TrackerMetrics.sectionHeaderHeight(rowHeight: rowHeight),
                                reserveGraveyardRow: false)
-        XCTAssertLessThan(viewModel.layout.barWidth, 171)
+        XCTAssertGreaterThan(viewModel.layout.maxScroll, 0, "40 rows fit; the test proves nothing")
+        XCTAssertEqual(viewModel.header.barWidth, 171, accuracy: 0.5)
         XCTAssertEqual(viewModel.header.barWidth, viewModel.layout.barWidth, accuracy: accuracy)
     }
 
@@ -1534,76 +1540,74 @@ class TrackerMetricsTests: HSTrackerTests {
         return found.allSatisfy { abs($0.height - viewModel.layout.cardHeight) < 1 }
     }
 
-    /// Review 1. Under compression `cardHeight` is
-    /// `(availableHeight - offset) / totalCards`, so losing one row makes every
-    /// row taller. The rows may not animate through a grid change: the whole
-    /// refresh goes in one frame, both halves together.
+    /// A panel that has to scroll no longer has a grid that moves with the row
+    /// count: drawing one card is an ordinary single-card refresh and glides,
+    /// with every row on the base grid throughout.
     @MainActor
     func testACompressedPanelNeverFliesThroughAGridChange() {
         withFlattening(true) {
-            // 30 rows into 320pt: the grid is compressed well below 21pt.
+            // 30 rows into 320pt: far more than fits, so the block scrolls.
             let viewModel = zonePanel(deck: 30, availableHeight: 320)
-            XCTAssertLessThan(viewModel.layout.cardHeight, 21,
-                              "the panel is not compressed; the test proves nothing")
+            XCTAssertGreaterThan(viewModel.layout.maxScroll, 0,
+                                 "the panel fits; the test proves nothing")
+            XCTAssertEqual(viewModel.layout.cardHeight, 21, accuracy: 0.01)
             let (window, host) = hostedPanel(viewModel, height: 320)
             pump(host, 0.05)
-            XCTAssertTrue(gridIsWhole(host, viewModel))
+            // Rows clipped out of the viewport are not drawn, so this checks
+            // the grid of the ones that are rather than their count.
+            @MainActor func onGrid() -> Bool {
+                let found = displayedRows(in: host)
+                return !found.isEmpty && found.allSatisfy { abs($0.height - 21) < 1 }
+            }
+            XCTAssertTrue(onGrid())
             let before = viewModel.motionGeneration
-            let grid = viewModel.layout.cardHeight
 
             // one card drawn
             feed(viewModel, deck: 29, availableHeight: 320)
-            XCTAssertGreaterThan(viewModel.layout.cardHeight, grid,
-                                 "losing a row has to move the compressed grid")
-            XCTAssertEqual(viewModel.motionGeneration, before,
-                           "a refresh that moves the grid may not animate")
+            XCTAssertEqual(viewModel.layout.cardHeight, 21, accuracy: 0.01,
+                           "losing a row may not move the grid any more")
+            XCTAssertEqual(viewModel.motionGeneration, before + 1,
+                           "a single-card refresh on a scrolling panel animates as usual")
             for _ in 0..<6 {
                 pump(host, TrackerMotion.duration / 5)
-                XCTAssertTrue(gridIsWhole(host, viewModel),
-                              "a row was in flight while the grid jumped: "
-                                + "\(displayedRows(in: host).map(\.height)) "
-                                + "vs \(viewModel.layout.cardHeight)")
+                XCTAssertTrue(displayedRows(in: host).allSatisfy { $0.height <= 21 + 1 },
+                              "a row grew past the grid: \(displayedRows(in: host).map(\.height))")
             }
-
-            // and the other way: a card shuffled back in
-            feed(viewModel, deck: 30, availableHeight: 320)
-            XCTAssertEqual(viewModel.motionGeneration, before)
-            for _ in 0..<6 {
-                pump(host, TrackerMotion.duration / 5)
-                XCTAssertTrue(gridIsWhole(host, viewModel),
-                              "the insert flew through a grid change")
-            }
+            pump(host, TrackerMotion.duration + 0.2)
+            XCTAssertTrue(onGrid())
             drain(window, host)
         }
     }
 
-    /// The refresh that crosses the threshold: uncompressed before, compressed
-    /// after. It moves the grid too, so it is one frame as well.
+    /// The refresh that crosses from fitting to scrolling: the grid holds still
+    /// and no row lands anywhere but on it.
     @MainActor
     func testTheRefreshThatCrossesTheCompressionThresholdIsOneFrame() {
         withFlattening(true) {
-            // The exact height at which 12 rows fit on the base grid, read off
-            // the layout itself rather than guessed: one more row then has to
-            // compress, by construction.
+            // The exact height at which 12 rows fit, read off the layout itself
+            // rather than guessed: one more row then has to scroll, by
+            // construction.
             let probe = zonePanel(deck: 12, availableHeight: 10_000)
             let exactFit = probe.layout.contentHeight
             let viewModel = zonePanel(deck: 12, availableHeight: exactFit)
-            XCTAssertEqual(viewModel.layout.cardHeight, 21, accuracy: 0.01,
-                           "the panel starts compressed; the probe is wrong")
+            XCTAssertEqual(viewModel.layout.maxScroll, 0, "the panel starts scrolling; the probe is wrong")
             let (window, host) = hostedPanel(viewModel, height: exactFit)
             pump(host, 0.05)
-            let before = viewModel.motionGeneration
 
             feed(viewModel, deck: 13, availableHeight: exactFit)
-            XCTAssertLessThan(viewModel.layout.cardHeight, 21,
-                              "13 rows still fit; the threshold was not crossed")
-            XCTAssertEqual(viewModel.motionGeneration, before,
-                           "the refresh that starts compressing may not animate")
+            XCTAssertGreaterThan(viewModel.layout.maxScroll, 0,
+                                 "13 rows still fit; the threshold was not crossed")
+            XCTAssertEqual(viewModel.layout.cardHeight, 21, accuracy: 0.01,
+                           "crossing the threshold may not move the grid")
+            XCTAssertEqual(viewModel.scrollOffset, 0)
             for _ in 0..<6 {
                 pump(host, TrackerMotion.duration / 5)
-                XCTAssertTrue(gridIsWhole(host, viewModel),
-                              "a row flew across the compression threshold")
+                XCTAssertTrue(displayedRows(in: host).allSatisfy { $0.height <= 21 + 1 },
+                              "a row left the grid across the threshold: "
+                                + "\(displayedRows(in: host).map(\.height))")
             }
+            pump(host, TrackerMotion.duration + 0.2)
+            XCTAssertTrue(gridIsWhole(host, viewModel))
             drain(window, host)
         }
     }
@@ -1643,6 +1647,249 @@ class TrackerMetricsTests: HSTrackerTests {
             XCTAssertTrue(gridIsWhole(host, viewModel))
             drain(window, host)
         }
+    }
+
+    // MARK: - phase2-scroll-collapse
+
+    /// A3: the position survives refreshes, is clamped back when the content
+    /// shrinks or the box grows, and a new game starts at the top.
+    @MainActor
+    func testTheScrollPositionIsClampedAndReset() {
+        let viewModel = zonePanel(deck: 30, availableHeight: 320)
+        let max30 = viewModel.layout.maxScroll
+        XCTAssertGreaterThan(max30, 21 * 3, "the panel barely scrolls; the test proves nothing")
+
+        viewModel.scroll(by: 42)
+        XCTAssertEqual(viewModel.scrollOffset, 42, accuracy: accuracy)
+        feed(viewModel, deck: 30, availableHeight: 320)
+        XCTAssertEqual(viewModel.scrollOffset, 42, accuracy: accuracy, "a refresh moved the position")
+
+        viewModel.scroll(by: 10_000)
+        XCTAssertEqual(viewModel.scrollOffset, max30, accuracy: accuracy)
+        viewModel.scroll(by: -10_000)
+        XCTAssertEqual(viewModel.scrollOffset, 0, accuracy: accuracy)
+
+        // At the bottom, one card drawn: the position is clamped with the
+        // refresh, which then may not animate (A7).
+        viewModel.scroll(by: 10_000)
+        let before = viewModel.motionGeneration
+        feed(viewModel, deck: 29, availableHeight: 320)
+        XCTAssertEqual(viewModel.layout.maxScroll, max30 - 21, accuracy: 0.5)
+        XCTAssertEqual(viewModel.scrollOffset, viewModel.layout.maxScroll, accuracy: accuracy)
+        XCTAssertEqual(viewModel.motionGeneration, before,
+                       "a refresh that clamps the position glided its rows")
+
+        // A taller box: less to scroll, clamped again.
+        feed(viewModel, deck: 29, availableHeight: 500)
+        XCTAssertEqual(viewModel.scrollOffset, viewModel.layout.maxScroll, accuracy: accuracy)
+        feed(viewModel, deck: 29, availableHeight: 10_000)
+        XCTAssertEqual(viewModel.layout.maxScroll, 0)
+        XCTAssertEqual(viewModel.scrollOffset, 0)
+
+        // A new game.
+        feed(viewModel, deck: 30, availableHeight: 320)
+        viewModel.scroll(by: 63)
+        viewModel.resetScroll()
+        XCTAssertEqual(viewModel.scrollOffset, 63, accuracy: accuracy,
+                       "the reset lands with the next layout, not before it")
+        feed(viewModel, deck: 30, availableHeight: 320)
+        XCTAssertEqual(viewModel.scrollOffset, 0)
+    }
+
+    /// A list that fits is laid out exactly as before the viewport existed.
+    func testAListThatFitsDoesNotScroll() {
+        let layout = layout(cards: 10, availableHeight: 900)
+        XCTAssertEqual(layout.maxScroll, 0)
+        XCTAssertEqual(layout.viewportHeight, layout.scrollContentHeight, accuracy: accuracy)
+        XCTAssertEqual(layout.viewportHeight, 10 * 21, accuracy: 1)
+    }
+
+    /// Lenses below the block leave it less than three rows: the viewport keeps
+    /// three, and the panel runs past its box rather than vanish.
+    func testTheViewportKeepsThreeRows() {
+        let viewModel = TrackerViewModel()
+        viewModel.update(cards: rowCards(30), top: [], bottom: [], relatedCards: [], groups: nil)
+        viewModel.updateLayout(availableHeight: 300, panelWidth: 171,
+                               frameHeight: TrackerMetrics.sectionHeaderHeight(rowHeight: 21),
+                               reserveGraveyardRow: false, extraFixedHeight: 40, extraCards: 12)
+        XCTAssertEqual(viewModel.layout.viewportHeight, 3 * viewModel.layout.cardHeight, accuracy: accuracy)
+        XCTAssertGreaterThan(viewModel.layout.maxScroll, 0)
+    }
+
+    /// B1 / B5 / B6: a collapsed section is its header alone, the toggle does
+    /// not glide, and the rows it hides stop counting towards the scroll.
+    @MainActor
+    func testACollapsedSectionIsItsHeader() {
+        withCollapsedSections {
+            let viewModel = TrackerViewModel()
+            let frame = TrackerMetrics.sectionHeaderHeight(rowHeight: 21)
+            let groups = CardZoneGroups(deck: rowCards(10), hand: rowCards(3), played: rowCards(5))
+            func relayout() {
+                viewModel.updateLayout(availableHeight: 1000, panelWidth: 171,
+                                       frameHeight: frame, reserveGraveyardRow: false)
+            }
+            viewModel.update(cards: [], top: [], bottom: [], relatedCards: [], groups: groups)
+            relayout()
+            let open = viewModel.layout
+            let generation = viewModel.motionGeneration
+
+            viewModel.toggleCollapsed(viewModel.played)
+            relayout()
+            XCTAssertTrue(viewModel.played.isCollapsed)
+            XCTAssertEqual(viewModel.layout.playedHeight, frame, accuracy: accuracy)
+            XCTAssertEqual(viewModel.layout.scrollContentHeight,
+                           open.scrollContentHeight - (5 * 21 + 5), accuracy: 0.5)
+            XCTAssertEqual(viewModel.motionGeneration, generation, "collapsing glided")
+            XCTAssertEqual(Settings.playerTrackerCollapsedSections, ["played"])
+
+            // Stored per side and read back by a fresh panel.
+            let fresh = TrackerViewModel(playerType: .player)
+            XCTAssertTrue(fresh.played.isCollapsed)
+            XCTAssertFalse(fresh.deck.isCollapsed)
+            XCTAssertFalse(TrackerViewModel(playerType: .opponent).played.isCollapsed)
+
+            viewModel.toggleCollapsed(viewModel.played)
+            relayout()
+            XCTAssertEqual(viewModel.layout, open)
+            XCTAssertEqual(viewModel.motionGeneration, generation, "expanding glided")
+            XCTAssertEqual(Settings.playerTrackerCollapsedSections, [])
+        }
+    }
+
+    /// Collapsing at the bottom of a scrolled list clamps the position back.
+    @MainActor
+    func testCollapsingClampsTheScrollPosition() {
+        withCollapsedSections {
+            let viewModel = TrackerViewModel()
+            let frame = TrackerMetrics.sectionHeaderHeight(rowHeight: 21)
+            let groups = CardZoneGroups(deck: rowCards(20), hand: rowCards(5), played: rowCards(15))
+            func relayout() {
+                viewModel.updateLayout(availableHeight: 400, panelWidth: 171,
+                                       frameHeight: frame, reserveGraveyardRow: false)
+            }
+            viewModel.update(cards: [], top: [], bottom: [], relatedCards: [], groups: groups)
+            relayout()
+            viewModel.scroll(by: 10_000)
+            XCTAssertGreaterThan(viewModel.scrollOffset, 0)
+            viewModel.toggleCollapsed(viewModel.deck)
+            relayout()
+            XCTAssertEqual(viewModel.scrollOffset, viewModel.layout.maxScroll, accuracy: accuracy)
+            viewModel.toggleCollapsed(viewModel.deck)
+        }
+    }
+
+    /// A6: rows scrolled out of the viewport report no hover, the one cut by
+    /// its edge reports only what is showing, and the rects follow the scroll.
+    @MainActor
+    func testTheHoverRectsFollowTheScrollAndStayInTheViewport() {
+        withFlattening(true) {
+            let viewModel = zonePanel(deck: 30, availableHeight: 320)
+            let viewport = viewModel.layout.viewportHeight
+            let (window, host) = hostedPanel(viewModel, height: 320)
+            pump(host, 0.05)
+
+            func rows() -> [TrackerRowHover] { hoverRows(in: host).filter { $0.kind == .playerDeck } }
+            func span(_ rows: [TrackerRowHover]) -> (CGFloat, CGFloat) {
+                (rows.map(\.rect.minY).min() ?? 0, rows.map(\.rect.maxY).max() ?? 0)
+            }
+            func rect(of id: String) -> CGRect? { rows().first { $0.card.id == id }?.rect }
+
+            let top = rows()
+            XCTAssertLessThan(top.count, 30, "rows out of the viewport still report a hover")
+            XCTAssertGreaterThan(top.count, 0)
+            let (minY, maxY) = span(top)
+            XCTAssertLessThanOrEqual(maxY - minY, viewport + 0.5, "a hover rect leaves the viewport")
+            XCTAssertTrue(top.allSatisfy { $0.rect.height <= 21 + accuracy })
+            let tenth = rect(of: "PERF_10")
+            XCTAssertNotNil(tenth)
+
+            viewModel.scroll(by: 5 * 21)
+            pump(host, 0.05)
+            let scrolled = rows()
+            XCTAssertNil(scrolled.first { $0.card.id == "PERF_0" }, "a row scrolled above still answers")
+            // At the top the deck's section header sits above the first row;
+            // scrolled, a row is cut by the viewport's top edge itself.
+            let viewportTop = minY - TrackerMetrics.sectionHeaderHeight(rowHeight: 21)
+            let (minY2, maxY2) = span(scrolled)
+            XCTAssertEqual(minY2, viewportTop, accuracy: 0.5, "the cut row is not clipped to the viewport")
+            XCTAssertLessThanOrEqual(maxY2, viewportTop + viewport + 0.5)
+            XCTAssertTrue(scrolled.contains { $0.rect.height < 21 - 0.5 }, "no row was cut by the edge")
+            if let tenth, let moved = rect(of: "PERF_10") {
+                XCTAssertEqual(moved.minY, tenth.minY - 5 * 21, accuracy: 0.5,
+                               "the hover rect did not follow the scroll")
+            } else {
+                XCTFail("row 10 should still be in view")
+            }
+            drain(window, host)
+        }
+    }
+
+    /// B3: the arrow cell claims clicks on a locked overlay only, and not while
+    /// its header is scrolled out of the viewport.
+    @MainActor
+    func testTheArrowClaimsClicksOnlyWhenLockedAndInView() {
+        withFlattening(true) {
+            let viewModel = zonePanel(deck: 30, availableHeight: 320)
+            func host(locked: Bool) -> (NSWindow, NSView, ClickProbe) {
+                let probe = ClickProbe()
+                let view = TrackerView(viewModel: viewModel,
+                                       topTitle: "On Top", bottomTitle: "On Bottom", relatedTitle: "Related",
+                                       deckTitle: "Deck", handTitle: "Hand", playedTitle: "Played",
+                                       onToggleSection: { _ in })
+                    .environment(\.trackerSectionsCollapsible, locked)
+                    .onPreferenceChange(InteractiveRegionPreferenceKey.self) { probe.regions = $0 }
+                let host = NSHostingView(rootView: view)
+                host.frame = NSRect(x: 0, y: 0, width: 171, height: 320)
+                let window = NSWindow(contentRect: host.frame, styleMask: [.borderless],
+                                      backing: .buffered, defer: false)
+                window.contentView = host
+                host.layoutSubtreeIfNeeded()
+                host.displayIfNeeded()
+                return (window, host, probe)
+            }
+
+            let (window, locked, probe) = host(locked: true)
+            pump(locked, 0.05)
+            XCTAssertEqual(probe.regions.count, 1, "one section header, one arrow cell")
+            let side = TrackerBarStyle.sectionSideColumn
+                * TrackerMetrics.sectionHeaderHeight(rowHeight: 21) / TrackerBarStyle.sectionRowHeight
+            XCTAssertEqual(probe.regions.first?.width ?? 0, side, accuracy: 0.5)
+
+            viewModel.scroll(by: 5 * 21)
+            pump(locked, 0.05)
+            XCTAssertTrue(probe.regions.isEmpty, "a header scrolled out of view still claims clicks")
+            viewModel.scroll(by: -10_000)
+            pump(locked, 0.05)
+            XCTAssertEqual(probe.regions.count, 1)
+            drain(window, locked)
+
+            let (window2, unlocked, probe2) = host(locked: false)
+            pump(unlocked, 0.05)
+            XCTAssertTrue(probe2.regions.isEmpty, "an unlocked overlay's arrow claims clicks")
+            drain(window2, unlocked)
+        }
+    }
+
+    private final class ClickProbe {
+        var regions: [CGRect] = []
+    }
+
+    /// Runs `body` with both sides' collapsed sections emptied, then puts back
+    /// what the user's own domain held.
+    private func withCollapsedSections(_ body: () -> Void) {
+        let keys = [Settings.player_tracker_collapsed_sections, Settings.opponent_tracker_collapsed_sections]
+        let previous = keys.map { UserDefaults.standard.object(forKey: $0) }
+        keys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
+        defer {
+            for (key, value) in zip(keys, previous) {
+                if let value {
+                    UserDefaults.standard.set(value, forKey: key)
+                } else {
+                    UserDefaults.standard.removeObject(forKey: key)
+                }
+            }
+        }
+        body()
     }
 
     /// The hit area is the one part that may not keep the row's full height
@@ -1717,8 +1964,8 @@ class TrackerMetricsTests: HSTrackerTests {
                                                          cardSize: Settings.cardSize),
                                accuracy: accuracy)
                 XCTAssertEqual(layout.boxHeight, canvas.height * 0.4, accuracy: accuracy)
-                XCTAssertLessThan(layout.cardHeight, TrackerMetrics.rowHeight(panelWidth: layout.width),
-                                  "30 rows in 432pt have to compress; the test proves nothing")
+                XCTAssertGreaterThan(panel.zonePanel.layout.maxScroll, 0,
+                                     "30 rows in 432pt have to scroll; the test proves nothing")
                 XCTAssertEqual(layout.cardHeight, panel.zonePanel.layout.cardHeight, accuracy: accuracy)
                 let content = layout.sections.reduce(0) { $0 + $1.height }
                 XCTAssertLessThanOrEqual(content, layout.boxHeight + 0.5, "the stack spills out of its box")

@@ -11,6 +11,7 @@ import SwiftUI
 struct TrackerSectionView: View {
     @ObservedObject var viewModel: TrackerCardListViewModel
     let title: String
+    var onToggle: (() -> Void)?
 
     /// Copies, not rows: the sheet's "(12)" counts the same way a card row's
     /// count box does, so a two-of contributes 2. The played section carries
@@ -27,9 +28,13 @@ struct TrackerSectionView: View {
             VStack(spacing: 0) {
                 TrackerSectionHeaderView(title: title,
                                          copies: copies,
-                                         height: viewModel.sectionHeaderHeight)
-                TrackerCardListView(viewModel: viewModel)
-                Color.clear.frame(height: 5)
+                                         height: viewModel.sectionHeaderHeight,
+                                         isCollapsed: viewModel.isCollapsed,
+                                         onToggle: onToggle)
+                if !viewModel.isCollapsed {
+                    TrackerCardListView(viewModel: viewModel)
+                    Color.clear.frame(height: 5)
+                }
             }
             .frame(maxWidth: .infinity,
                    maxHeight: .infinity,
@@ -48,12 +53,16 @@ struct TrackerSectionView: View {
 
 /// `.sec` of the D3 sheet: a gold rule on top, the section name centred in the
 /// theme face with the copy count in Belwe beside it, and a collapse chevron in
-/// a square column on the trailing edge. The chevron is drawn only — the
-/// collapse gesture is a later slice.
+/// a square column on the trailing edge: ˅ open, › collapsed.
 private struct TrackerSectionHeaderView: View {
     let title: String
     let copies: Int
     let height: CGFloat
+    let isCollapsed: Bool
+    let onToggle: (() -> Void)?
+
+    @Environment(\.trackerSectionsCollapsible) private var collapsible
+    @Environment(\.trackerViewportHeight) private var viewportHeight
 
     /// One reference pixel: the section header is 22 of them tall.
     private var u: CGFloat { height / TrackerBarStyle.sectionRowHeight }
@@ -78,10 +87,16 @@ private struct TrackerSectionHeaderView: View {
                 .stroke(TrackerBarStyle.gold,
                         style: StrokeStyle(lineWidth: max(TrackerBarStyle.chevronStroke * u, 1)))
                 .frame(width: chevron, height: chevron)
-                .rotationEffect(.degrees(45))
-                .offset(y: -chevron / 4)
+                .rotationEffect(.degrees(isCollapsed ? -45 : 45))
+                .offset(x: isCollapsed ? -chevron / 4 : 0, y: isCollapsed ? 0 : -chevron / 4)
                 .opacity(TrackerBarStyle.chevronOpacity)
-                .frame(width: side)
+                .frame(width: side, height: height)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    guard collapsible else { return }
+                    onToggle?()
+                }
+                .background(clickRegion)
         }
         .frame(maxWidth: .infinity,
                minHeight: height,
@@ -90,6 +105,21 @@ private struct TrackerSectionHeaderView: View {
             Rectangle()
                 .fill(TrackerBarStyle.line)
                 .frame(height: max(TrackerBarStyle.hairline * u, 0.5))
+        }
+    }
+
+    /// B3: the arrow cell claims clicks for itself alone; the rest of the panel
+    /// stays click-through. Reported on a locked overlay only (unlocked, the
+    /// panel's drag box covers it) and only for the part inside the viewport.
+    private var clickRegion: some View {
+        GeometryReader { proxy in
+            let rect = collapsible && onToggle != nil
+                ? TrackerViewport.visible(canvas: proxy.frame(in: .rootOverlayCanvas),
+                                          local: proxy.frame(in: .named(TrackerViewport.space)),
+                                          viewportHeight: viewportHeight)
+                : nil
+            Color.clear.preference(key: InteractiveRegionPreferenceKey.self,
+                                   value: rect.map { [$0] } ?? [])
         }
     }
 }

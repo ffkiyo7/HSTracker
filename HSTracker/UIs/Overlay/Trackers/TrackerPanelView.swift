@@ -49,7 +49,9 @@ struct TrackerPanelView: View {
             }
         }
         .frame(width: canvasSize.width, height: canvasSize.height, alignment: .topLeading)
-        .preference(key: InteractiveRegionPreferenceKey.self, value: interactiveRegions)
+        // Fork: appended rather than set, so the zone panel's arrow cells,
+        // which report their own clicks from inside the panel, are kept.
+        .transformPreference(InteractiveRegionPreferenceKey.self) { $0.append(contentsOf: interactiveRegions) }
         .preference(key: HoverRegionPreferenceKey.self, value: hoverRegions)
     }
 
@@ -82,6 +84,17 @@ struct TrackerPanelView: View {
                                                     y: originY + counter.y * scale,
                                                     width: width,
                                                     height: counter.height * scale)))
+        }
+        // Fork: the zone block's scroll viewport, for the scroll wheel - under
+        // the pinned header, only while there is something to scroll.
+        let zone = viewModel.zonePanel.layout
+        if layout.isZonePanel, zone.maxScroll > 0,
+           let block = layout.offset(of: .zone, centered: viewModel.isCentered) {
+            regions.append(HoverRegion(id: viewModel.zoneViewportHoverRegionID,
+                                       rect: CGRect(x: originX,
+                                                    y: originY + (block.y + zone.headerHeight) * scale,
+                                                    width: width,
+                                                    height: zone.viewportHeight * scale)))
         }
         return regions
     }
@@ -129,6 +142,7 @@ struct TrackerPanelView: View {
                 // Fork: TrackerPanelZone.swift.
                 TrackerZonePanelStack(viewModel: viewModel, zone: viewModel.zonePanel, layout: layout,
                                       canvasSize: canvasSize, hoverHandler: hoverHandler)
+                    .environment(\.trackerSectionsCollapsible, isLocked)
             } else {
                 VStack(spacing: 0) {
                     ForEach(layout.sections, id: \.kind) { section in
