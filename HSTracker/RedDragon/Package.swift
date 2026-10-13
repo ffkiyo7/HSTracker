@@ -29,6 +29,7 @@ let package = Package(
                 "RedDragonEngine.swift",
                 "RedDragonGameSnapshot.swift",
                 "RedDragonHint.swift",
+                "RedDragonIceBreak.swift",
                 "RedDragonReader.swift",
                 "RedDragonReplay.swift",
                 "RedDragonSearch.swift",

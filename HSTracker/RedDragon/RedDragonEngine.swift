@@ -243,6 +243,7 @@ enum RDEngine {
             s.hand[i].card = spell
             s.hand[i].pool = []
             s.hand[i].enchants = []
+            s.hand[i].costThisTurnOnly = false
             s.hand[i].statsOverride = nil
             s.hand[i].printedCostOverride = nil
             s.hand[i].poolFromSideboard = false
@@ -314,6 +315,7 @@ enum RDEngine {
             }
             return state.opponent.board.contains { $0.entityId == id && canTarget($0, with: def) }
         case .enemyHero:
+            guard !state.opponent.heroUntargetable else { return false }
             return scope == .anyCharacter || scope == .enemyCharacter || scope == .enemyCharacterOrOwnHero
         case .friendlyHero:
             return scope == .enemyCharacterOrOwnHero
@@ -324,13 +326,17 @@ enum RDEngine {
 
     static func hasLegalTarget(_ def: RDCardDef, state: RDState) -> Bool {
         if def.targetMustBeUndamaged { return !legalTargets(for: def, state: state).isEmpty }
+        let enemyMinion = { state.opponent.board.contains { canTarget($0, with: def) } }
         switch def.targetScope {
         case .none: return false
         case .friendlyMinion: return !state.board.isEmpty
-        case .enemyMinion: return state.opponent.board.contains { canTarget($0, with: def) }
+        case .enemyMinion: return enemyMinion()
         case .anyMinion:
-            return !state.board.isEmpty || state.opponent.board.contains { canTarget($0, with: def) }
-        case .anyCharacter, .enemyCharacter, .enemyCharacterOrOwnHero: return true
+            return !state.board.isEmpty || enemyMinion()
+        // 我方英雄总指得到；敌方英雄在破冰后（免疫）指不到
+        case .enemyCharacterOrOwnHero: return true
+        case .anyCharacter: return !state.opponent.heroUntargetable || !state.board.isEmpty || enemyMinion()
+        case .enemyCharacter: return !state.opponent.heroUntargetable || enemyMinion()
         }
     }
 
@@ -351,14 +357,15 @@ enum RDEngine {
         case .anyCharacter:
             appendFriendlyTargets(state, into: &out)
             appendEnemyTargets(state, def: def, into: &out)
-            out.append(.enemyHero)
+            if !state.opponent.heroUntargetable { out.append(.enemyHero) }
         case .enemyCharacter:
             appendEnemyTargets(state, def: def, into: &out)
-            out.append(.enemyHero)
+            if !state.opponent.heroUntargetable { out.append(.enemyHero) }
         case .enemyCharacterOrOwnHero:
             appendEnemyTargets(state, def: def, into: &out)
-            out.append(.enemyHero)
-            if healFriendly { out.append(.friendlyHero) }
+            // 破冰后敌方英雄指不到，阿莱要下场就得另选目标：我方英雄总在（回 8，对这条线没有别的影响）
+            if !state.opponent.heroUntargetable { out.append(.enemyHero) }
+            if healFriendly || state.opponent.heroUntargetable { out.append(.friendlyHero) }
         }
         if def.targetMustBeUndamaged {
             out = out.filter { isUndamaged($0, state: state) }
@@ -449,7 +456,7 @@ enum RDEngine {
             let minions = s.boardIndicesByPlayOrder().map { s.board[$0] }
             s.board = []
             for minion in minions {
-                returnToHand(minion, extraEnchant: .set(setCost), state: &s)
+                returnToHand(minion, extraEnchant: .set(setCost), thisTurnOnly: true, state: &s)
             }
 
         case .copyTargetToHand(let setCost, let attack, let health):
@@ -578,8 +585,9 @@ enum RDEngine {
         return out
     }
 
+    /// `thisTurnOnly`：弹回带的那个附魔只在本回合有效（舞动）；暗影步的 −2 是永久的
     private static func returnToHand(_ minion: RDBoardMinion, extraEnchant: RDEnchant,
-                                     state s: inout RDState) {
+                                     thisTurnOnly: Bool = false, state s: inout RDState) {
         // 手牌满 → 弹回的随从被销毁（格子腾了，牌没了）
         guard s.handSlotsFree > 0 else { return }
         let eid = s.takeEntityId()
@@ -587,9 +595,10 @@ enum RDEngine {
         // - 1/1 复制体（暗影施法者 `OG_291e` / 幻觉药水 `SCH_352e2`）的复制附魔回手时被清掉（10-05 日志：施法者复制的
         //   阿莱被暗影步弹回 COST 9 → 7、ATK 8；被舞动弹回的刀油 ATK 3、COST 4 → 1）；
         // - 舞动的「本回合费用为 1」打出时就没了（见 `play`），「先舞后步 = 0」作废（10-05 用户定）
-        appendThisTurn(&s, RDHandCard(entityId: eid, card: minion.card,
-                                 enchants: [extraEnchant],
-                                 isShadowOfDemise: false))
+        var card = RDHandCard(entityId: eid, card: minion.card, enchants: [extraEnchant],
+                              isShadowOfDemise: false)
+        card.costThisTurnOnly = thisTurnOnly
+        appendThisTurn(&s, card)
     }
 
     private static func silence(_ minion: inout RDBoardMinion) {
@@ -619,6 +628,14 @@ enum RDEngine {
             return false
         case .enemyHero:
             guard !s.opponent.immune else { return false }
+            // 寒冰屏障（破冰模式，T8）：这一下致命（≥ 血量 + 护甲）就整个不生效，对方本回合免疫、奥秘少一个，
+            // 血量和护甲停在这一下之前。按每一次伤害单独判：鲨鱼下阿莱的两次 8 是两次，前一次不致命照常扣
+            if s.opponent.ice == .armed, amount >= s.opponent.effectiveHealth {
+                s.opponent.ice = .broken
+                s.opponent.immune = true
+                s.opponent.secretCount = max(0, s.opponent.secretCount - 1)
+                return false
+            }
             s.damageDealt += amount
             let toArmor = min(s.opponent.armor, amount)
             s.opponent.armor -= toArmor
@@ -702,6 +719,7 @@ enum RDEngine {
 
         switch defender {
         case .enemyHero:
+            guard !s.opponent.heroUntargetable else { throw RDIllegal.illegalTarget }
             dealDamage(attackPower, to: .enemyHero, state: &s)
         case .enemyMinion(let id):
             guard let i = s.opponent.board.firstIndex(where: { $0.entityId == id }) else {
@@ -791,6 +809,8 @@ enum RDEngine {
                 // 殒命暗影变成的 X 与真的 X 不是同一张（打出后前者没了，后者留着还能镜像下一张法术）
                 hasher.combine(card.isShadowOfDemise)
                 if RDCards.hasQuickdraw(identity) { hasher.combine(card.enteredHandThisTurn) }
+                // 破冰模式下终局要当下回合起手：同费的两张里先打「只在本回合便宜」的那张，和先打永久便宜的不等价
+                if card.costThisTurnOnly && state.opponent.ice != nil { hasher.combine(-1) }
                 let key = hasher.finalize()
                 if seenCardKeys.contains(key) { continue }
                 seenCardKeys.append(key)
@@ -825,9 +845,8 @@ enum RDEngine {
             out.append(.heroPower)
         }
 
-        let defenders: [RDTarget] = state.opponent.board.isEmpty
-            ? [.enemyHero]
-            : state.opponent.board.filter { !$0.immune }.map { .enemyMinion($0.entityId) } + [.enemyHero]
+        var defenders: [RDTarget] = state.opponent.board.filter { !$0.immune }.map { .enemyMinion($0.entityId) }
+        if !state.opponent.heroUntargetable { defenders.append(.enemyHero) }
         for m in state.board where !m.summoningSick && m.attack > 0 && m.attacksThisTurn < 1 {
             for d in defenders {
                 out.append(.attack(attacker: .friendlyMinion(m.entityId), defender: d))

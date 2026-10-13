@@ -135,5 +135,7 @@ extension RDGameSnapshot {
     static let copyStatEnchantments: Set<String> = ["SCH_352e", "OG_291e"]
     /// 「费用变为 (1)」的附魔：幻觉药水复制品、暗影施法者复制品（同一个附魔管身材和费用）、舞动全场
     static let setCostToOneEnchantments: Set<String> = ["SCH_352e2", "OG_291e", "ETC_079e"]
+    /// 其中只在本回合有效的：舞动全场。回合结束时附魔自己移除，费用回到印刷费（`RDHandCard.costThisTurnOnly`）
+    static let oneTurnCostEnchantments: Set<String> = ["ETC_079e"]
     static let shadowOfDemisePrefix = "RLK_567e"
 }

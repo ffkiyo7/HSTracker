@@ -58,6 +58,15 @@ enum RDContinuation {
         var stepsTaken: Int
         /// `line` 是从这个局面重放校验的：真实局面，只是新编号的起点换成了推演局面的
         var root: RDState
+        /// 推演局面的编号 → `root` 里的编号（`idMap` 之外、从 `generatedFrom` 起的是引擎新造的，整体加 `idShift`）。
+        /// 破冰的下回合线（接在这条线的终局后面，T8）要用同一份对应换编号
+        var idMap: [Int: Int] = [:]
+        var generatedFrom = Int.max
+        var idShift = 0
+
+        func translate(_ a: RDAction) -> RDAction {
+            return RDContinuation.translate(a, idMap, generatedFrom: generatedFrom, shift: idShift)
+        }
     }
 
     /// 一组候选线（各带自己的根局面）都试着接到同一个真实局面上，通过的线共用一个根局面（新编号起点取各自
@@ -85,14 +94,17 @@ enum RDContinuation {
 
     /// `startId`：真实局面新编号的起点，nil = 用推演局面的。比推演局面的大时，线里引擎新造的编号整体后移。
     /// `goal`：斩杀线要重放到对手死、且剩下的不靠抽牌；回血线要重放到回满 16、且不靠随机抽牌，
-    /// 并且允许「全部走完」（剩下 0 步）
+    /// 并且允许「全部走完」（剩下 0 步）。
+    /// `iceBreak`（T8，`goal` 不看）：破冰线，`root` / `real` 都标着冰（`RDIceBreak.armed`）；剩下的要重放到冰已打掉、
+    /// 不靠随机抽牌，允许全部走完，也允许线本身就是 0 步（进来时冰已破、什么都不用打）
     static func resume(_ line: RedDragonLine, from root: RDState, onto real: RDState,
-                       startId: Int? = nil, goal: RDFormula.Goal = .lethal, tolerant: Bool = false) -> Resumed? {
-        guard !line.truncated, !line.actions.isEmpty else { return nil }
+                       startId: Int? = nil, goal: RDFormula.Goal = .lethal, tolerant: Bool = false,
+                       iceBreak: Bool = false) -> Resumed? {
+        guard !line.truncated, iceBreak || !line.actions.isEmpty else { return nil }
         // 变体：公式写的是同一张牌、当前费用也一样的另一张手牌（两张 1 费刀），用户打哪张都算照着打。
         // 换牌后线里后面提到这两张的地方对调。只在头几步分叉（每打一张牌就来一份局面），总数封顶
         var variants: [(predicted: RDState, actions: [RDAction])] = [(root, line.actions)]
-        let upper = goal == .lethal ? line.actions.count - 1 : line.actions.count
+        let upper = goal == .lethal && !iceBreak ? line.actions.count - 1 : line.actions.count
         for k in 0...upper {
             if k > 0 {
                 var stepped: [(predicted: RDState, actions: [RDAction])] = []
@@ -141,16 +153,21 @@ enum RDContinuation {
             start.healedRaw = predicted.healedRaw
             let rest = actions[k...].map { translate($0, map, generatedFrom: base, shift: next - base) }
             guard let outcome = try? RDReplay.run(rest, from: start) else { return nil }
-            switch goal {
-            case .lethal:
-                guard outcome.finalState.opponent.health <= 0,
-                      !RDLineWalker.dependsOnDraw(rest, root: start) else { return nil }
-            case .heal16, .preLaunch:
-                guard outcome.finalState.healedRaw >= RDSetup.healTarget || goal == .preLaunch,
-                      rest.allSatisfy({ $0.choices.allSatisfy { c in
-                          if case .pick(let card) = c { return RDCards.sideboardCards.contains(card) }
-                          return true
-                      } }) else { return nil }
+            let noRandomDraws = rest.allSatisfy({ $0.choices.allSatisfy { c in
+                if case .pick(let card) = c { return RDCards.sideboardCards.contains(card) }
+                return true
+            } })
+            if iceBreak {
+                guard outcome.finalState.opponent.ice == .broken, noRandomDraws else { return nil }
+            } else {
+                switch goal {
+                case .lethal:
+                    guard outcome.finalState.opponent.health <= 0,
+                          !RDLineWalker.dependsOnDraw(rest, root: start) else { return nil }
+                case .heal16, .preLaunch:
+                    guard outcome.finalState.healedRaw >= RDSetup.healTarget || goal == .preLaunch,
+                          noRandomDraws else { return nil }
+                }
             }
             let taken = start.sideboard.count - outcome.finalState.sideboard.count
             let comps = RDDifficulty.components(for: rest, sideboardCardsTaken: taken)
@@ -159,7 +176,8 @@ enum RDContinuation {
                                         branchKey: [], truncated: false)
             resumed.healed = outcome.finalState.healedRaw
             resumed.potential = line.potential
-            return Resumed(line: resumed, stepsTaken: k, root: start)
+            return Resumed(line: resumed, stepsTaken: k, root: start,
+                           idMap: map, generatedFrom: base, idShift: next - base)
         }
         return nil
     }
@@ -194,6 +212,8 @@ enum RDContinuation {
               p.boardLimit == r.boardLimit, p.handLimit == r.handLimit,
               p.opponent.health == r.opponent.health, p.opponent.armor == r.opponent.armor,
               p.opponent.immune == r.opponent.immune, p.opponent.secretCount == r.opponent.secretCount,
+              // 破冰模式（T8）：冰在 / 已破要一致。不在破冰模式时两边都是 nil
+              p.opponent.ice == r.opponent.ice,
               p.weapon?.attack == r.weapon?.attack, p.weapon?.durability == r.weapon?.durability,
               p.weapon?.drawOnHeroAttack == r.weapon?.drawOnHeroAttack,
               tolerant ? r.hand.count >= p.hand.count : p.hand.count == r.hand.count, p.board.count == r.board.count,
@@ -251,6 +271,7 @@ enum RDContinuation {
                   fold(a.enchants, a.card) < fold(s.hand[i].enchants, s.hand[i].card) else { continue }
             s.hand[i].enchants = a.enchants
             s.hand[i].baseCostInferred = a.baseCostInferred
+            s.hand[i].costThisTurnOnly = a.costThisTurnOnly
         }
         return s
     }

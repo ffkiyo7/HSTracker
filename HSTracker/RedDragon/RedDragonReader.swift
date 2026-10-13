@@ -183,9 +183,10 @@ enum RDStateReader {
             inferred = cap > 0
         }
         let isCopy = c.enchantments.contains { RDGameSnapshot.copyStatEnchantments.contains($0) }
-        let card = RDHandCard(entityId: c.entityId, card: identity, enchants: [.set(base)],
+        var card = RDHandCard(entityId: c.entityId, card: identity, enchants: [.set(base)],
                               statsOverride: isCopy ? RDStats(attack: c.attack, health: c.health) : nil,
                               isShadowOfDemise: demise || identity == .shadowOfDemise)
+        card.costThisTurnOnly = c.enchantments.contains { RDGameSnapshot.oneTurnCostEnchantments.contains($0) }
         return (card, inferred)
     }
 }

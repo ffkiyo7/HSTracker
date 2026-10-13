@@ -73,6 +73,11 @@ struct RedDragonResult {
     var exhaustive = false
     /// 准备线搜索（`config.setup` 非 nil）的结果，按优劣排好；斩杀搜索恒空
     var setupLines: [RedDragonLine] = []
+    /// 破冰搜索的一遍（`config.iceBreakPass`）收下的候选：终局冰已打掉、重放校验过，按步数升序、同步数按便宜的分降序。
+    /// 还没探过下回合，取舍在 `RedDragonSearch.solveIceBreak`。其他搜索恒空
+    var iceLines: [RedDragonLine] = []
+    /// 破冰搜索里花在「冰已打掉之后」的展开状态数（含在 `statesExpanded` 里）
+    var prepStatesExpanded = 0
 }
 
 /// 本回合不斩杀时为下回合做准备的两类线（T4）
@@ -149,6 +154,14 @@ struct RedDragonConfig {
     /// 准备线搜索自己的闸门（`solveSetup` 用，不动斩杀搜索的 `maxStatesExpanded` / `cpuBudget`）
     var setupMaxStates: Int = 200_000
     var setupCpuBudget: Double = 2.0
+    /// 只走不靠随机抽牌的分支：抽牌池里不止一种牌的抽牌（分叉键里出现非边牌）整支不展开，E.T.C. 的发现照常。
+    /// 破冰搜索和它的下回合探针用（T8 口径 4），斩杀 / 准备线搜索不开
+    var deterministicOnly = false
+    /// 破冰搜索的一遍（T8，只由 `RedDragonSearch.solveIceBreak` 设）：根局面带着 `opponent.ice`，收集「冰已打掉」的
+    /// 终局而不是找斩杀。见 RedDragonIceBreak.swift
+    var iceBreakPass = false
+    /// 破冰搜索自己的闸门和取舍（`solveIceBreak` 用，不动斩杀搜索的那几项）
+    var iceBreak = RDIceBreakConfig()
 
     static let exact: RedDragonConfig = {
         var c = RedDragonConfig()
@@ -342,6 +355,18 @@ enum RedDragonSearch {
         var pruned = false
         /// 准备线候选：按质量降序、同质量按步数升序，只留前 `setupKeep` 条
         var setupKept: [(quality: Int, steps: Int, line: RedDragonLine)] = []
+        // 破冰搜索（T8）：冰还在的节点照斩杀搜索那样往致命一击推；冰已打掉的局面都是候选，并接着展开为下回合做准备的步骤。
+        // 两类节点各有各的束和状态闸门，互不挤占（冰还在的那一半和斩杀搜索同宽、同打分、同取法）
+        let icePass = config.iceBreakPass
+        let ice = config.iceBreak
+        /// 每层留便宜分最高的几个候选（`iceLayer` 是正在展开的这一层的）
+        var iceKept: [(steps: Int, score: Int, hash: UInt64, line: RedDragonLine)] = []
+        var iceLayer: [(steps: Int, score: Int, hash: UInt64, line: RedDragonLine)] = []
+        /// 最浅的破冰在第几层（根局面进来就已破冰 = 0）
+        var firstBreakDepth: Int? = icePass && root.opponent.ice == .broken ? 0 : nil
+        var prepStates = 0
+        /// 冰还在的那一半撞了状态闸门：不再展开，已破冰的那一半接着走
+        var breakSearchStopped = false
         func isCancelled() -> Bool { return config.cancellation?.isCancelled == true }
 
         func makeLine(parent: Int, action: RDAction, state: RDState,
@@ -429,10 +454,47 @@ enum RedDragonSearch {
             func consider(_ index: Int, _ node: Node, _ action: RDAction, _ next: RDState,
                           _ constraints: RDBoardConstraints, _ order: RDOrderDecision?, _ isVariant: Bool) {
                 statesExpanded += 1
+                if icePass && node.state.opponent.ice == .broken { prepStates += 1 }
+                // 只走确定的分支：这一步带随机抽牌就整支不要（抽牌池里只剩一种牌时引擎直接拿、不出 pick，不算随机）。
+                // 在去重之前判，免得它占掉同一局面的名额。这不算有损裁剪：穷举完仍是「没有确定的线」的证明
+                if config.deterministicOnly, action.choices.contains(where: { c in
+                    if case .pick(let card) = c { return !RDCards.sideboardCards.contains(card) }
+                    return false
+                }) { return }
                 let hash = next.canonicalHash()
                 guard seen.insert(dedupKey(hash, constraints, next.board)).inserted else { return }
                 var key = node.branchKey
                 appendBranchKey(&key, action: action)
+                if icePass {
+                    guard next.opponent.ice == .broken else {
+                        // 冰还在：和斩杀搜索同一个分，往致命的那一下推
+                        if next.damageDealt > maxDamage { maxDamage = next.damageDealt }
+                        let eval = evaluate(next)
+                        children.append(Child(state: next, parent: index, action: action,
+                                              branchKey: key, score: eval.greedy,
+                                              builderScore: eval.builder, hash: hash,
+                                              constraints: constraints, decision: order, isVariant: isVariant))
+                        return
+                    }
+                    // 冰已打掉：这个终局是候选（每层留便宜分最高的几个，探下回合在 `solveIceBreak`），并接着展开准备步
+                    let eval = RDIceBreak.evaluate(next)
+                    let worse = iceLayer.count >= ice.keepPerDepth
+                        && (eval.greedy < iceLayer[iceLayer.count - 1].score
+                            || (eval.greedy == iceLayer[iceLayer.count - 1].score
+                                && hash >= iceLayer[iceLayer.count - 1].hash))
+                    if !worse && next.truncatedDraws == 0 {
+                        let line = makeLine(parent: index, action: action, state: next,
+                                            branchKey: key, order: order)
+                        iceLayer.append((depth + 1, eval.greedy, hash, line))
+                        iceLayer.sort { $0.score != $1.score ? $0.score > $1.score : $0.hash < $1.hash }
+                        if iceLayer.count > ice.keepPerDepth { iceLayer.removeLast() }
+                    }
+                    children.append(Child(state: next, parent: index, action: action,
+                                          branchKey: key, score: eval.greedy,
+                                          builderScore: eval.builder, hash: hash,
+                                          constraints: constraints, decision: order, isVariant: isVariant))
+                    return
+                }
                 if let goal = setupGoal {
                     let eval = RDSetup.evaluate(next, goal: goal)
                     // 只收不靠随机抽牌的线（发现是自己选的，不算随机）
@@ -508,7 +570,24 @@ enum RedDragonSearch {
                     cancelled = true
                     break outer
                 }
-                if let cap = config.maxStatesExpanded, statesExpanded >= cap {
+                if icePass {
+                    // 两个闸门各管各的：冰还在的一半按 `maxStatesExpanded`（和斩杀搜索同一个数、只数这一半），
+                    // 已破冰的一半按 `iceBreak.prepMaxStates`
+                    if nodes[index].state.opponent.ice == .broken {
+                        if prepStates >= ice.prepMaxStates {
+                            pruned = true
+                            continue
+                        }
+                    } else {
+                        if breakSearchStopped { continue }
+                        if let cap = config.maxStatesExpanded, statesExpanded - prepStates >= cap {
+                            termination = .budgetExceeded
+                            breakSearchStopped = true
+                            pruned = true
+                            continue
+                        }
+                    }
+                } else if let cap = config.maxStatesExpanded, statesExpanded >= cap {
                     termination = .budgetExceeded
                     break outer
                 }
@@ -560,7 +639,32 @@ enum RedDragonSearch {
                     break outer
                 }
             }
-            if children.isEmpty { break }
+            // 破冰搜索：已破冰的子节点另算（`prep`），`children` 只留冰还在的，下面的排序和取束对它照旧
+            var prep: [Child] = []
+            if icePass {
+                if !iceLayer.isEmpty {
+                    if firstBreakDepth == nil { firstBreakDepth = depth }
+                    iceKept += iceLayer
+                    iceLayer = []
+                }
+                var armed: [Child] = []
+                for c in children {
+                    if c.state.opponent.ice == .broken { prep.append(c) } else { armed.append(c) }
+                }
+                children = breakSearchStopped ? [] : armed
+                if let first = firstBreakDepth {
+                    // 最浅的破冰出现之后，冰还在的节点只再走几层（克制一点的破法可能多一两步）；准备步也有层数上限
+                    if depth >= first + ice.extraBreakLayers, !children.isEmpty {
+                        children = []
+                        pruned = true
+                    }
+                    if depth >= first + ice.maxPrepLayers, !prep.isEmpty {
+                        prep = []
+                        pruned = true
+                    }
+                }
+            }
+            if children.isEmpty && prep.isEmpty { break }
 
             children.sort { a, b in
                 if a.score != b.score { return a.score > b.score }
@@ -600,6 +704,18 @@ enum RedDragonSearch {
                     children = pick(children, width)
                 }
             }
+            if !prep.isEmpty {
+                prep.sort { a, b in
+                    if a.score != b.score { return a.score > b.score }
+                    return a.hash < b.hash
+                }
+                if prep.count > ice.prepBeamWidth {
+                    pruned = true
+                    // 桶 = 破冰后剩余血量：剩得多的破法便宜分低，但可能是唯一留得住资源的，每种都保底
+                    prep = selectBeam(prep, width: ice.prepBeamWidth, bucket: { $0.opponent.effectiveHealth })
+                }
+                children += prep
+            }
             frontier = []
             frontier.reserveCapacity(children.count)
             for c in children {
@@ -624,6 +740,30 @@ enum RedDragonSearch {
         if cancelled { return cancelledResult() }
 
         // 收尾（落位翻译、去重排序、重放校验）每条线都要重放，线多时不便宜：每一步之间、每条线之前都看取消
+        if icePass {
+            // 预算在半层用完时，这半层攒下的候选照样收尾
+            iceKept += iceLayer
+            var lines: [RedDragonLine] = []
+            for k in iceKept {
+                if isCancelled() { return cancelledResult() }
+                // 重放校验：同一套规则（含寒冰屏障那一条）从根重放一遍，终局冰确实打掉了才留
+                guard let line = placed(k.line),
+                      let end = RDReplay.validate(line.actions, from: root, expectedDamage: line.damage,
+                                                  options: config.options),
+                      end.opponent.ice == .broken else { continue }
+                lines.append(line)
+            }
+            if isCancelled() { return cancelledResult() }
+            var out = RedDragonResult(maxDamage: maxDamage, effectiveEnemyHealth: enemyHealth, isLethal: false,
+                                      chosenLine: nil, lethalLines: [], branches: [], missingPieces: [],
+                                      missingPiecesBudgetExceeded: false, termination: termination, cpuTime: 0,
+                                      statesExpanded: statesExpanded, depthReached: depth,
+                                      placementTranslationFailures: translationFailures,
+                                      cpuBudgetHit: cpuBudgetHit, exhaustive: termination == .exhausted && !pruned)
+            out.iceLines = dedupe(lines)
+            out.prepStatesExpanded = prepStates
+            return out
+        }
         if let goal = setupGoal {
             var lines = setupKept.compactMap { placed($0.line) }
             if isCancelled() { return cancelledResult() }
@@ -1160,6 +1300,61 @@ enum RedDragonSearch {
         r.cpuTime = threadCPUTime() - start
         return r
     }
+
+    // MARK: - 破冰（T8）
+
+    /// 破冰搜索的几遍（入口和取舍在 RedDragonIceBreak.swift 的 `solveIceBreak`）。和 `solve` 同一个次序、同一份状态预算：
+    /// 主搜索 → 排法补搜 → 采样补搜，前一遍没找到破冰才跑后一遍 —— 「能不能破冰」和斩杀搜索「能不能斩」用的是同一个力度
+    /// （预算只数冰还在的那一半；冰打掉之后的准备步另有 `iceBreak.prepMaxStates`）。
+    /// `root` 必须已经标好冰（`RDIceBreak.armed`）。返回里 `iceLines` 是第一遍有候选的那次的，状态数是各遍合计
+    static func iceBreakPasses(_ root: RDState, config base: RedDragonConfig, deadline: Double) -> RedDragonResult {
+        var c = base
+        c.iceBreakPass = true
+        c.deterministicOnly = true
+        c.setup = nil
+        c.enableMissingPieces = false
+        // 根局面进来冰就已经打掉时只有准备步，一遍就够
+        let breaking = root.opponent.ice == .armed
+        let sampling = breaking && base.samplingPassWidth != nil
+        var mainConfig = c
+        if sampling, let total = base.maxStatesExpanded {
+            mainConfig.maxStatesExpanded = max(1, Int(Double(total) * (1 - base.samplingShare)))
+        }
+        var run = search(root, config: mainConfig, deadline: deadline)
+        func merged(_ a: RedDragonResult, _ b: RedDragonResult) -> RedDragonResult {
+            var out = b
+            out.statesExpanded += a.statesExpanded
+            out.prepStatesExpanded += a.prepStatesExpanded
+            out.placementTranslationFailures += a.placementTranslationFailures
+            out.cpuBudgetHit = a.cpuBudgetHit || b.cpuBudgetHit
+            out.cancelled = a.cancelled || b.cancelled
+            out.exhaustive = (a.exhaustive || b.exhaustive) && !out.cancelled
+            out.maxDamage = max(a.maxDamage, b.maxDamage)
+            out.depthReached = max(a.depthReached, b.depthReached)
+            if a.termination == .budgetExceeded { out.termination = .budgetExceeded }
+            return out
+        }
+        func pending() -> Bool {
+            return breaking && run.iceLines.isEmpty && !run.cancelled && threadCPUTime() < deadline
+        }
+        func left() -> Int? {
+            return base.maxStatesExpanded.map { $0 - (run.statesExpanded - run.prepStatesExpanded) }
+        }
+        if pending(), let pass = base.boardOrderPass, RDEngine.boardOrderMatters(root), (left() ?? 1) > 0 {
+            let share = base.maxStatesExpanded.map { max(1, Int(Double($0) * pass.budgetShare)) }
+            var v = c
+            v.maxBoardOrderVariants = nil
+            v.boardOrderVariantShare = pass.beamShare
+            v.maxStatesExpanded = left().map { min($0, share ?? $0) }
+            run = merged(run, search(root, config: v, deadline: deadline))
+        }
+        if pending(), sampling, (left() ?? 1) > 0 {
+            var s = c
+            s.maxStatesExpanded = left()
+            run = merged(run, search(root, config: s, deadline: deadline, selection: .sampled))
+        }
+        return run
+    }
 }
 
 enum RDSetup {
@@ -1171,7 +1366,10 @@ enum RDSetup {
     static let probeBudget = 0.25
     static let probeTotalBudget = 1.0
 
-    /// 把回合结束时的局面当成下回合起手：法力 +1（封顶 10）、减费层 / 本回合计数清零、随从都能动
+    /// 把回合结束时的局面当成下回合起手：法力 +1（封顶 10）、减费层 / 本回合计数清零、随从都能动。
+    /// 只在本回合有效的东西不带过去（T8 订正，原来后三样会带到下回合）：临时水晶、减费层、舞动全场给手牌的
+    /// 「本回合费用为 1」（`costThisTurnOnly`，回到印刷费）、快枪的「本回合进手」、英雄的冻结。
+    /// 永久的照旧留着：暗影步的 −2、复制体的 1 费（都在 `enchants` 里、没有 `costThisTurnOnly`）
     static func nextTurn(_ s: RDState) -> RDState {
         var t = s
         t.maxMana = min(10, s.maxMana + 1)
@@ -1181,8 +1379,16 @@ enum RDSetup {
         t.cardsPlayedThisTurn = 0
         t.heroAttackedThisTurn = false
         t.heroPowerUsed = false
+        t.heroFrozen = false
         t.damageDealt = 0
         t.healedRaw = 0
+        for i in t.hand.indices {
+            if t.hand[i].costThisTurnOnly {
+                t.hand[i].enchants = []
+                t.hand[i].costThisTurnOnly = false
+            }
+            t.hand[i].enteredHandThisTurn = false
+        }
         for i in t.board.indices {
             t.board[i].summoningSick = false
             t.board[i].attacksThisTurn = 0

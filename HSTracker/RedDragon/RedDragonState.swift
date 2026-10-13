@@ -58,6 +58,11 @@ struct RDHandCard {
     /// 读取层在减费层下看不出底费、按上限估的（`RDStateReader.handCard`），真实底费可能更低。只给跟手核对用
     /// （`RDContinuation.correspondence`），**不进 `canonicalHash`**
     var baseCostInferred = false
+    /// `enchants` 只在本回合有效（舞动全场的「本回合费用为 1」，`ETC_079e`）：回合结束时附魔自己移除，费用回到印刷费
+    /// （10-05 g7 fixture 第 30830 行起：T13 结束时三张被舞回手的牌 COST 1 → 4 / 3 / 4）。本回合内的费用照常按
+    /// `enchants` 算，这个标记只在把终局当下回合起手时用（`RDSetup.nextTurn`）。**不进 `canonicalHash`**，
+    /// 破冰模式除外（见那里）
+    var costThisTurnOnly = false
 
     init(entityId: Int, card: RDCard, pool: [RDCard] = [], enchants: [RDEnchant] = [],
          statsOverride: RDStats? = nil, isShadowOfDemise: Bool = false,
@@ -132,14 +137,27 @@ struct RDEnemyMinion {
     var venomous = false
 }
 
+/// 破冰模式（T8）下那张寒冰屏障的状态。假定对方挂着的奥秘是寒冰屏障
+enum RDIce: Equatable {
+    /// 冰还在：敌方英雄将受到致命伤害（这一次伤害 ≥ 血量 + 护甲）时这一次伤害不生效，转 `.broken`
+    case armed
+    /// 冰已经打掉，对方本回合免疫。本回合剩下的出牌只是为下回合做准备
+    case broken
+}
+
 struct RDOpponent {
     var health: Int
     var armor: Int
     var immune: Bool
     var board: [RDEnemyMinion]
     var secretCount: Int
+    /// nil = 不在破冰模式，规则和以前逐字相同。根局面由 `RDIceBreak.armed` 标上，之后只由引擎改
+    var ice: RDIce?
 
     var effectiveHealth: Int { return health + armor }
+    /// 免疫的英雄不能被攻击，也不能被法术 / 战吼指到。只在破冰模式下执行：不在破冰模式时保持原来的口径
+    /// （指得到、打不动），不开破冰时的搜索结果不跟着变
+    var heroUntargetable: Bool { return ice == .broken }
 
     init(health: Int, armor: Int = 0, immune: Bool = false,
          board: [RDEnemyMinion] = [], secretCount: Int = 0) {
@@ -365,11 +383,13 @@ struct RDState {
     /// 不进哈希的字段，都是一次搜索里恒定、或由已入哈希的字段决定的：
     /// - `handLimit` / `boardLimit` / `spellDamage`：没有牌会改它们，整次搜索恒定；
     /// - `nextEntityId` 和所有 entityId：只是编号，两条路径编号不同但局面相同时应当合并；
-    /// - `opponent.immune` / `opponent.secretCount`、敌方随从的 `immune` / `stealth` / `elusive`：本牌组没有牌改它们；
+    /// - `opponent.immune` / `opponent.secretCount`、敌方随从的 `immune` / `stealth` / `elusive`：本牌组没有牌改它们
+    ///   （破冰模式下前两项跟着 `opponent.ice` 变，喂的是 `ice`）；
     /// - 我方随从的 `maxHealth` / `statsSetTo1x1`：由卡 + 当前身材 + 是否沉默决定（只有 1/1 复制体会是 1/1）；
     /// - 手牌的 `pool` / `poolFromSideboard`：只有 `.replay` 口径会产生，搜索口径恒为空；
     /// - 手牌的 `unmodeledCardId`：所有杂牌对搜索等价（见该字段注释）；
-    /// - 手牌的 `enteredHandThisTurn`：只影响快枪牌的费用，所以只对快枪牌进哈希。
+    /// - 手牌的 `enteredHandThisTurn`：只影响快枪牌的费用，所以只对快枪牌进哈希；
+    /// - 手牌的 `costThisTurnOnly`：本回合内不影响任何结算，只在破冰模式（终局要当下回合起手）下进哈希。
     func canonicalHash() -> UInt64 {
         var h: UInt64 = 0xcbf2_9ce4_8422_2325
         func feed(_ v: Int) {
@@ -381,6 +401,8 @@ struct RDState {
         // 新加的两项只在「有区别」时才喂：英雄没冻结、场位顺序 = 上场顺序（绝大多数局面）的哈希和加之前一样，
         // 采样补搜按哈希抽样，哈希一变抽到的就变（t2-wuhui-03 靠补搜救回，见 T2a 任务书「T2b 舞动顺序订正」）
         if heroFrozen { feed(-9) }
+        // 破冰模式（T8）：冰在 / 已破是两个局面（破冰那一下不扣血，别的字段可以完全一样）。不在破冰模式时不喂
+        if let ice = opponent.ice { feed(ice == .armed ? -15 : -16) }
         if healedRaw > 0 { feed(-12); feed(healedRaw); feed(heroHealth) }
         feed(luckyCometCharges)
         feed(opponent.health); feed(opponent.armor)
@@ -402,6 +424,8 @@ struct RDState {
             if RDCards.hasQuickdraw(identity) {
                 key = key &* 2 &+ (c.enteredHandThisTurn ? 1 : 0)
             }
+            // 破冰模式要拿终局当下回合起手：同是 1 费，舞动给的（本回合有效）和暗影步减出来的（永久）不是一个局面
+            if opponent.ice != nil && c.costThisTurnOnly { key ^= 1 << 40 }
             let mixed = (key &+ 0x9e37_79b9_7f4a_7c15) &* 0xff51_afd7_ed55_8ccd
             handMix ^= mixed
             handSum = handSum &+ mixed
