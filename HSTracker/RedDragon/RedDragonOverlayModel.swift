@@ -266,7 +266,8 @@ enum RDOverlayGeometry {
 
     // MARK: 判定面板的位置
 
-    /// 默认位置：4:3 区域左下（手牌左边、我方英雄左下的空地），底边在 0.985 H，宽 ≤ 320 u。
+    /// 默认位置：手牌左边的空地，底边在 0.985 H，右沿贴着手牌禁区（留 8 u），字号 / 间距 ×1.6、宽 ≤ 320 u × 1.6；
+    /// 向左、向上长，左边可以长进 16:9 的黑边，到画布左边 8 u 为止（10-07 用户定：原来 ×1 看不清）。
     /// 面板不和任何「障碍」相交：手牌（1~10 张转过角的外接框并集）、双方场面一行、双方场攻图标、我方计数器、
     /// 双方英雄区、法力、对方手牌标记，以及两个记牌器（位置 / 尺寸 / 缩放取自记牌器 view model，拖动中也跟着变）。
     ///
@@ -275,15 +276,18 @@ enum RDOverlayGeometry {
     ///    单回合不够 > 抽牌分叉 > 缺件；收掉几行写在角标末尾（「收起 N 条」）。最后一档再去掉「伤害 / 血量」，
     ///    只留标题、差值和标签行（「⚠ 对方有奥秘」始终保留）。
     /// 2. 每种行数下底边：先 0.985 H（默认一行），再手牌上沿之上，再每个记牌器的上沿之上（从低到高）。
-    /// 3. 每个底边下字号 / 间距：×1 → ×0.85 → ×0.72。
-    /// 4. 每个字号下左沿：先 4:3 内缩，再画布左边 8 u，再每个障碍的右沿 + 8 u；宽度到右边第一个障碍为止
-    ///    （所以记牌器在右边时面板缩在它左边，在左边时挪到它右边）。
+    /// 3. 每个底边下字号 / 间距：×1.6 → ×1.36 → ×1.15 → ×1 → ×0.85 → ×0.72。
+    /// 4. 每个字号下左右位置：
+    ///    a. 右边第一个障碍是手牌的空当：右沿贴手牌，左沿候选从左到右（画布左边 8 u、各障碍右沿 + 8 u、4:3 内缩），
+    ///       所以先用最宽的那个空当；记牌器挡在左边时面板夹在它和手牌之间。
+    ///    b. 其余（手牌上方、被别的障碍挡住右边）：左沿先 4:3 内缩，再画布左边 8 u，再各障碍右沿 + 8 u，
+    ///       宽度到右边第一个障碍为止。
     /// 5. 全都放不下：不画面板。
     static let panelInsetFraction: CGFloat = 0.025
     static let panelBottomFraction: CGFloat = 0.985
     static let panelMaxWidth: CGFloat = 320
     static let panelMinWidth: CGFloat = 200
-    static let panelScales: [CGFloat] = [1, 0.85, 0.72]
+    static let panelScales: [CGFloat] = [1.6, 1.36, 1.15, 1, 0.85, 0.72]
     /// 面板和障碍之间至少留的空（u）
     static let panelGap: CGFloat = 8
 
@@ -400,6 +404,8 @@ enum RDOverlayGeometry {
         let region = canvas.width / 2 - canvas.height * 0.2 - gap
         xs = xs.filter { $0 < region }
 
+        let handLimit = hand.minX - gap
+
         func rightLimit(x: CGFloat, top: CGFloat, bottom: CGFloat) -> CGFloat {
             var limit = region
             for o in obstacles where o.maxY > top && o.minY < bottom && o.minX >= x {
@@ -424,18 +430,26 @@ enum RDOverlayGeometry {
                     let p = u * s
                     let minWidth = RDPanelMetrics.minWidth(badge: badge, dropped: dropped) * p
                     let tallest = RDPanelMetrics.height(badge: badge, lines: shown, width: panelMaxWidth) * p
-                    for x in xs {
+                    // 左沿在 x 的空当里放不放得下。`hugsHand`：只认右边第一个障碍是手牌的空当，面板右沿贴手牌；
+                    // 否则只认其余的空当，面板左沿在 x
+                    func fit(_ x: CGFloat, hugsHand: Bool) -> CGRect? {
                         // 宽度先按最矮的情形取，再按这个宽度下的真实行数复核一次
                         var width = min(panelMaxWidth * p, rightLimit(x: x, top: bottom - tallest, bottom: bottom) - x)
-                        guard width >= minWidth else { continue }
+                        guard width >= minWidth else { return nil }
                         var height = RDPanelMetrics.height(badge: badge, lines: shown, width: width / p) * p
-                        width = min(width, rightLimit(x: x, top: bottom - height, bottom: bottom) - x)
-                        guard width >= minWidth else { continue }
+                        let limit = rightLimit(x: x, top: bottom - height, bottom: bottom)
+                        guard (limit == handLimit) == hugsHand else { return nil }
+                        width = min(width, limit - x)
+                        guard width >= minWidth else { return nil }
                         height = RDPanelMetrics.height(badge: badge, lines: shown, width: width / p) * p
-                        let frame = CGRect(x: x, y: bottom - height, width: width, height: height)
+                        let frame = CGRect(x: hugsHand ? limit - width : x, y: bottom - height, width: width, height: height)
                         guard bounds.contains(frame),
                               !obstacles.contains(where: { $0.intersects(frame.insetBy(dx: -gap / 2, dy: -gap / 2)) })
-                        else { continue }
+                        else { return nil }
+                        return frame
+                    }
+                    if let frame = xs.sorted().lazy.compactMap({ fit($0, hugsHand: true) }).first
+                        ?? xs.lazy.compactMap({ fit($0, hugsHand: false) }).first {
                         return PanelLayout(frame: frame, scale: s, lines: shown, droppedLines: dropped,
                                            hidesNumbers: variant.hidesNumbers)
                     }

@@ -519,7 +519,9 @@ private struct RDFlowLayout: Layout {
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let frames = arrange(bounds.width, subviews).frames
+        // 拿到的宽是 `sizeThatFits` 报的那一行宽、再对齐到像素的结果，可能小零点几：照原样排，行尾那个词会被多挤一行、
+        // 掉到面板底边外面（非整数缩放档下出现过）。放 1 pt 余量，保证和算高度时是同一种排法
+        let frames = arrange(bounds.width + 1, subviews).frames
         for (i, f) in frames.enumerated() {
             subviews[i].place(at: CGPoint(x: bounds.minX + f.minX, y: bounds.minY + f.minY),
                               anchor: .topLeading, proposal: ProposedViewSize(f.size))

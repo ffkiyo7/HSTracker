@@ -388,15 +388,16 @@ class RedDragonOverlayTests: HSTrackerTests {
     }
 
     /// 没有记牌器挡路时：最高的面板也放在默认那一行、不收行（必要时缩字号），不压手牌、场攻图标、计数器、场面；
-    /// 常见的 L2 面板在 16:9 下原样（×1）放在默认位置
+    /// 常见的 L2 面板在 16:9 下 ×1.6、宽 320 u × 1.6，右沿贴手牌禁区、左边长进黑边（T6）
     func testPanelClearOfHandAndWidgets() {
         let usual = RDOverlayModel.make(Self.hint(Self.sampleLethal(), level: .order), cardName: Self.zh)
         let wide = CGSize(width: 1920, height: 1080)
         let usualLayout = RDOverlayGeometry.panelLayout(canvas: wide, badge: usual.badge!, lines: usual.lines, trackers: [])
-        XCTAssertEqual(usualLayout?.scale, 1)
-        XCTAssertEqual(usualLayout?.frame.minX ?? 0,
-                       SizeHelper.getScaledXPos(RDOverlayGeometry.panelInsetFraction, width: wide.width,
-                                                ratio: BoardOverlayView.ratio(wide)), accuracy: 0.5)
+        XCTAssertEqual(usualLayout?.scale, 1.6)
+        XCTAssertEqual(usualLayout?.frame.width ?? 0, RDOverlayGeometry.panelMaxWidth * 1.6, accuracy: 0.5)
+        XCTAssertEqual(usualLayout?.frame.maxX ?? 0,
+                       RDOverlayGeometry.handBox(wide).minX - RDOverlayGeometry.panelGap, accuracy: 0.5)
+        XCTAssertLessThan(usualLayout?.frame.minX ?? .infinity, (wide.width - wide.height * 4 / 3) / 2, "左沿在黑边里")
         let tallest = Self.tallestPanel()
         for canvas in [CGSize(width: 1920, height: 1080), CGSize(width: 2560, height: 1080),
                        CGSize(width: 1440, height: 1080), CGSize(width: 1280, height: 800)] {
@@ -434,12 +435,13 @@ class RedDragonOverlayTests: HSTrackerTests {
                 XCTAssertFalse(frame.intersects(card), "panel \(frame) card \(card)")
             }
         }
-        // 72% 高的默认记牌器（底在 84.5% H）不挡面板：不挪、不缩
+        // 60% 高的记牌器（底在 72.5% H）够不着面板：不挪、不缩
         let short = RDOverlayGeometry.trackerBox(
-            .init(isOpponent: true, isShown: true, left: 0.5, top: 12.5, height: 72, scaling: 100),
+            .init(isOpponent: true, isShown: true, left: 0.5, top: 12.5, height: 60, scaling: 100),
             cardSize: .big, canvas: canvas)!
         let m = RDOverlayModel.make(Self.hint(Self.sampleLethal(), level: .order), cardName: Self.zh)
         let free = RDOverlayGeometry.panelLayout(canvas: canvas, badge: m.badge!, lines: m.lines, trackers: [])
+        XCTAssertNotNil(free)
         XCTAssertEqual(RDOverlayGeometry.panelLayout(canvas: canvas, badge: m.badge!, lines: m.lines, trackers: [short]), free)
         // 记牌器藏起来时不算障碍
         XCTAssertNil(RDOverlayGeometry.trackerBox(
@@ -455,7 +457,8 @@ class RedDragonOverlayTests: HSTrackerTests {
                         CGSize(width: 1280, height: 800), CGSize(width: 1680, height: 1050)]
         let models = [Self.tallestPanel(),
                       RDOverlayModel.make(Self.hint(Self.sampleLethal(), level: .order), cardName: Self.zh),
-                      RDOverlayModel.make(Self.hint(Self.sampleLethal(), level: .order, quiz: .onLine, quizMode: true), cardName: Self.zh)]
+                      RDOverlayModel.make(Self.hint(Self.sampleLethal(), level: .order, quiz: .onLine, quizMode: true), cardName: Self.zh),
+                      Self.sceneModel("18-formula-locked.png"), Self.sceneModel("15-danger-heal16.png")]
         var tally: [String: Int] = [:]
         var usualTally: [String: Int] = [:]
         var total = 0
@@ -494,17 +497,14 @@ class RedDragonOverlayTests: HSTrackerTests {
                                             continue
                                         }
                                         let f = layout.frame
-                                        let inset = SizeHelper.getScaledXPos(RDOverlayGeometry.panelInsetFraction, width: canvas.width,
-                                                                             ratio: BoardOverlayView.ratio(canvas))
-                                        let aboveHand = abs(f.maxY - (handBox.minY - RDOverlayGeometry.panelGap * canvas.height / 1080)) < 0.5
+                                        let gap = RDOverlayGeometry.panelGap * canvas.height / 1080
+                                        let aboveHand = abs(f.maxY - (handBox.minY - gap)) < 0.5
+                                        // 默认一行里：贴手牌（hug）还是被别的障碍挡在左边（left），各缩放档分开数
                                         let key = layout.hidesNumbers ? "numbers-hidden"
                                             : layout.droppedLines > 0 ? "lines-dropped"
                                             : abs(f.maxY - canvas.height * RDOverlayGeometry.panelBottomFraction) > 0.5
                                                 ? (aboveHand ? "above-hand" : "above-tracker")
-                                            : f.minX > inset + 0.5 ? "moved-right"
-                                            : f.minX < inset - 0.5 ? "canvas-left"
-                                            : layout.scale < 1 ? "default-shrunk"
-                                            : "default"
+                                            : (abs(f.maxX - (handBox.minX - gap)) < 0.5 ? "hug" : "left") + "-x\(layout.scale)"
                                         tally[key, default: 0] += 1
                                         if usual { usualTally[key, default: 0] += 1 }
                                         XCTAssertTrue(CGRect(origin: .zero, size: canvas).contains(f))
@@ -522,6 +522,91 @@ class RedDragonOverlayTests: HSTrackerTests {
         print("[rd-sweep] \(total) combos: " + tally.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: " ")
               + " | usual \(usualTotal): " + usualTally.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: " ")
               + " | usual hidden in: " + usualHidden.sorted().joined(separator: ", "))
+    }
+
+    static func sceneModel(_ file: String) -> RDOverlayModel {
+        return RDOverlayModel.make(scenes().first { $0.file == file }!.hint, cardName: zh)
+    }
+
+    /// T6 硬约束：任何情况下不遮手牌。画布比例（16:9 / 16:10 / 4:3 / 5:4 / 超宽，大小各几种）× 面板内容
+    /// （全部效果图局面 + 最高的面板：0~6 行文字、3 行公式、公式 + 回合末）× 记牌器（无 / 默认 / 加高 / 放大 / 拖进左下）：
+    /// 面板不和 1~10 张手牌里任何一张的外接框相交，也不进手牌禁区（外接框并集）；
+    /// 没有记牌器挡路时一定画得出来，在默认那一行、右沿贴手牌禁区（留 8 u）、不收行
+    func testPanelNeverCoversHand() {
+        let canvases = [CGSize(width: 1920, height: 1080), CGSize(width: 2560, height: 1440), CGSize(width: 1366, height: 768),
+                        CGSize(width: 1728, height: 1117), CGSize(width: 1680, height: 1050), CGSize(width: 1280, height: 800),
+                        CGSize(width: 1440, height: 1080), CGSize(width: 1024, height: 768), CGSize(width: 1280, height: 1024),
+                        CGSize(width: 2560, height: 1080), CGSize(width: 3440, height: 1440), CGSize(width: 5120, height: 1440)]
+        let models = Self.scenes().map { RDOverlayModel.make($0.hint, cardName: Self.zh) }.filter { $0.isVisible }
+            + [Self.tallestPanel()]
+        XCTAssertGreaterThanOrEqual(Set(models.map { $0.lines.count }).count, 5, "\(Set(models.map { $0.lines.count }).sorted())")
+        let placements: [[RDOverlayGeometry.TrackerPlacement]] = [
+            [],
+            [.init(isOpponent: true, isShown: true, left: 0.5, top: 12.5, height: 72, scaling: 100)],
+            [.init(isOpponent: true, isShown: true, left: -0.8, top: 10, height: 88, scaling: 100)],
+            [.init(isOpponent: true, isShown: true, left: 0.5, top: 12.5, height: 85, scaling: 150)],
+            [.init(isOpponent: true, isShown: true, left: 12, top: 30, height: 70, scaling: 100)],
+            [.init(isOpponent: true, isShown: true, left: 25, top: 40, height: 60, scaling: 100),
+             .init(isOpponent: false, isShown: true, left: 45, top: 50, height: 50, scaling: 100)]
+        ]
+        var checked = 0
+        var hidden = 0
+        for canvas in canvases {
+            let hands = Self.handCardBounds(canvas)
+            XCTAssertEqual(hands.count, 55)
+            let handBox = RDOverlayGeometry.handBox(canvas)
+            let gap = RDOverlayGeometry.panelGap * RDOverlayGeometry.unit(canvas)
+            for placement in placements {
+                let trackers = placement.compactMap { RDOverlayGeometry.trackerBox($0, cardSize: .big, canvas: canvas) }
+                for model in models {
+                    let layout = RDOverlayGeometry.panelLayout(canvas: canvas, badge: model.badge!, lines: model.lines,
+                                                               trackers: trackers)
+                    let what = "\(canvas) trackers \(placement.count) \(model.badge!.title) lines \(model.lines.count)"
+                    guard let layout else {
+                        XCTAssertFalse(placement.isEmpty, "\(what)：没有记牌器挡路却画不出来")
+                        hidden += 1
+                        continue
+                    }
+                    checked += 1
+                    let f = layout.frame
+                    XCTAssertFalse(f.intersects(handBox), "\(what) panel \(f) hand \(handBox)")
+                    XCTAssertNil(hands.first { $0.intersects(f) }, "\(what) panel \(f)")
+                    XCTAssertNil(trackers.first { $0.intersects(f) }, "\(what) panel \(f)")
+                    XCTAssertTrue(CGRect(origin: .zero, size: canvas).contains(f), "\(what) panel \(f)")
+                    XCTAssertEqual(layout.lines.filter { $0.isFormula }, model.lines.filter { $0.isFormula }, "\(what) 公式行不收")
+                    if placement.isEmpty {
+                        XCTAssertEqual(f.maxX, handBox.minX - gap, accuracy: 0.5, "\(what)")
+                        XCTAssertEqual(f.maxY, canvas.height * RDOverlayGeometry.panelBottomFraction, accuracy: 0.5, "\(what)")
+                        XCTAssertEqual(layout.droppedLines, 0, "\(what)")
+                        // 16:9 及更宽：黑边够长，所有内容都是 ×1.6
+                        if canvas.width / canvas.height >= 16.0 / 9 - 0.01 {
+                            XCTAssertEqual(layout.scale, 1.6, "\(what)")
+                        }
+                    }
+                }
+            }
+        }
+        print("[rd-hand] \(checked) layouts checked against 55 hand cards each, \(hidden) hidden (trackers in the way)")
+
+        // 报告用：锁定公式 / 奶 16 面板的实际像素
+        let defaultTracker = RDOverlayGeometry.TrackerPlacement(isOpponent: true, isShown: true, left: 0.5, top: 12.5,
+                                                                height: 72, scaling: 100)
+        for canvas in [CGSize(width: 1920, height: 1080), CGSize(width: 1728, height: 1117), CGSize(width: 1440, height: 1080)] {
+            for file in ["18-formula-locked.png", "15-danger-heal16.png"] {
+                let model = Self.sceneModel(file)
+                var nudged = defaultTracker
+                nudged.left = -0.83
+                nudged.top = 10.09
+                for (tag, placement) in [("no tracker", []), ("default tracker", [defaultTracker]),
+                                         ("tracker left -0.83 top 10.09", [nudged])] {
+                    let trackers = placement.compactMap { RDOverlayGeometry.trackerBox($0, cardSize: .big, canvas: canvas) }
+                    let l = RDOverlayGeometry.panelLayout(canvas: canvas, badge: model.badge!, lines: model.lines, trackers: trackers)
+                    print("[rd-size] \(Int(canvas.width))x\(Int(canvas.height)) \(file) \(tag): "
+                          + (l.map { String(format: "x%.2f %.0f×%.0f px at (%.0f, %.0f) dropped %d", $0.scale, $0.frame.width,
+                                            $0.frame.height, $0.frame.minX, $0.frame.minY, $0.droppedLines) } ?? "hidden"))
+                }
+            }
+        }
     }
 
     /// 估计值只会偏大：实测面板内容（NSHostingView）的高不超过 `RDPanelMetrics.height`，
@@ -556,6 +641,74 @@ class RedDragonOverlayTests: HSTrackerTests {
         }
         print(String(format: "[rd-metrics] height estimate over actual by at most %.0f%%, min-width estimate over ideal by at most %.0f%%",
                      worst * 100, worstWidth * 100))
+    }
+
+    /// 画出来的内容不掉到面板底边外面：公式的流式排版在「算高度」和「摆位置」两步必须是同一种排法。
+    /// （T6 加非整数缩放档后出现过：摆位置时宽度被对齐到像素、少了零点几，行尾的词多挤出一行画在面板外）
+    /// 几种画布 × 记牌器位置下，把带公式的面板按 `panelLayout` 给的位置离屏渲染：底边以下（阴影之外）必须是透明的
+    @MainActor
+    func testFormulaRowsStayInsidePanel() throws {
+        var models: [RDOverlayModel] = []
+        for m in Self.scenes().map({ RDOverlayModel.make($0.hint, cardName: Self.zh) })
+        where m.lines.contains(where: { $0.isFormula }) && !models.contains(m) {
+            models.append(m)
+        }
+        XCTAssertGreaterThanOrEqual(models.count, 4)
+        let placements: [RDOverlayGeometry.TrackerPlacement?] = [
+            nil,
+            .init(isOpponent: true, isShown: true, left: 0.5, top: 12.5, height: 72, scaling: 100),
+            .init(isOpponent: true, isShown: true, left: -0.83, top: 10.09, height: 72, scaling: 100),
+            .init(isOpponent: true, isShown: true, left: 12, top: 30, height: 70, scaling: 100)
+        ]
+        var rendered = 0
+        var scales: Set<CGFloat> = []
+        for canvas in [CGSize(width: 1920, height: 1080), CGSize(width: 1728, height: 1117), CGSize(width: 1440, height: 1080),
+                       CGSize(width: 1366, height: 768), CGSize(width: 2560, height: 1440)] {
+            let u = RDOverlayGeometry.unit(canvas)
+            for placement in placements {
+                let trackers = [placement].compactMap { $0 }
+                    .compactMap { RDOverlayGeometry.trackerBox($0, cardSize: .big, canvas: canvas) }
+                for model in models {
+                    let badge = model.badge!
+                    guard let layout = RDOverlayGeometry.panelLayout(canvas: canvas, badge: badge, lines: model.lines,
+                                                                     trackers: trackers) else { continue }
+                    scales.insert(layout.scale)
+                    // 面板在画布里的位置原样保留（小数坐标也照旧），只裁出它和它下面 60 u
+                    let frame = layout.frame
+                    let origin = CGPoint(x: frame.minX.rounded(.down) - 4, y: frame.minY.rounded(.down) - 4)
+                    let crop = CGSize(width: frame.width.rounded(.up) + 10, height: frame.height.rounded(.up) + 8 + 60 * u)
+                    let view = ZStack(alignment: .topLeading) {
+                        Color.clear
+                        RDPanel(badge: badge, layout: layout, canvas: canvas)
+                    }
+                    .frame(width: canvas.width, height: canvas.height + 80 * u, alignment: .topLeading)
+                    .offset(x: -origin.x, y: -origin.y)
+                    .frame(width: crop.width, height: crop.height, alignment: .topLeading)
+                    .clipped()
+                    let renderer = ImageRenderer(content: view)
+                    renderer.scale = 1
+                    let rep = NSBitmapImageRep(cgImage: try XCTUnwrap(renderer.cgImage))
+                    let data = try XCTUnwrap(rep.bitmapData)
+                    let bytesPerPixel = rep.bitsPerPixel / 8
+                    func inked(_ rows: Range<Int>) -> Int {
+                        var n = 0
+                        for y in rows where y >= 0 && y < rep.pixelsHigh {
+                            let row = data + y * rep.bytesPerRow
+                            for i in 0..<(rep.pixelsWide * bytesPerPixel) where row[i] > 40 { n += 1 }
+                        }
+                        return n
+                    }
+                    let bottom = Int((frame.maxY - origin.y).rounded(.up))
+                    XCTAssertGreaterThan(inked(bottom - Int(20 * u)..<bottom), 0, "面板确实画在裁出的这块里")
+                    // 阴影（半径 4 u、下移 1 u）之外
+                    XCTAssertEqual(inked(bottom + Int((10 * u).rounded(.up))..<rep.pixelsHigh), 0,
+                                   "\(canvas) \(badge.title) ×\(layout.scale) \(frame)：面板底边外有内容")
+                    rendered += 1
+                }
+            }
+        }
+        XCTAssertGreaterThanOrEqual(scales.count, 4, "\(scales.sorted())")
+        print("[rd-flow] \(rendered) panels rendered at scales \(scales.sorted()), nothing below the panel edge")
     }
 
     // MARK: - 热切换（走真的设置通知）
@@ -964,13 +1117,13 @@ class RedDragonOverlayTests: HSTrackerTests {
         let player = RDOverlayGeometry.TrackerPlacement(isOpponent: false, isShown: true, left: 99.5, top: 2, height: 88,
                                                         scaling: 100)
         out.append(Scene(file: "13-yield-tracker-150.png",
-                         title: "1440×1080，对手记牌器 150% / 85% 高，10 张手牌：左下没地方，面板贴到记牌器头顶（收起各行、去掉伤害数字）",
+                         title: "1440×1080，对手记牌器 150% / 85% 高，10 张手牌：左下没地方，面板让位 / 降级",
                          hint: hint(a13), handCards: hand10, board: [], enemyBoard: ["CS2_179", "EX1_082"],
                          size: CGSize(width: 1440, height: 1080),
                          trackers: [player, .init(isOpponent: true, isShown: true, left: 0.5, top: 12.5, height: 85,
                                                   scaling: 150)]))
         out.append(Scene(file: "14-yield-tracker-dragged.png",
-                         title: "1920×1080，对手记牌器被拖进 4:3 区域左下：面板退到它左边的黑边里（缩到 ×0.72，内容不减）",
+                         title: "1920×1080，对手记牌器被拖进 4:3 区域左下：面板退到它左边的黑边里（内容不减）",
                          hint: hint(a13), handCards: hand10, board: [], enemyBoard: ["CS2_179", "EX1_082"],
                          trackers: [player, .init(isOpponent: true, isShown: true, left: 12, top: 30, height: 70,
                                                   scaling: 100)]))
@@ -1031,6 +1184,38 @@ class RedDragonOverlayTests: HSTrackerTests {
         out.append(lethalScene("19-formula-progress.png", "锁定公式走了 5 步（已完成划掉，当前步高亮）", done: 5))
         out.append(lethalScene("20-formula-deviated.png", "锁定的线走不通：旧公式置灰留在原位，标「已偏离，重算中」",
                                done: 3, deviated: true))
+
+        // 21–27（T6）：放大后的面板，10 张手牌；16:9 / 4:3 / 16:10，没有记牌器挡路和默认记牌器（72% 高）两种
+        let hand10: [RDCard] = hand7 + [.preparation, .swindle, .deafen]
+        let player = RDOverlayGeometry.TrackerPlacement(isOpponent: false, isShown: true, left: 99.5, top: 2, height: 88,
+                                                        scaling: 100)
+        let opponent = RDOverlayGeometry.TrackerPlacement(isOpponent: true, isShown: true, left: 0.5, top: 12.5, height: 72,
+                                                          scaling: 100)
+        func big(_ file: String, _ title: String, from source: String, size: CGSize, trackers: Bool) -> Scene {
+            var s = out.first { $0.file == source }!
+            s.file = file
+            s.title = title
+            s.handCards = hand10
+            s.size = size
+            s.trackers = trackers ? [player, opponent] : []
+            return s
+        }
+        let wide = CGSize(width: 1920, height: 1080)
+        let narrow = CGSize(width: 1440, height: 1080)
+        out.append(big("21-big-formula-169.png", "T6 16:9，10 张手牌，锁定公式", from: "18-formula-locked.png",
+                       size: wide, trackers: false))
+        out.append(big("22-big-heal16-169.png", "T6 16:9，10 张手牌，奶 16", from: "15-danger-heal16.png",
+                       size: wide, trackers: false))
+        out.append(big("23-big-formula-43.png", "T6 4:3，10 张手牌，锁定公式", from: "18-formula-locked.png",
+                       size: narrow, trackers: false))
+        out.append(big("24-big-heal16-43.png", "T6 4:3，10 张手牌，奶 16", from: "15-danger-heal16.png",
+                       size: narrow, trackers: false))
+        out.append(big("25-big-formula-169-default-tracker.png", "T6 16:9，默认记牌器（72% 高），锁定公式",
+                       from: "18-formula-locked.png", size: wide, trackers: true))
+        out.append(big("26-big-heal16-43-default-tracker.png", "T6 4:3，默认记牌器（72% 高），奶 16",
+                       from: "15-danger-heal16.png", size: narrow, trackers: true))
+        out.append(big("27-big-formula-1610-default-tracker.png", "T6 16:10，默认记牌器（72% 高），锁定公式",
+                       from: "18-formula-locked.png", size: CGSize(width: 1728, height: 1117), trackers: true))
         return out
     }
 
@@ -1040,7 +1225,7 @@ class RedDragonOverlayTests: HSTrackerTests {
             throw XCTSkip("设 TEST_RUNNER_RD_RENDER_DIR 才渲染效果图")
         }
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
-        for scene in Self.scenes() {
+        for var scene in Self.scenes() {
             let size = scene.size
             let trackerVMs: [TrackerPanelViewModel] = scene.trackers.map { p in
                 let t = TrackerPanelViewModel(playerType: p.isOpponent ? .opponent : .player)
@@ -1055,6 +1240,13 @@ class RedDragonOverlayTests: HSTrackerTests {
             vm.receive(scene.hint)
             spin { vm.commits > 0 || !RDOverlayModel.make(scene.hint, cardName: Self.zh).isVisible }
             let boxes = scene.trackers.isEmpty ? nil : vm.trackers.boxes(canvas: size)
+            // 标题后面注上面板实际的缩放档和像素
+            if let badge = vm.model.badge {
+                let layout = RDOverlayGeometry.panelLayout(canvas: size, badge: badge, lines: vm.model.lines,
+                                                           trackers: boxes ?? [])
+                scene.title += layout.map { String(format: "｜面板 ×%.2f，%.0f×%.0f px", $0.scale, $0.frame.width,
+                                                    $0.frame.height) } ?? "｜面板不画"
+            }
             let view = ZStack(alignment: .topLeading) {
                 RDSchematicBoard(scene: scene, canvas: size, trackerBoxes: boxes)
                 RedDragonOverlayView(viewModel: vm, canvasSize: size)
@@ -1202,6 +1394,11 @@ private struct RDSchematicBoard: View {
                 .rotationEffect(.degrees(c.angle))
                 .position(c.center)
             }
+            // 手牌禁区（1~10 张的外接框并集）：红色虚线
+            let hand = RDOverlayGeometry.handBox(canvas)
+            Rectangle().stroke(Color.red.opacity(0.8), style: StrokeStyle(lineWidth: 2, dash: [8, 5]))
+                .frame(width: hand.width, height: hand.height)
+                .position(x: hand.midX, y: hand.midY)
         }
         .frame(width: canvas.width, height: canvas.height, alignment: .topLeading)
     }
