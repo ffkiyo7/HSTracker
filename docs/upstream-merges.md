@@ -4,9 +4,8 @@
 §1 / §2 有新的热点或新规则就补一行。本文与 `git log --merges dev0923` 一一对应。
 
 - 上游：`upstream` = https://github.com/HearthSim/HSTracker.git，只合 **tag**（`3.6.13` 这种），不合 `upstream/master` 中间态
-- 工作分支 `dev0923`，基座 **3.6.12**（`c723bfd4`，2026-09-23 REFORK 换轨，见 `docs/REFORK.md`）；`master` 只做上游纯镜像（只允许 `--ff-only`）
+- 工作分支 `dev0923`，基座 **3.6.13**（09-29 合入；09-23 从 3.6.12 `c723bfd4` 换轨，见 `docs/archive/refork-2026-09.md`）；`master` 只做上游纯镜像（只允许 `--ff-only`）
 - 旧线 `dev`（基座 3.6.9）冻结作回滚点，不再合上游；它的三次合并记录（U / U2 / U3）留在 §4 末尾
-- 3.6.13 的评估已做（`docs/REFORK.md`「上游 3.6.13 评估」），是新线第一次 merge
 
 ## 0. 固定流程
 
@@ -25,7 +24,7 @@ git merge-tree --write-tree dev0923 <tag> | grep '^CONFLICT'                    
 4. `BobsBuddy-version.txt` 冲突 → §2.2 重新 vendor；`HearthMirror-version.txt` 变了 → 必须 `clean build`。
 5. 校验：`python3 docs/tasks/tools/check_xcstrings.py --baseline dev0923`（只应报上游新增 key；我们有意覆盖过上游 zh 的 key 要带 `--allow-zh-edit`）；受限环境 Debug `clean build` → `BUILD SUCCEEDED`；`xcodebuild test` → 条数 ≥ 合并前（09-28：295 条，只挂签名 1 条；命令见 `AGENTS.md`「构建」）。
 6. merge commit 标题 `merge: 合入 upstream <版本>`，正文逐个冲突文件写「保留了谁的什么、为什么」+ 手工复核的自动合并项 + 构建 / 测试结果（模板看 `git show 5835f8a4` / `9da27c8e`）。
-7. 更新文档：`docs/PLAN.md` 头表（基座、测试基线）+ 阶段表加 Phase Ux 行；本文 §4 追加记录。
+7. 更新文档：`docs/PLAN.md` 头部基座、提交记录和构建 / 测试记录各补一行；本文 §4 追加记录。
 8. 合完 grep 一遍 `docs/PLAN.md`「与上游的默认值差异」表，一个单词的默认值最容易被静默还原。
 
 ## 1. 排查从哪开始看：热点文件
@@ -99,7 +98,7 @@ latest 低于上游声明、下载失败、HearthDb 大版本跳变 → 停下�
 ### REFORK — 换轨到 3.6.12（2026-09-23 ～ 09-28，不是 merge）
 
 上游 3.6.11 之后把 overlay 重写成单一 SwiftUI 画布并删了 `Tracker.swift` / `CardHud.swift`，旧线的记牌器窗口层改动整体作废。
-不合并，从 `3.6.12`（`c723bfd4`）开 `dev0923`，按 `docs/REFORK.md` S0–S8 只搬值得留的东西；每步的取舍、勘误、上游 bug 都记在那里。
+不合并，从 `3.6.12`（`c723bfd4`）开 `dev0923`，按 `docs/archive/refork-2026-09.md` S0–S8 只搬值得留的东西；每步的取舍、勘误、上游 bug 都记在那里。
 新线第一次 merge 是下面的 U4。
 
 ### U4 — 3.6.13（2026-09-29，merge commit `merge: 合入 upstream 3.6.13`，上游 `c723bfd4..41f89c04`，28 commits）

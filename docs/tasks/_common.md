@@ -5,7 +5,7 @@
 **仓库根目录就是你当前的工作目录**（`git rev-parse --show-toplevel`）。它可能是一个 git worktree，
 路径不固定 —— 不要写死绝对路径，不要 `cd` 到别的 HSTracker 副本。
 
-规则全文在 `AGENTS.md`；计划与进度在 `docs/PLAN.md`，动手前先读与你任务相关的部分和任务书点名的文档。
+规则全文在 `AGENTS.md`；提交和构建记录在 `docs/PLAN.md`，动手前先读任务书点名的文档。
 
 ### 硬性规则
 

@@ -27,4 +27,6 @@
 | 12（09-30～10-06，补登） | `refork-s6b-fixes`（`7312c31`，09-30 实测）、`phase2-27-status-icons`（`7dbc86b`，10-04 用户确认提交）、`rdr-t3-live-feedback`（`507d354`，10-06 实测） | 归档时没登记，这次补上 |
 | 13（10-06） | `rdr-t2b-live-data`（`61fbcbd`）、`rdr-t2-delivery`（T2 交付清单） | T2b ✅。交付清单里还没定的事项已挪进 `PLAN.md`「等你定」，已结的在那里写了依据。T2a / T2c 两本仍在 `docs/tasks/`（T2a 有待定项，T2c 待验收），交付清单原说「三本一起归档」，按「归档看状态」改为分开归 |
 
+| 14（10-14） | `docs/tasks/` 下其余全部 19 本（Bug T10 / T11、Perf P3–P6、D1、2.9 / 2.10 / V、红龙 T2a / T2c / T4–T8），连同旧 `PLAN.md`（`plan-2026-10-14.md`）和 `REFORK.md`（`refork-2026-09.md`） | 10-14 用户定：待办、待实测、等定的全部按已读和已决定处理，文档只留提交 / 构建记录和项目细节 |
+
 `phase3-t1-diff-report.md` 不是任务书，是 gaenyong 与我们译法不同的 77 条对照表。
