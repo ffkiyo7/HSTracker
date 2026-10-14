@@ -5,6 +5,12 @@
       "comment" : "Class = \"NSButtonCell\"; title = \"Cardlist opens on mouseover\"; ObjectID = \"1dP-3v-VLS\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kartenliste beim Daraufzeigen öffnen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -251,6 +257,12 @@
       "comment" : "Class = \"NSButtonCell\"; title = \"Highlight synergies in the deck\"; ObjectID = \"B89-dN-j4b\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Synergien im Deck hervorheben"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -275,6 +287,12 @@
       "comment" : "Class = \"NSButtonCell\"; title = \"Show corpses counter\"; ObjectID = \"Cor-ps-002\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leichenzähler anzeigen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -383,6 +401,12 @@
       "comment" : "Class = \"NSButtonCell\"; title = \"E.T.C.'s Band\"; ObjectID = \"FHZ-zN-gBu\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "E.T.C.s Band"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -407,6 +431,12 @@
       "comment" : "Class = \"NSButtonCell\"; title = \"Show counters\"; ObjectID = \"frU-cb-GPA\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zähler anzeigen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -611,6 +641,12 @@
       "comment" : "Class = \"NSButtonCell\"; title = \"Show top cards\"; ObjectID = \"h9o-98-HVl\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oberste Karten anzeigen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -725,6 +761,12 @@
       "comment" : "Class = \"NSButtonCell\"; title = \"Show related cards tooltip\"; ObjectID = \"IQb-Gf-HMS\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kurzinfo zu verwandten Karten anzeigen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -749,6 +791,12 @@
       "comment" : "Class = \"NSButtonCell\"; title = \"Show bottom cards\"; ObjectID = \"JNf-li-uCC\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unterste Karten anzeigen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -1223,6 +1271,12 @@
       "comment" : "Class = \"NSButtonCell\"; title = \"Show maximum Health, Mana, and Hand Size\"; ObjectID = \"UGt-FV-Bds\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Maximales Leben, Mana und Handkartenzahl anzeigen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -1247,6 +1301,12 @@
       "comment" : "Class = \"NSButtonCell\"; title = \"Show active effects\"; ObjectID = \"Zrq-qH-h4q\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aktive Effekte anzeigen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",

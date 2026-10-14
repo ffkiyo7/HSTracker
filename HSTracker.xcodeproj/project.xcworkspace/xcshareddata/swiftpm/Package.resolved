@@ -1,5 +1,5 @@
 {
-  "originHash" : "69c3849bf96fe2e3473f804dadf0330ecd23511ddea5ee0bd6d80204cb6ffb04",
+  "originHash" : "2c49ce3cdd38416b37e177a11c5e7381cae7163498e2f1b7eaca2b729dae95b0",
   "pins" : [
     {
       "identity" : "appmover",
@@ -10,30 +10,12 @@
       }
     },
     {
-      "identity" : "bigint",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/attaswift/BigInt",
-      "state" : {
-        "revision" : "889a1ecacd73ccc189c5cb29288048f186c44ed9",
-        "version" : "5.2.1"
-      }
-    },
-    {
       "identity" : "brightfutures",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Thomvis/BrightFutures.git",
       "state" : {
         "revision" : "9279defa6bdc21501ce740266e5a14d0119ddc63",
         "version" : "8.0.1"
-      }
-    },
-    {
-      "identity" : "customtooltip",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/fmoraes74/CustomToolTip",
-      "state" : {
-        "branch" : "main",
-        "revision" : "e712cfd42d57c928f86614e77046e085de51394d"
       }
     },
     {
@@ -52,24 +34,6 @@
       "state" : {
         "revision" : "826d9161b184509f80d85c28cd612d630646de98",
         "version" : "6.0.0"
-      }
-    },
-    {
-      "identity" : "fmdb",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/ccgus/fmdb",
-      "state" : {
-        "revision" : "61e51fde7f7aab6554f30ab061cc588b28a97d04",
-        "version" : "2.7.7"
-      }
-    },
-    {
-      "identity" : "gzipswift",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/1024jp/GzipSwift",
-      "state" : {
-        "revision" : "ba0b6cb51cc6202f896e469b87d2889a46b10d1b",
-        "version" : "5.1.1"
       }
     },
     {
@@ -97,15 +61,6 @@
       "state" : {
         "revision" : "d85964b96dbce94df961f28b996187c835089903",
         "version" : "2.2.0"
-      }
-    },
-    {
-      "identity" : "promisekit",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/mxcl/PromiseKit",
-      "state" : {
-        "revision" : "aea48ea1855f5d82e2dffa6027afce3aab8f3dd7",
-        "version" : "6.13.3"
       }
     },
     {
@@ -169,14 +124,6 @@
       "state" : {
         "revision" : "12b5acf96d98f91d50de447369bd18df74600f1a",
         "version" : "1.9.6"
-      }
-    },
-    {
-      "identity" : "textattributes",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/delba/TextAttributes",
-      "state" : {
-        "revision" : "febe1d7fcdb6ba764d9392bee14a6d3086c907d1"
       }
     }
   ],

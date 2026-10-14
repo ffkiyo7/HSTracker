@@ -5,6 +5,12 @@
       "comment" : "Class = \"NSButtonCell\"; title = \"Duels\"; ObjectID = \"3aJ-8X-AqP\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duelle"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -29,6 +35,12 @@
       "comment" : "Class = \"NSTextFieldCell\"; title = \"Subscription status\"; ObjectID = \"7ln-3f-To8\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abostatus"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -53,6 +65,12 @@
       "comment" : "Class = \"NSButtonCell\"; title = \"Mercenaries\"; ObjectID = \"9Sj-4I-EKw\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Söldner"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -77,6 +95,12 @@
       "comment" : "Class = \"NSButtonCell\"; title = \"Login to HSReplay.net\"; ObjectID = \"87B-1e-y45\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bei HSReplay.net anmelden"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -137,6 +161,12 @@
       "comment" : "Class = \"NSButtonCell\"; title = \"Show upload notification\"; ObjectID = \"a4D-nA-Vqz\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Upload-Mitteilung anzeigen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -293,6 +323,12 @@
       "comment" : "Class = \"NSButtonCell\"; title = \"Spectator\"; ObjectID = \"dX9-1S-Y1M\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zuschauer"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -383,6 +419,12 @@
       "comment" : "Class = \"NSButtonCell\"; title = \"Ranked\"; ObjectID = \"hNI-pm-upP\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gewertet"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -449,6 +491,12 @@
       "comment" : "Class = \"NSBox\"; title = \"My Account\"; ObjectID = \"KV0-Rl-jeI\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mein Account"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -473,6 +521,12 @@
       "comment" : "Class = \"NSButtonCell\"; title = \"Tavern Brawl\"; ObjectID = \"lGJ-41-bPm\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kartenchaos"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -539,6 +593,12 @@
       "comment" : "Class = \"NSButtonCell\"; title = \"Friendly\"; ObjectID = \"Lla-JP-gmw\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Freundschaftsspiel"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -605,6 +665,12 @@
       "comment" : "Class = \"NSButtonCell\"; title = \"Find out more\"; ObjectID = \"LV9-Mi-ztK\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mehr erfahren"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -629,6 +695,12 @@
       "comment" : "Class = \"NSBox\"; title = \"Upload game modes\"; ObjectID = \"qvg-bJ-3rk\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spielmodi hochladen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -695,6 +767,12 @@
       "comment" : "Class = \"NSTextFieldCell\"; title = \"Thank you for supporting us!\"; ObjectID = \"sW4-mJ-KZE\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Danke für deine Unterstützung!"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -719,6 +797,12 @@
       "comment" : "Class = \"NSButtonCell\"; title = \"Arena\"; ObjectID = \"XLN-hm-TrI\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arena"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -785,6 +869,12 @@
       "comment" : "Class = \"NSButtonCell\"; title = \"Adventure / Practice\"; ObjectID = \"XWA-c6-mjM\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abenteuer / Übung"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -851,6 +941,12 @@
       "comment" : "Class = \"NSTextFieldCell\"; title = \"Login to claim your replays and enable all HSReplay.net features.\"; ObjectID = \"zQQ-GF-3Lg\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Melde dich an, um deine Replays zu sichern und alle Funktionen von HSReplay.net zu nutzen."
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -875,6 +971,12 @@
       "comment" : "Class = \"NSButtonCell\"; title = \"Battlegrounds\"; ObjectID = \"ZRj-Jq-3gI\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schlachtfeld"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -899,6 +1001,12 @@
       "comment" : "Class = \"NSButtonCell\"; title = \"Casual\"; ObjectID = \"zUq-Mn-Mae\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Freies Spiel"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",

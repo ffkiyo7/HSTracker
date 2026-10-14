@@ -29,8 +29,6 @@ class WindowManager {
         RelatedCardsTooltipPanel.shared
     }
 
-    private var lastCardsUpdateRequest = Date.distantPast.timeIntervalSince1970
-
     private let orderFrontGate = OverlayOrderFrontGate()
 
 	private func setHearthstoneActive() { hearthstoneActive = true }

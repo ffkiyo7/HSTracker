@@ -996,13 +996,10 @@ class TrackerMetricsTests: HSTrackerTests {
             return XCTFail("the highlight table is empty — reflection found no ICardWithHighlight")
         }
 
-        // Out of scope, recorded here because the table is what this test reads:
-        // `ReflectionHelper.initialize()` sorts a class with an `else if` chain,
-        // so the four cards that are both ICardWithRelatedCards and
-        // ICardWithHighlight land in the related table only and never get a
-        // highlight. See the task book's 执行结果.
-        XCTAssertNil(manager.getCardWithHighlight(CardIds.Collectible.Invalid.LiftOff),
-                     "if this now resolves, ReflectionHelper was fixed — drop this assertion")
+        // Cards that are both ICardWithRelatedCards and ICardWithHighlight used to
+        // land in the related table only; upstream 3.7.0 (4edaabf8) registers them
+        // in both.
+        XCTAssertNotNil(manager.getCardWithHighlight(CardIds.Collectible.Invalid.LiftOff))
 
         let secret = Card()
         secret.id = "PERF_SECRET"

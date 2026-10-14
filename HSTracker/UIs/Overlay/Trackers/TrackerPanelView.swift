@@ -303,7 +303,7 @@ struct TrackerPanelView: View {
         CardTileListView(cards: content.cards, playerType: viewModel.playerType,
                          cardHeight: layout.cardHeight, reset: content.reset,
                          flashing: content.flashing, version: content.version,
-                         hoverKind: hoverKind)
+                         hoverKind: hoverKind, highlight: hoverHandler.deckHighlight)
     }
 
     private func lens(_ content: TrackerCardListContent, label: String, layout: TrackerPanelLayout,
@@ -312,7 +312,7 @@ struct TrackerPanelView: View {
                             playerType: viewModel.playerType, cardHeight: layout.cardHeight,
                             frameHeight: layout.smallFrameHeight, reset: content.reset,
                             flashing: content.flashing, version: content.version,
-                            hoverKind: hoverKind)
+                            hoverKind: hoverKind, highlight: hoverHandler.deckHighlight)
     }
 }
 

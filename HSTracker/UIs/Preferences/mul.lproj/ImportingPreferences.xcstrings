@@ -5,6 +5,12 @@
       "comment" : "Class = \"NSTextFieldCell\"; title = \"Template\"; ObjectID = \"1mZ-nx-a5i\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vorlage"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -29,6 +35,12 @@
       "comment" : "Class = \"NSTextFieldCell\"; title = \"Adventure\"; ObjectID = \"7ai-aJ-h72\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abenteuer"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -53,6 +65,12 @@
       "comment" : "Class = \"NSTextFieldCell\"; title = \"Template\"; ObjectID = \"aNg-mm-TjR\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vorlage"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -77,6 +95,12 @@
       "comment" : "Class = \"NSButtonCell\"; title = \"Include passive cards\"; ObjectID = \"bod-R2-2UP\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passive Karten einschließen"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -101,6 +125,12 @@
       "comment" : "Class = \"NSTextFieldCell\"; title = \"Preview\"; ObjectID = \"CCL-UG-dMB\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vorschau"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -125,6 +155,12 @@
       "comment" : "Class = \"NSBox\"; title = \"Arena\"; ObjectID = \"HEh-ts-ef2\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arena"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -149,6 +185,12 @@
       "comment" : "Class = \"NSBox\"; title = \"Duels\"; ObjectID = \"j3y-jR-Itg\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duelle"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -173,6 +215,12 @@
       "comment" : "Class = \"NSTextFieldCell\"; title = \"Template\"; ObjectID = \"Mao-2y-Nix\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vorlage"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -197,6 +245,12 @@
       "comment" : "Class = \"NSBox\"; title = \"Dungeon\"; ObjectID = \"NFi-sm-q5V\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dungeon"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -221,6 +275,12 @@
       "comment" : "Class = \"NSTextFieldCell\"; title = \"Preview\"; ObjectID = \"OLn-BZ-Zzh\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vorschau"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -245,6 +305,12 @@
       "comment" : "Class = \"NSComboBoxCell\"; rul-MQ-89R.ibShadowedObjectValues[0] = \"Dungeon Run\"; ObjectID = \"rul-MQ-89R\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dungeonlauf"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -269,6 +335,12 @@
       "comment" : "Class = \"NSComboBoxCell\"; rul-MQ-89R.ibShadowedObjectValues[1] = \"Monster Hunt\"; ObjectID = \"rul-MQ-89R\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Monsterjagd"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -293,6 +365,12 @@
       "comment" : "Class = \"NSComboBoxCell\"; rul-MQ-89R.ibShadowedObjectValues[2] = \"Rumble Run\"; ObjectID = \"rul-MQ-89R\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rumbleklopper"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -317,6 +395,12 @@
       "comment" : "Class = \"NSComboBoxCell\"; rul-MQ-89R.ibShadowedObjectValues[3] = \"The Dalaran Heist\"; ObjectID = \"rul-MQ-89R\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Dalaranraub"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -341,6 +425,12 @@
       "comment" : "Class = \"NSComboBoxCell\"; rul-MQ-89R.ibShadowedObjectValues[4] = \"Tombs of Terror\"; ObjectID = \"rul-MQ-89R\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grüfte des Schreckens"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
@@ -365,6 +455,12 @@
       "comment" : "Class = \"NSTextFieldCell\"; title = \"Preview\"; ObjectID = \"sYs-ss-jJm\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vorschau"
+          }
+        },
         "en" : {
           "stringUnit" : {
             "state" : "new",
