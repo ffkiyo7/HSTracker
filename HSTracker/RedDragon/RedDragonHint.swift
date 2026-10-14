@@ -87,11 +87,16 @@ struct RDFormula: Equatable {
         /// 打 / 回 16 的回血线（危险时）
         case heal16
         case preLaunch
+        /// 破冰线（T8）：本回合把冰打掉 + 之后为下回合做的准备
+        case iceBreak
     }
     var goal: Goal
     var tokens: [RDFormulaToken]
     /// 已经走完的前几步（锁定模式用来画划掉 / 高亮）
     var done = 0
+    /// 破冰线：冰是第几步打掉的（从 1 起，对整条公式而言，跟手时不变）。nil = 这条公式里没有破冰的那一步
+    /// （不是破冰线，或起手时冰已经碎了）
+    var breakStep: Int? = nil
     /// 回合结束留下的东西（准备线）：场上随从、手牌里能认出的牌
     var leftBoard: [RDCard] = []
     var leftHand: [RDCard] = []
@@ -111,6 +116,31 @@ struct RDSetupAdvice: Equatable {
     }
     var kind: Kind
     var formula: RDFormula?
+}
+
+/// 破冰模式的结论（T8 口径 5 / 8 / 9）。开着破冰时面板只画它，不画普通的斩杀判定（那个假定没有冰）
+struct RDIceAdvice: Equatable {
+    enum Kind: Equatable {
+        /// ① 本回合能破冰，下回合可斩（按对方回合不动场面、不回血算）
+        case lethalNextTurn
+        /// ② 本回合能破冰，下回合没搜到斩杀
+        case shortNextTurn
+        /// ③ 本回合破不了冰
+        case cannotBreak
+    }
+    var kind: Kind
+    /// 本回合的线（破冰 + 准备步），① ② 时有，可以是 0 步。`breakStep` 标着冰在哪一步碎
+    var formula: RDFormula?
+    /// 此刻冰已经碎了（对方免疫）：起手就是这样，或照着线打过了破冰那一步
+    var broken = false
+    /// 破冰后对方剩余血量（血 + 甲）
+    var remaining = 0
+    /// 下回合不靠随机抽牌能打的伤害（搜到的下界）
+    var nextTurnDamage = 0
+    /// 下回合探过没有。false = 预算用完没轮到（`RDIceBreakResult.nextTurnProbed`）：不能把 `nextTurnDamage` 当数报
+    var nextTurnProbed = true
+    /// ③ 时：不靠随机抽牌的打法按本模型穷举完了（否则只是没搜到）
+    var proven = false
 }
 
 /// 发现 / 抽牌的结果。`isDraw` = 随机抽牌（取决于抽到什么），false = E.T.C. 发现（自己选）
@@ -222,6 +252,8 @@ struct RDAnalysis: Equatable {
     var formula: RDFormula? = nil
     /// 准备建议：只在「斩不了 + 场面危险」时由助手补上（搜索较慢，晚于判定到）
     var setup: RDSetupAdvice? = nil
+    /// 破冰模式的结论（T8）。非 nil = 这份结论是破冰口径的：上面的斩杀判定、伤害数字、步骤都是空的，面板只画它
+    var ice: RDIceAdvice? = nil
 }
 
 /// 答题模式（spike 二、1）：不显示序号，每做一步判卷
@@ -257,6 +289,8 @@ struct RedDragonHint: Equatable {
     var locked = false
     /// 锁定的线走不通了（打偏 / 对方介入）：不再显示旧公式，标「已偏离，重算中」直到新线锁定
     var deviated = false
+    /// 破冰模式开着（T8，用户点面板上的按键）。和 `analysis` 分开：刚点完、新结论还没到时按键就要变
+    var iceMode = false
 
     static let inactive = RedDragonHint(phase: .inactive, analysis: nil, isStale: false,
                                         revealLevel: .verdict, maxRevealLevel: .verdict,
@@ -572,6 +606,61 @@ enum RDHintBuilder {
             formula: isLethal ? chosen.map { RDFormulaBuilder.formula(.lethal, $0.actions, root: root) } : nil)
     }
 
+    /// 破冰搜索的结果 → 结论（T8）。斩杀判定那几项留空（开着破冰时面板不画它们：那个判定假定没有冰），
+    /// 只有 `ice` 和跟局面走的几项（排位、法力、操作数、危险、奥秘）有内容。
+    /// `formula`：跟手时沿用上次的公式（`done` 已经加过），nil = 照 `result.line` 现生成（一步没走）
+    static func iceAnalysis(snapshot snap: RDGameSnapshot, live: RDLiveState, result r: RDIceBreakResult,
+                            formula: RDFormula? = nil) -> RDAnalysis {
+        let kind: RDIceAdvice.Kind
+        switch r.verdict {
+        case .lethalNextTurn: kind = .lethalNextTurn
+        case .shortNextTurn: kind = .shortNextTurn
+        case .cannotBreak, .notApplicable: kind = .cannotBreak
+        }
+        let costsInferred = !live.inferredBaseCostEntities.isEmpty
+        let unmodeledInDeck = live.state.deck.counts[RDCard.junkPlaceholder.rawValue] > 0
+        var advice = RDIceAdvice(kind: kind)
+        if let line = r.line {
+            advice.formula = formula ?? RDFormulaBuilder.formula(.iceBreak, line.actions, root: r.root,
+                                                                 potential: r.nextTurnDamage)
+        }
+        advice.broken = r.alreadyBroken
+        advice.remaining = r.remaining
+        advice.nextTurnDamage = r.nextTurnDamage
+        advice.nextTurnProbed = r.nextTurnProbed
+        advice.proven = kind == .cannotBreak && r.exhaustive && !costsInferred && !unmodeledInDeck && !r.cancelled
+        var a = RDAnalysis(
+            turn: snap.turn,
+            availableMana: live.state.availableMana,
+            isLethal: false,
+            verdict: .notFound,
+            costsInferred: costsInferred,
+            lethalDependsOnDraw: false,
+            maxDamage: 0,
+            effectiveEnemyHealth: live.state.opponent.effectiveHealth,
+            // 撞了 CPU 兜底（破冰搜索或探针）：结果随机器负载变，照斩杀判定的做法标「被截断」
+            completeness: r.cpuBudgetHit ? .truncated : .complete,
+            tier: nil,
+            handMarks: [],
+            steps: [],
+            totalSteps: advice.formula?.tokens.count ?? 0,
+            boardMarks: [],
+            nextStepText: "",
+            drawBranches: [],
+            missingPieces: [],
+            missingPiecesIncomplete: false,
+            singleTurnInsufficient: false,
+            boardDanger: isDanger(snap),
+            opponentHasSecrets: snap.opponentSecretCount > 0,
+            actionsTaken: snap.optionsPlayedThisTurn,
+            handOrder: snap.hand.map { $0.entityId },
+            boardSlots: snap.boardSlots.isEmpty ? snap.board.map { $0.entityId } : snap.boardSlots,
+            opponentBoardSlots: snap.opponentBoardSlots.isEmpty
+                ? snap.opponentBoard.map { $0.entityId } : snap.opponentBoardSlots)
+        a.ice = advice
+        return a
+    }
+
     /// 场面危险：对方下回合场攻 ≥ 我方血量 + 护甲 − `dangerMargin`，或已经死于对方场面
     static func isDanger(_ snap: RDGameSnapshot) -> Bool {
         return snap.deadToBoard || snap.opponentBoardDamage + dangerMargin >= snap.heroHealth + snap.heroArmor
@@ -780,12 +869,16 @@ enum RDFormulaBuilder {
                         potential: Int = 0) -> RDFormula {
         var s = root
         var tokens: [RDFormulaToken] = []
+        var breakStep: Int?
         for a in actions {
             guard let after = try? RDEngine.apply(a, to: s) else { break }
             tokens.append(token(a, before: s, after: after))
+            // 破冰线（根局面标着冰）：冰在这一步碎。别的线两边都是 nil，不会进来
+            if s.opponent.ice == .armed && after.opponent.ice == .broken { breakStep = tokens.count }
             s = after
         }
         var f = RDFormula(goal: goal, tokens: tokens)
+        f.breakStep = breakStep
         if goal != .lethal {
             f.leftBoard = s.board.map { $0.card }.filter { !RDCards.def($0).isPlaceholder }
             f.leftHand = s.hand.map { $0.identity(at: 0) }.filter { !RDCards.def($0).isPlaceholder }

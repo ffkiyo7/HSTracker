@@ -9,7 +9,10 @@
 //
 //  状态只从 `RedDragonAssistant.subscribe` 来，到这里再投一次 `main.async`、在同一个 block 里一次提交
 //  （见 `RedDragonOverlayViewModel.receive`）。视图只观察自己的 view model 和记牌器位置（`RDTrackerObstacles`，
-//  去重后只在影响让位的值变了时发）：记牌器内容刷新不会让它重算，它变了也不会让 `RootOverlayView` 重算。不接鼠标，不报交互 / 悬停区域，窗口保持点击穿透。
+//  去重后只在影响让位的值变了时发）：记牌器内容刷新不会让它重算，它变了也不会让 `RootOverlayView` 重算。
+//  接鼠标的只有面板标签行里的破冰按键（T8，`RDIceButton`）：它把自己的外框报成交互区域，光标进了那一块窗口才接鼠标；
+//  面板其余部分、面板不显示时都不报区域，窗口保持点击穿透。点按键 → `RedDragonOverlayViewModel.toggleIceBreak`
+//  → `RedDragonAssistant.toggleIceBreak`（都在主线程，同步），结果照常从订阅回来。
 //  悬停手牌时游戏放大的那张牌由 overlay 根上的 opacity mask 整块挖掉（`setCardOpacityMask` 的 hand 分支），
 //  这里画在同一个被 mask 的 ZStack 里，所以标记不会盖住它。
 //
@@ -80,6 +83,12 @@ final class RedDragonOverlayViewModel: ObservableObject {
         guard next != model else { return }
         model = next
         commits += 1
+    }
+
+    /// 面板上的破冰按键被点了（主线程，SwiftUI 的点击回调）。直接转给 assistant：它当场翻转模式、
+    /// 对当前局面重排计算；结果照常经 `receive` 回来
+    func toggleIceBreak() {
+        assistant?.toggleIceBreak()
     }
 }
 
@@ -197,17 +206,19 @@ struct RedDragonOverlayView: View {
         #if DEBUG
         Self.lastPanelLayout = layout
         #endif
+        // 接鼠标的只有面板标签行里的破冰按键（`RDIceButton`，它自己上报点击区域）：整层不再一刀切关掉命中测试，
+        // 改成底板和面板里按键以外的每一块各自关（`RDPanelContent`）。窗口级的点击穿透照旧由上报的区域决定
         return ZStack(alignment: .topLeading) {
-            Color.clear
+            Color.clear.allowsHitTesting(false)
             if model.isVisible && usable {
                 if let badge = model.badge, let layout {
-                    RDPanel(badge: badge, layout: layout, canvas: canvasSize)
+                    RDPanel(badge: badge, layout: layout, canvas: canvasSize,
+                            onToggleIce: { [weak viewModel] in viewModel?.toggleIceBreak() })
                 }
             }
         }
         .frame(width: canvasSize.width, height: canvasSize.height, alignment: .topLeading)
         .animation(RDStyle.animation(reduceMotion: reduceMotion), value: model)
-        .allowsHitTesting(false)
     }
 }
 
@@ -225,6 +236,8 @@ enum RDStyle {
     static let draw = TrackerBarStyle.highlight(.orange) ?? .orange
     static let optional = TrackerBarStyle.highlight(.teal) ?? .teal
     static let wrong = Color(red: 0xE5 / 255, green: 0x48 / 255, blue: 0x3C / 255)
+    /// 破冰按键的冰蓝
+    static let ice = Color(red: 0x7F / 255, green: 0xC9 / 255, blue: 0xF2 / 255)
 
     static func tone(_ t: RDOverlayModel.Tone) -> Color {
         switch t {
@@ -266,13 +279,15 @@ struct RDPanel: View {
     let badge: RDOverlayModel.Badge
     let layout: RDOverlayGeometry.PanelLayout
     let canvas: CGSize
+    /// 破冰按键的点击。nil = 只画不接鼠标（效果图、尺寸测试）
+    var onToggleIce: (() -> Void)? = nil
 
     var body: some View {
         let frame = layout.frame
         var badge = badge
         if layout.hidesNumbers { badge.numbers = nil }
         return RDPanelContent(badge: badge, lines: layout.lines, dropped: layout.droppedLines,
-                              u: RDOverlayGeometry.unit(canvas) * layout.scale)
+                              u: RDOverlayGeometry.unit(canvas) * layout.scale, onToggleIce: onToggleIce)
             .frame(width: frame.width, alignment: .leading)
             .fixedSize(horizontal: false, vertical: true)
             .opacity(badge.dimmed ? 0.6 : 1)
@@ -288,6 +303,8 @@ struct RDPanelContent: View {
     let lines: [RDOverlayModel.Line]
     let dropped: Int
     let u: CGFloat
+    /// 破冰按键的点击。nil = 只画不接鼠标，也不上报点击区域
+    var onToggleIce: (() -> Void)? = nil
 
     private typealias M = RDPanelMetrics
 
@@ -295,19 +312,27 @@ struct RDPanelContent: View {
         content(u)
     }
 
+    /// 面板里只有标签行的破冰按键接鼠标，其余每一块都关掉命中测试
     private func content(_ u: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: M.spacing * u) {
-            headerRow(u)
+            headerRow(u).allowsHitTesting(false)
             if M.hasChipRow(badge) {
                 chipRow(u)
+                // 按键放不进标签行（`RDPanelMetrics.buttonInline`）：另起一行
+                if !M.buttonInline(badge), let on = badge.iceButton {
+                    HStack(spacing: 5 * u) {
+                        RDIceButton(on: on, u: u, action: onToggleIce)
+                        Spacer(minLength: 0)
+                    }
+                }
             }
             if badge.quizMode {
-                quizRow(u)
+                quizRow(u).allowsHitTesting(false)
             }
             if !lines.isEmpty {
-                Rectangle().fill(TrackerBarStyle.rowLine).frame(height: 1)
+                Rectangle().fill(TrackerBarStyle.rowLine).frame(height: 1).allowsHitTesting(false)
                 ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
-                    RDLineView(line: line, u: u)
+                    RDLineView(line: line, u: u).allowsHitTesting(false)
                 }
             }
         }
@@ -364,22 +389,29 @@ struct RDPanelContent: View {
 
     private func chipRow(_ u: CGFloat) -> some View {
         HStack(spacing: 5 * u) {
-            if let tier = badge.tier {
-                RDChip(text: tier, color: RDStyle.gold, filled: false, u: u)
-            }
-            ForEach(badge.statuses, id: \.self) { s in
-                switch s {
-                case .computing:
-                    HStack(spacing: 3 * u) {
-                        RDSpinner(u: u)
-                        Text(verbatim: RDText.computing).font(RDStyle.label(u, 11)).foregroundColor(RDStyle.dimText)
+            Group {
+                if let tier = badge.tier {
+                    RDChip(text: tier, color: RDStyle.gold, filled: false, u: u)
+                }
+                ForEach(badge.statuses, id: \.self) { s in
+                    switch s {
+                    case .computing:
+                        HStack(spacing: 3 * u) {
+                            RDSpinner(u: u)
+                            Text(verbatim: RDText.computing).font(RDStyle.label(u, 11)).foregroundColor(RDStyle.dimText)
+                        }
+                    case .truncated:
+                        RDChip(text: RDText.truncated, color: RDStyle.draw, filled: false, u: u)
                     }
-                case .truncated:
-                    RDChip(text: RDText.truncated, color: RDStyle.draw, filled: false, u: u)
+                }
+                if badge.opponentSecrets {
+                    RDChip(text: RDText.opponentSecrets, color: RDStyle.step, filled: true, u: u)
                 }
             }
-            if badge.opponentSecrets {
-                RDChip(text: RDText.opponentSecrets, color: RDStyle.step, filled: true, u: u)
+            .allowsHitTesting(false)
+            // 破冰按键（T8）：排在标签后面，同一行（放得下时）
+            if M.buttonInline(badge), let on = badge.iceButton {
+                RDIceButton(on: on, u: u, action: onToggleIce)
             }
             Spacer(minLength: 0)
         }
@@ -424,7 +456,7 @@ private struct RDLineView: View {
                 Text(verbatim: line.text)
                     .font(RDStyle.label(u, line.kind == .nextStep ? 14 : 13))
                     .foregroundColor(line.kind == .nextStep ? RDStyle.text : textColor)
-                    .lineLimit(line.kind == .leftover ? 3 : 2)
+                    .lineLimit(RDPanelMetrics.rowLimit(line.kind))
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -433,9 +465,9 @@ private struct RDLineView: View {
     private var glyph: String {
         switch line.kind {
         case .nextStep, .formula: return "▶"
-        case .branch, .leftover: return "↳"
+        case .branch, .leftover, .iceNextTurn: return "↳"
         case .missing: return "◇"
-        case .insufficient: return "!"
+        case .insufficient, .icePremise: return "!"
         case .danger: return "⚠"
         }
     }
@@ -444,11 +476,12 @@ private struct RDLineView: View {
         switch line.kind {
         case .nextStep: return RDStyle.step
         case .formula(let setup): return setup ? RDStyle.optional : RDStyle.lethal
-        case .leftover: return RDStyle.dimText
+        case .leftover, .icePremise: return RDStyle.dimText
         case .branch(let lethal): return lethal ? RDStyle.lethal : RDStyle.dimText
         case .missing: return RDStyle.optional
         case .insufficient: return RDStyle.draw
         case .danger: return RDStyle.target
+        case .iceNextTurn(let lethal): return lethal ? RDStyle.optional : RDStyle.gold
         }
     }
 
@@ -456,7 +489,7 @@ private struct RDLineView: View {
         switch line.kind {
         case .danger: return RDStyle.target
         case .branch(let lethal): return lethal ? RDStyle.text : RDStyle.dimText
-        case .leftover: return RDStyle.dimText
+        case .leftover, .icePremise: return RDStyle.dimText
         default: return RDStyle.text
         }
     }
@@ -565,6 +598,41 @@ private struct RDChip: View {
             .padding(.vertical, 1.5 * u)
             .background(Capsule().fill(filled ? color : Color.clear))
             .overlay(Capsule().stroke(color.opacity(filled ? 0 : 0.7), lineWidth: 1))
+    }
+}
+
+/// 破冰按键（T8）：面板上唯一接鼠标的东西。和标签同字号、同高，左右多留一点、方角，开 = 实心、关 = 空心，
+/// 文字本身也写着开 / 关（估宽见 `RDPanelMetrics.buttonWidth`）。点击区域照 2.10 段头折叠的做法上报：
+/// 自己的外框换算到 `rootOverlayCanvas`，经 `InteractiveRegionPreferenceKey` 交给 `RootOverlayWindow`，
+/// 光标进了这块窗口才接鼠标，别处照旧点击穿透。窗口是不激活的面板，点它炉石不失去前台
+private struct RDIceButton: View {
+    let on: Bool
+    let u: CGFloat
+    /// nil = 只画（效果图 / 尺寸测试）：不接点击，也不上报区域
+    let action: (() -> Void)?
+
+    var body: some View {
+        let color = RDStyle.ice
+        let shape = RoundedRectangle(cornerRadius: 4 * u)
+        let face = Text(verbatim: RDText.iceButton(on: on))
+            .font(RDStyle.label(u, 11))
+            .foregroundColor(on ? TrackerBarStyle.base : color)
+            .lineLimit(1)
+            .padding(.horizontal, (6 + RDPanelMetrics.buttonExtraPaddingH / 2) * u)
+            .padding(.vertical, 1.5 * u)
+            .background(shape.fill(on ? color : color.opacity(0.16)))
+            .overlay(shape.stroke(color.opacity(on ? 0 : 0.9), lineWidth: 1))
+        if let action {
+            face
+                .contentShape(Rectangle())
+                .onTapGesture(perform: action)
+                .background(GeometryReader { proxy in
+                    Color.clear.preference(key: InteractiveRegionPreferenceKey.self,
+                                           value: [proxy.frame(in: .rootOverlayCanvas)])
+                })
+        } else {
+            face.allowsHitTesting(false)
+        }
     }
 }
 

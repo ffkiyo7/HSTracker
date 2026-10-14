@@ -164,8 +164,9 @@ enum RDContinuation {
                 case .lethal:
                     guard outcome.finalState.opponent.health <= 0,
                           !RDLineWalker.dependsOnDraw(rest, root: start) else { return nil }
-                case .heal16, .preLaunch:
-                    guard outcome.finalState.healedRaw >= RDSetup.healTarget || goal == .preLaunch,
+                case .heal16, .preLaunch, .iceBreak:
+                    // （破冰线走上面 `iceBreak` 那一支，`.iceBreak` 列在这里只为穷尽）
+                    guard outcome.finalState.healedRaw >= RDSetup.healTarget || goal != .heal16,
                           noRandomDraws else { return nil }
                 }
             }
@@ -200,6 +201,12 @@ enum RDContinuation {
     /// 「设为当前底费」，引擎一路推下来的是附魔序列，两者以后再挂附魔时结果相同（链是逐个折叠的）。
     /// 这里只负责「对上了、编号怎么换」，线能不能打由调用方在真实局面上重放决定
     static func correspondence(_ p: RDState, _ r: RDState, tolerant: Bool = false) -> [Int: Int]? {
+        // 盲抽过的线（T8）：推演局面不知道抽到的是哪张 —— 牌库只核对张数、每种不比推演的多；
+        // 手里那张占位牌（`blindDraw`）对得上真实手里多出来的任意一张，线后面不会提到它，不进编号对应
+        let deckMatches = p.deck.unknownGone == 0
+            ? p.deck.counts == r.deck.counts
+            : p.deck.total == r.deck.total && zip(p.deck.counts, r.deck.counts).allSatisfy { $0 >= $1 }
+        guard deckMatches || tolerant else { return nil }
         guard p.mana == r.mana, p.tempMana == r.tempMana, p.maxMana == r.maxMana,
               p.cardsPlayedThisTurn == r.cardsPlayedThisTurn, p.spellDamage == r.spellDamage,
               p.heroAttackedThisTurn == r.heroAttackedThisTurn, p.heroPowerUsed == r.heroPowerUsed,
@@ -207,7 +214,6 @@ enum RDContinuation {
               p.healedRaw == 0 || p.heroHealth == r.heroHealth,
               p.layers == r.layers, p.truncatedDraws == 0,
               p.sideboard.map({ $0.rawValue }).sorted() == r.sideboard.map({ $0.rawValue }).sorted(),
-              tolerant || p.deck.counts == r.deck.counts,
               p.secretsInPlay.map({ $0.rawValue }).sorted() == r.secretsInPlay.map({ $0.rawValue }).sorted(),
               p.boardLimit == r.boardLimit, p.handLimit == r.handLimit,
               p.opponent.health == r.opponent.health, p.opponent.armor == r.opponent.armor,
@@ -238,7 +244,7 @@ enum RDContinuation {
         }
         var unused = Array(r.hand.indices)
         var loose: [RDHandCard] = []
-        for a in p.hand {
+        for a in p.hand where !a.blindDraw {
             guard let j = unused.firstIndex(where: { sameHandCard(a, r.hand[$0]) }) else {
                 loose.append(a)
                 continue

@@ -521,6 +521,132 @@ class RedDragonIceBreakTests: HSTrackerTests {
         XCTAssertEqual(forced.remaining, 3)
     }
 
+    /// 阶段 A 复核 1：「发生了抽牌」不等于「靠抽到的牌」。对方 1 血挂冰，我方 0 费、装着能攻击的疾速矿锄（攻击后抽一张），
+    /// 牌库剩硬币和暗影步 —— 攻击的伤害在抽牌之前，抽到哪张冰都碎。原来带随机抽牌的动作整支丢掉，报成破不了、还说穷举了
+    func testDrawThatHappensIsNotADrawThatIsReliedOn() throws {
+        func position(enemy: Int, deck: [(RDCard, Int)]) -> RDState {
+            var s = root(mana: 0, enemy: enemy)
+            s.weapon = RDWeapon(attack: 1, durability: 2, drawOnHeroAttack: true)
+            s.deck = RDDeck(deck)
+            return s
+        }
+        let swing = RDAction.attack(attacker: .friendlyHero, defender: .enemyHero, choices: [.blind])
+        let r = solve(position(enemy: 1, deck: [(.coin, 1), (.shadowstep, 1)]))
+        assertBacked(r)
+        XCTAssertEqual(try XCTUnwrap(r.line).actions, [swing], "攻击那一下破冰，抽牌照常发生（盲抽）")
+        XCTAssertEqual(r.breakStep, 1)
+        XCTAssertEqual(r.remaining, 1)
+        // 抽牌的副作用照实算：牌库少一张（不知道是哪张）、手里多一张打不出去的牌
+        let end = try RDReplay.run([swing], from: r.root).finalState
+        XCTAssertEqual(end.deck.total, 1)
+        XCTAssertEqual(end.deck.unknownGone, 1)
+        XCTAssertEqual(end.hand.count, 1)
+        XCTAssertTrue(end.hand[0].blindDraw)
+        XCTAssertEqual(end.hand[0].card, .junkPlaceholder)
+        XCTAssertFalse(RDEngine.legalActions(end).contains { if case .play = $0 { return true }; return false },
+                       "抽到的那张本回合不能用")
+        // 下回合：矿锄还剩 1 点耐久，再攻击一次 1 ≥ 1（探针原来也漏掉这 1 点）。抽到的牌下回合照样不算资源
+        XCTAssertEqual(r.verdict, .lethalNextTurn)
+        XCTAssertEqual(r.nextTurnDamage, 1)
+        XCTAssertEqual(try XCTUnwrap(r.nextTurnLine).actions.first, swing)
+        let next = try XCTUnwrap(r.nextTurnRoot)
+        XCTAssertTrue(next.hand.allSatisfy { $0.card == .junkPlaceholder })
+        // 手牌满：抽到的被烧，牌库照样少一张
+        var full = r.root
+        for _ in 0..<full.handLimit { card(&full, .foxyFraud) }
+        let burned = try RDEngine.apply(swing, to: full)
+        XCTAssertEqual(burned.hand.count, full.handLimit)
+        XCTAssertEqual(burned.deck.total, 1)
+
+        // 靠抽到的牌才破得了的不收：对方 2 血，攻击只打掉 1；手里 1 费阿莱没费，抽到硬币才下得来。
+        // 走过盲抽的搜索丢了「抽到硬币并用上」的走法 → 不能报穷举
+        var needsCoin = position(enemy: 2, deck: [(.coin, 1), (.shadowstep, 1)])
+        card(&needsCoin, .alexstrasza, cost: 1, copy: true)
+        let no = solve(needsCoin)
+        XCTAssertEqual(no.verdict, .cannotBreak)
+        XCTAssertFalse(no.exhaustive, "因为随机性丢过分支：只是没搜到，不是证明")
+        XCTAssertTrue(RedDragonSearch.solve(needsCoin, config: RedDragonLiveReplayTests.deterministic).isLethal,
+                      "平常的斩杀搜索会报「抽到才斩」")
+        // 牌库只剩硬币：必抽到，不算随机，可以用
+        var onlyCoins = position(enemy: 2, deck: [(.coin, 2)])
+        card(&onlyCoins, .alexstrasza, cost: 1, copy: true)
+        let sure = solve(onlyCoins)
+        XCTAssertNotEqual(sure.verdict, .cannotBreak)
+        assertBacked(sure)
+        XCTAssertEqual(try XCTUnwrap(sure.line).actions.count, 3, "攻击（必抽到硬币）→ 硬币 → 阿莱")
+        // 没有抽牌的小局面照旧穷举
+        XCTAssertTrue(solve(position(enemy: 30, deck: [])).exhaustive)
+    }
+
+    /// 盲抽那一步之后跟手：真实局面里抽到的是一张真牌、牌库少的是那一张，和推演的「不知道哪张」对得上
+    func testFollowAcrossABlindDraw() throws {
+        var s = root(mana: 0, enemy: 1)
+        s.weapon = RDWeapon(attack: 1, durability: 2, drawOnHeroAttack: true)
+        s.deck = RDDeck([(.coin, 1), (.shadowstep, 1)])
+        let plan = solve(s)
+        let line = try XCTUnwrap(plan.line)
+        var real = try RDEngine.apply(line.actions[0], to: plan.root)
+        real.opponent.ice = nil
+        let k = try XCTUnwrap(real.hand.firstIndex { $0.blindDraw })
+        real.hand[k] = RDHandCard(entityId: real.hand[k].entityId, card: .coin, enteredHandThisTurn: true)
+        real.deck = RDDeck([(.shadowstep, 1)])
+        let f = try XCTUnwrap(RDIceBreak.follow(plan, onto: real), "严格核对（不用宽松口径）就该对上")
+        XCTAssertEqual(f.stepsTaken, 1)
+        XCTAssertEqual(f.result.verdict, plan.verdict)
+        XCTAssertEqual(f.result.line?.actions.count, 0)
+        XCTAssertEqual(f.result.nextTurnDamage, plan.nextTurnDamage)
+        // 牌库对不上（多了一张推演里没有的）就不算照着打
+        var wrong = real
+        wrong.deck = RDDeck([(.foxyFraud, 1)])
+        XCTAssertNil(RDIceBreak.follow(plan, onto: wrong))
+    }
+
+    /// 阶段 A 复核 2：「本回合能破冰」和「下回合探针做没做完」分开。探针的预算用完时，已经重放过的破冰线照留，
+    /// 结论落在「能破冰、下回合没搜到斩杀」并标出预算和「没探」，不是破不了
+    func testBreakLineSurvivesWhenProbesRunOutOfBudget() throws {
+        let state = breakAndLethalRoot().state
+        // 搜索做完、进第一个探针前就过了截止时间（负的预留 = 搜索不受限，见 `RDIceBreakConfig.probeReserve`）
+        var c = Self.detConfig()
+        c.iceBreak.cpuBudget = -1
+        c.iceBreak.probeReserve = -1e9
+        let r = RedDragonSearch.solveIceBreak(state, config: c)
+        XCTAssertEqual(r.verdict, .shortNextTurn, "原来这里是 cannotBreak")
+        XCTAssertTrue(r.cpuBudgetHit)
+        XCTAssertFalse(r.nextTurnProbed)
+        XCTAssertNil(r.nextTurnLine)
+        XCTAssertFalse(r.candidates.isEmpty)
+        XCTAssertTrue(r.candidates.allSatisfy { !$0.probed })
+        assertBacked(r)
+        XCTAssertGreaterThan(r.breakStep, 0)
+        // 同一个局面探针做完是 ①
+        XCTAssertEqual(solve(state).verdict, .lethalNextTurn)
+        XCTAssertTrue(solve(state).nextTurnProbed)
+
+        // 进来已免疫、搜索和探针都没有预算：「什么都不打」那条照留，不会同时报 alreadyBroken 和 cannotBreak
+        var immune = root(mana: 0, maxMana: 9, enemy: 8, secrets: 0, immune: true)
+        minion(&immune, .spiritOfTheShark)
+        card(&immune, .alexstrasza)
+        c.iceBreak.probeReserve = 0
+        let b = RedDragonSearch.solveIceBreak(immune, config: c)
+        XCTAssertTrue(b.alreadyBroken)
+        XCTAssertEqual(b.verdict, .shortNextTurn)
+        XCTAssertEqual(b.line?.actions.count, 0)
+        XCTAssertTrue(b.cpuBudgetHit)
+        XCTAssertFalse(b.nextTurnProbed)
+        assertBacked(b)
+
+        // 探针的个数闸门同理：排在 `maxProbes` 之后的线照留，只是没探；探过的排在前面
+        var few = Self.detConfig()
+        few.iceBreak.maxProbes = 1
+        let one = RedDragonSearch.solveIceBreak(state, config: few)
+        XCTAssertNotEqual(one.verdict, .cannotBreak)
+        XCTAssertTrue(one.nextTurnProbed)
+        XCTAssertFalse(one.cpuBudgetHit)
+        XCTAssertEqual(one.candidates.filter { $0.probed }.count, 1)
+        XCTAssertTrue(try XCTUnwrap(one.candidates.first).probed)
+        XCTAssertGreaterThan(one.candidates.count, 1)
+    }
+
     /// 取消：标记一立起来就停，结果标 `cancelled`
     func testCancellation() {
         var c = Self.detConfig()

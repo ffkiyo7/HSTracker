@@ -187,6 +187,41 @@ enum RDText {
         return nil
     }
 
+    // MARK: 破冰模式（T8）
+
+    /// 面板上的按键：文字本身写着开 / 关
+    static func iceButton(on: Bool) -> String {
+        return on ? "破冰：开" : "破冰：关"
+    }
+
+    static let iceLethalNextTurn = "破冰，下回合可斩"
+    static let iceBrokenLethalNextTurn = "冰已碎，下回合可斩"
+    static let iceCanBreak = "能破冰"
+    static let iceBroken = "冰已碎"
+    static let iceCannotBreak = "破不了冰"
+    static let iceLabel = "破冰"
+    /// 公式里跟在破冰那一步后面的记号
+    static let iceBreakMark = "冰碎"
+    /// 冰已碎、线是 0 步
+    static let iceNothingToDo = "本回合不用再出牌"
+    /// ① 的前提（口径 9）：下回合起手是拿本回合终局原样算的
+    static let icePremise = "前提：对方回合不动场面、不回血"
+
+    /// ① 的下回合摘要
+    static func iceNextTurn(remaining: Int, damage: Int) -> String {
+        return "破冰后剩 \(remaining)｜下回合伤害 \(damage)"
+    }
+
+    /// ② 的下回合摘要：伤害是搜到的下界，不写「差多少」
+    static func iceNextTurnNotFound(remaining: Int, damage: Int) -> String {
+        return "下回合没搜到斩杀：已知伤害 \(damage)｜破冰后剩 \(remaining)"
+    }
+
+    /// ② 而且下回合没探（预算用完）：伤害不知道，不报数
+    static func iceNextTurnUnprobed(remaining: Int) -> String {
+        return "下回合没算完｜破冰后剩 \(remaining)"
+    }
+
     static let singleTurnInsufficient = "单回合不够，考虑预启动"
     static let boardDanger = "场面危险，必须下怪"
     static let heroTarget = "英雄"

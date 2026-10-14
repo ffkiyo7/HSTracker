@@ -63,6 +63,10 @@ struct RDHandCard {
     /// `enchants` 算，这个标记只在把终局当下回合起手时用（`RDSetup.nextTurn`）。**不进 `canonicalHash`**，
     /// 破冰模式除外（见那里）
     var costThisTurnOnly = false
+    /// 盲抽进手的占位牌（`RDChoice.blind`，T8）：真实对局里它是一张真牌，只是线不靠它是哪张。`card` 恒为
+    /// `.junkPlaceholder`（打不出去、只占一格），这个标记只给跟手核对用（`RDContinuation.correspondence`：
+    /// 它对得上真实手里多出来的任意一张）。**不进 `canonicalHash`**（和别的杂牌等价）
+    var blindDraw = false
 
     init(entityId: Int, card: RDCard, pool: [RDCard] = [], enchants: [RDEnchant] = [],
          statsOverride: RDStats? = nil, isShadowOfDemise: Bool = false,
@@ -179,6 +183,9 @@ struct RDWeapon {
 struct RDDeck {
     private(set) var counts: [Int]
     private(set) var total: Int
+    /// 盲抽掉的张数（`RDChoice.blind`，T8）：这几张已经不在牌库里，但不知道是哪几张 —— `counts` 没扣、`total` 扣了。
+    /// 读取层读出来的牌库恒为 0，只有开着 `RDOptions.blindDraws` 的搜索会让它涨
+    private(set) var unknownGone = 0
 
     init() {
         counts = [Int](repeating: 0, count: RDCard.allCases.count)
@@ -206,6 +213,18 @@ struct RDDeck {
     mutating func add(_ card: RDCard) {
         counts[card.rawValue] += 1
         total += 1
+    }
+
+    /// 盲抽：少一张，不知道是哪张
+    mutating func removeUnknown() {
+        guard total > 0 else { return }
+        total -= 1
+        unknownGone += 1
+    }
+
+    /// 这张牌一定还在牌库里：盲抽掉的那几张就算全是它也还有剩。没盲抽过时就是「还有」
+    func surelyHas(_ card: RDCard) -> Bool {
+        return counts[card.rawValue] > unknownGone
     }
 
     /// 按 RDCard 顺序列出剩余的卡（确定性）
@@ -469,6 +488,8 @@ struct RDState {
                 feed(raw &* 64 &+ deck.counts[raw])
             }
         }
+        // 盲抽过（T8）：`counts` 没扣，少了几张要另外喂。只在盲抽过时喂，别的局面哈希不变
+        if deck.unknownGone > 0 { feed(-17); feed(deck.unknownGone) }
         feed(-7)
         for s in secretsInPlay { feed(s.rawValue) }
         for m in opponent.board {

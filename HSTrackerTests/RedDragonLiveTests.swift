@@ -17,6 +17,14 @@ class RedDragonLiveTests: HSTrackerTests {
         if Cards.by(cardId: CardIds.Collectible.Rogue.Shadowstep) == nil {
             Database().loadDatabase(splashscreen: nil, withLanguages: [.enUS])
         }
+        // 宿主 app 启动时自己也在后台读卡牌库，是一张张读进来的：上面只看「暗影步」在不在，读到一半也会放行。
+        // 这个类单独跑时排第一的用例正好撞上 —— `Table.add` 靠卡牌库定牌的类型，鲨鱼之灵还没读进来就不算随从、
+        // 局面里没有它（T8 阶段 B 撞到过：破冰线少了翻倍）。等红龙卡表里的牌都查得到再开始
+        let ids = RDCard.allCases.compactMap { RDCards.def($0).ids.first }
+        let deadline = Date().addingTimeInterval(10)
+        while Date() < deadline, ids.contains(where: { Cards.any(byId: $0) == nil }) {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.02))
+        }
     }
 
     // MARK: - 手工构造的对局
@@ -1029,5 +1037,508 @@ class RedDragonLiveTests: HSTrackerTests {
         XCTAssertEqual(assistant.hint.maxRevealLevel, .verdict)
         assistant.lowerReveal()
         XCTAssertEqual(assistant.hint.revealLevel, .verdict)
+    }
+
+    // MARK: - 破冰模式（T8 阶段 B）：按键开关、自动关、跟手、偏离
+
+    private static let matchA = Date(timeIntervalSince1970: 1_760_000_000)
+    private static let matchB = Date(timeIntervalSince1970: 1_760_003_600)
+
+    /// 对方 16 血、挂着一个奥秘；我方 3 费、「伺机待发」生效中（下一张法术 −2），鲨鱼之灵在场，手里一张 1 费的
+    /// 阿莱复制体和幻觉药水。破冰线只有一种写法（阶段 A `testBreakThenLethalNextTurn` 的局面，临时水晶换成伺机待发）：
+    /// 阿莱打脸（鲨鱼让战吼打两次：16 → 8，第二下致命 → 冰碎，剩 8）→ 喝药水（鲨鱼、阿莱各进手一张 1 费复制体），
+    /// 下回合 4 费下 1 费阿莱 16 ≥ 8。只破冰不喝药水的话下回合 4 费只够喝药水，斩不了。
+    /// `stage`：0 = 还没动；1 = 阿莱打完；2 = 药水也喝了。实体编号各阶段不变（阿莱上场还是手里那个号）。
+    /// `iceBlock`（阶段 ≥ 1）：那个奥秘是寒冰屏障（致命的那下被免、对方免疫）；不是的话当它是别的奥秘
+    /// （第二下之前对方叠了甲：剩 8 血，没有免疫）—— 两种情形奥秘都没了。
+    /// `potion: false`（只有阶段 0 / 1）：手里不是药水而是第二张 1 费阿莱复制体，也没有伺机待发 —— 破冰线只有
+    /// 阿莱打脸一步（下回合另一张阿莱 16 ≥ 8，多按一下英雄技能不升档），打完还剩 2 费
+    private func iceSnapshot(stage: Int = 0, iceBlock: Bool = true, potion: Bool = true) -> RDGameSnapshot {
+        let t = Table(resources: 3, used: [0, 1, 3][stage])
+        t.opponentHero[.health] = 16
+        t.add("TRL_092", zone: .play, tags: [.exhausted: 1])
+        let alex = t.add("LEG_CS3_031", zone: stage == 0 ? .hand : .play,
+                         tags: stage == 0 ? [.cost: 1, .atk: 1, .health: 1] : [.atk: 1, .health: 1, .exhausted: 1])
+        t.enchant("SCH_352e", on: alex)
+        t.enchant("SCH_352e2", on: alex)
+        if !potion {
+            precondition(stage < 2)
+            let second = t.add("LEG_CS3_031", zone: .hand, tags: [.cost: 1, .atk: 1, .health: 1])
+            t.enchant("SCH_352e", on: second)
+            t.enchant("SCH_352e2", on: second)
+        } else if stage < 2 {
+            t.add(Self.id(.potionOfIllusion), zone: .hand, tags: [.cost: 2])
+            t.enchant("EX1_145o", on: t.player)
+        } else {
+            t.add(Self.id(.potionOfIllusion), zone: .graveyard, tags: [.cost: 2])
+            t.nextId += 1
+            for id in ["TRL_092", "LEG_CS3_031"] {
+                let copy = t.add(id, zone: .hand, tags: [.cost: 1, .atk: 1, .health: 1])
+                t.enchant("SCH_352e", on: copy)
+                t.enchant("SCH_352e2", on: copy)
+            }
+        }
+        var snap = t.snapshot()
+        snap.match = Self.matchA
+        snap.cardsPlayedThisTurn = stage
+        snap.optionsPlayedThisTurn = stage
+        snap.opponentSecretCount = stage == 0 ? 1 : 0
+        if stage > 0 {
+            snap.opponentHeroHealth = 8
+            snap.opponentHeroImmune = iceBlock
+        }
+        return snap
+    }
+
+    /// 线上没有的一步：按了英雄技能
+    private func afterHeroPower(_ s: RDGameSnapshot) -> RDGameSnapshot {
+        var n = s
+        n.heroPowerExhausted = true
+        n.weapon = RDGameSnapshot.Weapon(cardId: "CS2_082", attack: 1, durability: 2)
+        n.resourcesUsed += 2
+        n.optionsPlayedThisTurn += 1
+        return n
+    }
+
+    private func iceTokens(_ assistant: RedDragonAssistant) -> [String]? {
+        return assistant.hint.analysis?.ice?.formula?.tokens.map { RDText.formulaToken($0) }
+    }
+
+    /// 喂一份局面（走解析线程的入口）、等斩杀判定上屏、点开破冰、等破冰结论上屏
+    private func turnIceOn(_ assistant: RedDragonAssistant, _ s: RDGameSnapshot,
+                           file: StaticString = #filePath, line: UInt = #line) {
+        DispatchQueue.global().sync { assistant.feed(.snapshot(s)) }
+        spin { assistant.hint.phase == .ready && assistant.hint.analysis?.opponentHasSecrets == true }
+        assistant.toggleIceBreak()
+        spin { assistant.hint.phase == .ready && assistant.hint.analysis?.ice != nil }
+        XCTAssertTrue(assistant.iceMode, file: file, line: line)
+        XCTAssertNotNil(assistant.hint.analysis?.ice, file: file, line: line)
+    }
+
+    /// 点按键（面板上的点击同步调到 `toggleIceBreak`）：模式当场翻转并发布（按键立刻换成开 / 关），不等下一条日志、
+    /// 不去抖，立刻对当前局面重算；开 → 破冰口径的结论，关 → 回到斩杀判定。
+    /// 对方没有奥秘时开不了（按键也不出现）；不在我方回合时不响应
+    func testIceToggleRecomputesImmediately() {
+        let sw = Switch()
+        // 去抖设得很长：点按键的重算如果也去抖，下面的耗时过不了
+        let assistant = makeAssistant(sw, debounce: 1.5)
+        func feed(_ s: RDGameSnapshot) { DispatchQueue.global().sync { assistant.feed(.snapshot(s)) } }
+        func button() -> Bool? { return RDOverlayModel.make(assistant.hint, cardName: { $0 }).badge?.iceButton }
+        let s0 = iceSnapshot()
+        feed(s0)
+        spin { assistant.hint.phase == .ready }
+        XCTAssertEqual(assistant.hint.analysis?.opponentHasSecrets, true)
+        XCTAssertNil(assistant.hint.analysis?.ice)
+        XCTAssertEqual(assistant.hint.analysis?.isLethal, true, "斩杀搜索不看奥秘：鲨鱼 + 阿莱 16 就「可斩」")
+        XCTAssertFalse(assistant.hint.iceMode)
+        XCTAssertEqual(button(), false, "对方有奥秘：按键在，关着")
+
+        var published: [RedDragonHint] = []
+        assistant.onChange = { published.append($0) }
+        let scheduled = assistant.scheduledComputations
+        let fed = assistant.fedInputs.count
+        var start = CFAbsoluteTimeGetCurrent()
+        assistant.toggleIceBreak()
+        XCTAssertTrue(assistant.iceMode)
+        XCTAssertEqual(published.first?.iceMode, true, "模式当场发布，按键不等结论")
+        XCTAssertEqual(button(), true)
+        XCTAssertEqual(assistant.scheduledComputations, scheduled + 1, "立刻重排计算")
+        spin { assistant.hint.phase == .ready && assistant.hint.analysis?.ice != nil }
+        let onCost = CFAbsoluteTimeGetCurrent() - start
+        XCTAssertLessThan(onCost, 1.0, "不去抖（去抖是 1.5 秒）")
+        XCTAssertEqual(assistant.fedInputs.count, fed, "没有新局面进来：不等下一条日志")
+        let ice = assistant.hint.analysis?.ice
+        XCTAssertEqual(ice?.kind, .lethalNextTurn)
+        XCTAssertEqual(iceTokens(assistant), ["龙2", "幻0"])
+        XCTAssertEqual(ice?.formula?.breakStep, 1, "冰在第 1 步碎")
+        XCTAssertEqual(ice?.formula?.done, 0)
+        XCTAssertEqual(ice?.remaining, 8)
+        XCTAssertGreaterThanOrEqual(ice?.nextTurnDamage ?? 0, 16)
+        XCTAssertEqual(ice?.broken, false)
+        XCTAssertEqual(assistant.hint.analysis?.isLethal, false, "破冰口径的结论里没有斩杀判定")
+        XCTAssertTrue(assistant.hint.locked, "破冰线一律锁定，不看揭示档")
+        XCTAssertFalse(assistant.hint.isStale)
+        let model = RDOverlayModel.make(assistant.hint, cardName: { $0 })
+        XCTAssertEqual(model.badge?.title, RDText.iceLethalNextTurn)
+        XCTAssertEqual(model.lines.filter { $0.isFormula }.map { $0.pieces.map { $0.text } }, [["龙2", "冰碎"], ["幻0"]])
+        XCTAssertEqual(model.lines.last?.kind, .icePremise)
+
+        // 再点：关掉，同样立刻重算，回到斩杀判定
+        published = []
+        start = CFAbsoluteTimeGetCurrent()
+        assistant.toggleIceBreak()
+        XCTAssertFalse(assistant.iceMode)
+        XCTAssertEqual(published.first?.iceMode, false)
+        XCTAssertEqual(published.first?.locked, false, "破冰线不再锁着：等斩杀判定时置灰")
+        XCTAssertEqual(assistant.scheduledComputations, scheduled + 2)
+        spin { assistant.hint.phase == .ready && assistant.hint.analysis?.ice == nil }
+        let offCost = CFAbsoluteTimeGetCurrent() - start
+        XCTAssertLessThan(offCost, 1.0)
+        XCTAssertEqual(assistant.fedInputs.count, fed)
+        XCTAssertEqual(assistant.hint.analysis?.isLethal, true)
+        XCTAssertEqual(button(), false)
+        print(String(format: "T8TOGGLE on → ice conclusion %.0f ms, off → lethal verdict %.0f ms (debounce 1500 ms not applied)",
+                     onCost * 1000, offCost * 1000))
+
+        // 对方没有奥秘：开不了
+        var none = s0
+        none.opponentSecretCount = 0
+        feed(none)
+        spin { assistant.hint.phase == .ready && assistant.hint.analysis?.opponentHasSecrets == false }
+        XCTAssertNil(button())
+        let before = assistant.scheduledComputations
+        assistant.toggleIceBreak()
+        XCTAssertFalse(assistant.iceMode)
+        XCTAssertEqual(assistant.scheduledComputations, before)
+        // 对方回合：不响应
+        DispatchQueue.global().sync { assistant.feed(.opponentTurn) }
+        spin { assistant.hint.phase == .opponentTurn }
+        assistant.toggleIceBreak()
+        XCTAssertFalse(assistant.iceMode)
+        XCTAssertEqual(assistant.scheduledComputations, before)
+    }
+
+    /// 口径 6 的两条自动关：换了对局；轮到我方时对方没有奥秘。对方回合里不关，下回合对方奥秘还在就接着是破冰口径
+    /// （按键在第一份结论到之前就在）。另外不在对局 / 关掉总开关也关
+    func testIceModeTurnsOffOnNewGameAndWhenNoSecretAtTurnStart() {
+        let sw = Switch()
+        func feed(_ assistant: RedDragonAssistant, _ input: RDAssistantInput) {
+            DispatchQueue.global().sync { assistant.feed(input) }
+        }
+        let s0 = iceSnapshot()
+
+        // 1. 新对局：对方照样有奥秘，破冰也从关着开始
+        var assistant = makeAssistant(sw)
+        turnIceOn(assistant, s0)
+        var published: [RedDragonHint] = []
+        assistant.onChange = { published.append($0) }
+        var other = s0
+        other.match = Self.matchB
+        other.turn = 5
+        feed(assistant, .snapshot(other))
+        spin { assistant.hint.phase == .ready && assistant.hint.analysis?.ice == nil }
+        XCTAssertFalse(assistant.iceMode, "新对局自动关")
+        XCTAssertFalse(assistant.hint.iceMode)
+        XCTAssertNil(assistant.hint.analysis?.ice)
+        XCTAssertEqual(assistant.hint.analysis?.isLethal, true, "回到斩杀判定")
+        XCTAssertFalse(published.contains { $0.deviated }, "换局不是偏离")
+        XCTAssertEqual(RDOverlayModel.make(assistant.hint, cardName: { $0 }).badge?.iceButton, false, "按键还在（对方有奥秘），关着")
+
+        // 2. 对方回合不关；轮到我方时对方已经没有奥秘：关
+        assistant = makeAssistant(sw)
+        turnIceOn(assistant, s0)
+        feed(assistant, .opponentTurn)
+        spin { assistant.hint.phase == .opponentTurn }
+        XCTAssertTrue(assistant.iceMode, "对方回合里不关")
+        var mine = s0
+        mine.turn += 2
+        mine.resources = 3
+        mine.opponentSecretCount = 0
+        feed(assistant, .snapshot(mine))
+        spin { assistant.hint.phase == .ready }
+        XCTAssertFalse(assistant.iceMode, "轮到我方时对方没有奥秘：自动关")
+        XCTAssertNil(assistant.hint.analysis?.ice)
+        XCTAssertNil(RDOverlayModel.make(assistant.hint, cardName: { $0 }).badge?.iceButton, "没有奥秘也没开着：按键不在")
+
+        // 3. 轮到我方时奥秘还在：不关，新回合直接按破冰口径算；第一份结论到之前按键就在
+        assistant = makeAssistant(sw)
+        turnIceOn(assistant, s0)
+        feed(assistant, .opponentTurn)
+        spin { assistant.hint.phase == .opponentTurn }
+        published = []
+        assistant.onChange = { published.append($0) }
+        var still = s0
+        still.turn += 2
+        still.resources = 3
+        feed(assistant, .snapshot(still))
+        spin { assistant.hint.phase == .ready }
+        XCTAssertTrue(assistant.iceMode)
+        XCTAssertNotNil(assistant.hint.analysis?.ice, "新回合直接是破冰口径")
+        XCTAssertEqual(published.first?.phase, .computing)
+        XCTAssertEqual(published.first.map { RDOverlayModel.make($0, cardName: { $0 }).badge?.iceButton }, true,
+                       "结论到之前按键就在（开）")
+        XCTAssertFalse(published.contains { $0.analysis != nil && $0.analysis?.ice == nil }, "没有闪过斩杀判定")
+
+        // 4. 不在对局：关
+        feed(assistant, .inactive)
+        spin { assistant.hint.phase == .inactive }
+        XCTAssertFalse(assistant.iceMode)
+
+        // 5. 总开关关掉再开：关
+        assistant = makeAssistant(sw)
+        turnIceOn(assistant, s0)
+        sw.enabled = false
+        assistant.settingsDidChange()
+        XCTAssertFalse(assistant.iceMode)
+        sw.enabled = true
+        assistant.settingsDidChange()
+        feed(assistant, .snapshot(s0))
+        spin { assistant.hint.phase == .ready }
+        XCTAssertFalse(assistant.iceMode)
+        XCTAssertNil(assistant.hint.analysis?.ice)
+    }
+
+    /// 沿破冰线一步步跟手，包括打掉冰的那一步之后（口径 6：中途冰被打掉 —— 对方免疫、奥秘数变 0 —— 不关，
+    /// 线上剩下的准备步照常跟）。每一步都是「接着用」（不重新搜索、不去抖、面板不置灰），到面板更新不到 1 秒（T3）
+    func testIceLineFollowsAcrossTheBreakWithoutTurningOff() {
+        let sw = Switch()
+        // 去抖 1 秒：跟手如果去抖，下面每一步的耗时过不了
+        let assistant = makeAssistant(sw, debounce: 1.0)
+        func feed(_ s: RDGameSnapshot) { DispatchQueue.global().sync { assistant.feed(.snapshot(s)) } }
+        func done() -> Int? { return assistant.hint.analysis?.ice?.formula?.done }
+        let s0 = iceSnapshot()
+        turnIceOn(assistant, s0)
+        XCTAssertEqual(iceTokens(assistant), ["龙2", "幻0"])
+        let nextTurn = assistant.hint.analysis?.ice?.nextTurnDamage
+        let followed = assistant.followedComputations
+        let scheduled = assistant.scheduledComputations
+        var published: [RedDragonHint] = []
+        assistant.onChange = { published.append($0) }
+
+        // 第 1 步：阿莱打脸，冰碎
+        let s1 = iceSnapshot(stage: 1)
+        var start = CFAbsoluteTimeGetCurrent()
+        feed(s1)
+        spin { done() == 1 && assistant.hint.phase == .ready }
+        let first = CFAbsoluteTimeGetCurrent() - start
+        XCTAssertEqual(done(), 1)
+        XCTAssertTrue(assistant.iceMode, "口径 6：中途冰被打掉不关")
+        XCTAssertEqual(assistant.followedComputations, followed + 1, "接着用，不重新搜索")
+        XCTAssertLessThan(first, 1.0, "出一步到面板更新 ≤ 1 秒，也没有去抖")
+        var ice = assistant.hint.analysis?.ice
+        XCTAssertEqual(ice?.kind, .lethalNextTurn)
+        XCTAssertEqual(ice?.broken, true)
+        XCTAssertEqual(ice?.formula?.breakStep, 1, "冰碎的记号留在原来那一步后面")
+        XCTAssertEqual(iceTokens(assistant), ["龙2", "幻0"], "公式不换，只是划掉走过的")
+        XCTAssertEqual(ice?.remaining, 8)
+        XCTAssertEqual(ice?.nextTurnDamage, nextTurn, "下回合的数是锁定那条线的，跟手不重算")
+        XCTAssertTrue(assistant.hint.locked)
+        let model = RDOverlayModel.make(assistant.hint, cardName: { $0 })
+        XCTAssertEqual(model.badge?.title, RDText.iceBrokenLethalNextTurn)
+        XCTAssertEqual(model.badge?.iceButton, true, "对方奥秘数已经是 0，按键还在")
+        XCTAssertEqual(model.badge?.dimmed, false)
+        XCTAssertEqual(model.lines.filter { $0.isFormula }.flatMap { $0.pieces.map { $0.state } }, [.done, .note, .next])
+
+        // 第 2 步：幻觉药水（冰碎之后的准备步）
+        let s2 = iceSnapshot(stage: 2)
+        start = CFAbsoluteTimeGetCurrent()
+        feed(s2)
+        spin { done() == 2 && assistant.hint.phase == .ready }
+        let second = CFAbsoluteTimeGetCurrent() - start
+        XCTAssertEqual(done(), 2)
+        XCTAssertTrue(assistant.iceMode)
+        XCTAssertEqual(assistant.followedComputations, followed + 2)
+        XCTAssertLessThan(second, 1.0)
+        ice = assistant.hint.analysis?.ice
+        XCTAssertEqual(ice?.kind, .lethalNextTurn)
+        XCTAssertEqual(ice?.broken, true)
+        XCTAssertEqual(assistant.scheduledComputations, scheduled + 2, "两步各排一次核对")
+        XCTAssertFalse(published.contains { $0.deviated || $0.isStale || $0.phase == .computing },
+                       "锁定的线跟手时不置灰、不标正在算")
+        XCTAssertFalse(published.contains { !$0.iceMode })
+        print(String(format: "T8FOLLOW step 1 (break) %.0f ms, step 2 (prep) %.0f ms from feed to committed hint",
+                     first * 1000, second * 1000))
+    }
+
+    /// 破冰线走完之后还有费用、再动一下（英雄技能）：不算偏离，重算仍是破冰口径（对方免疫，只算准备步，可以是 0 步）
+    func testActingAfterTheIceLineIsDoneIsNotADeviation() {
+        let sw = Switch()
+        let assistant = makeAssistant(sw, debounce: 0.05)
+        func feed(_ s: RDGameSnapshot) { DispatchQueue.global().sync { assistant.feed(.snapshot(s)) } }
+        // 两张阿莱、没有药水：线只有阿莱打脸一步，打完还剩 2 费
+        turnIceOn(assistant, iceSnapshot(potion: false))
+        let line = iceTokens(assistant)
+        XCTAssertEqual(line, ["龙2"])
+        XCTAssertEqual(assistant.hint.analysis?.ice?.kind, .lethalNextTurn)
+        let s1 = iceSnapshot(stage: 1, potion: false)
+        feed(s1)
+        spin { assistant.hint.analysis?.ice?.formula?.done == 1 }
+        XCTAssertEqual(assistant.hint.analysis?.ice?.formula?.done, 1, "线走完了")
+        XCTAssertTrue(assistant.iceMode)
+        var published: [RedDragonHint] = []
+        assistant.onChange = { published.append($0) }
+        let scheduled = assistant.scheduledComputations
+        feed(afterHeroPower(s1))
+        spin { assistant.scheduledComputations > scheduled && assistant.hint.phase == .ready
+            && assistant.hint.analysis?.ice?.formula?.done == 0 }
+        XCTAssertTrue(assistant.iceMode)
+        XCTAssertFalse(published.contains { $0.deviated }, "线已经走完，之后怎么打都不是偏离")
+        XCTAssertFalse(published.contains { $0.analysis != nil && $0.analysis?.ice == nil }, "没有退回斩杀判定")
+        let ice = assistant.hint.analysis?.ice
+        XCTAssertNotNil(ice)
+        XCTAssertEqual(ice?.broken, true)
+        XCTAssertEqual(ice?.formula?.done, 0)
+        XCTAssertEqual(iceTokens(assistant), [], "对方免疫、费用用完：0 步")
+        XCTAssertNil(ice?.formula?.breakStep)
+        XCTAssertEqual(ice?.kind, .lethalNextTurn, "下回合另一张阿莱照样够")
+        XCTAssertEqual(ice?.remaining, 8)
+        XCTAssertEqual(RDOverlayModel.make(assistant.hint, cardName: { $0 }).badge?.iceButton, true)
+        print("T8AFTER line \(String(describing: line)) then hero power: \(String(describing: ice?.kind)) "
+            + "tokens \(String(describing: iceTokens(assistant))) next \(String(describing: ice?.nextTurnDamage))")
+    }
+
+    /// 打偏：锁着的破冰线接不上 → 先标「已偏离，重算中」（旧线置灰留在原位），再照破冰口径重算，不退回斩杀判定。
+    /// 冰碎之前打偏：重算出来的还是一条破冰线；冰碎之后打偏：对方免疫，重算只算准备步
+    func testIceLineDeviationRecomputesInIceMode() {
+        let sw = Switch()
+        for broken in [false, true] {
+            let assistant = makeAssistant(sw, debounce: 0.05)
+            func feed(_ s: RDGameSnapshot) { DispatchQueue.global().sync { assistant.feed(.snapshot(s)) } }
+            let s0 = iceSnapshot()
+            turnIceOn(assistant, s0)
+            var base = s0
+            if broken {
+                base = iceSnapshot(stage: 1)
+                feed(base)
+                spin { assistant.hint.analysis?.ice?.formula?.done == 1 }
+                XCTAssertEqual(assistant.hint.analysis?.ice?.formula?.done, 1)
+            }
+            var published: [RedDragonHint] = []
+            assistant.onChange = { published.append($0) }
+            let followed = assistant.followedComputations
+            // 线上的下一步是阿莱打脸 / 幻觉药水，用户却按了英雄技能
+            feed(afterHeroPower(base))
+            spin { published.contains { $0.deviated } && assistant.hint.phase == .ready && !assistant.hint.deviated }
+            let marked = published.first { $0.deviated }
+            XCTAssertNotNil(marked, "冰\(broken ? "碎之后" : "碎之前")打偏：先标已偏离")
+            XCTAssertEqual(marked?.phase, .computing)
+            XCTAssertEqual(marked?.iceMode, true)
+            XCTAssertEqual(marked?.locked, false)
+            if let marked {
+                let model = RDOverlayModel.make(marked, cardName: { $0 })
+                XCTAssertEqual(model.badge?.title, RDText.deviated)
+                XCTAssertEqual(model.badge?.dimmed, true)
+                XCTAssertEqual(model.badge?.iceButton, true)
+                XCTAssertEqual(model.lines.filter { $0.isFormula }.flatMap { $0.pieces.map { $0.text } },
+                               ["龙2", "冰碎", "幻0"], "旧线留在原位")
+                XCTAssertFalse(model.lines.contains { $0.pieces.contains { $0.state == .next } })
+            }
+            XCTAssertTrue(assistant.iceMode, "重算仍按破冰口径")
+            XCTAssertEqual(assistant.followedComputations, followed, "不是接着用，是重算")
+            let ice = assistant.hint.analysis?.ice
+            XCTAssertNotNil(ice)
+            XCTAssertEqual(ice?.broken, broken)
+            XCTAssertEqual(ice?.formula?.done, 0)
+            if broken {
+                // 对方免疫：只算准备步，线上没有「冰碎」
+                XCTAssertNil(ice?.formula?.breakStep)
+                XCTAssertNotEqual(ice?.kind, .cannotBreak)
+                XCTAssertEqual(ice?.remaining, 8)
+            } else {
+                // 费用被英雄技能用掉 2：阿莱还打得出去（1 费），冰照样能破
+                XCTAssertEqual(iceTokens(assistant)?.contains("龙0"), true)
+                XCTAssertNotNil(ice?.formula?.breakStep)
+                XCTAssertNotEqual(ice?.kind, .cannotBreak)
+            }
+            XCTAssertTrue(assistant.hint.locked, "新线重新锁定")
+            XCTAssertFalse(published.contains { $0.analysis != nil && $0.analysis?.ice == nil }, "没有退回斩杀判定")
+            print("T8DEVIATE broken=\(broken): \(String(describing: ice?.kind)) tokens \(iceTokens(assistant) ?? []) "
+                + "remaining \(String(describing: ice?.remaining)) next \(String(describing: ice?.nextTurnDamage))")
+        }
+    }
+
+    /// 口径 7：破冰那一下触发的不是寒冰屏障（对方没有免疫，奥秘没了）—— 不做专门处理，走「已偏离，重算」。
+    /// 没有冰可破了，破冰自己关掉，重算回到斩杀判定；按键跟着奥秘一起消失
+    func testSecretThatWasNotIceBlockGoesThroughDeviation() {
+        let sw = Switch()
+        let assistant = makeAssistant(sw, debounce: 0.05)
+        let s0 = iceSnapshot()
+        turnIceOn(assistant, s0)
+        var published: [RedDragonHint] = []
+        assistant.onChange = { published.append($0) }
+        DispatchQueue.global().sync { assistant.feed(.snapshot(iceSnapshot(stage: 1, iceBlock: false))) }
+        spin { assistant.hint.phase == .ready && assistant.hint.analysis?.ice == nil }
+        XCTAssertTrue(published.contains { $0.deviated }, "锁着的破冰线标已偏离")
+        XCTAssertFalse(assistant.iceMode)
+        XCTAssertNil(assistant.hint.analysis?.ice)
+        XCTAssertFalse(assistant.hint.deviated)
+        XCTAssertEqual(assistant.hint.analysis?.effectiveEnemyHealth, 8, "斩杀判定按真实局面：对方剩 8 血、没有免疫")
+        XCTAssertNil(RDOverlayModel.make(assistant.hint, cardName: { $0 }).badge?.iceButton)
+    }
+
+    /// T7 的那一条对破冰线同样成立：锁定的破冰线在核对上一个 BLOCK 闭合时的局面，下一个 BLOCK 紧跟着打开、
+    /// 来了新行（`parserBatchDidEnd(idle: false)`）—— 这次核对不作废，进度照常上屏，面板不标过时。
+    /// 之后一致边界上的局面（和上一份一样）到了，照常再核对一次，进度不丢
+    func testOpenBlockLinesDoNotInvalidateTheLockedIceCheck() {
+        let sw = Switch()
+        let assistant = makeAssistant(sw, debounce: 0.05)
+        let game = Game(hearthstoneRunState: HearthstoneRunState(isRunning: false, isActive: false))
+        let s0 = iceSnapshot()
+        turnIceOn(assistant, s0)
+        let followed = assistant.followedComputations
+        let discarded = assistant.discardedComputations
+        var published: [RedDragonHint] = []
+        assistant.onChange = { published.append($0) }
+        let s1 = iceSnapshot(stage: 1)
+        // 解析线程：攻击的 BLOCK 闭合、投出局面；同一批里下一个 BLOCK 已经打开、来了新行。主线程这时还没转
+        DispatchQueue.global().sync {
+            assistant.feed(.snapshot(s1))
+            assistant.parserBatchDidEnd(game, linesProcessed: true, idle: false)
+        }
+        spin { assistant.hint.analysis?.ice?.formula?.done == 1 }
+        XCTAssertEqual(assistant.hint.analysis?.ice?.formula?.done, 1, "核对的结论照常上屏")
+        XCTAssertEqual(assistant.followedComputations, followed + 1)
+        XCTAssertEqual(assistant.discardedComputations, discarded, "没有因为 BLOCK 开着来新行被丢掉")
+        XCTAssertTrue(assistant.hint.locked)
+        XCTAssertFalse(published.contains { $0.isStale || $0.deviated || $0.phase == .computing })
+
+        // 一致边界：这一段没改到相关实体，拷出来和上一份一样 —— 再核对一次，仍在第 1 步之后
+        DispatchQueue.global().sync { assistant.feed(.snapshot(s1)) }
+        spin { assistant.followedComputations == followed + 2 }
+        XCTAssertEqual(assistant.followedComputations, followed + 2)
+        XCTAssertEqual(assistant.hint.analysis?.ice?.formula?.done, 1)
+        XCTAssertTrue(assistant.iceMode)
+        XCTAssertFalse(published.contains { $0.isStale || $0.deviated })
+    }
+
+    /// 从点按键到破冰结论上屏的墙钟（线上的预算配置；搜索在 -O 的包里）：fixture 里破冰最慢的几个回合开始的局面，
+    /// 当成对方有冰。任务书硬约束 ≤ 3 秒；数字看打印的 `T8CLICK2RESULT`
+    func testClickToIceConclusionWithinThreeSeconds() {
+        let picks: [(fixture: String, playerId: Int, turn: Int, health: Int?)] = [
+            ("2026-10-05-g1-first", 1, 11, nil), ("2026-10-01-g3-lost", 1, 7, nil), ("2026-10-01-g3-lost", 1, 7, 12),
+            ("2026-10-05-g7-rewind", 2, 13, 12), ("2026-10-05-g2-dance-lost", 2, 11, nil)
+        ]
+        var rows: [String] = []
+        for p in picks {
+            let all = RedDragonSetupTests.boundaries(lines: RedDragonFeedbackTests.lines(p.fixture), playerId: p.playerId)
+                .filter { $0.snapshot.turn == p.turn }
+            guard let top = all.map({ $0.snapshot.resources }).max(),
+                  var snap = (all.first { $0.snapshot.resources == top && $0.snapshot.resourcesUsed == 0 }
+                              ?? all.first { $0.snapshot.resources == top })?.snapshot else {
+                XCTFail("\(p.fixture) T\(p.turn) 没有回合开始的边界")
+                continue
+            }
+            snap.opponentSecretCount = max(1, snap.opponentSecretCount)
+            snap.opponentHeroImmune = false
+            if let h = p.health {
+                snap.opponentHeroHealth = h
+                snap.opponentHeroArmor = 0
+            }
+            let env = RedDragonAssistant.Environment(
+                isEnabled: { true }, revealPreference: { .verdict }, quizMode: { false },
+                debounce: RedDragonAssistant.Environment.live.debounce, config: RedDragonConfig(), cardName: { $0 })
+            let assistant = RedDragonAssistant(environment: env)
+            assistant.submit(.snapshot(snap))
+            spin(until: { assistant.hint.phase == .ready }, timeout: 30)
+            // 危险且斩不了的局面这时奶 16 的线可能还在后台算：点按键要把它取消掉，不排在它后面
+            let start = CFAbsoluteTimeGetCurrent()
+            assistant.toggleIceBreak()
+            spin(until: { assistant.hint.phase == .ready && assistant.hint.analysis?.ice != nil }, timeout: 30)
+            let wall = CFAbsoluteTimeGetCurrent() - start
+            let ice = assistant.hint.analysis?.ice
+            XCTAssertNotNil(ice, "\(p.fixture) T\(p.turn)")
+            XCTAssertLessThan(wall, 3.0, "\(p.fixture) T\(p.turn)")
+            let verdict: String
+            switch ice?.kind {
+            case .lethalNextTurn?: verdict = "①"
+            case .shortNextTurn?: verdict = "②"
+            case .cannotBreak?: verdict = "③"
+            case nil: verdict = "?"
+            }
+            rows.append(String(format: "%@ T%d%@ danger=%@ → %@ %d 步 %.3f s", p.fixture, p.turn,
+                               p.health.map { " 改\($0)血" } ?? "", assistant.hint.analysis?.boardDanger == true ? "Y" : "N",
+                               verdict, ice?.formula?.tokens.count ?? 0, wall))
+        }
+        print("T8CLICK2RESULT\n" + rows.joined(separator: "\n"))
     }
 }

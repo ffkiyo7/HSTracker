@@ -22,6 +22,10 @@ enum RDTarget: Equatable {
 /// 发现 / 抽牌的确定化选择，按效果出现顺序消费
 enum RDChoice: Equatable {
     case pick(RDCard)
+    /// 盲抽（T8 口径 3 / 4）：这次随机抽牌照常发生，但线不靠抽到的是哪张 —— 牌库少一张（不知道是哪张，
+    /// `RDDeck.removeUnknown`），手里多一张打不出去的占位牌（`RDHandCard.blindDraw`，手牌满了就被烧）。
+    /// 只由 `RDOptions.blindDraws` 打开时的 `legalActions` 生成；结算、重放、公式、跟手都认它
+    case blind
 }
 
 enum RDAction: Equatable {
@@ -91,6 +95,10 @@ struct RDOptions {
     var expandPlacements = true
     /// 阿莱克丝塔萨对我方英雄的回血目标要不要列进 `legalActions`（T4 回血线的搜索才开）
     var healFriendlyHero = false
+    /// 随机抽牌（抽牌池里不止一种、或前面盲抽过所以说不准是哪张）不按牌库逐种分叉，只列一支盲抽（`RDChoice.blind`）：
+    /// 抽牌发生、抽到的牌不能用。「只走不靠随机抽牌的线」的搜索才开（破冰和它的下回合探针，T8）。
+    /// 每列出一支盲抽 `dropped` 都置 true：「抽到某张并用上」的走法没展开，走完也不算穷举
+    var blindDraws = false
 
     static let search = RDOptions()
     static let replay = RDOptions(deferredChoices: true, allowTruncatedDraws: true,
@@ -426,6 +434,13 @@ enum RDEngine {
         return nil
     }
 
+    /// 下一个选择是盲抽就吃掉它
+    private static func takeBlind(_ ctx: inout RDEffectContext) -> Bool {
+        guard ctx.choiceIndex < ctx.choices.count, ctx.choices[ctx.choiceIndex] == .blind else { return false }
+        ctx.choiceIndex += 1
+        return true
+    }
+
     private static func resolve(_ effect: RDEffect, state s: inout RDState,
                                 ctx: inout RDEffectContext) throws {
         switch effect {
@@ -510,9 +525,22 @@ enum RDEngine {
         case .draw(let filter, let count):
             for _ in 0..<count {
                 let candidates = s.deck.remaining(filter: filter)
+                // 盲抽：这一抽的选择是 `.blind` 就按「不知道抽到哪张」结算，不管此刻牌库看起来确不确定 ——
+                // 线是在推演局面上定的，接到真实局面上重放时（跟手）牌库可能已经只剩一种，口径不能跟着变。
+                // 真实局面里这一抽已经没牌可抽（前面盲抽掉的正是它）时什么都不发生
+                if takeBlind(&ctx) {
+                    guard !candidates.isEmpty else { continue }
+                    s.deck.removeUnknown()
+                    guard s.handSlotsFree > 0 else { continue }  // 手牌满 → 抽到的被烧
+                    let eid = s.takeEntityId()
+                    var junk = RDHandCard(entityId: eid, card: .junkPlaceholder)
+                    junk.blindDraw = true
+                    appendThisTurn(&s, junk)
+                    continue
+                }
                 guard !candidates.isEmpty else { continue }
                 let picked: RDCard
-                if candidates.count == 1 {
+                if candidates.count == 1 && s.deck.surelyHas(candidates[0]) {
                     picked = candidates[0]
                 } else if let c = nextChoice(&ctx), candidates.contains(c) {
                     picked = c
@@ -1059,10 +1087,18 @@ enum RDEngine {
             switch slots[i] {
             case .draw(let filter):
                 let candidates = deck.remaining(filter: filter)
-                if candidates.count <= 1 {
+                // 和 `resolve(.draw)` 同一个判断：只有一种、而且前面的盲抽拿不走它（`surelyHas`）才算确定
+                let certain = candidates.count == 1 && deck.surelyHas(candidates[0])
+                if candidates.isEmpty || certain {
                     var d = deck
                     if let only = candidates.first { d.remove(only) }
                     walk(i + 1, d, sideboard, picks)
+                } else if options.blindDraws || candidates.count == 1 {
+                    // 盲抽只列一支。「抽到某张并用上」的走法没展开 → 算丢弃
+                    dropped = true
+                    var d = deck
+                    d.removeUnknown()
+                    walk(i + 1, d, sideboard, picks + [.blind])
                 } else {
                     for c in candidates {
                         var d = deck

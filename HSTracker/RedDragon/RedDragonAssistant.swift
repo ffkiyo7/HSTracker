@@ -26,6 +26,13 @@
 //     对局身份没变、开关还开着
 //     → 结论 + 揭示档 + 答题判定在同一个 block 里提交，回调 `onChange`
 //
+//  破冰模式（T8）另有一个入口，不经过解析线程：点面板上的按键 → 主线程 `toggleIceBreak`（SwiftUI 点击回调同步调过来）
+//  → 当场翻转 `iceMode`、发布一次（按键换成开 / 关）、对最近一份局面 `schedule(… immediate: true)`
+//  → `workQueue.async`（不去抖、不等下一条日志；第 3 跳，算的是 `solveIceBreak`）→ **`main.async`（第 2 跳）** → 第 4 跳 `commit`。
+//  版本沿用那份局面的：解析线程这期间拷出了更新的局面，这次结果照样丢。
+//  开着破冰时第 3 跳的搜索换成破冰搜索、跟手换成 `RDIceBreak.follow`，其余（去抖、锁定、作废、版本核对）都是上面那一套：
+//  破冰线一律按锁定公式处理，T7 那条（核对不被「BLOCK 开着来新行」作废）对它同样成立
+//
 
 import Foundation
 // 引擎在本地包里（HSTracker/RedDragon/Package.swift），为了 Debug 下也按 -O 编；包带 -enable-testing，
@@ -156,10 +163,24 @@ final class RedDragonAssistant {
         var match: Date?
         /// 锁定时的本回合操作计数。计数没变 = 用户没有新操作（攻击结算中途随从死亡之类），对不上也不算偏离
         var options = 0
+        /// 破冰线（T8，`goal == .iceBreak`）：整份结论。跟手用 `RDIceBreak.follow` 接它（下回合线也要换编号重放），
+        /// `candidates` 里只有它那一条本回合线
+        var ice: RDIceBreakResult?
     }
 
-    /// 锁定模式：设置选「顺序」且没开答题。屏上是一条完整公式，不因「过时」隐藏
-    private var lockMode: Bool { return env.revealPreference() == .order && !env.quizMode() }
+    /// 锁定模式：设置选「顺序」且没开答题；破冰模式一律锁定（口径 6：破冰线永远是完整公式、照 T4 准备线跟手，
+    /// 不受揭示档和答题模式影响）。屏上是一条完整公式，不因「过时」隐藏
+    private var lockMode: Bool { return iceMode || (env.revealPreference() == .order && !env.quizMode()) }
+
+    /// 破冰模式（T8）：用户点面板上的按键开 / 关（`toggleIceBreak`）。不进设置、不存盘。
+    /// 自动关：换局（`iceMatch`）、不在对局、对方既没有奥秘也没有免疫（`settleIceMode`）；
+    /// 本回合中途把冰打掉了不关（对方免疫着）
+    private(set) var iceMode = false
+    /// 开破冰时的对局
+    private var iceMatch: Date?
+    /// 最近一份局面的对局身份和版本。点按键要立刻对当前局面重算（不等下一条日志），版本沿用它的
+    private var lastMatch: Date?
+    private var lastVersion: Int?
 
     private var generation = 0
     private var inFlight: RDCancellation?
@@ -347,6 +368,8 @@ final class RedDragonAssistant {
         }
         switch input {
         case .inactive:
+            // 不在对局：破冰模式跟着关（新对局从关着开始）
+            iceMode = false
             guard hint.phase != .inactive else { return }
             invalidate()
             resetTurn(nil)
@@ -359,18 +382,26 @@ final class RedDragonAssistant {
             h.phase = .opponentTurn
             publish(h)
         case .snapshot(let snap):
+            lastMatch = snap.match
+            lastVersion = version
             if snap == lastSnapshot && (hint.phase == .ready || hint.phase == .computing) { return }
+            settleIceMode(snap)
             // 只有操作数变了、屏上的结论就是这个局面的：不重算，拿现有结论按新计数判卷
-            // （危险且斩不了、准备线还没补上的不走这条：解析线程已经把在算的准备线作废了，要重新调度）
+            // （危险且斩不了、准备线还没补上的不走这条：解析线程已经把在算的准备线作废了，要重新调度；
+            //   破冰口径的结论没有晚到的准备线，照走）
             // 上一份局面还在核对 / 搜索（`inFlight`）时屏上的结论不是它的：锁定模式核对期间不置灰，phase 仍是
             // ready，走这条会把那次计算丢掉（解析线程已经取消了它）又不重排，面板停在「重算中」直到下一个操作
             // （10-06 14:47 实测：英雄攻击 → 随从死亡 → 操作计数，卡了 11 秒）
             if let last = lastSnapshot, inFlight == nil, hint.phase == .ready, !hint.isStale, var a = hint.analysis,
                last.turn == snap.turn, RDQuizState.sameIgnoringOptionCount(snap, last),
-               a.isLethal || !a.boardDanger || a.setup != nil {
+               (a.ice != nil) == iceMode,
+               a.isLethal || !a.boardDanger || a.setup != nil || a.ice != nil {
                 lastSnapshot = snap
                 a.actionsTaken = snap.optionsPlayedThisTurn
-                quizState = RDQuizState.next(quizState, snapshot: snap, verdict: a.verdict)
+                // 破冰口径的结论不判卷（它的 `verdict` 是空的）
+                if a.ice == nil {
+                    quizState = RDQuizState.next(quizState, snapshot: snap, verdict: a.verdict)
+                }
                 var h = hint
                 h.analysis = a
                 publish(composed(h))
@@ -402,10 +433,78 @@ final class RedDragonAssistant {
         publish(h)
     }
 
-    private func schedule(_ snap: RDGameSnapshot, version: Int?) {
+    // MARK: 破冰模式（T8）
+
+    /// 面板上的破冰按键被点了（主线程：SwiftUI 的点击 → `RedDragonOverlayViewModel.toggleIceBreak` → 这里，都是同步调用）。
+    /// 当场翻转模式、发布一次（按键立刻换成开 / 关），再对当前局面**立刻**重排计算：不去抖、不等下一条日志
+    /// （`schedule(… immediate:)` → `workQueue.async`）。结果和平常一样经第 2 跳 `main.async` 回来提交。
+    /// 开：要对方有奥秘（按键也只在这时出现）；关：随时。
+    /// 当前局面正好作废着（BLOCK 开着、实体在变，`lastSnapshot` 被 `markStale` 清掉）时没有一致的局面可算：
+    /// 只翻转模式，等一致边界上的那份局面到了按新模式算
+    func toggleIceBreak() {
+        guard env.isEnabled(), hint.phase == .ready || hint.phase == .computing else { return }
+        if !iceMode {
+            guard hint.analysis?.opponentHasSecrets == true
+                || (lastSnapshot?.opponentSecretCount ?? 0) > 0 else { return }
+        }
+        iceMode.toggle()
+        iceMatch = iceMode ? lastMatch : nil
+        logger.info("red dragon: ice-break mode \(iceMode ? "on" : "off")")
+        // 上一份结论提交之后可能还有晚到的准备线在后台算（奶 16：`commit` 已经把 `inFlight` 清掉，`invalidate` 取消不到它）。
+        // 平常由解析线程在下一次投递时取消（`feed`）；这里没有新投递，自己取消 —— 不然这次重算要排在它后面
+        lock.lock()
+        let running = sharedToken
+        sharedToken = nil
+        sharedTokenLocked = false
+        lock.unlock()
+        running?.cancel()
+        // 换了口径：屏上那条线不再跟手，判卷状态也不沿用
+        followBase = nil
+        quizState = nil
+        var h = hint
+        h.deviated = false
+        publish(composed(h))
+        if let snap = lastSnapshot {
+            schedule(snap, version: lastVersion, immediate: true)
+        } else {
+            invalidate()
+            var waiting = hint
+            waiting.phase = .computing
+            waiting.isStale = waiting.analysis != nil
+            publish(waiting)
+        }
+    }
+
+    /// 破冰模式的自动关（口径 6 / 7）。主线程，每份新局面进来时（在决定怎么算之前）：
+    /// - 换局 → 关；
+    /// - 对方既没有奥秘也没有免疫 → 没有冰可破了，关。回合开始时就是「轮到我方、对方已经没有奥秘」；
+    ///   回合中途则是破冰那一下触发的不是寒冰屏障 / 奥秘被别的东西弄没了（口径 7）—— 屏上锁着的破冰线照
+    ///   「已偏离，重算中」处理（`markDeviated`），接下来按普通口径重算。
+    /// 对方免疫着（冰是本回合打掉的）不关：线上剩下的准备步照常跟手，打偏了重算出来的仍是破冰口径
+    private func settleIceMode(_ snap: RDGameSnapshot) {
+        guard iceMode else { return }
+        let otherMatch = iceMatch != snap.match
+        guard otherMatch || (snap.opponentSecretCount == 0 && !snap.opponentHeroImmune) else { return }
+        let following = !otherMatch && hint.locked && followBase?.ice != nil
+            && followBase?.turn == snap.turn && followBase?.match == snap.match
+        iceMode = false
+        iceMatch = nil
+        quizState = nil
+        logger.info("red dragon: ice-break mode off (\(otherMatch ? "new game" : "no secret left"))")
+        if following {
+            markDeviated()
+        } else {
+            followBase = nil
+            publish(composed(hint))
+        }
+    }
+
+    /// `immediate`：不去抖（点破冰按键）。平常新局面来了等 `debounce`，一串连续变化只算最后一次
+    private func schedule(_ snap: RDGameSnapshot, version: Int?, immediate: Bool = false) {
         invalidate()
         let gen = generation
         let token = RDCancellation()
+        let ice = iceMode
         // 锁定模式下屏上有锁定的线：新局面来了先不变暗，等核对结果（毫秒级）
         // （走完了的准备线不算：之后再怎么打都不是「偏离」）
         let locking = lockMode && followBase?.turn == snap.turn && followBase?.match == snap.match
@@ -421,6 +520,8 @@ final class RedDragonAssistant {
             var h = hint
             h.phase = .computing
             h.isStale = h.analysis != nil
+            // 对方回合过后 `hint` 是重新造的：破冰还开着的话这里带上，按键在第一份结论到之前就在
+            h.iceMode = iceMode
             publish(h)
         }
         let previous = hint.analysis
@@ -505,10 +606,63 @@ final class RedDragonAssistant {
                                   options: snap.optionsPlayedThisTurn)
             deliverSetup(withSetup, healBase.candidates.isEmpty ? nil : healBase)
         }
+        // 破冰口径（T8）：读取 → `solveIceBreak`（同一个取消标记：新局面一到就停）→ 结论。只有破冰的结论，
+        // 不另算斩杀判定和奶 16（开着破冰时面板不画它们）。有线就锁定（哪怕 0 步：之后照样先试跟手）
+        let iceSearch = {
+            guard !token.isCancelled else { return }
+            let live = RDStateReader.read(snap)
+            var config = env.config
+            config.cancellation = token
+            let result = RedDragonSearch.solveIceBreak(live.state, config: config)
+            guard !token.isCancelled, !result.cancelled else { return }
+            let analysis = RDHintBuilder.iceAnalysis(snapshot: snap, live: live, result: result)
+            var base: FollowBase?
+            if let line = result.line, let formula = analysis.ice?.formula {
+                base = FollowBase(goal: .iceBreak,
+                                  candidates: [FollowCandidate(root: result.root, line: line, formula: formula)],
+                                  turn: snap.turn, match: snap.match, options: snap.optionsPlayedThisTurn,
+                                  ice: result)
+            }
+            deliver(analysis, base, false)
+        }
+        let compute = ice ? iceSearch : search
         // 跟手：屏上是斩杀线、还在同一回合时，先不去抖试一次「接着用」（读取 + 推演 + 重放，毫秒级），
         // 对不上再按原样去抖、搜索。都在同一条串行后台队列上，取消标记照看
-        guard env.followsLine, let base = followBase, base.turn == snap.turn, base.match == snap.match else {
-            workQueue.asyncAfter(deadline: .now() + env.debounce, execute: search)
+        guard env.followsLine, let base = followBase, base.turn == snap.turn, base.match == snap.match,
+              (base.ice != nil) == ice else {
+            if immediate {
+                workQueue.async(execute: compute)
+            } else {
+                workQueue.asyncAfter(deadline: .now() + env.debounce, execute: compute)
+            }
+            return
+        }
+        // 破冰线的跟手：`RDIceBreak.follow` 把整份结论接到真实局面上（剩下的步骤、下回合线都换成真实编号重放）。
+        // 接不上（打偏了、破冰那一下触发的不是冰、结论要变）→ 锁定着就先标「已偏离」，再照破冰口径重算
+        if let plan = base.ice, let shown = base.candidates.first {
+            workQueue.async {
+                guard !token.isCancelled else { return }
+                let live = RDStateReader.read(snap)
+                guard let followed = RDIceBreak.follow(plan, onto: live.state, tolerant: locking) else {
+                    if locking, snap.optionsPlayedThisTurn != base.options {
+                        logger.info("red dragon: ice line deviated at \(shown.formula.done)/\(shown.formula.tokens.count)")
+                        deliverDeviated()
+                    }
+                    workQueue.asyncAfter(deadline: .now() + env.debounce, execute: iceSearch)
+                    return
+                }
+                var formula = shown.formula
+                formula.done = min(formula.tokens.count, formula.done + followed.stepsTaken)
+                let analysis = RDHintBuilder.iceAnalysis(snapshot: snap, live: live, result: followed.result,
+                                                         formula: formula)
+                let next = FollowBase(goal: .iceBreak,
+                                      candidates: [FollowCandidate(root: followed.result.root,
+                                                                   line: followed.result.line ?? shown.line,
+                                                                   formula: formula)],
+                                      turn: snap.turn, match: snap.match, options: snap.optionsPlayedThisTurn,
+                                      ice: followed.result)
+                deliver(analysis, next, true)
+            }
             return
         }
         workQueue.async {
@@ -566,13 +720,16 @@ final class RedDragonAssistant {
         inFlightLocked = false
         followBase = base
         committedComputations += 1
-        quizState = RDQuizState.next(quizState, snapshot: snapshot, verdict: analysis.verdict)
+        // 破冰口径的结论不判卷（它的 `verdict` 是空的；破冰线不受答题模式影响）
+        if analysis.ice == nil {
+            quizState = RDQuizState.next(quizState, snapshot: snapshot, verdict: analysis.verdict)
+        }
         var h = hint
         h.phase = .ready
         h.analysis = analysis
         h.isStale = false
         h.deviated = false
-        logLocked(analysis.formula, base: base)
+        logLocked(analysis.formula ?? analysis.ice?.formula, base: base)
         publish(composed(h))
     }
 
@@ -612,6 +769,7 @@ final class RedDragonAssistant {
     private func composed(_ base: RedDragonHint) -> RedDragonHint {
         var h = base
         h.locked = lockMode && followBase != nil && h.analysis != nil && !h.deviated
+        h.iceMode = iceMode
         let lethal = h.analysis?.isLethal ?? false
         let tier = h.analysis?.tier
         h.maxRevealLevel = RDRevealPolicy.cap(isLethal: lethal, tier: tier, preference: env.revealPreference())
@@ -660,6 +818,7 @@ final class RedDragonAssistant {
     private func clear() {
         invalidate()
         lastSnapshot = nil
+        iceMode = false
         resetTurn(nil)
         if hint != .inactive { publish(.inactive) }
     }

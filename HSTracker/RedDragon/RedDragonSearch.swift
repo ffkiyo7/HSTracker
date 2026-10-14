@@ -78,6 +78,9 @@ struct RedDragonResult {
     var iceLines: [RedDragonLine] = []
     /// 破冰搜索里花在「冰已打掉之后」的展开状态数（含在 `statesExpanded` 里）
     var prepStatesExpanded = 0
+    /// `config.deterministicOnly` 的搜索丢过带随机抽牌的分支（「抽到某张」的走法没展开）。为真时 `exhaustive` 恒假；
+    /// 调用方据此再跑一遍盲抽的（`config.blindDraws`）。其他搜索恒假
+    var randomBranchesDropped = false
 }
 
 /// 本回合不斩杀时为下回合做准备的两类线（T4）
@@ -154,9 +157,15 @@ struct RedDragonConfig {
     /// 准备线搜索自己的闸门（`solveSetup` 用，不动斩杀搜索的 `maxStatesExpanded` / `cpuBudget`）
     var setupMaxStates: Int = 200_000
     var setupCpuBudget: Double = 2.0
-    /// 只走不靠随机抽牌的分支：抽牌池里不止一种牌的抽牌（分叉键里出现非边牌）整支不展开，E.T.C. 的发现照常。
-    /// 破冰搜索和它的下回合探针用（T8 口径 4），斩杀 / 准备线搜索不开
+    /// 只走不靠随机抽牌的线：带随机抽牌（抽牌池里不止一种牌）的动作整支不展开，E.T.C. 的发现照常。丢过这样的分支
+    /// 就不报 `exhaustive`，并在结果里标 `randomBranchesDropped`。
+    /// 破冰搜索和它的下回合探针用（T8 口径 3 / 4），斩杀 / 准备线搜索不开
     var deterministicOnly = false
+    /// `deterministicOnly` 之下的另一种走法（盲抽）：随机抽牌照常发生，但抽到的牌按「不知道是哪张」算 —— 牌库少一张、
+    /// 手里多一张打不出去的占位牌（`RDChoice.blind`），本回合后面和下回合都不能拿它当资源。用来补上
+    /// 「发生了抽牌、但不靠抽到哪张」的线（矿锄攻击的伤害在抽牌之前）。单独跑一遍而不是并进上面那一遍：
+    /// 每个节点多出来的「英雄攻击 + 盲抽」会挤占束，原来搜得到的线会掉（fixture 扫表实测掉过一条 ①）
+    var blindDraws = false
     /// 破冰搜索的一遍（T8，只由 `RedDragonSearch.solveIceBreak` 设）：根局面带着 `opponent.ice`，收集「冰已打掉」的
     /// 终局而不是找斩杀。见 RedDragonIceBreak.swift
     var iceBreakPass = false
@@ -299,6 +308,7 @@ enum RedDragonSearch {
         out.cancelled = main.cancelled || sampled.cancelled
         // 任何一遍穷举完了都算证明（各遍搜的是同一棵树，只是裁法不同）
         out.exhaustive = (main.exhaustive || sampled.exhaustive) && !out.cancelled
+        out.randomBranchesDropped = main.randomBranchesDropped || sampled.randomBranchesDropped
         out.depthReached = max(main.depthReached, sampled.depthReached)
         if sampled.isLethal {
             out.isLethal = true
@@ -331,6 +341,9 @@ enum RedDragonSearch {
         // 束里不逐个展开落位（见「落位」一节）
         var listOptions = config.options
         listOptions.expandPlacements = false
+        // 盲抽的那一遍：随机抽牌不按牌库逐种分叉，列成一支盲抽（抽牌照常发生，抽到的牌不能用）。
+        // 动作生成层每列一支盲抽都报「丢弃」，所以走过盲抽的搜索不会报穷举
+        if config.deterministicOnly && config.blindDraws { listOptions.blindDraws = true }
 
         let rootConstraints = RDBoardConstraints.root(root)
         var nodes: [Node] = [Node(state: root, parent: -1, action: nil, branchKey: [],
@@ -353,6 +366,8 @@ enum RedDragonSearch {
         var cancelled = false
         /// 有损的裁剪发生过（束、动作上限、排法上限、深度上限）：没找到斩杀也不能说明不能斩
         var pruned = false
+        /// `deterministicOnly` 下丢过带随机抽牌的分支
+        var randomDropped = false
         /// 准备线候选：按质量降序、同质量按步数升序，只留前 `setupKeep` 条
         var setupKept: [(quality: Int, steps: Int, line: RedDragonLine)] = []
         // 破冰搜索（T8）：冰还在的节点照斩杀搜索那样往致命一击推；冰已打掉的局面都是候选，并接着展开为下回合做准备的步骤。
@@ -455,12 +470,18 @@ enum RedDragonSearch {
                           _ constraints: RDBoardConstraints, _ order: RDOrderDecision?, _ isVariant: Bool) {
                 statesExpanded += 1
                 if icePass && node.state.opponent.ice == .broken { prepStates += 1 }
-                // 只走确定的分支：这一步带随机抽牌就整支不要（抽牌池里只剩一种牌时引擎直接拿、不出 pick，不算随机）。
-                // 在去重之前判，免得它占掉同一局面的名额。这不算有损裁剪：穷举完仍是「没有确定的线」的证明
+                // 只走确定的分支：这一步带「抽到某张」的随机抽牌就整支不要（抽牌池里只剩一种牌时引擎直接拿、不出 pick，
+                // 不算随机）。在去重之前判，免得它占掉同一局面的名额。因为随机性丢了分支 → 算有损裁剪，不能再报穷举，
+                // 并记下来（`randomBranchesDropped`）：调用方据此再跑一遍盲抽的（`config.blindDraws`），把
+                // 「抽牌发生、但不靠抽到哪张」的线补回来。盲抽的那一遍不出 pick，不会走到这里
                 if config.deterministicOnly, action.choices.contains(where: { c in
                     if case .pick(let card) = c { return !RDCards.sideboardCards.contains(card) }
                     return false
-                }) { return }
+                }) {
+                    pruned = true
+                    randomDropped = true
+                    return
+                }
                 let hash = next.canonicalHash()
                 guard seen.insert(dedupKey(hash, constraints, next.board)).inserted else { return }
                 var key = node.branchKey
@@ -762,6 +783,7 @@ enum RedDragonSearch {
                                       cpuBudgetHit: cpuBudgetHit, exhaustive: termination == .exhausted && !pruned)
             out.iceLines = dedupe(lines)
             out.prepStatesExpanded = prepStates
+            out.randomBranchesDropped = randomDropped
             return out
         }
         if let goal = setupGoal {
@@ -820,22 +842,24 @@ enum RedDragonSearch {
             }
             .map { RedDragonBranch(drawn: $0.branchKey, line: $0) }
 
-        return RedDragonResult(maxDamage: maxDamage,
-                               effectiveEnemyHealth: enemyHealth,
-                               isLethal: !lethal.isEmpty,
-                               deterministicLethal: deterministicLethal && !lethal.isEmpty,
-                               chosenLine: chosen,
-                               lethalLines: lethal,
-                               branches: branches,
-                               missingPieces: [],
-                               missingPiecesBudgetExceeded: false,
-                               termination: termination,
-                               cpuTime: 0,
-                               statesExpanded: statesExpanded,
-                               depthReached: depth,
-                               placementTranslationFailures: translationFailures,
-                               cpuBudgetHit: cpuBudgetHit,
-                               exhaustive: termination == .exhausted && !pruned)
+        var out = RedDragonResult(maxDamage: maxDamage,
+                                  effectiveEnemyHealth: enemyHealth,
+                                  isLethal: !lethal.isEmpty,
+                                  deterministicLethal: deterministicLethal && !lethal.isEmpty,
+                                  chosenLine: chosen,
+                                  lethalLines: lethal,
+                                  branches: branches,
+                                  missingPieces: [],
+                                  missingPiecesBudgetExceeded: false,
+                                  termination: termination,
+                                  cpuTime: 0,
+                                  statesExpanded: statesExpanded,
+                                  depthReached: depth,
+                                  placementTranslationFailures: translationFailures,
+                                  cpuBudgetHit: cpuBudgetHit,
+                                  exhaustive: termination == .exhausted && !pruned)
+        out.randomBranchesDropped = randomDropped
+        return out
     }
 
     /// 三件事：① 分桶保底（斩杀搜索按「已造成伤害 × 场上有没有阿莱」，见调用处；只取全局 Top-K 会把
@@ -1329,6 +1353,7 @@ enum RedDragonSearch {
             out.cpuBudgetHit = a.cpuBudgetHit || b.cpuBudgetHit
             out.cancelled = a.cancelled || b.cancelled
             out.exhaustive = (a.exhaustive || b.exhaustive) && !out.cancelled
+            out.randomBranchesDropped = a.randomBranchesDropped || b.randomBranchesDropped
             out.maxDamage = max(a.maxDamage, b.maxDamage)
             out.depthReached = max(a.depthReached, b.depthReached)
             if a.termination == .budgetExceeded { out.termination = .budgetExceeded }
@@ -1352,6 +1377,28 @@ enum RedDragonSearch {
             var s = c
             s.maxStatesExpanded = left()
             run = merged(run, search(root, config: s, deadline: deadline, selection: .sampled))
+        }
+        // 盲抽补搜（阶段 A 复核 1）：上面几遍把带随机抽牌的动作整支丢了，「发生了抽牌、但不靠抽到哪张」的线
+        // （矿锄攻击的那 1 点在抽牌之前）就搜不到。丢过才跑：同一个根局面再走一遍，随机抽牌列成盲抽（抽牌发生、
+        // 牌库少一张、抽到的牌打不出去只占一格），束宽和状态数都只拿 `blindShare`。只收真的带盲抽的线，
+        // 排在上面几遍的线之后（`solveIceBreak` 里它们另有探针名额）—— 上面几遍搜到什么、怎么排都不受它影响
+        if run.randomBranchesDropped, !run.cancelled, threadCPUTime() < deadline {
+            let share = base.iceBreak.blindShare
+            func scaled(_ n: Int) -> Int { return max(1, Int(Double(n) * share)) }
+            var b = c
+            b.blindDraws = true
+            b.beamWidth = base.beamWidth.map(scaled)
+            b.maxStatesExpanded = base.maxStatesExpanded.map(scaled)
+            b.iceBreak.prepMaxStates = scaled(base.iceBreak.prepMaxStates)
+            b.iceBreak.prepBeamWidth = scaled(base.iceBreak.prepBeamWidth)
+            let extra = search(root, config: b, deadline: deadline)
+            run.iceLines += extra.iceLines.filter { l in l.actions.contains { $0.choices.contains(.blind) } }
+            run.statesExpanded += extra.statesExpanded
+            run.prepStatesExpanded += extra.prepStatesExpanded
+            run.placementTranslationFailures += extra.placementTranslationFailures
+            run.cpuBudgetHit = run.cpuBudgetHit || extra.cpuBudgetHit
+            run.cancelled = run.cancelled || extra.cancelled
+            run.depthReached = max(run.depthReached, extra.depthReached)
         }
         return run
     }

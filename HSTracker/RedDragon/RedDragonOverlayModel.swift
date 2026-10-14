@@ -40,6 +40,9 @@ struct RDOverlayModel: Equatable {
         var quiz: RDQuizMark?
         /// 结论不是当前局面的（过时 / 正在算 / 已偏离）：整块置灰，内容和大小不变
         var dimmed: Bool
+        /// 标签行里的破冰按键（T8）：nil = 不画；false = 画成「关」；true = 画成「开」。
+        /// 面板上唯一接鼠标的东西：对方有奥秘时在，破冰开着时一直在（冰碎之后对方奥秘数是 0，没有它就关不掉）
+        var iceButton: Bool? = nil
     }
 
     enum LineKind: Equatable {
@@ -48,10 +51,14 @@ struct RDOverlayModel: Equatable {
         case missing
         case insufficient
         case danger
-        /// 完整公式（多行排版，不截断）。`setup`：准备线（奶 16 / 预启动），否则是斩杀线
+        /// 完整公式（多行排版，不截断）。`setup`：准备线（奶 16 / 预启动 / 破冰），否则是斩杀线
         case formula(setup: Bool)
         /// 准备线的「回合末留下什么」
         case leftover
+        /// 破冰线的下回合摘要：破冰后剩余血量、下回合伤害。`lethal`：下回合可斩
+        case iceNextTurn(lethal: Bool)
+        /// 「下回合可斩」的前提（对方回合不动场面、不回血）
+        case icePremise
     }
 
     /// 公式里的一步。`done` 划掉、`next` 高亮、`pending` 正常、`note` 是「抽到 X 才继续」之类的说明
@@ -101,13 +108,21 @@ struct RDOverlayModel: Equatable {
             return RDOverlayModel(badge: Badge(title: RDText.assistantName, numbers: nil, margin: nil, tone: .neutral,
                                                tier: nil, statuses: [.computing], opponentSecrets: false,
                                                level: hint.revealLevel, maxLevel: hint.maxRevealLevel,
-                                               quizMode: hint.quizMode, quiz: nil, dimmed: false))
+                                               quizMode: hint.quizMode, quiz: nil, dimmed: false,
+                                               iceButton: hint.iceMode ? true : nil))
         }
 
         // 重算 / 过时期间不加「正在算」「过时」标签（多一行面板就会跳）：只把整块置灰，内容原样留着，
         // 算完再换（10-06 用户定：照着打的时候浮窗不要变形）
         var statuses: [Status] = []
         if a.completeness == .truncated { statuses.append(.truncated) }
+        // 破冰按键（T8 口径 6 / 10）：对方有奥秘时在；破冰开着时一直在
+        let iceButton: Bool? = hint.iceMode ? true : (a.opponentHasSecrets ? false : nil)
+
+        // 破冰口径的结论（T8）：不画斩杀判定（它假定没有冰），一律完整公式，不受揭示档和答题模式影响
+        if let ice = a.ice {
+            return iceModel(ice, a, hint: hint, statuses: statuses, dimmed: dimmed, iceButton: iceButton)
+        }
 
         // 准备建议只在斩不了时有（斩得了先斩）
         let setup = a.isLethal ? nil : a.setup
@@ -140,7 +155,8 @@ struct RDOverlayModel: Equatable {
                           tier: a.isLethal ? a.tier.map(RDText.tier) : nil, statuses: statuses,
                           opponentSecrets: a.opponentHasSecrets,
                           level: hint.revealLevel, maxLevel: hint.maxRevealLevel,
-                          quizMode: hint.quizMode, quiz: hint.quizMode ? hint.quiz : nil, dimmed: dimmed)
+                          quizMode: hint.quizMode, quiz: hint.quizMode ? hint.quiz : nil, dimmed: dimmed,
+                          iceButton: iceButton)
         var model = RDOverlayModel(badge: badge)
 
         // 奶 16 / 预启动 / 等死：永远直接给完整步骤，不受揭示档和答题模式影响（10-05 用户定：危险时没必要练习）
@@ -183,11 +199,61 @@ struct RDOverlayModel: Equatable {
         return model
     }
 
+    /// 破冰口径的面板（T8 口径 8 / 9）：标题说结论，本回合的线是完整公式（冰在哪一步碎有记号），一行下回合摘要；
+    /// ① 另有一小行前提。下回合的线不画（到了下回合对方没奥秘，破冰自动关，斩杀公式按真实局面重算）。
+    /// 标题行不放伤害数字、不放余量；「⚠ 对方有奥秘」让给按键（开着破冰就是在处理那个奥秘）；答题行不画
+    private static func iceModel(_ ice: RDIceAdvice, _ a: RDAnalysis, hint: RedDragonHint, statuses: [Status],
+                                 dimmed: Bool, iceButton: Bool?) -> RDOverlayModel {
+        let title: String
+        let tone: Tone
+        switch ice.kind {
+        case .lethalNextTurn:
+            (title, tone) = (ice.broken ? RDText.iceBrokenLethalNextTurn : RDText.iceLethalNextTurn, .setup)
+        case .shortNextTurn:
+            (title, tone) = (ice.broken ? RDText.iceBroken : RDText.iceCanBreak, .notFound)
+        case .cannotBreak:
+            // 口径 9：写破不了冰。穷举过的和只是没搜到的文字一样，只在颜色上分开
+            (title, tone) = (RDText.iceCannotBreak, ice.proven ? .provenNotLethal : .notFound)
+        }
+        let badge = Badge(title: hint.deviated ? RDText.deviated : title, numbers: nil, margin: nil,
+                          tone: hint.deviated ? .notFound : tone, tier: nil, statuses: statuses,
+                          opponentSecrets: false, level: hint.revealLevel, maxLevel: hint.maxRevealLevel,
+                          quizMode: false, quiz: nil, dimmed: dimmed, iceButton: iceButton)
+        var model = RDOverlayModel(badge: badge)
+        if let f = ice.formula {
+            if f.tokens.isEmpty {
+                // 冰已碎、什么都不用打：公式行的位置留一句话，行的样子和有步骤时一样
+                model.lines.append(Line(kind: .formula(setup: true), text: "", label: RDText.iceLabel,
+                                        pieces: [Piece(text: RDText.iceNothingToDo, state: .note)]))
+            } else {
+                model.lines += formulaLines(f, setup: true, highlightsNext: !dimmed)
+            }
+            switch ice.kind {
+            case .lethalNextTurn:
+                model.lines.append(Line(kind: .iceNextTurn(lethal: true),
+                                        text: RDText.iceNextTurn(remaining: ice.remaining, damage: ice.nextTurnDamage)))
+                model.lines.append(Line(kind: .icePremise, text: RDText.icePremise))
+            case .shortNextTurn:
+                let text = ice.nextTurnProbed
+                    ? RDText.iceNextTurnNotFound(remaining: ice.remaining, damage: ice.nextTurnDamage)
+                    : RDText.iceNextTurnUnprobed(remaining: ice.remaining)
+                model.lines.append(Line(kind: .iceNextTurn(lethal: false), text: text))
+            case .cannotBreak:
+                break
+            }
+        }
+        if a.boardDanger {
+            model.lines.append(Line(kind: .danger, text: RDText.boardDanger))
+        }
+        return model
+    }
+
     private static func label(_ goal: RDFormula.Goal) -> String {
         switch goal {
         case .lethal: return RDText.lethalLabel
         case .heal16: return RDText.healLabel
         case .preLaunch: return RDText.preLaunchLabel
+        case .iceBreak: return RDText.iceLabel
         }
     }
 
@@ -197,13 +263,15 @@ struct RDOverlayModel: Equatable {
     }
 
     /// 公式按阶段分行（公式表的一二三阶段）：打出「舞」或「幻」的那一步收尾一行，下一步另起一行。
-    /// 只有第一行带标签；`highlightsNext` 为 false 时不高亮下一步（已偏离的旧公式）
+    /// 只有第一行带标签；`highlightsNext` 为 false 时不高亮下一步（已偏离的旧公式）。
+    /// 破冰线（`breakStep`）：冰碎的那一步后面跟一个「冰碎」记号，之后的准备步另起一行
     static func formulaLines(_ f: RDFormula, setup: Bool, highlightsNext: Bool = true) -> [Line] {
         var rows: [[Piece]] = [[]]
         for (i, t) in f.tokens.enumerated() {
             if i > 0 {
                 let prev = f.tokens[i - 1]
-                if prev.kind == .play, prev.card == .bounceAround || prev.card == .potionOfIllusion {
+                if (prev.kind == .play && (prev.card == .bounceAround || prev.card == .potionOfIllusion))
+                    || f.breakStep == i {
                     rows.append([])
                 }
             }
@@ -211,6 +279,7 @@ struct RDOverlayModel: Equatable {
             rows[rows.count - 1].append(Piece(text: RDText.formulaToken(t), state: state,
                                                  accent: RDText.formulaPicks(t)))
             if let note = RDText.formulaNote(t) { rows[rows.count - 1].append(Piece(text: note, state: .note)) }
+            if f.breakStep == i + 1 { rows[rows.count - 1].append(Piece(text: RDText.iceBreakMark, state: .note)) }
         }
         return rows.enumerated().map { i, row in
             Line(kind: .formula(setup: setup), text: "", label: i == 0 ? label(f.goal) : nil, pieces: row)
@@ -476,7 +545,9 @@ enum RDOverlayGeometry {
         func rank(_ k: RDOverlayModel.LineKind) -> Int {
             switch k {
             case .formula: return -2
-            case .leftover: return -1
+            case .leftover, .iceNextTurn: return -1
+            // 「下回合可斩」的前提跟着摘要走：标题说了可斩，前提就不该先于别的行被收掉
+            case .icePremise: return 0
             case .danger: return 0
             case .nextStep: return 1
             case .insufficient: return 2
@@ -526,6 +597,25 @@ enum RDPanelMetrics {
         return textWidth(text, size: chipSize) + chipPaddingH + 2
     }
 
+    /// 标签行里一个标签的宽度上界。`chipWidth` 对标签是低估的（隶书的汉字实测 15 / 13.2 ≈ 1.14 em，不是 1 em），
+    /// 以前露不出来：标签行从来不是面板里最宽的一行。加了破冰按键之后它会撑宽面板（T8），这里按实测留足：
+    /// 汉字按 1.2 em，每个标签另留 4（小缩放档每个标签有 1 px 的取整，0.72 档合 1.4）
+    static func rowChipWidth(_ text: String) -> CGFloat {
+        return textWidth(text, size: chipSize) * 1.2 + chipPaddingH + 4
+    }
+
+    /// 破冰按键左右各比标签多留的空（按键是面板上唯一能点的东西，做得比标签宽一点）
+    static let buttonExtraPaddingH: CGFloat = 6
+
+    /// 破冰按键（`RDIceButton`）：和标签同字号、同高，只是左右多留一点
+    static func buttonWidth(_ text: String) -> CGFloat {
+        return rowChipWidth(text) + buttonExtraPaddingH
+    }
+
+    static func buttonText(_ b: RDOverlayModel.Badge) -> String? {
+        return b.iceButton.map { RDText.iceButton(on: $0) }
+    }
+
     static func chipTexts(_ b: RDOverlayModel.Badge) -> [String] {
         var out: [String] = []
         if let tier = b.tier { out.append(tier) }
@@ -539,8 +629,9 @@ enum RDPanelMetrics {
         return out
     }
 
+    /// 标签行有东西画：标签，或破冰按键（按键排在标签后面，同一行）
     static func hasChipRow(_ b: RDOverlayModel.Badge) -> Bool {
-        return !chipTexts(b).isEmpty
+        return !chipTexts(b).isEmpty || b.iceButton != nil
     }
 
     static func headerWidth(_ b: RDOverlayModel.Badge, dropped: Int) -> CGFloat {
@@ -557,11 +648,33 @@ enum RDPanelMetrics {
         return b.numbers == nil && b.margin == nil ? max(plain, base + 1.2 * title + 3 + rest) : plain
     }
 
-    static func chipRowWidth(_ b: RDOverlayModel.Badge) -> CGFloat {
+    /// 一行标签（可含按键）的宽度上界：左右留白 + 各项 + 间距（行尾的 Spacer 也占一份间距）。
+    /// 「正在算」是小圈 + 字，比同样的字做成标签窄
+    private static func rowWidth(_ widths: [CGFloat]) -> CGFloat {
+        guard !widths.isEmpty else { return 0 }
+        return paddingH + widths.reduce(0, +) + chipSpacing * CGFloat(widths.count)
+    }
+
+    /// 按键和标签放不放得进同一行：按估宽，不超过面板最大宽度就同一行（按键排在标签后面）；放不下
+    /// （难度 + 被截断 + 对方有奥秘 + 按键，实测 322 > 320）按键另起一行，画在标签行下面。
+    /// 只看内容、不看面板实际多宽：同一行时那一行的宽度已经算进 `minWidth`，面板不会比它窄
+    static func buttonInline(_ b: RDOverlayModel.Badge) -> Bool {
+        guard let button = buttonText(b) else { return true }
         let chips = chipTexts(b)
-        guard !chips.isEmpty else { return 0 }
-        // 「正在算」是小圈 + 字，比同样的字做成标签窄
-        return paddingH + chips.map(chipWidth).reduce(0, +) + chipSpacing * CGFloat(chips.count - 1)
+        return chips.isEmpty
+            || rowWidth(chips.map(rowChipWidth) + [buttonWidth(button)]) <= RDOverlayGeometry.panelMaxWidth
+    }
+
+    /// 标签行占几行：0 = 没有；1 = 标签（和按键）一行；2 = 按键另起一行
+    static func chipRows(_ b: RDOverlayModel.Badge) -> Int {
+        guard hasChipRow(b) else { return 0 }
+        return buttonInline(b) ? 1 : 2
+    }
+
+    static func chipRowWidth(_ b: RDOverlayModel.Badge) -> CGFloat {
+        let chips = chipTexts(b).map(rowChipWidth)
+        guard let button = buttonText(b).map(buttonWidth) else { return rowWidth(chips) }
+        return buttonInline(b) ? rowWidth(chips + [button]) : max(rowWidth(chips), rowWidth([button]))
     }
 
     static func quizRowWidth(_ b: RDOverlayModel.Badge) -> CGFloat {
@@ -587,12 +700,19 @@ enum RDPanelMetrics {
         return lineHeight(chipSize) + 2 * chipPaddingV
     }
 
-    /// 每行文字最多两行（`lineLimit(2)`；「回合末」三行）：估宽超过可用宽就多算一行
+    /// 一行文字最多折成几行（视图的 `lineLimit` 用同一个数）：平常两行，「回合末」和破冰的下回合摘要三行
+    static func rowLimit(_ kind: RDOverlayModel.LineKind) -> Int {
+        switch kind {
+        case .leftover, .iceNextTurn: return 3
+        default: return 2
+        }
+    }
+
+    /// 每行文字最多 `rowLimit` 行：估宽超过可用宽就多算一行
     static func rows(_ line: RDOverlayModel.Line, width: CGFloat) -> Int {
         let size = line.kind == .nextStep ? nextStepSize : lineSize
         let avail = width - paddingH - lineGlyphColumn
-        let limit = line.kind == .leftover ? 3 : 2
-        return min(limit, max(1, Int((textWidth(line.text, size: size) / max(1, avail)).rounded(.up))))
+        return min(rowLimit(line.kind), max(1, Int((textWidth(line.text, size: size) / max(1, avail)).rounded(.up))))
     }
 
     static let formulaSize: CGFloat = 14
@@ -626,7 +746,7 @@ enum RDPanelMetrics {
 
     static func height(badge: RDOverlayModel.Badge, lines: [RDOverlayModel.Line], width: CGFloat) -> CGFloat {
         var h = paddingV + max(lineHeight(titleSize), lineHeight(numbersSize))
-        if hasChipRow(badge) { h += spacing + chipHeight() }
+        h += CGFloat(chipRows(badge)) * (spacing + chipHeight())
         if badge.quizMode { h += spacing + chipHeight() }
         if !lines.isEmpty {
             h += spacing + 1

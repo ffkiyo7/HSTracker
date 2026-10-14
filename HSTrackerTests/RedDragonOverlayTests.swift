@@ -245,6 +245,397 @@ class RedDragonOverlayTests: HSTrackerTests {
         XCTAssertFalse(RDOverlayModel.make(Self.hint(lethal), cardName: Self.zh).lines.contains { $0.kind == .branch(lethal: true) })
     }
 
+    // MARK: - 破冰模式（T8 阶段 B）：按键、破冰口径的面板
+
+    /// 一条破冰线：鱼3 刀1 龙0（冰在这一步碎）币1 步-龙1
+    static func iceFormula(done: Int = 0) -> RDFormula {
+        var f = RDFormula(goal: .iceBreak,
+                          tokens: [tok(.spiritOfTheShark, 3), tok(.scabbsCutterbutter, 1),
+                                   tok(.alexstrasza, 0, target: .enemyHero), tok(.coin, 1),
+                                   tok(.shadowstep, 1, target: .card(.alexstrasza))],
+                          done: done)
+        f.breakStep = 3
+        return f
+    }
+
+    /// 破冰口径的结论（`RDHintBuilder.iceAnalysis` 给的那种：没有斩杀判定，只有 `ice`）
+    static func iceAnalysis(_ kind: RDIceAdvice.Kind, formula: RDFormula? = nil, remaining: Int = 0, damage: Int = 0,
+                            broken: Bool = false, probed: Bool = true, proven: Bool = false, secrets: Bool = true,
+                            danger: Bool = false, completeness: RDCompleteness = .complete) -> RDAnalysis {
+        var a = analysis(verdict: .notFound, damage: 0, health: 12, hand: [101, 102, 103, 104, 105, 106, 107],
+                         danger: danger, secrets: secrets, completeness: completeness)
+        a.ice = RDIceAdvice(kind: kind, formula: formula, broken: broken, remaining: remaining, nextTurnDamage: damage,
+                            nextTurnProbed: probed, proven: proven)
+        return a
+    }
+
+    /// 破冰开着的提示。有线就锁定（`RedDragonAssistant` 里破冰线一律锁定）
+    static func iceHint(_ a: RDAnalysis?, phase: RedDragonHint.Phase = .ready, deviated: Bool = false,
+                        stale: Bool = false, quizMode: Bool = false) -> RedDragonHint {
+        var h = hint(a, phase: phase, stale: stale, quizMode: quizMode)
+        h.iceMode = true
+        h.locked = a?.ice?.formula != nil && !deviated
+        h.deviated = deviated
+        return h
+    }
+
+    private func make(_ h: RedDragonHint) -> RDOverlayModel { return RDOverlayModel.make(h, cardName: Self.zh) }
+
+    /// 口径 10：按键只在对方有奥秘时出现；破冰开着时一直在（冰碎之后对方奥秘数是 0，没有它就关不掉）；
+    /// 按键上写着开 / 关。面板不画时（对方回合 / 不在对局）自然也没有
+    func testIceButtonOnlyWithSecretsOrWhileOn() {
+        var a = Self.sampleLethal()
+        XCTAssertNil(make(Self.hint(a)).badge?.iceButton, "对方没有奥秘：没有按键")
+        XCTAssertNil(make(Self.hint(Self.analysis(verdict: .provenNotLethal, damage: 9, health: 30))).badge?.iceButton)
+        XCTAssertNil(make(Self.hint(nil, phase: .computing)).badge?.iceButton, "还没有结论：不知道有没有奥秘")
+
+        a.opponentHasSecrets = true
+        let off = make(Self.hint(a)).badge
+        XCTAssertEqual(off?.iceButton, false, "有奥秘、没开：按键在，画成关")
+        XCTAssertEqual(off.flatMap(RDPanelMetrics.buttonText), "破冰：关")
+        XCTAssertEqual(off?.opponentSecrets, true, "「⚠ 对方有奥秘」照旧")
+        XCTAssertEqual(make(Self.hint(Self.analysis(verdict: .notFound, damage: 12, health: 30, secrets: true)))
+            .badge?.iceButton, false, "斩不了也一样")
+        // 过时 / 正在算：按键还在（内容不增不减）
+        XCTAssertEqual(make(Self.hint(a, phase: .computing, stale: true)).badge?.iceButton, false)
+
+        // 开着：刚点完、破冰的结论还没到（屏上还是斩杀判定）就已经画成开
+        var waiting = Self.hint(a, phase: .computing, stale: true)
+        waiting.iceMode = true
+        XCTAssertEqual(make(waiting).badge?.iceButton, true)
+        XCTAssertEqual(make(waiting).badge.flatMap(RDPanelMetrics.buttonText), "破冰：开")
+        // 开着、对方奥秘数已经是 0（冰是本回合打掉的）：按键还在
+        let broken = Self.iceAnalysis(.lethalNextTurn, formula: Self.iceFormula(done: 3), remaining: 1, damage: 16,
+                                      broken: true, secrets: false)
+        XCTAssertEqual(make(Self.iceHint(broken)).badge?.iceButton, true)
+        XCTAssertEqual(make(Self.iceHint(Self.iceAnalysis(.cannotBreak, secrets: true))).badge?.iceButton, true)
+        // 开着、还没有任何结论（对方回合过后的第一份局面在算）
+        XCTAssertEqual(make(Self.iceHint(nil, phase: .computing)).badge?.iceButton, true)
+        XCTAssertTrue(RDPanelMetrics.hasChipRow(make(Self.iceHint(broken)).badge!), "只有按键也占标签行")
+        // 关掉之后屏上还是破冰的结论（等斩杀判定）：按键跟对方有没有奥秘走
+        var turnedOff = Self.iceHint(Self.iceAnalysis(.cannotBreak, secrets: true), phase: .computing, stale: true)
+        turnedOff.iceMode = false
+        XCTAssertEqual(make(turnedOff).badge?.iceButton, false)
+
+        // 面板不画
+        var opponent = Self.iceHint(broken)
+        opponent.phase = .opponentTurn
+        XCTAssertFalse(make(opponent).isVisible)
+        // 按键算进面板最小宽度（T6：估计值不小于实际，见 testPanelMetricsAreUpperBounds）
+        let withButton = make(Self.iceHint(Self.iceAnalysis(.cannotBreak, secrets: true, completeness: .truncated))).badge!
+        var without = withButton
+        without.iceButton = nil
+        XCTAssertGreaterThan(RDPanelMetrics.chipRowWidth(withButton), RDPanelMetrics.chipRowWidth(without))
+    }
+
+    /// 口径 8 / 9：破冰口径的面板。标题说结论、不放斩杀数字；本回合的线是完整公式（冰在哪一步碎有记号、之后另起一行），
+    /// 不受揭示档和答题模式影响；一行下回合摘要；① 另有一行前提；② 不写「差多少」；③ 写破不了冰
+    func testIcePanelContents() {
+        // ① 破冰，下回合可斩
+        let lethal = Self.iceAnalysis(.lethalNextTurn, formula: Self.iceFormula(done: 1), remaining: 4, damage: 16)
+        let m1 = make(Self.iceHint(lethal))
+        XCTAssertEqual(m1.badge?.title, "破冰，下回合可斩")
+        XCTAssertEqual(m1.badge?.tone, .setup)
+        XCTAssertNil(m1.badge?.numbers, "斩杀搜索的「伤害 / 血量」假定没有冰，不放")
+        XCTAssertNil(m1.badge?.margin)
+        XCTAssertEqual(m1.badge?.opponentSecrets, false, "奥秘的提醒让给按键")
+        XCTAssertEqual(m1.lines.map { $0.kind }, [.formula(setup: true), .formula(setup: true),
+                                                  .iceNextTurn(lethal: true), .icePremise])
+        XCTAssertEqual(m1.lines[0].label, "破冰")
+        XCTAssertNil(m1.lines[1].label)
+        XCTAssertEqual(m1.lines[0].pieces.map { $0.text }, ["鱼3", "刀1", "龙0", "冰碎"], "冰在第 3 步碎，记号跟在那一步后面")
+        XCTAssertEqual(m1.lines[1].pieces.map { $0.text }, ["币1", "步-龙1"], "冰碎之后的准备步另起一行")
+        XCTAssertEqual(m1.lines.flatMap { $0.pieces.map { $0.state } }, [.done, .next, .pending, .note, .pending, .pending])
+        XCTAssertEqual(m1.lines[2].text, "破冰后剩 4｜下回合伤害 16")
+        XCTAssertEqual(m1.lines[3].text, "前提：对方回合不动场面、不回血")
+        XCTAssertFalse(m1.lines.contains { $0.kind == .nextStep || $0.kind == .leftover })
+
+        // 不受揭示档 / 答题模式影响：判定档、答题模式下还是整条公式，不画答题行
+        var quiz = Self.iceHint(lethal, quizMode: true)
+        quiz.quiz = .onLine
+        let mq = make(quiz)
+        XCTAssertEqual(mq.lines, m1.lines)
+        XCTAssertEqual(mq.badge?.quizMode, false)
+        XCTAssertNil(mq.badge?.quiz)
+        XCTAssertEqual(m1.badge?.level, .verdict, "判定档也给整条线")
+
+        // 打过冰碎那一步：前面的划掉，高亮落在准备步上
+        let after = make(Self.iceHint(Self.iceAnalysis(.lethalNextTurn, formula: Self.iceFormula(done: 3), remaining: 4,
+                                                       damage: 16, broken: true, secrets: false)))
+        XCTAssertEqual(after.badge?.title, "冰已碎，下回合可斩")
+        XCTAssertEqual(after.lines.flatMap { $0.pieces.map { $0.state } }, [.done, .done, .done, .note, .next, .pending])
+
+        // ② 能破冰、下回合没搜到斩杀：不写「差 N」，写已知伤害和剩余血量
+        let short = make(Self.iceHint(Self.iceAnalysis(.shortNextTurn, formula: Self.iceFormula(), remaining: 9, damage: 8)))
+        XCTAssertEqual(short.badge?.title, "能破冰")
+        XCTAssertEqual(short.badge?.tone, .notFound)
+        XCTAssertEqual(short.lines.map { $0.kind }, [.formula(setup: true), .formula(setup: true), .iceNextTurn(lethal: false)])
+        XCTAssertEqual(short.lines[2].text, "下回合没搜到斩杀：已知伤害 8｜破冰后剩 9")
+        XCTAssertFalse(short.lines.contains { $0.kind == .icePremise }, "没说可斩，不用前提")
+        for line in short.lines { XCTAssertFalse(line.text.contains("差"), line.text) }
+        XCTAssertFalse(short.badge?.title.contains("差") ?? true)
+        // ② 而且下回合没探完（预算用完，阶段 A 复核 2）：不报伤害，更不能写成破不了
+        let unprobed = make(Self.iceHint(Self.iceAnalysis(.shortNextTurn, formula: Self.iceFormula(), remaining: 9,
+                                                          probed: false, completeness: .truncated)))
+        XCTAssertEqual(unprobed.badge?.title, "能破冰")
+        XCTAssertEqual(unprobed.lines[2].text, "下回合没算完｜破冰后剩 9")
+        XCTAssertEqual(unprobed.badge?.statuses, [.truncated])
+        // 冰已碎、一步都不用打
+        var zero = RDFormula(goal: .iceBreak, tokens: [])
+        zero.done = 0
+        let nothing = make(Self.iceHint(Self.iceAnalysis(.shortNextTurn, formula: zero, remaining: 20, damage: 8,
+                                                         broken: true, secrets: false)))
+        XCTAssertEqual(nothing.badge?.title, "冰已碎")
+        XCTAssertEqual(nothing.lines.first?.pieces.map { $0.text }, ["本回合不用再出牌"])
+        XCTAssertEqual(nothing.lines.first?.label, "破冰")
+
+        // ③ 破不了冰：穷举过和只是没搜到写的一样，只在颜色上分开；没有公式行、没有下回合摘要
+        let cannot = make(Self.iceHint(Self.iceAnalysis(.cannotBreak, danger: true)))
+        XCTAssertEqual(cannot.badge?.title, "破不了冰")
+        XCTAssertEqual(cannot.badge?.tone, .notFound)
+        XCTAssertEqual(cannot.lines.map { $0.kind }, [.danger], "场面危险照常提醒")
+        XCTAssertEqual(make(Self.iceHint(Self.iceAnalysis(.cannotBreak, proven: true))).badge?.tone, .provenNotLethal)
+        XCTAssertTrue(make(Self.iceHint(Self.iceAnalysis(.cannotBreak, proven: true))).lines.isEmpty)
+
+        // 打偏：旧的破冰线置灰留在原位、不再高亮下一步，标题换成「已偏离，重算中」；行不增不减
+        let deviated = make(Self.iceHint(lethal, phase: .computing, deviated: true, stale: true))
+        XCTAssertEqual(deviated.badge?.title, RDText.deviated)
+        XCTAssertEqual(deviated.badge?.dimmed, true)
+        XCTAssertEqual(deviated.badge?.iceButton, true)
+        XCTAssertEqual(deviated.lines.map { $0.kind }, m1.lines.map { $0.kind })
+        XCTAssertEqual(deviated.lines.map { $0.pieces.map { $0.text } }, m1.lines.map { $0.pieces.map { $0.text } })
+        XCTAssertFalse(deviated.lines.contains { $0.pieces.contains { $0.state == .next } })
+        // 锁定的破冰线：日志晚到的窗口里不变暗
+        XCTAssertEqual(make(Self.iceHint(lethal, phase: .computing, stale: true)).badge?.dimmed, false)
+
+        // 面板挤的时候：公式行不收，下回合摘要先于前提留下
+        let kept = RDOverlayGeometry.compact(m1.lines, keep: 3)
+        XCTAssertEqual(kept.map { $0.kind }, [.formula(setup: true), .formula(setup: true), .iceNextTurn(lethal: true)])
+        XCTAssertEqual(RDOverlayGeometry.lineCaps(m1.lines), [4, 2])
+    }
+
+    /// 按键上报点击区域（`InteractiveRegionPreferenceKey`，`RootOverlayWindow` 据此只在这一块里接鼠标）：
+    /// 画了按键才报，报的就是按键那一小块、落在面板里；没有按键 / 面板不画时一块都不报（整层照旧点击穿透）。
+    /// 点那一块 → view model → `RedDragonAssistant.toggleIceBreak`；点面板别处不触发
+    @MainActor
+    func testIceButtonReportsItsClickRegionAndTakesTheClick() throws {
+        let canvas = CGSize(width: 1920, height: 1080)
+        let env = RedDragonAssistant.Environment(
+            isEnabled: { true }, revealPreference: { .verdict }, quizMode: { false },
+            debounce: 0, config: RedDragonConfig(), cardName: { $0 })
+        let assistant = RedDragonAssistant(environment: env)
+        let vm = RedDragonOverlayViewModel(assistant: assistant, cardName: Self.zh)
+        final class Sink { var regions: [CGRect] = [] }
+        let sink = Sink()
+        let view = RedDragonOverlayView(viewModel: vm, canvasSize: canvas)
+            .coordinateSpace(name: "rootOverlayCanvas")
+            .onPreferenceChange(InteractiveRegionPreferenceKey.self) { sink.regions = $0 }
+        let hosting = NSHostingView(rootView: view)
+        hosting.frame = CGRect(origin: .zero, size: canvas)
+        let window = NSWindow(contentRect: hosting.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = hosting
+        // SwiftUI 的点击手势只在排上屏的窗口里走得通（离屏窗口里合成的按下 / 抬起没有反应）：全透明地排上去
+        window.alphaValue = 0
+        window.ignoresMouseEvents = true
+        window.orderFrontRegardless()
+        defer {
+            window.orderOut(nil)
+            window.contentView = nil
+        }
+        // 面板换内容带一小段动画（`RDStyle.animation`）：等它走完再量
+        func settle() {
+            for _ in 0..<4 {
+                spin(until: { false }, timeout: 0.1)
+                hosting.layoutSubtreeIfNeeded()
+                hosting.display()
+            }
+        }
+        /// 在画布坐标（左上原点）的一点上按下、抬起
+        func click(_ p: CGPoint) throws {
+            let at = hosting.convert(p, to: nil)
+            for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+                let e = try XCTUnwrap(NSEvent.mouseEvent(with: type, location: at, modifierFlags: [],
+                                                         timestamp: ProcessInfo.processInfo.systemUptime,
+                                                         windowNumber: window.windowNumber, context: nil, eventNumber: 0,
+                                                         clickCount: 1, pressure: type == .leftMouseDown ? 1 : 0))
+                window.sendEvent(e)
+            }
+            settle()
+        }
+
+        // 对方没有奥秘：没有按键，不报区域
+        var snap = lethalSnapshot()
+        assistant.submit(.snapshot(snap))
+        spin { vm.model.badge?.title == RDText.lethal }
+        settle()
+        XCTAssertNil(vm.model.badge?.iceButton)
+        XCTAssertTrue(sink.regions.isEmpty, "\(sink.regions)")
+        let noButton = try XCTUnwrap(RedDragonOverlayView.lastPanelLayout).frame
+        try click(CGPoint(x: noButton.midX, y: noButton.midY))
+        XCTAssertFalse(assistant.iceMode, "没有按键时点面板不触发任何东西")
+
+        // 对方有奥秘：按键在（关），报一块，就是按键
+        snap.opponentSecretCount = 1
+        assistant.submit(.snapshot(snap))
+        spin { vm.model.badge?.iceButton == false && vm.model.badge?.statuses.isEmpty == true }
+        settle()
+        XCTAssertEqual(sink.regions.count, 1, "\(sink.regions)")
+        let panel = try XCTUnwrap(RedDragonOverlayView.lastPanelLayout)
+        let button = try XCTUnwrap(sink.regions.first)
+        XCTAssertTrue(panel.frame.contains(button), "按键 \(button) 在面板 \(panel.frame) 里")
+        XCTAssertLessThan(button.width * button.height, panel.frame.width * panel.frame.height / 4,
+                          "只有按键这一小块接鼠标，不是整块面板")
+        let u = RDOverlayGeometry.unit(canvas) * panel.scale
+        XCTAssertLessThanOrEqual(button.width, RDPanelMetrics.buttonWidth(RDText.iceButton(on: false)) * u + 0.5,
+                                 "按键实际宽度不超过估计（T6）")
+        XCTAssertGreaterThanOrEqual(button.height, 14 * u, "点得中")
+
+        // 点面板别处（标题行、按键左边的标签、按键外沿之外一点）：不触发
+        let scheduled = assistant.scheduledComputations
+        try click(CGPoint(x: panel.frame.minX + 40 * u, y: panel.frame.minY + 14 * u))
+        try click(CGPoint(x: button.minX - 12 * u, y: button.midY))
+        try click(CGPoint(x: button.maxX + 6 * u, y: button.midY))
+        XCTAssertFalse(assistant.iceMode)
+        XCTAssertEqual(assistant.scheduledComputations, scheduled)
+        // 点按键：破冰打开，立即重算（没有新局面进来），面板换成破冰口径、按键画成开
+        try click(CGPoint(x: button.midX, y: button.midY))
+        XCTAssertTrue(assistant.iceMode, "点按键 → view model → assistant")
+        XCTAssertEqual(assistant.scheduledComputations, scheduled + 1)
+        spin { vm.model.badge?.iceButton == true && assistant.hint.analysis?.ice != nil && assistant.hint.phase == .ready }
+        settle()
+        XCTAssertEqual(vm.model.badge?.iceButton, true)
+        XCTAssertNotNil(assistant.hint.analysis?.ice)
+        XCTAssertEqual(sink.regions.count, 1)
+        let onButton = try XCTUnwrap(sink.regions.first)
+        XCTAssertTrue(try XCTUnwrap(RedDragonOverlayView.lastPanelLayout).frame.contains(onButton))
+        // 再点：关掉
+        try click(CGPoint(x: onButton.midX, y: onButton.midY))
+        XCTAssertFalse(assistant.iceMode)
+        spin { vm.model.badge?.iceButton == false && assistant.hint.analysis?.ice == nil && assistant.hint.phase == .ready }
+        XCTAssertEqual(vm.model.badge?.title, RDText.lethal)
+
+        // 面板不画（对方回合）：不报区域
+        assistant.submit(.opponentTurn)
+        spin { !vm.model.isVisible }
+        settle()
+        XCTAssertTrue(sink.regions.isEmpty, "\(sink.regions)")
+
+        // 只画不接点击的面板（效果图 / 尺寸测试用的 `RDPanel`，`onToggleIce == nil`）也不报
+        let model = make(Self.iceHint(Self.iceAnalysis(.cannotBreak)))
+        let layout = try XCTUnwrap(RDOverlayGeometry.panelLayout(canvas: canvas, badge: model.badge!, lines: model.lines,
+                                                                 trackers: []))
+        let plainSink = Sink()
+        let plain = NSHostingView(rootView: ZStack(alignment: .topLeading) {
+            Color.clear
+            RDPanel(badge: model.badge!, layout: layout, canvas: canvas)
+        }
+        .frame(width: canvas.width, height: canvas.height, alignment: .topLeading)
+        .coordinateSpace(name: "rootOverlayCanvas")
+        .onPreferenceChange(InteractiveRegionPreferenceKey.self) { plainSink.regions = $0 })
+        plain.frame = CGRect(origin: .zero, size: canvas)
+        window.contentView = plain
+        spin(until: { false }, timeout: 0.05)
+        plain.layoutSubtreeIfNeeded()
+        spin(until: { false }, timeout: 0.05)
+        XCTAssertTrue(plainSink.regions.isEmpty)
+    }
+
+    /// 真的 `RootOverlayView`（坐标空间和 `onPreferenceChange` 都是上游现成的，T8 没动 `Overlay/Root/`）：
+    /// 按键的外框进到 `RootOverlayViewModel.interactiveRegions` —— `RootOverlayWindow` 判断点击穿透用的就是这一份；
+    /// 没有按键 / 面板不画时红龙不贡献任何区域
+    func testIceButtonRegionReachesTheRootOverlay() throws {
+        try waitForCoreManager()
+        let root = RootOverlayViewModel()
+        let size = CGSize(width: 1920, height: 1080)
+        let hosting = NSHostingView(rootView: RootOverlayView(viewModel: root))
+        hosting.frame = CGRect(origin: .zero, size: size)
+        let window = NSWindow(contentRect: hosting.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = hosting
+        defer { window.contentView = nil }
+        func settle() {
+            for _ in 0..<4 {
+                spin(until: { false }, timeout: 0.1)
+                hosting.layoutSubtreeIfNeeded()
+                hosting.display()
+            }
+        }
+        settle()
+        var a = Self.sampleLethal()
+        root.redDragon.receive(Self.hint(a, level: .order))
+        spin { root.redDragon.commits > 0 }
+        settle()
+        let before = root.interactiveRegions
+        let plainPanel = try XCTUnwrap(RedDragonOverlayView.lastPanelLayout).frame
+        XCTAssertNil(before.first { plainPanel.intersects($0) }, "没有按键：红龙面板上没有接鼠标的区域")
+
+        a.opponentHasSecrets = true
+        root.redDragon.receive(Self.hint(a, level: .order))
+        spin { root.redDragon.model.badge?.iceButton == false }
+        settle()
+        let panel = try XCTUnwrap(RedDragonOverlayView.lastPanelLayout).frame
+        let added = root.interactiveRegions.filter { !before.contains($0) }
+        XCTAssertEqual(added.count, 1, "\(added)")
+        if let button = added.first {
+            XCTAssertTrue(panel.contains(button), "按键 \(button) 在面板 \(panel) 里")
+            XCTAssertLessThan(button.width * button.height, panel.width * panel.height / 4)
+        }
+
+        var opponent = RedDragonHint.inactive
+        opponent.phase = .opponentTurn
+        root.redDragon.receive(opponent)
+        spin { !root.redDragon.model.isVisible }
+        settle()
+        XCTAssertEqual(root.interactiveRegions, before, "面板不画：区域撤掉")
+    }
+
+    /// T6：尺寸估计把按键算进去，估计值不小于实际。标签行（标签 + 按键）单独撑宽面板的情形逐种实测
+    /// （标题留空，标题行让开）：每个缩放档下实际宽、高都不超过估计。
+    /// 按键和标签同一行放不下（难度 + 被截断 + 对方有奥秘 + 按键，实测超过面板最大宽度）时另起一行，高度多算一行
+    @MainActor
+    func testChipRowWithIceButtonIsAnUpperBound() {
+        func badge(tier: String? = nil, statuses: [RDOverlayModel.Status] = [], secrets: Bool = false,
+                   button: Bool? = nil) -> RDOverlayModel.Badge {
+            return RDOverlayModel.Badge(title: "", numbers: nil, margin: nil, tone: .neutral, tier: tier, statuses: statuses,
+                                        opponentSecrets: secrets, level: .verdict, maxLevel: .verdict, quizMode: false,
+                                        quiz: nil, dimmed: false, iceButton: button)
+        }
+        let cases: [(name: String, badge: RDOverlayModel.Badge, rows: Int)] = [
+            ("关", badge(button: false), 1), ("开", badge(button: true), 1),
+            ("难度 + 关", badge(tier: "困难", button: false), 1),
+            ("奥秘 + 关", badge(secrets: true, button: false), 1),
+            ("难度 + 奥秘 + 关", badge(tier: "进阶", secrets: true, button: false), 1),
+            ("被截断 + 奥秘 + 关", badge(statuses: [.truncated], secrets: true, button: false), 1),
+            ("被截断 + 开", badge(statuses: [.truncated], button: true), 1),
+            ("正在算 + 开", badge(statuses: [.computing], button: true), 1),
+            ("难度 + 被截断 + 奥秘 + 关", badge(tier: "困难", statuses: [.truncated], secrets: true, button: false), 2),
+            ("难度 + 被截断 + 奥秘 + 开", badge(tier: "进阶", statuses: [.truncated], secrets: true, button: true), 2),
+            ("只有标签", badge(tier: "困难", statuses: [.truncated], secrets: true), 1)
+        ]
+        var worst: CGFloat = 0
+        for c in cases {
+            XCTAssertEqual(RDPanelMetrics.chipRows(c.badge), c.rows, c.name)
+            XCTAssertEqual(RDPanelMetrics.buttonInline(c.badge), c.rows == 1, c.name)
+            let est = RDPanelMetrics.minWidth(badge: c.badge, dropped: 0)
+            XCTAssertLessThanOrEqual(est, RDOverlayGeometry.panelMaxWidth, "\(c.name)：面板最大宽度放得下")
+            for u in RDOverlayGeometry.panelScales {
+                let ideal = NSHostingView(rootView: RDPanelContent(badge: c.badge, lines: [], dropped: 0, u: u).fixedSize())
+                    .fittingSize
+                XCTAssertLessThanOrEqual(ideal.width, est * u + 0.5, "\(c.name) ×\(u)")
+                XCTAssertLessThanOrEqual(ideal.height, RDPanelMetrics.height(badge: c.badge, lines: [], width: est) * u + 0.5,
+                                         "\(c.name) ×\(u)")
+                if RDPanelMetrics.chipRowWidth(c.badge) > RDOverlayGeometry.panelMinWidth {
+                    worst = max(worst, (est * u - ideal.width) / (est * u))
+                }
+            }
+        }
+        // 按键另起一行的面板比同一行的高出一行标签
+        let inline = cases[5].badge, wrapped = cases[8].badge
+        XCTAssertEqual(RDPanelMetrics.height(badge: wrapped, lines: [], width: 320)
+                       - RDPanelMetrics.height(badge: inline, lines: [], width: 320),
+                       RDPanelMetrics.spacing + RDPanelMetrics.chipHeight(), accuracy: 0.01)
+        print(String(format: "[rd-metrics] chip row with ice button: estimate over actual by at most %.0f%%", worst * 100))
+    }
+
     // MARK: - 打出一张后重算：「下一步」跟着换（走真的读取 + 搜索 + 展示模型）
 
     private final class Table {
@@ -360,13 +751,17 @@ class RedDragonOverlayTests: HSTrackerTests {
     // MARK: - 几何：不和现有组件重叠
 
     /// 最高的面板：标签行（进阶 + 被截断 + 奥秘）+ 6 行文字（3 条分叉 + 缺件 + 单回合不够 + 危险），长卡名
-    static func tallestPanel() -> RDOverlayModel {
+    /// `secrets`（T8 起分开）：对方有奥秘时标签行多一个「⚠ 对方有奥秘」和破冰按键，连同难度、被截断四样一行放不下，
+    /// 按键另起一行，面板比不带奥秘的高出一行标签。T6 的「没有记牌器挡路一律 ×1.6、贴手牌」量的是不带奥秘的这一个
+    /// （和 T8 之前同高同宽：那时奥秘标签和另外两个挤在同一行）；带奥秘的那一个在 16:9 上退到 ×1.36，
+    /// 见 `testPanelNeverCoversHand`
+    static func tallestPanel(secrets: Bool = false) -> RDOverlayModel {
         let a = analysis(verdict: .lethalIfDraw, damage: 32, health: 30, tier: .advanced,
                          branches: [RDDrawBranch(drawn: [id(.scabbsCutterbutter), id(.darkscaleBroodmother)], damage: 32, isLethal: true),
                                     RDDrawBranch(drawn: [id(.shadowOfDemise), id(.spiritOfTheShark)], damage: 31, isLethal: true),
                                     RDDrawBranch(drawn: [id(.evasion)], damage: 16, isLethal: false)],
                          missing: [id(.scabbsCutterbutter), id(.darkscaleBroodmother), id(.shroudOfConcealment)],
-                         insufficient: true, danger: true, secrets: true, completeness: .truncated)
+                         insufficient: true, danger: true, secrets: secrets, completeness: .truncated)
         return RDOverlayModel.make(hint(a), cardName: zh)
     }
 
@@ -426,7 +821,8 @@ class RedDragonOverlayTests: HSTrackerTests {
         let tracker = RDOverlayGeometry.trackerBox(
             .init(isOpponent: true, isShown: true, left: 0.5, top: 12.5, height: 85, scaling: 150),
             cardSize: .big, canvas: canvas)!
-        for model in [Self.tallestPanel(), RDOverlayModel.make(Self.hint(Self.sampleLethal(), level: .order), cardName: Self.zh)] {
+        for model in [Self.tallestPanel(), Self.tallestPanel(secrets: true),
+                      RDOverlayModel.make(Self.hint(Self.sampleLethal(), level: .order), cardName: Self.zh)] {
             let layout = RDOverlayGeometry.panelLayout(canvas: canvas, badge: model.badge!, lines: model.lines,
                                                        trackers: [tracker])
             guard let frame = layout?.frame else { continue }
@@ -455,7 +851,7 @@ class RedDragonOverlayTests: HSTrackerTests {
         let canvases = [CGSize(width: 1920, height: 1080), CGSize(width: 2560, height: 1080), CGSize(width: 3440, height: 1440),
                         CGSize(width: 1440, height: 1080), CGSize(width: 1280, height: 1024), CGSize(width: 1024, height: 768),
                         CGSize(width: 1280, height: 800), CGSize(width: 1680, height: 1050)]
-        let models = [Self.tallestPanel(),
+        let models = [Self.tallestPanel(), Self.tallestPanel(secrets: true), Self.sceneModel("29-ice-locked.png"),
                       RDOverlayModel.make(Self.hint(Self.sampleLethal(), level: .order), cardName: Self.zh),
                       RDOverlayModel.make(Self.hint(Self.sampleLethal(), level: .order, quiz: .onLine, quizMode: true), cardName: Self.zh),
                       Self.sceneModel("18-formula-locked.png"), Self.sceneModel("15-danger-heal16.png")]
@@ -537,8 +933,12 @@ class RedDragonOverlayTests: HSTrackerTests {
                         CGSize(width: 1728, height: 1117), CGSize(width: 1680, height: 1050), CGSize(width: 1280, height: 800),
                         CGSize(width: 1440, height: 1080), CGSize(width: 1024, height: 768), CGSize(width: 1280, height: 1024),
                         CGSize(width: 2560, height: 1080), CGSize(width: 3440, height: 1440), CGSize(width: 5120, height: 1440)]
+        // 最高的面板再带上对方奥秘（T8）：按键另起一行，比 T6 量的那个高一行标签。不遮手牌、画得出来、不收行这几条照样要守；
+        // 16:9 及更宽时放不进 ×1.6 的默认位置（退到 ×1.36，或超宽屏上挪进黑边），这两条单独放宽
+        let tallestWithButton = Self.tallestPanel(secrets: true)
+        XCTAssertEqual(tallestWithButton.badge.map(RDPanelMetrics.chipRows), 2)
         let models = Self.scenes().map { RDOverlayModel.make($0.hint, cardName: Self.zh) }.filter { $0.isVisible }
-            + [Self.tallestPanel()]
+            + [Self.tallestPanel(), tallestWithButton]
         XCTAssertGreaterThanOrEqual(Set(models.map { $0.lines.count }).count, 5, "\(Set(models.map { $0.lines.count }).sorted())")
         let placements: [[RDOverlayGeometry.TrackerPlacement]] = [
             [],
@@ -575,11 +975,16 @@ class RedDragonOverlayTests: HSTrackerTests {
                     XCTAssertTrue(CGRect(origin: .zero, size: canvas).contains(f), "\(what) panel \(f)")
                     XCTAssertEqual(layout.lines.filter { $0.isFormula }, model.lines.filter { $0.isFormula }, "\(what) 公式行不收")
                     if placement.isEmpty {
-                        XCTAssertEqual(f.maxX, handBox.minX - gap, accuracy: 0.5, "\(what)")
+                        let wide = canvas.width / canvas.height >= 16.0 / 9 - 0.01
                         XCTAssertEqual(f.maxY, canvas.height * RDOverlayGeometry.panelBottomFraction, accuracy: 0.5, "\(what)")
                         XCTAssertEqual(layout.droppedLines, 0, "\(what)")
+                        if model == tallestWithButton {
+                            if wide { XCTAssertGreaterThanOrEqual(layout.scale, 1.36, "\(what)") }
+                            continue
+                        }
+                        XCTAssertEqual(f.maxX, handBox.minX - gap, accuracy: 0.5, "\(what)")
                         // 16:9 及更宽：黑边够长，所有内容都是 ×1.6
-                        if canvas.width / canvas.height >= 16.0 / 9 - 0.01 {
+                        if wide {
                             XCTAssertEqual(layout.scale, 1.6, "\(what)")
                         }
                     }
@@ -615,6 +1020,7 @@ class RedDragonOverlayTests: HSTrackerTests {
     func testPanelMetricsAreUpperBounds() {
         var models = Self.scenes().map { RDOverlayModel.make($0.hint, cardName: Self.zh) }.filter { $0.isVisible }
         models.append(Self.tallestPanel())
+        models.append(Self.tallestPanel(secrets: true))
         var worst: CGFloat = 0
         var worstWidth: CGFloat = 0
         for model in models {
@@ -1130,6 +1536,43 @@ class RedDragonOverlayTests: HSTrackerTests {
 
         // 15–21（T4）：准备线 / 等死 / 预启动 / 锁定的完整公式（全部 / 走了几步 / 已偏离）
         out.append(contentsOf: t4Scenes())
+        // 28–34（T8）：破冰按键、破冰口径的面板
+        out.append(contentsOf: t8Scenes())
+        return out
+    }
+
+    static func t8Scenes() -> [Scene] {
+        let hand7: [RDCard] = [.coin, .foxyFraud, .scabbsCutterbutter, .etcBandManager, .shadowcaster, .shadowstep, .evasion]
+        var out: [Scene] = []
+
+        // 28. 对方有奥秘、没开破冰：标签行里看得到按键（关）
+        var a28 = sampleLethal()
+        a28.boardMarks = []
+        a28.opponentHasSecrets = true
+        out.append(Scene(file: "28-ice-button-off.png", title: "T8 对方有奥秘、没开破冰：标签行里有按键（破冰：关）",
+                         hint: hint(a28, level: .verdict), handCards: hand7, board: [.foxyFraud, .alexstrasza],
+                         enemyBoard: ["CS2_179", "CS2_179", "EX1_082"], opponentSecrets: 1))
+
+        func ice(_ file: String, _ title: String, _ a: RDAnalysis, secrets: Int = 1, deviated: Bool = false) -> Scene {
+            return Scene(file: file, title: title,
+                         hint: iceHint(a, phase: deviated ? .computing : .ready, deviated: deviated, stale: deviated),
+                         handCards: hand7, board: [.spiritOfTheShark], enemyBoard: ["CS2_179"], opponentSecrets: secrets)
+        }
+        out.append(ice("29-ice-locked.png", "T8 破冰线锁定中（走了 1 步；冰在第 3 步碎，之后是准备步）：下回合可斩 + 前提",
+                       iceAnalysis(.lethalNextTurn, formula: iceFormula(done: 1), remaining: 4, damage: 16)))
+        out.append(ice("30-ice-short-next-turn.png", "T8 能破冰但下回合不够：不写差多少，写已知伤害和破冰后剩余血量",
+                       iceAnalysis(.shortNextTurn, formula: iceFormula(), remaining: 9, damage: 8)))
+        out.append(ice("31-ice-cannot-break.png", "T8 破不了冰（场面危险照常提醒）",
+                       iceAnalysis(.cannotBreak, danger: true)))
+        out.append(ice("32-ice-broken-following.png", "T8 冰已碎（对方奥秘数是 0，按键还在）：剩下的准备步照常跟手",
+                       iceAnalysis(.lethalNextTurn, formula: iceFormula(done: 3), remaining: 4, damage: 16,
+                                   broken: true, secrets: false), secrets: 0))
+        out.append(ice("33-ice-deviated.png", "T8 破冰线打偏：旧线置灰留在原位，标「已偏离，重算中」（重算仍是破冰口径）",
+                       iceAnalysis(.lethalNextTurn, formula: iceFormula(done: 1), remaining: 4, damage: 16),
+                       deviated: true))
+        out.append(ice("34-ice-next-turn-unprobed.png", "T8 能破冰、下回合没算完（预算用完）：不报伤害，带「被截断」",
+                       iceAnalysis(.shortNextTurn, formula: iceFormula(), remaining: 9, probed: false,
+                                   completeness: .truncated)))
         return out
     }
 
