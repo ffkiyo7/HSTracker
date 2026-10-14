@@ -73,8 +73,8 @@ struct RedDragonResult {
     var exhaustive = false
     /// 准备线搜索（`config.setup` 非 nil）的结果，按优劣排好；斩杀搜索恒空
     var setupLines: [RedDragonLine] = []
-    /// 破冰搜索的一遍（`config.iceBreakPass`）收下的候选：终局冰已打掉、重放校验过，按步数升序、同步数按便宜的分降序。
-    /// 还没探过下回合，取舍在 `RedDragonSearch.solveIceBreak`。其他搜索恒空
+    /// 破冰搜索的一遍（`config.iceBreakPass`）收下的候选：终局冰已打掉、重放校验过，按破冰后剩余血量升序、
+    /// 同剩余按便宜分降序。还没探过下回合，取舍在 `RedDragonSearch.solveIceBreak`。其他搜索恒空
     var iceLines: [RedDragonLine] = []
     /// 破冰搜索里花在「冰已打掉之后」的展开状态数（含在 `statesExpanded` 里）
     var prepStatesExpanded = 0
@@ -157,7 +157,8 @@ struct RedDragonConfig {
     /// 准备线搜索自己的闸门（`solveSetup` 用，不动斩杀搜索的 `maxStatesExpanded` / `cpuBudget`）
     var setupMaxStates: Int = 200_000
     var setupCpuBudget: Double = 2.0
-    /// 只走不靠随机抽牌的线：带随机抽牌（抽牌池里不止一种牌）的动作整支不展开，E.T.C. 的发现照常。丢过这样的分支
+    /// 只走不靠随机抽牌的线：带随机抽牌（抽牌池里不止一种牌）的动作整支不展开，E.T.C. 的发现照常（按效果来源分，
+    /// 不按牌名，见 `RDEngine.picksRandomDraw`）。丢过这样的分支
     /// 就不报 `exhaustive`，并在结果里标 `randomBranchesDropped`。
     /// 破冰搜索和它的下回合探针用（T8 口径 3 / 4），斩杀 / 准备线搜索不开
     var deterministicOnly = false
@@ -370,19 +371,108 @@ enum RedDragonSearch {
         var randomDropped = false
         /// 准备线候选：按质量降序、同质量按步数升序，只留前 `setupKeep` 条
         var setupKept: [(quality: Int, steps: Int, line: RedDragonLine)] = []
-        // 破冰搜索（T8）：冰还在的节点照斩杀搜索那样往致命一击推；冰已打掉的局面都是候选，并接着展开为下回合做准备的步骤。
-        // 两类节点各有各的束和状态闸门，互不挤占（冰还在的那一半和斩杀搜索同宽、同打分、同取法）
+        // 破冰搜索（T8，`config.iceBreakPass`）。下面这些只有它用；不开破冰时 `icePass` 恒假，循环里带 `icePass` 的
+        // 分支都不进。它分两段，都在同一个循环里走：
+        //
+        // 第一段「压血」：只展开冰还在的节点，和斩杀搜索同宽、同打分、同取法（唯一的不同：动作上限不裁英雄技能和
+        //   对脸的攻击，见展开处）。寒冰屏障让对方这回合掉不到 1 血以下，
+        //   最好的破法是把血压到最低再触发，而浅的破法往往剩得多 —— 所以这一段**不因为已经有破冰线就停**，一直走到
+        //   束走空、状态闸门用完，或者出现了剩余 1 的破冰（不可能更低）之后再走 `extraBreakLayers` 层。
+        //   把冰打掉的子节点不进束，按「破冰后剩余血量」分档存起来（`iceSeeds`）。
+        // 第二段「准备」：冰打掉之后为下回合做的准备步。按剩余血量从低到高一档一档来，每档从它存下的破冰局面出发
+        //   另开一束（`prepBeamWidth`），最多走 `maxPrepLayers` 步，状态数从 `prepMaxStates` 里分、低档先分。
+        //   根局面进来冰就已经打掉时只有这一段、只有一档。
+        //
+        // 候选（`iceKept`）= 每档、每个步数（本回合这条线一共几步）便宜分最高的 `keepPerDepth` 个终局。
+        // 便宜分只是下回合的乐观估计，靠不住：所以按「档 × 步数」分开留，不让深处估得高的把浅的整批挤掉 ——
+        // 同档里步数少的那条正是口径 11 最后要比的。探下回合、排先后都在 `solveIceBreak`
+        struct IceKey: Hashable {
+            var remaining: Int
+            var steps: Int
+        }
+        typealias IceSeed = (steps: Int, child: Child)
         let icePass = config.iceBreakPass
         let ice = config.iceBreak
-        /// 每层留便宜分最高的几个候选（`iceLayer` 是正在展开的这一层的）
-        var iceKept: [(steps: Int, score: Int, hash: UInt64, line: RedDragonLine)] = []
-        var iceLayer: [(steps: Int, score: Int, hash: UInt64, line: RedDragonLine)] = []
-        /// 最浅的破冰在第几层（根局面进来就已破冰 = 0）
-        var firstBreakDepth: Int? = icePass && root.opponent.ice == .broken ? 0 : nil
+        /// 第二段开始了没有
+        var icePrep = icePass && root.opponent.ice == .broken
+        /// 第一段存下的破冰局面：剩余血量 → 这一档的局面（带着它是第几步破的冰），每档最多留 `prepBeamWidth` 个
+        var iceSeeds: [Int: [IceSeed]] = [:]
+        /// 候选：（剩余血量，步数）→ 便宜分降序的前 `keepPerDepth` 个。造线（要算难度分）留到收尾时做
+        var iceKept: [IceKey: [Child]] = [:]
+        /// 剩余 1 的破冰最早出现在第几层
+        var lowestBreakDepth: Int?
+        /// 第二段：还没展开的档（剩余血量升序）、当前档已经走了几步准备、当前档的状态数用到多少为止（`prepStates` 的值）、
+        /// 正在展开的那个节点的线有几步
+        var prepPending: [Int] = []
+        var prepLayer = 0
+        var prepCap = ice.prepMaxStates
+        var prepParentSteps = 0
+        /// 花在第二段的展开状态数（含在 `statesExpanded` 里）
         var prepStates = 0
-        /// 冰还在的那一半撞了状态闸门：不再展开，已破冰的那一半接着走
+        /// 第一段撞了状态闸门：不再压血，转第二段
         var breakSearchStopped = false
         func isCancelled() -> Bool { return config.cancellation?.isCancelled == true }
+        func byScore(_ a: Child, _ b: Child) -> Bool {
+            return a.score != b.score ? a.score > b.score : a.hash < b.hash
+        }
+        /// 候选只留每个（档，步数）便宜分最高的几个
+        func keepIce(_ c: Child, steps: Int) {
+            let key = IceKey(remaining: c.state.opponent.effectiveHealth, steps: steps)
+            if let kept = iceKept[key], kept.count >= ice.keepPerDepth, let last = kept.last, !byScore(c, last) {
+                return
+            }
+            iceKept[key, default: []].append(c)
+            iceKept[key]?.sort(by: byScore)
+            if let n = iceKept[key]?.count, n > ice.keepPerDepth { iceKept[key]?.removeLast() }
+        }
+        /// 一档的破冰局面太多时留哪 `width` 个：各步数的第 1 名（便宜分）→ 各步数的第 2 名 → …（步数少的在前）。
+        /// 理由同上：不只按便宜分取
+        func thinSeeds(_ seeds: [IceSeed], width: Int) -> [IceSeed] {
+            guard seeds.count > width else { return seeds }
+            var bySteps: [Int: [IceSeed]] = [:]
+            for s in seeds { bySteps[s.steps, default: []].append(s) }
+            let steps = bySteps.keys.sorted()
+            for k in steps { bySteps[k]?.sort { byScore($0.child, $1.child) } }
+            var out: [IceSeed] = []
+            var rank = 0
+            while out.count < width {
+                for k in steps where rank < (bySteps[k]?.count ?? 0) && out.count < width {
+                    if let s = bySteps[k]?[rank] { out.append(s) }
+                }
+                rank += 1
+            }
+            return out
+        }
+        /// 一个节点的线有几步（沿父指针数到根）
+        func lineLength(_ index: Int) -> Int {
+            var n = 0
+            var cursor = index
+            while cursor > 0 {
+                n += 1
+                cursor = nodes[cursor].parent
+            }
+            return n
+        }
+        /// 第二段换到下一档：还没展开的档里剩余血量最低的那一档，返回它的破冰局面（下一层的束）。
+        /// 没有档了、或准备步的状态数已经用完，返回空
+        func nextPrepLevel() -> [Child] {
+            while !prepPending.isEmpty {
+                let left = ice.prepMaxStates - prepStates
+                guard left > 0 else {
+                    pruned = true
+                    return []
+                }
+                let remaining = prepPending.removeFirst()
+                // 低档先分：每档最多用掉还剩的一半，最后一档拿走全部剩下的
+                prepCap = prepStates + (prepPending.isEmpty ? left : max(1, left / 2))
+                prepLayer = 0
+                let all = iceSeeds[remaining] ?? []
+                let seeds = thinSeeds(all, width: ice.prepBeamWidth)
+                if seeds.count < all.count { pruned = true }
+                if !seeds.isEmpty { return seeds.map { $0.child } }
+            }
+            return []
+        }
 
         func makeLine(parent: Int, action: RDAction, state: RDState,
                       branchKey: [RDCard], order: RDOrderDecision?) -> RedDragonLine {
@@ -462,7 +552,8 @@ enum RedDragonSearch {
             return false
         }
 
-        outer: while !frontier.isEmpty && depth < config.maxDepth {
+        // 层数上限只管斩杀 / 准备线搜索和破冰的第一段；破冰的第二段另有上限（每档 `maxPrepLayers` 步）
+        outer: while !frontier.isEmpty && (depth < config.maxDepth || icePrep) {
             var children: [Child] = []
             children.reserveCapacity(frontier.count * 8)
 
@@ -473,11 +564,10 @@ enum RedDragonSearch {
                 // 只走确定的分支：这一步带「抽到某张」的随机抽牌就整支不要（抽牌池里只剩一种牌时引擎直接拿、不出 pick，
                 // 不算随机）。在去重之前判，免得它占掉同一局面的名额。因为随机性丢了分支 → 算有损裁剪，不能再报穷举，
                 // 并记下来（`randomBranchesDropped`）：调用方据此再跑一遍盲抽的（`config.blindDraws`），把
-                // 「抽牌发生、但不靠抽到哪张」的线补回来。盲抽的那一遍不出 pick，不会走到这里
-                if config.deterministicOnly, action.choices.contains(where: { c in
-                    if case .pick(let card) = c { return !RDCards.sideboardCards.contains(card) }
-                    return false
-                }) {
+                // 「抽牌发生、但不靠抽到哪张」的线补回来。盲抽的那一遍抽牌不出 pick，不会走到这里。
+                // 「是不是随机抽到的」按效果来源判（`RDEngine.picksRandomDraw`），不按牌名：牌库里也可能有和边牌同名的牌，
+                // E.T.C. 发现边牌才是自己选的。`deterministicOnly` 只有破冰模式开（破冰搜索各遍、下回合探针）
+                if config.deterministicOnly, RDEngine.picksRandomDraw(action, in: node.state) {
                     pruned = true
                     randomDropped = true
                     return
@@ -497,23 +587,29 @@ enum RedDragonSearch {
                                               constraints: constraints, decision: order, isVariant: isVariant))
                         return
                     }
-                    // 冰已打掉：这个终局是候选（每层留便宜分最高的几个，探下回合在 `solveIceBreak`），并接着展开准备步
+                    // 冰已打掉：这个终局是候选。便宜分 = 把它当下回合起手的共识分，只在同一档（剩余血量相同）里比
                     let eval = RDIceBreak.evaluate(next)
-                    let worse = iceLayer.count >= ice.keepPerDepth
-                        && (eval.greedy < iceLayer[iceLayer.count - 1].score
-                            || (eval.greedy == iceLayer[iceLayer.count - 1].score
-                                && hash >= iceLayer[iceLayer.count - 1].hash))
-                    if !worse && next.truncatedDraws == 0 {
-                        let line = makeLine(parent: index, action: action, state: next,
-                                            branchKey: key, order: order)
-                        iceLayer.append((depth + 1, eval.greedy, hash, line))
-                        iceLayer.sort { $0.score != $1.score ? $0.score > $1.score : $0.hash < $1.hash }
-                        if iceLayer.count > ice.keepPerDepth { iceLayer.removeLast() }
+                    let child = Child(state: next, parent: index, action: action,
+                                      branchKey: key, score: eval.greedy,
+                                      builderScore: eval.builder, hash: hash,
+                                      constraints: constraints, decision: order, isVariant: isVariant)
+                    // 抽牌被截断过的局面不当候选（和斩杀线同一个取舍），但照样往下展开
+                    let usable = next.truncatedDraws == 0
+                    if icePrep {
+                        // 第二段：破冰之后又走了一步准备，留在束里接着走
+                        if usable { keepIce(child, steps: prepParentSteps + 1) }
+                        children.append(child)
+                        return
                     }
-                    children.append(Child(state: next, parent: index, action: action,
-                                          branchKey: key, score: eval.greedy,
-                                          builderScore: eval.builder, hash: hash,
-                                          constraints: constraints, decision: order, isVariant: isVariant))
+                    // 第一段：就是这一步把冰打掉的（这一段按层走，这条线正好 `depth + 1` 步）。
+                    // 不进束，存进它那一档等第二段；不做准备它也是候选
+                    let remaining = next.opponent.effectiveHealth
+                    if usable { keepIce(child, steps: depth + 1) }
+                    iceSeeds[remaining, default: []].append((depth + 1, child))
+                    if let all = iceSeeds[remaining], all.count > 2 * ice.prepBeamWidth {
+                        iceSeeds[remaining] = thinSeeds(all, width: ice.prepBeamWidth)
+                        pruned = true
+                    }
                     return
                 }
                 if let goal = setupGoal {
@@ -592,10 +688,10 @@ enum RedDragonSearch {
                     break outer
                 }
                 if icePass {
-                    // 两个闸门各管各的：冰还在的一半按 `maxStatesExpanded`（和斩杀搜索同一个数、只数这一半），
-                    // 已破冰的一半按 `iceBreak.prepMaxStates`
-                    if nodes[index].state.opponent.ice == .broken {
-                        if prepStates >= ice.prepMaxStates {
+                    // 两段的闸门各管各的：压血按 `maxStatesExpanded`（和斩杀搜索同一个数、只数这一段），
+                    // 准备步按当前档分到的份额（`prepCap`，各档合计不超过 `iceBreak.prepMaxStates`）
+                    if icePrep {
+                        if prepStates >= prepCap {
                             pruned = true
                             continue
                         }
@@ -613,6 +709,7 @@ enum RedDragonSearch {
                     break outer
                 }
                 let node = nodes[index]
+                if icePass && icePrep { prepParentSteps = lineLength(index) }
                 var dropped = false
                 var actions = RDEngine.legalActions(node.state, options: listOptions, dropped: &dropped)
                 // 动作生成层丢了合法分支（组合截断 / 跳过的过牌 / 未建模牌）：走完也不算穷举
@@ -622,8 +719,23 @@ enum RedDragonSearch {
                     actions = collapseEquivalentTargets(actions, node.state, node.constraints,
                                                         options: config.options)
                     if actions.count > cap {
+                        let all = actions
                         actions = topActions(actions, node.state, cap: cap)
                         pruned = true
+                        // 破冰、冰还在：把被上限裁掉的「零头伤害」补回来（英雄技能的匕首、对脸的攻击）。它们先验最低、
+                        // 最先被裁，斩杀搜索不在乎那 1 点；但压血靠的就是它们（阿莱一次 8，垫 1 点才能少剩 1 点）。
+                        // 只多不少：斩杀搜索在这个节点展开的动作这里一个不缺
+                        if icePass && node.state.opponent.ice == .armed {
+                            let kept = actions
+                            let chip = all.filter { a in
+                                switch a {
+                                case .heroPower: return !kept.contains(a)
+                                case .attack(_, .enemyHero, _): return !kept.contains(a)
+                                case .play, .attack: return false
+                                }
+                            }
+                            actions += chip
+                        }
                     }
                 }
                 for action in actions {
@@ -660,38 +772,48 @@ enum RedDragonSearch {
                     break outer
                 }
             }
-            // 破冰搜索：已破冰的子节点另算（`prep`），`children` 只留冰还在的，下面的排序和取束对它照旧
-            var prep: [Child] = []
+            // 破冰搜索：这一层走完，看要不要收口 / 换段 / 换档（两段的说明见上面 `icePass`）
             if icePass {
-                if !iceLayer.isEmpty {
-                    if firstBreakDepth == nil { firstBreakDepth = depth }
-                    iceKept += iceLayer
-                    iceLayer = []
-                }
-                var armed: [Child] = []
-                for c in children {
-                    if c.state.opponent.ice == .broken { prep.append(c) } else { armed.append(c) }
-                }
-                children = breakSearchStopped ? [] : armed
-                if let first = firstBreakDepth {
-                    // 最浅的破冰出现之后，冰还在的节点只再走几层（克制一点的破法可能多一两步）；准备步也有层数上限
-                    if depth >= first + ice.extraBreakLayers, !children.isEmpty {
+                if !icePrep {
+                    // 第一段：`children` 里只有冰还在的节点（把冰打掉的已经存进 `iceSeeds`）
+                    if lowestBreakDepth == nil, iceSeeds.keys.contains(where: { $0 <= 1 }) { lowestBreakDepth = depth }
+                    // 收口只有三种：状态闸门、层数上限，或者剩余 1 的破冰已经出现了 `extraBreakLayers` 层。
+                    // 「已经有破冰线了」不是收口的理由 —— 剩得更少的破法在更深处
+                    var stop = breakSearchStopped || depth >= config.maxDepth
+                    if let low = lowestBreakDepth, depth >= low + ice.extraBreakLayers { stop = true }
+                    if stop, !children.isEmpty {
                         children = []
                         pruned = true
                     }
-                    if depth >= first + ice.maxPrepLayers, !prep.isEmpty {
-                        prep = []
+                    if children.isEmpty {
+                        // 压血走到头了：转第二段，从剩余血量最低的一档起
+                        icePrep = true
+                        prepPending = iceSeeds.keys.sorted()
+                        children = nextPrepLevel()
+                    }
+                } else {
+                    // 第二段：`children` 是当前档又走了一步准备之后的局面（都已经记进候选）
+                    prepLayer += 1
+                    if prepLayer >= ice.maxPrepLayers || prepStates >= prepCap, !children.isEmpty {
+                        children = []
                         pruned = true
                     }
+                    if children.isEmpty { children = nextPrepLevel() }
                 }
             }
-            if children.isEmpty && prep.isEmpty { break }
+            if children.isEmpty { break }
 
             children.sort { a, b in
                 if a.score != b.score { return a.score > b.score }
                 return a.hash < b.hash
             }
-            if let width = beamWidth, children.count > width {
+            if icePass && icePrep {
+                // 破冰的准备步另有束宽。一档之内剩余血量相同，不用分桶：共识分（下回合潜力）一半、蓄力分一半
+                if children.count > ice.prepBeamWidth {
+                    pruned = true
+                    children = selectBeam(children, width: ice.prepBeamWidth, bucket: { _ in 0 })
+                }
+            } else if let width = beamWidth, children.count > width {
                 pruned = true
                 func pick(_ cs: [Child], _ w: Int) -> [Child] {
                     guard cs.count > w else { return cs }
@@ -725,18 +847,6 @@ enum RedDragonSearch {
                     children = pick(children, width)
                 }
             }
-            if !prep.isEmpty {
-                prep.sort { a, b in
-                    if a.score != b.score { return a.score > b.score }
-                    return a.hash < b.hash
-                }
-                if prep.count > ice.prepBeamWidth {
-                    pruned = true
-                    // 桶 = 破冰后剩余血量：剩得多的破法便宜分低，但可能是唯一留得住资源的，每种都保底
-                    prep = selectBeam(prep, width: ice.prepBeamWidth, bucket: { $0.opponent.effectiveHealth })
-                }
-                children += prep
-            }
             frontier = []
             frontier.reserveCapacity(children.count)
             for c in children {
@@ -762,13 +872,26 @@ enum RedDragonSearch {
 
         // 收尾（落位翻译、去重排序、重放校验）每条线都要重放，线多时不便宜：每一步之间、每条线之前都看取消
         if icePass {
-            // 预算在半层用完时，这半层攒下的候选照样收尾
-            iceKept += iceLayer
+            // 候选收尾（预算在半路用完时，已经记下的候选照样收）。次序：剩余血量低的在前，同档便宜分高的在前 ——
+            // `solveIceBreak` 就按这个次序分档、排探针
+            // （字典的遍历次序每个进程不一样：先按键排好再取，最后用取出来的先后打破平局，结果才可复现）
+            var kept: [Child] = []
+            for key in iceKept.keys.sorted(by: { ($0.remaining, $0.steps) < ($1.remaining, $1.steps) }) {
+                kept += iceKept[key] ?? []
+            }
+            let ordered = kept.enumerated().sorted { a, b in
+                let (x, y) = (a.element.state.opponent.effectiveHealth, b.element.state.opponent.effectiveHealth)
+                if x != y { return x < y }
+                if a.element.score != b.element.score { return a.element.score > b.element.score }
+                if a.element.hash != b.element.hash { return a.element.hash < b.element.hash }
+                return a.offset < b.offset
+            }
             var lines: [RedDragonLine] = []
-            for k in iceKept {
+            for k in ordered.map({ $0.element }) {
                 if isCancelled() { return cancelledResult() }
                 // 重放校验：同一套规则（含寒冰屏障那一条）从根重放一遍，终局冰确实打掉了才留
-                guard let line = placed(k.line),
+                guard let line = placed(makeLine(parent: k.parent, action: k.action, state: k.state,
+                                                 branchKey: k.branchKey, order: k.decision)),
                       let end = RDReplay.validate(line.actions, from: root, expectedDamage: line.damage,
                                                   options: config.options),
                       end.opponent.ice == .broken else { continue }
@@ -1086,6 +1209,8 @@ enum RedDragonSearch {
             attackPotential += max(s.weapon?.attack ?? 0, s.heroPowerUsed ? 0 : 1)
         }
 
+        // 鲨鱼下一次阿莱按 8 × 2 记，是「这一张最多能打多少」的乐观量，只进排序分。破冰搜索也用这个分排束，
+        // 但两次 8 各自会不会触发寒冰屏障不看它：那由引擎逐次判（`RDEngine.dealDamage`），这里从不下结论
         let multiplier = sharkReachable ? 2 : 1
         let triggers = alexInHand
             + (alexOnBoard > 0 ? bouncesAndCopies + alexOnBoard : 0)
@@ -1329,7 +1454,8 @@ enum RedDragonSearch {
 
     /// 破冰搜索的几遍（入口和取舍在 RedDragonIceBreak.swift 的 `solveIceBreak`）。和 `solve` 同一个次序、同一份状态预算：
     /// 主搜索 → 排法补搜 → 采样补搜，前一遍没找到破冰才跑后一遍 —— 「能不能破冰」和斩杀搜索「能不能斩」用的是同一个力度
-    /// （预算只数冰还在的那一半；冰打掉之后的准备步另有 `iceBreak.prepMaxStates`）。
+    /// （预算只数压血的那一段；冰打掉之后的准备步另有 `iceBreak.prepMaxStates`）。
+    /// 「把血压得更低」只在各遍自己的预算里做：主搜索找到了破冰线（不管剩多少），后两遍就不跑。
     /// `root` 必须已经标好冰（`RDIceBreak.armed`）。返回里 `iceLines` 是第一遍有候选的那次的，状态数是各遍合计
     static func iceBreakPasses(_ root: RDState, config base: RedDragonConfig, deadline: Double) -> RedDragonResult {
         var c = base

@@ -273,7 +273,11 @@ class RedDragonLiveReplayTests: HSTrackerTests {
             + " 牌库剩: \(deck)"
     }
 
-    /// 根局面的 Swift 字面量：给 scratchpad 里 `swiftc -O` 的基准程序用（那边只编引擎，没有 Game / Entity）
+    /// 根局面的 Swift 字面量：给 scratchpad 里 `swiftc -O` 的基准程序用（那边只编引擎，没有 Game / Entity）。
+    /// 要和原局面搜出同样的结果（状态数逐个相同），影响搜索的字段一个不能少：破冰模式把终局折成下回合起手，
+    /// 「本回合才进手」「费用只在本回合有效」这类平时不起眼的标记在那里会改变下回合的费用。
+    /// 没写的只有不影响搜索的（`baseCostInferred` / `blindDraw` 只给跟手核对用）和读取层从不填的
+    /// （`pool` / `printedCostOverride` 只有公式表用）
     static func literal(_ s: RDState) -> String {
         func b(_ v: Bool) -> String { return v ? "true" : "false" }
         func cards(_ cs: [RDCard]) -> String { return "[" + cs.map { ".\($0)" }.joined(separator: ", ") + "]" }
@@ -285,9 +289,13 @@ class RedDragonLiveReplayTests: HSTrackerTests {
                 }
             }.joined(separator: ", ") + "]"
         }
-        let enemy = s.opponent.board.map {
-            "RDEnemyMinion(entityId: \($0.entityId), attack: \($0.attack), health: \($0.health), taunt: \(b($0.taunt)), "
-                + "divineShield: \(b($0.divineShield)), immune: \(b($0.immune)), stealth: \(b($0.stealth)), damaged: \(b($0.damaged)))"
+        let enemy = s.opponent.board.map { m -> String in
+            var t = "RDEnemyMinion(entityId: \(m.entityId), attack: \(m.attack), health: \(m.health), taunt: \(b(m.taunt)), "
+                + "divineShield: \(b(m.divineShield)), immune: \(b(m.immune)), stealth: \(b(m.stealth)), damaged: \(b(m.damaged))"
+            if m.elusive { t += ", elusive: true" }
+            if m.poisonous { t += ", poisonous: true" }
+            if m.venomous { t += ", venomous: true" }
+            return t + ")"
         }.joined(separator: ", ")
         var out = "{ var s = RDState(maxMana: \(s.maxMana), mana: \(s.mana), opponent: RDOpponent(health: \(s.opponent.health), "
             + "armor: \(s.opponent.armor), immune: \(b(s.opponent.immune)), board: [\(enemy)], secretCount: \(s.opponent.secretCount)))"
@@ -301,8 +309,12 @@ class RedDragonLiveReplayTests: HSTrackerTests {
             if let o = h.statsOverride { t += ", statsOverride: RDStats(attack: \(o.attack), health: \(o.health))" }
             if h.isShadowOfDemise { t += ", isShadowOfDemise: true" }
             if let u = h.unmodeledCardId { t += ", unmodeledCardId: \"\(u)\"" }
+            if h.enteredHandThisTurn { t += ", enteredHandThisTurn: true" }
             return t + ")"
         }.joined(separator: ", ") + "]"
+        for (i, h) in s.hand.enumerated() where h.costThisTurnOnly {
+            out += "; s.hand[\(i)].costThisTurnOnly = true"
+        }
         out += "; s.board = [" + s.board.map { m in
             "RDBoardMinion(entityId: \(m.entityId), card: .\(m.card), attack: \(m.attack), health: \(m.health), "
                 + "maxHealth: \(m.maxHealth), statsSetTo1x1: \(b(m.statsSetTo1x1)), silenced: \(b(m.silenced)), "
@@ -315,7 +327,10 @@ class RedDragonLiveReplayTests: HSTrackerTests {
         out += "; s.sideboard = \(cards(s.sideboard)); s.secretsInPlay = \(cards(s.secretsInPlay))"
         out += "; s.layers = [" + s.layers.map { "RDDiscountLayer(amount: \($0.amount), slots: \($0.slots), filter: .\($0.filter))" }
             .joined(separator: ", ") + "]"
-        out += "; s.luckyCometCharges = \(s.luckyCometCharges); s.nextEntityId = \(s.nextEntityId); return s }()"
+        out += "; s.luckyCometCharges = \(s.luckyCometCharges); s.nextEntityId = \(s.nextEntityId)"
+        out += "; s.heroHealth = \(s.heroHealth); s.heroArmor = \(s.heroArmor); s.heroMaxHealth = \(s.heroMaxHealth)"
+        out += "; s.healedRaw = \(s.healedRaw); s.damageDealt = \(s.damageDealt); s.truncatedDraws = \(s.truncatedDraws)"
+        out += "; s.boardLimit = \(s.boardLimit); s.handLimit = \(s.handLimit); return s }()"
         return out
     }
 

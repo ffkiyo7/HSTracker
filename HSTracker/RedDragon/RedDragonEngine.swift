@@ -1025,6 +1025,11 @@ enum RDEngine {
                                            options: RDOptions, dropped: inout Bool) -> [[RDChoice]] {
         guard mayNeedChoices(def) else { return noChoices }
         if options.deferredChoices { return noChoices }
+        return combinations(of: choiceSlots(for: def, state: state), state: state, options: options, dropped: &dropped)
+    }
+
+    /// 打出 `def` 时依次要做的抽牌 / 发现（鲨鱼、连击、幸运彗星的翻倍都算上），和结算的次序相同
+    private static func choiceSlots(for def: RDCardDef, state: RDState) -> [RDChoiceSlot] {
         let usesCombo = state.comboActive && !def.comboEffects.isEmpty
         let triggers = triggerCount(def, sharkAura: state.sharkAuraActive,
                                     cometDoubles: usesCombo && consumesLuckyComet(def)
@@ -1043,7 +1048,77 @@ enum RDEngine {
                 }
             }
         }
-        return combinations(of: slots, state: state, options: options, dropped: &dropped)
+        return slots
+    }
+
+    /// 这一步（在 `state` 上做）的 `choices` 里有没有「随机抽到了某张」：某个 `.pick` 落在**抽牌**的槽位上，
+    /// 而不是 E.T.C. 的发现（自己选的）。按效果来源判断，**不看牌名** —— 牌库里也可能有和边牌同名的牌
+    /// （主牌里放了幻觉药水 / 舞动 / 阿莱），抽到它照样是随机的。
+    /// 每个槽位怎么吃 `choices`，照结算（`resolve` 的 `.draw` / `.discoverFromSideboard`）走一遍：
+    /// 抽牌 —— 下一个选择是盲抽就吃掉它；否则牌库里没有可抽的就什么都不发生，只剩一种（而且前面的盲抽拿不走它）
+    /// 就直接拿、不占选择，不止一种才从 `choices` 里取一张 = 随机抽到的；
+    /// 发现 —— 边牌空了什么都不发生，只剩一张直接拿，不止一张才从 `choices` 里取 = 自己选的。
+    /// 认不出这一步（不在手里的牌、不会抽牌的攻击带了选择、选择和槽位对不上）按「有」算：宁可把一条线当成靠运气，
+    /// 也不把靠运气的线当成确定的。
+    /// 破冰模式用（`RedDragonConfig.deterministicOnly`、`RDIceBreak.evidence`、跟手）；别的路径仍按牌名判断
+    static func picksRandomDraw(_ action: RDAction, in state: RDState) -> Bool {
+        let choices = action.choices
+        guard choices.contains(where: { if case .pick = $0 { return true }; return false }) else { return false }
+        let slots: [RDChoiceSlot]
+        switch action {
+        case .play(let eid, let identity, _, _, _):
+            guard state.handIndex(ofEntity: eid) != nil else { return true }
+            slots = choiceSlots(for: RDCards.def(identity), state: state)
+        case .attack(.friendlyHero, _, _):
+            guard state.weapon?.drawOnHeroAttack == true else { return true }
+            slots = [.draw(heroAttackDrawFilter)]
+        default:
+            return true
+        }
+        var deck = state.deck
+        var sideboard = state.sideboard
+        var next = 0
+        for slot in slots {
+            switch slot {
+            case .draw(let filter):
+                let candidates = deck.remaining(filter: filter)
+                if next < choices.count, choices[next] == .blind {
+                    if !candidates.isEmpty { deck.removeUnknown() }
+                    next += 1
+                    continue
+                }
+                guard !candidates.isEmpty else { continue }
+                if candidates.count == 1 && deck.surelyHas(candidates[0]) {
+                    deck.remove(candidates[0])
+                    continue
+                }
+                // 结算要从 `choices` 里取这一抽抽到的是哪张：随机的
+                return true
+            case .discover:
+                if sideboard.isEmpty { continue }
+                if sideboard.count == 1 {
+                    sideboard.removeFirst()
+                    continue
+                }
+                guard next < choices.count, case .pick(let c) = choices[next],
+                      let k = sideboard.firstIndex(of: c) else { return true }
+                sideboard.remove(at: k)
+                next += 1
+            }
+        }
+        // 多出来的选择对不上任何槽位
+        return next != choices.count
+    }
+
+    /// 一串动作从 `root` 起逐步看 `picksRandomDraw`：有一步靠随机抽到某张（或者走不通）就是 true
+    static func lineHasRandomDraw(_ actions: [RDAction], from root: RDState, options: RDOptions = .search) -> Bool {
+        var s = root
+        for a in actions {
+            if picksRandomDraw(a, in: s) { return true }
+            guard let t = try? apply(a, to: s, options: options) else { return true }
+            s = t
+        }
+        return false
     }
 
     /// `action` 在 `state` 上所有可能的确定化选择（抽牌的每种结果 × 发现的每种选择）。

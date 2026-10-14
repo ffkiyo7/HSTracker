@@ -198,7 +198,10 @@ enum RDText {
     static let iceBrokenLethalNextTurn = "冰已碎，下回合可斩"
     static let iceCanBreak = "能破冰"
     static let iceBroken = "冰已碎"
+    /// ③ 而且穷举证明了（`RDIceAdvice.proven`）：本模型里不靠随机抽牌的打法都试过，没有一条破得了冰
     static let iceCannotBreak = "破不了冰"
+    /// ③ 但没搜完（束裁剪、丢过靠随机抽牌的分支、撞了预算、有推断的费用 / 没建模的牌）：只是没搜到，不说破不了
+    static let iceNoBreakFound = "没搜到破冰线"
     static let iceLabel = "破冰"
     /// 公式里跟在破冰那一步后面的记号
     static let iceBreakMark = "冰碎"

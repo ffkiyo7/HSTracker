@@ -212,8 +212,12 @@ struct RDOverlayModel: Equatable {
         case .shortNextTurn:
             (title, tone) = (ice.broken ? RDText.iceBroken : RDText.iceCanBreak, .notFound)
         case .cannotBreak:
-            // 口径 9：写破不了冰。穷举过的和只是没搜到的文字一样，只在颜色上分开
-            (title, tone) = (RDText.iceCannotBreak, ice.proven ? .provenNotLethal : .notFound)
+            // 口径 9（10-14 Codex review P2 订正）：穷举证明了才写「破不了冰」；没搜完写「没搜到破冰线」，颜色也分开
+            if ice.proven {
+                (title, tone) = (RDText.iceCannotBreak, .provenNotLethal)
+            } else {
+                (title, tone) = (RDText.iceNoBreakFound, .notFound)
+            }
         }
         let badge = Badge(title: hint.deviated ? RDText.deviated : title, numbers: nil, margin: nil,
                           tone: hint.deviated ? .notFound : tone, tier: nil, statuses: statuses,

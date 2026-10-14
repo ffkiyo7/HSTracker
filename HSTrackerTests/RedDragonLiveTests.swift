@@ -1051,11 +1051,14 @@ class RedDragonLiveTests: HSTrackerTests {
     /// `stage`：0 = 还没动；1 = 阿莱打完；2 = 药水也喝了。实体编号各阶段不变（阿莱上场还是手里那个号）。
     /// `iceBlock`（阶段 ≥ 1）：那个奥秘是寒冰屏障（致命的那下被免、对方免疫）；不是的话当它是别的奥秘
     /// （第二下之前对方叠了甲：剩 8 血，没有免疫）—— 两种情形奥秘都没了。
-    /// `potion: false`（只有阶段 0 / 1）：手里不是药水而是第二张 1 费阿莱复制体，也没有伺机待发 —— 破冰线只有
-    /// 阿莱打脸一步（下回合另一张阿莱 16 ≥ 8，多按一下英雄技能不升档），打完还剩 2 费
+    /// `potion: false`（只有阶段 0 / 1）：手里不是药水而是第二张 1 费阿莱复制体，也没有伺机待发，**对方 9 血** ——
+    /// 破冰线只有阿莱打脸一步（第一个 8 照扣剩 1，第二个 8 触发，剩 1：已经压到最低，先按英雄技能垫一下也还是剩 1、
+    /// 白多一步；下回合另一张阿莱 16 ≥ 1），打完还剩 2 费。
+    /// （对方要是 16 血，口径 11 之下线会变成「英雄技能 → 匕首攻脸 → 阿莱」剩 7，费用用光，就没有「线走完还能动」了）
     private func iceSnapshot(stage: Int = 0, iceBlock: Bool = true, potion: Bool = true) -> RDGameSnapshot {
         let t = Table(resources: 3, used: [0, 1, 3][stage])
-        t.opponentHero[.health] = 16
+        let health = potion ? 16 : 9
+        t.opponentHero[.health] = health
         t.add("TRL_092", zone: .play, tags: [.exhausted: 1])
         let alex = t.add("LEG_CS3_031", zone: stage == 0 ? .hand : .play,
                          tags: stage == 0 ? [.cost: 1, .atk: 1, .health: 1] : [.atk: 1, .health: 1, .exhausted: 1])
@@ -1084,7 +1087,8 @@ class RedDragonLiveTests: HSTrackerTests {
         snap.optionsPlayedThisTurn = stage
         snap.opponentSecretCount = stage == 0 ? 1 : 0
         if stage > 0 {
-            snap.opponentHeroHealth = 8
+            // 阿莱的第一个 8 照扣，第二个 8 被挡
+            snap.opponentHeroHealth = health - 8
             snap.opponentHeroImmune = iceBlock
         }
         return snap
@@ -1345,7 +1349,7 @@ class RedDragonLiveTests: HSTrackerTests {
         let sw = Switch()
         let assistant = makeAssistant(sw, debounce: 0.05)
         func feed(_ s: RDGameSnapshot) { DispatchQueue.global().sync { assistant.feed(.snapshot(s)) } }
-        // 两张阿莱、没有药水：线只有阿莱打脸一步，打完还剩 2 费
+        // 两张阿莱、没有药水、对方 9 血：线只有阿莱打脸一步（剩 1），打完还剩 2 费
         turnIceOn(assistant, iceSnapshot(potion: false))
         let line = iceTokens(assistant)
         XCTAssertEqual(line, ["龙2"])
@@ -1371,7 +1375,7 @@ class RedDragonLiveTests: HSTrackerTests {
         XCTAssertEqual(iceTokens(assistant), [], "对方免疫、费用用完：0 步")
         XCTAssertNil(ice?.formula?.breakStep)
         XCTAssertEqual(ice?.kind, .lethalNextTurn, "下回合另一张阿莱照样够")
-        XCTAssertEqual(ice?.remaining, 8)
+        XCTAssertEqual(ice?.remaining, 1)
         XCTAssertEqual(RDOverlayModel.make(assistant.hint, cardName: { $0 }).badge?.iceButton, true)
         print("T8AFTER line \(String(describing: line)) then hero power: \(String(describing: ice?.kind)) "
             + "tokens \(String(describing: iceTokens(assistant))) next \(String(describing: ice?.nextTurnDamage))")
@@ -1492,11 +1496,13 @@ class RedDragonLiveTests: HSTrackerTests {
     }
 
     /// 从点按键到破冰结论上屏的墙钟（线上的预算配置；搜索在 -O 的包里）：fixture 里破冰最慢的几个回合开始的局面，
-    /// 当成对方有冰。任务书硬约束 ≤ 3 秒；数字看打印的 `T8CLICK2RESULT`
+    /// 当成对方有冰。任务书硬约束 ≤ 3 秒；数字看打印的 `T8CLICK2RESULT`。
+    /// 前五个是破不了 / 订正前最慢的；后三个是口径 12（冰还在时一直往下压血）之后破得了的里面最慢的
     func testClickToIceConclusionWithinThreeSeconds() {
         let picks: [(fixture: String, playerId: Int, turn: Int, health: Int?)] = [
             ("2026-10-05-g1-first", 1, 11, nil), ("2026-10-01-g3-lost", 1, 7, nil), ("2026-10-01-g3-lost", 1, 7, 12),
-            ("2026-10-05-g7-rewind", 2, 13, 12), ("2026-10-05-g2-dance-lost", 2, 11, nil)
+            ("2026-10-05-g7-rewind", 2, 13, 12), ("2026-10-05-g2-dance-lost", 2, 11, nil),
+            ("2026-10-01-g4-second", 2, 10, 12), ("2026-10-05-g4-dance-won", 2, 11, 12), ("2026-10-01-g4-second", 2, 10, nil)
         ]
         var rows: [String] = []
         for p in picks {

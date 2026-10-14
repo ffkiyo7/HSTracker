@@ -329,7 +329,7 @@ class RedDragonOverlayTests: HSTrackerTests {
     }
 
     /// 口径 8 / 9：破冰口径的面板。标题说结论、不放斩杀数字；本回合的线是完整公式（冰在哪一步碎有记号、之后另起一行），
-    /// 不受揭示档和答题模式影响；一行下回合摘要；① 另有一行前提；② 不写「差多少」；③ 写破不了冰
+    /// 不受揭示档和答题模式影响；一行下回合摘要；① 另有一行前提；② 不写「差多少」；③ 穷举了写破不了冰，没搜完写没搜到破冰线
     func testIcePanelContents() {
         // ① 破冰，下回合可斩
         let lethal = Self.iceAnalysis(.lethalNextTurn, formula: Self.iceFormula(done: 1), remaining: 4, damage: 16)
@@ -389,13 +389,19 @@ class RedDragonOverlayTests: HSTrackerTests {
         XCTAssertEqual(nothing.lines.first?.pieces.map { $0.text }, ["本回合不用再出牌"])
         XCTAssertEqual(nothing.lines.first?.label, "破冰")
 
-        // ③ 破不了冰：穷举过和只是没搜到写的一样，只在颜色上分开；没有公式行、没有下回合摘要
-        let cannot = make(Self.iceHint(Self.iceAnalysis(.cannotBreak, danger: true)))
-        XCTAssertEqual(cannot.badge?.title, "破不了冰")
-        XCTAssertEqual(cannot.badge?.tone, .notFound)
-        XCTAssertEqual(cannot.lines.map { $0.kind }, [.danger], "场面危险照常提醒")
-        XCTAssertEqual(make(Self.iceHint(Self.iceAnalysis(.cannotBreak, proven: true))).badge?.tone, .provenNotLethal)
+        // ③ 本回合没有破冰线：穷举证明了才写「破不了冰」，没搜完写「没搜到破冰线」（Codex review P2，10-14），
+        // 颜色也分开；两种都没有公式行、没有下回合摘要
+        let proven = make(Self.iceHint(Self.iceAnalysis(.cannotBreak, proven: true, danger: true)))
+        XCTAssertEqual(proven.badge?.title, "破不了冰")
+        XCTAssertEqual(proven.badge?.tone, .provenNotLethal)
+        XCTAssertEqual(proven.lines.map { $0.kind }, [.danger], "场面危险照常提醒")
         XCTAssertTrue(make(Self.iceHint(Self.iceAnalysis(.cannotBreak, proven: true))).lines.isEmpty)
+        let notFound = make(Self.iceHint(Self.iceAnalysis(.cannotBreak, danger: true)))
+        XCTAssertEqual(notFound.badge?.title, "没搜到破冰线", "没搜完不能说破不了")
+        XCTAssertEqual(notFound.badge?.tone, .notFound)
+        XCTAssertEqual(notFound.lines.map { $0.kind }, [.danger])
+        XCTAssertFalse(make(Self.iceHint(Self.iceAnalysis(.cannotBreak, completeness: .truncated))).badge?.title
+            .contains("破不了") ?? true, "撞了预算（被截断）更不是证明")
 
         // 打偏：旧的破冰线置灰留在原位、不再高亮下一步，标题换成「已偏离，重算中」；行不增不减
         let deviated = make(Self.iceHint(lethal, phase: .computing, deviated: true, stale: true))
@@ -1536,7 +1542,7 @@ class RedDragonOverlayTests: HSTrackerTests {
 
         // 15–21（T4）：准备线 / 等死 / 预启动 / 锁定的完整公式（全部 / 走了几步 / 已偏离）
         out.append(contentsOf: t4Scenes())
-        // 28–34（T8）：破冰按键、破冰口径的面板
+        // 28–35（T8）：破冰按键、破冰口径的面板
         out.append(contentsOf: t8Scenes())
         return out
     }
@@ -1562,8 +1568,8 @@ class RedDragonOverlayTests: HSTrackerTests {
                        iceAnalysis(.lethalNextTurn, formula: iceFormula(done: 1), remaining: 4, damage: 16)))
         out.append(ice("30-ice-short-next-turn.png", "T8 能破冰但下回合不够：不写差多少，写已知伤害和破冰后剩余血量",
                        iceAnalysis(.shortNextTurn, formula: iceFormula(), remaining: 9, damage: 8)))
-        out.append(ice("31-ice-cannot-break.png", "T8 破不了冰（场面危险照常提醒）",
-                       iceAnalysis(.cannotBreak, danger: true)))
+        out.append(ice("31-ice-cannot-break.png", "T8 破不了冰（穷举证明了；场面危险照常提醒）",
+                       iceAnalysis(.cannotBreak, proven: true, danger: true)))
         out.append(ice("32-ice-broken-following.png", "T8 冰已碎（对方奥秘数是 0，按键还在）：剩下的准备步照常跟手",
                        iceAnalysis(.lethalNextTurn, formula: iceFormula(done: 3), remaining: 4, damage: 16,
                                    broken: true, secrets: false), secrets: 0))
@@ -1573,6 +1579,8 @@ class RedDragonOverlayTests: HSTrackerTests {
         out.append(ice("34-ice-next-turn-unprobed.png", "T8 能破冰、下回合没算完（预算用完）：不报伤害，带「被截断」",
                        iceAnalysis(.shortNextTurn, formula: iceFormula(), remaining: 9, probed: false,
                                    completeness: .truncated)))
+        out.append(ice("35-ice-no-break-found.png", "T8 没搜到破冰线（没搜完，不说破不了；场面危险照常提醒）",
+                       iceAnalysis(.cannotBreak, danger: true)))
         return out
     }
 

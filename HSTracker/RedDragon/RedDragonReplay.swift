@@ -158,7 +158,10 @@ enum RDContinuation {
                 return true
             } })
             if iceBreak {
-                guard outcome.finalState.opponent.ice == .broken, noRandomDraws else { return nil }
+                // 破冰线按效果来源判「靠不靠随机抽牌」（`RDEngine.picksRandomDraw`），不按牌名：牌库里和边牌同名的牌
+                // 被随机抽到也算随机。下面回血 / 预启动那一支仍按牌名（T4 的老口径，没动）
+                guard outcome.finalState.opponent.ice == .broken,
+                      !RDEngine.lineHasRandomDraw(rest, from: start) else { return nil }
             } else {
                 switch goal {
                 case .lethal:
