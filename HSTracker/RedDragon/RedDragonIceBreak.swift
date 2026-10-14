@@ -63,6 +63,10 @@ struct RDIceBreakConfig {
     var blindShare: Double = 0.25
     /// 盲抽补搜找到的线另有这么多探针名额（排在主搜索的线之后，不挤占 `maxProbes`）
     var maxBlindProbes: Int = 8
+    /// 「稳」的门槛（口径 14）：下回合伤害比破冰后剩余血量多出至少这么多，才算稳斩。稳的排在不稳的前面
+    /// （`RDIceBreak.better`），探针只在探出稳的线之后才不再探剩得更多的档（`RDIceBreak.scheduleProbes`）。
+    /// 8 = 一次阿莱，和同剩余时的分档同一个单位。设成 0 = 可斩的都算稳，排序回到口径 11 原样
+    var safeMargin: Int = 8
 }
 
 enum RDIceVerdict: Equatable {
@@ -240,27 +244,38 @@ enum RDIceBreak {
         return out
     }
 
-    /// 两条破冰线谁在前（口径 11，10-14 订正；`a` 在前返回 true）。依次比：
+    /// 两条破冰线谁在前（口径 11 + 14，10-14 订正；`a` 在前返回 true）。「富余」= 下回合伤害 − 破冰后剩余血量
+    /// （`margin`），`safeMargin` 是「稳」的门槛（`RDIceBreakConfig.safeMargin`，默认 8 = 一次阿莱）。依次比：
     ///
     /// 1. 下回合探过的在前。没探的伤害是「不知道」，不拿 0 去和探出来的数比。
-    /// 2. 下回合可斩（下回合伤害 ≥ 破冰后剩余血量）的在前。
-    /// 3. 都可斩：
-    ///    a. **破冰后剩余血量低的在前**。对方这回合掉不到 1 血以下，能做的最好的事就是把血压到最低再触发；
-    ///       下回合多出来的伤害是溢出，不值得拿剩余血量去换（订正前这里先比溢出，是错的）。
-    ///    b. 剩余相同：下回合伤害超出剩余血量的部分按 8（一次阿莱）分档，档高的在前 —— 多一档就是多一次触发的余量。
-    ///    c. 同档：本回合步数少的在前；再同，超得多的在前。
+    /// 2. 下回合可斩（富余 ≥ 0）的在前。
+    /// 3. 都可斩：**稳（富余 ≥ `safeMargin`）的在前**（口径 14）。「剩 1、下回合刚好 1 点」对方回 1 血就斩不了，
+    ///    不如「剩 5、下回合 32」（用户定的）。
+    ///    a. 都稳：**破冰后剩余血量低的在前**。对方这回合掉不到 1 血以下，能做的最好的事就是把血压到最低再触发；
+    ///       富余已经够一次阿莱，多出来的是溢出，不值得拿剩余血量去换（口径 11）。
+    ///       剩余相同：富余按 8（一次阿莱）分档，档高的在前；同档：本回合步数少的在前；再同，富余多的在前。
+    ///    b. 都不稳：富余多的在前；再同，剩余血量低的在前；再同，步数少的在前。
     /// 4. 都不可斩：差得少的在前；同差，剩余血量低的在前；再同，步数少的在前。
     ///    （两条都没探时差额 = −剩余血量，这一条就是「剩余低的在前、再按步数」。）
     /// 5. 还分不出：难度低的在前，再按进候选的先后。
-    static func better(_ a: RDIceCandidate, _ b: RDIceCandidate) -> Bool {
+    static func better(_ a: RDIceCandidate, _ b: RDIceCandidate,
+                       safeMargin: Int = RDIceBreakConfig().safeMargin) -> Bool {
         if a.probed != b.probed { return a.probed }
         let (x, y) = (a.margin >= 0, b.margin >= 0)
         if x != y { return x }
         if x {
-            if a.remaining != b.remaining { return a.remaining < b.remaining }
-            if a.margin / 8 != b.margin / 8 { return a.margin / 8 > b.margin / 8 }
-            if a.steps != b.steps { return a.steps < b.steps }
-            if a.margin != b.margin { return a.margin > b.margin }
+            let (p, q) = (a.margin >= safeMargin, b.margin >= safeMargin)
+            if p != q { return p }
+            if p {
+                if a.remaining != b.remaining { return a.remaining < b.remaining }
+                if a.margin / 8 != b.margin / 8 { return a.margin / 8 > b.margin / 8 }
+                if a.steps != b.steps { return a.steps < b.steps }
+                if a.margin != b.margin { return a.margin > b.margin }
+            } else {
+                if a.margin != b.margin { return a.margin > b.margin }
+                if a.remaining != b.remaining { return a.remaining < b.remaining }
+                if a.steps != b.steps { return a.steps < b.steps }
+            }
         } else {
             if a.margin != b.margin { return a.margin > b.margin }
             if a.remaining != b.remaining { return a.remaining < b.remaining }
@@ -273,8 +288,9 @@ enum RDIceBreak {
     /// 下回合探针的名额怎么分（口径 12：剩余低的优先）。`solveIceBreak` 用；不碰局面，单独拿出来好测。
     ///
     /// `remaining[i]` 是第 i 档破冰后的剩余血量（升序），`counts[i]` 是这一档排好队的候选条数（队首最该先探）。
-    /// `probe(i, k)` 探第 i 档队里的第 k 条，返回它下回合可斩没有；返回 nil = 探不成了（CPU 份额用完 / 被取消），
-    /// 之后一条都不再探。`lethalAt` = 进来之前已知可斩的最低剩余（没有就 nil）。返回每一档探了队里的前几条。
+    /// `probe(i, k)` 探第 i 档队里的第 k 条，返回它下回合**稳斩**没有（富余 ≥ `RDIceBreakConfig.safeMargin`）；
+    /// 返回 nil = 探不成了（CPU 份额用完 / 被取消），之后一条都不再探。`safeAt` = 进来之前已知稳斩的最低剩余
+    /// （没有就 nil）。返回每一档探了队里的前几条。
     ///
     /// 分三轮，每一轮都从剩余最低的一档往上走：
     /// 1. 每档先探 `first` 条：**每一档都先轮到**。只按「低档先探满」分的话，最低的几档探满了、都斩不了，名额就用完了，
@@ -282,24 +298,25 @@ enum RDIceBreak {
     /// 2. 每档补到 `perLevel` 条：同档里多探几条，比 8 分档和步数。
     /// 3. 名额还有剩：各档没探的全部补上。
     ///
-    /// 哪一档探出了可斩，比它高的档从此不再探：剩得多的线排不到它前面（`better` 3a）。
+    /// 哪一档探出了**稳斩**的线，比它高的档从此不再探：剩得多的线排不到它前面（`better` 3：稳的在前，稳的里剩余低的在前）。
+    /// 只是可斩、不稳的不算：更高的档里稳的线排在它前面（口径 14），还得接着探
     static func scheduleProbes(remaining: [Int], counts: [Int], quota: Int, first: Int, perLevel: Int,
-                               lethalAt: Int? = nil, probe: (_ level: Int, _ index: Int) -> Bool?) -> [Int] {
+                               safeAt: Int? = nil, probe: (_ level: Int, _ index: Int) -> Bool?) -> [Int] {
         var done = [Int](repeating: 0, count: counts.count)
         var left = quota
-        var lowestLethal = lethalAt
+        var lowestSafe = safeAt
         var stopped = false
         for limit in [first, perLevel, Int.max] {
             for i in counts.indices {
-                if let low = lowestLethal, remaining[i] > low { continue }
+                if let low = lowestSafe, remaining[i] > low { continue }
                 while !stopped, left > 0, done[i] < min(limit, counts[i]) {
-                    guard let lethal = probe(i, done[i]) else {
+                    guard let safe = probe(i, done[i]) else {
                         stopped = true
                         break
                     }
                     done[i] += 1
                     left -= 1
-                    if lethal { lowestLethal = min(lowestLethal ?? remaining[i], remaining[i]) }
+                    if safe { lowestSafe = min(lowestSafe ?? remaining[i], remaining[i]) }
                 }
             }
         }
@@ -353,14 +370,14 @@ enum RDIceBreak {
 
 extension RedDragonSearch {
 
-    /// 破冰模式的入口（T8 口径 1–5、11–12）。`root` 是读取层读出来的局面（不用先标冰）；同步、单线程，取消走
+    /// 破冰模式的入口（T8 口径 1–5、11–14）。`root` 是读取层读出来的局面（不用先标冰）；同步、单线程，取消走
     /// `config.cancellation`（和斩杀搜索同一个标记：搜索每展开一个节点、每个探针之前和探针里面都看）。
     ///
     /// 三步：① 破冰搜索（`iceBreakPasses`）：不靠随机抽牌把冰打掉 —— 冰还在时一直往下压血，各种剩余血量的破法都收；
     /// 冰打掉之后接着展开准备步，每档（剩余血量）、每个步数留几个终局；
     /// ② 每个终局折成下回合起手（`RDIceBreak.nextTurn`），探下回合不靠随机抽牌能打多少（`RDIceBreak.probe`），
-    /// 从剩余血量最低的一档探起；
-    /// ③ 按口径 11 排（`RDIceBreak.better`）。给出去的本回合线和下回合线都是引擎重放校验过的；
+    /// 从剩余血量最低的一档探起，探出稳斩的那一档以上不再探；
+    /// ③ 按口径 11 + 14 排（`RDIceBreak.better`：稳斩的在前，稳的里剩余低的在前）。给出去的本回合线和下回合线都是引擎重放校验过的；
     /// 「下回合可斩」只在下回合线真的在下回合起手上把对方打死时才说
     static func solveIceBreak(_ root: RDState, config: RedDragonConfig = RedDragonConfig()) -> RDIceBreakResult {
         let start = threadCPUTime()
@@ -428,8 +445,9 @@ extension RedDragonSearch {
                                              nextTurnLine: nil, nextTurnDamage: 0, nextTurnLethalSteps: nil,
                                              probed: false, order: candidates.count))
         }
-        /// 探一条线的下回合，记进候选，返回它下回合可斩没有。nil = 没探成（预算用完，或被取消 —— 取消时
-        /// `out.cancelled` 已立）
+        let safeMargin = config.iceBreak.safeMargin
+        /// 探一条线的下回合，记进候选，返回它下回合稳斩没有（富余 ≥ `safeMargin`，口径 14）。nil = 没探成
+        /// （预算用完，或被取消 —— 取消时 `out.cancelled` 已立）
         func probeNextTurn(_ e: Entry) -> Bool? {
             if isCancelled() {
                 out.cancelled = true
@@ -458,14 +476,14 @@ extension RedDragonSearch {
             candidates.append(RDIceCandidate(line: e.line, remaining: e.remaining, nextTurnRoot: e.next,
                                              nextTurnLine: probe.line, nextTurnDamage: probe.damage,
                                              nextTurnLethalSteps: probe.lethalSteps, order: candidates.count))
-            return probe.damage >= e.remaining
+            return probe.damage - e.remaining >= safeMargin
         }
         /// 把 `quota` 个探针名额花在 `entries` 上，没探到的线也记进候选（`probed == false`）。返回 false = 被取消。
         ///
         /// 先按破冰后剩余血量分档（低的在前），每档排一个队：队首是这一档便宜分最高的那条（下回合最可能可斩：
         /// 第一轮每档只探一两条，先看它），之后是各步数的第 1 名（步数少的在前）→ 各步数的第 2 名 → …
         /// （`entries` 进来时同档已按便宜分降序）。名额怎么分在 `RDIceBreak.scheduleProbes`
-        func spend(_ entries: [Entry], quota: Int, lethalAt: Int?) -> Bool {
+        func spend(_ entries: [Entry], quota: Int, safeAt: Int?) -> Bool {
             var byRemaining: [Int: [Entry]] = [:]
             for e in entries { byRemaining[e.remaining, default: []].append(e) }
             let levels = byRemaining.keys.sorted()
@@ -488,18 +506,18 @@ extension RedDragonSearch {
             let done = RDIceBreak.scheduleProbes(remaining: levels, counts: queues.map { $0.count }, quota: quota,
                                                  first: config.iceBreak.firstProbesPerRemaining,
                                                  perLevel: config.iceBreak.probesPerRemaining,
-                                                 lethalAt: lethalAt) { i, k in probeNextTurn(queues[i][k]) }
+                                                 safeAt: safeAt) { i, k in probeNextTurn(queues[i][k]) }
             if out.cancelled { return false }
             for i in queues.indices {
                 for e in queues[i][done[i]...] { unprobed(e) }
             }
             return true
         }
-        guard spend(plain, quota: config.iceBreak.maxProbes, lethalAt: nil) else { return finish() }
-        // 盲抽线另有名额；主搜索的线里已经探出可斩的，剩得比它多的盲抽线不用探（排不到它前面）
-        let lethalAt = candidates.filter { $0.probed && $0.margin >= 0 }.map { $0.remaining }.min()
-        guard spend(blind, quota: config.iceBreak.maxBlindProbes, lethalAt: lethalAt) else { return finish() }
-        candidates.sort(by: RDIceBreak.better)
+        guard spend(plain, quota: config.iceBreak.maxProbes, safeAt: nil) else { return finish() }
+        // 盲抽线另有名额；主搜索的线里已经探出稳斩的，剩得比它多的盲抽线不用探（排不到它前面）
+        let safeAt = candidates.filter { $0.probed && $0.margin >= safeMargin }.map { $0.remaining }.min()
+        guard spend(blind, quota: config.iceBreak.maxBlindProbes, safeAt: safeAt) else { return finish() }
+        candidates.sort { RDIceBreak.better($0, $1, safeMargin: safeMargin) }
         out.candidates = candidates
         // 没有候选 = 本回合破不了冰（③）：没有一条重放得过的破冰线。和探针做没做完无关
         guard let best = candidates.first else { return finish() }

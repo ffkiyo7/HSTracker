@@ -833,10 +833,11 @@ class RedDragonIceBreakTests: HSTrackerTests {
         XCTAssertNil(r.line)
     }
 
-    // MARK: - 口径订正（11–13）：剩余血量低的优先，鲨鱼下的阿莱是两次 8
+    // MARK: - 口径订正（11–14）：稳斩优先，稳的里剩余血量低的优先，鲨鱼下的阿莱是两次 8
     //
     // 寒冰屏障让对方这回合掉不到 1 血以下：致命的那一下整个不算。所以破冰的好坏不看打出去多少，看触发之前把血压到了多低
-    // —— 对方 10 血，一下打 10 被免疫、剩 10；先打 9 再打 1，剩 1。下面几条各管一件事：怎么排（`better`）、
+    // —— 对方 10 血，一下打 10 被免疫、剩 10；先打 9 再打 1，剩 1。但下回合刚好够斩的线不稳（对方回 1 血就斩不了），
+    // 下回合富余至少一次阿莱（8）的排在前面（口径 14）。下面几条各管一件事：怎么排（`better`）、
     // 搜索会不会因为已经有一条浅的破冰线就不往下找、压得最低的那条下回合斩不了怎么办、两次 8 在搜索里有没有被当成一次 16。
 
     /// 排序用的假候选：只有 `RDIceBreak.better` 看的几项是真的（剩余血量、下回合伤害、本回合步数、探没探）
@@ -849,17 +850,36 @@ class RedDragonIceBreakTests: HSTrackerTests {
                               nextTurnLine: nil, nextTurnDamage: nextTurn, nextTurnLethalSteps: nil, probed: probed)
     }
 
-    /// 口径 11 的先后，一项一项钉住。每一对里前一个应该排在后一个前面
-    func testOrderingPutsLowestRemainingFirstAmongLethalLines() {
+    /// 口径 11 + 14 的先后，一项一项钉住。每一对里前一个应该排在后一个前面。
+    /// 「富余」= 下回合伤害 − 剩余血量；富余 ≥ 8（`RDIceBreakConfig.safeMargin`）算稳
+    func testOrderingPutsSafeLethalFirstThenLowestRemaining() {
         func assertFirst(_ a: RDIceCandidate, _ b: RDIceCandidate, _ why: String, line: UInt = #line) {
             XCTAssertTrue(RDIceBreak.better(a, b), why, line: line)
             XCTAssertFalse(RDIceBreak.better(b, a), why, line: line)
         }
-        // 都可斩：先比剩余血量。剩 1、下回合刚好够、走了 9 步 > 剩 8、下回合溢出 40、只走 1 步
-        // （订正前先比溢出的 8 分档，这一对是反过来的）
-        assertFirst(candidate(remaining: 1, nextTurn: 1, steps: 9),
-                    candidate(remaining: 8, nextTurn: 48, steps: 1), "可斩的里面剩余血量低的在前")
-        // 剩余相同：下回合超出的部分按 8 分档，档高的在前（超出 16 是 2 档，超出 15 是 1 档），步数不管
+        XCTAssertEqual(RDIceBreakConfig().safeMargin, 8)
+        // 口径 14，用户的例子（fixture g4-dance-won T13）：剩 5、下回合 32（富余 27）> 剩 1、下回合刚好 1 点（富余 0）——
+        // 对方回 1 血就斩不了。步数多、剩得多也一样（口径 14 之前这一对是反过来的）
+        assertFirst(candidate(remaining: 5, nextTurn: 32, steps: 12),
+                    candidate(remaining: 1, nextTurn: 1, steps: 9), "稳的在不稳的前面")
+        // 门槛本身：富余正好 8 算稳，7 不算
+        assertFirst(candidate(remaining: 9, nextTurn: 17, steps: 9),
+                    candidate(remaining: 1, nextTurn: 8, steps: 1), "富余 8 稳、富余 7 不稳")
+        // 都稳：剩余血量低的在前。剩 1、富余刚好 8、走了 9 步 > 剩 8、富余 40、只走 1 步
+        assertFirst(candidate(remaining: 1, nextTurn: 9, steps: 9),
+                    candidate(remaining: 8, nextTurn: 48, steps: 1), "都稳：剩余血量低的在前")
+        // 都不稳：富余多的在前，哪怕剩得多（剩 6 富余 7 > 剩 1 富余 0）
+        assertFirst(candidate(remaining: 6, nextTurn: 13, steps: 5),
+                    candidate(remaining: 1, nextTurn: 1, steps: 1), "都不稳：富余多的在前")
+        // 都不稳、同富余：剩余低的在前；再同：步数少的在前
+        assertFirst(candidate(remaining: 2, nextTurn: 5, steps: 5),
+                    candidate(remaining: 4, nextTurn: 7, steps: 1), "都不稳、同富余：剩余低的在前")
+        assertFirst(candidate(remaining: 2, nextTurn: 5, steps: 1),
+                    candidate(remaining: 2, nextTurn: 5, steps: 5), "都不稳、同富余同剩余：步数少的在前")
+        // 门槛设成 0 = 可斩的都算稳，回到口径 11：剩余低的在前
+        XCTAssertTrue(RDIceBreak.better(candidate(remaining: 1, nextTurn: 1, steps: 9),
+                                        candidate(remaining: 5, nextTurn: 32, steps: 12), safeMargin: 0))
+        // 都稳、剩余相同：下回合超出的部分按 8 分档，档高的在前（超出 16 是 2 档，超出 15 是 1 档），步数不管
         assertFirst(candidate(remaining: 4, nextTurn: 20, steps: 9),
                     candidate(remaining: 4, nextTurn: 19, steps: 1), "同剩余：8 分档高的在前")
         // 同剩余同档（超出 8 和 15 都是 1 档）：步数少的在前
@@ -890,10 +910,43 @@ class RedDragonIceBreakTests: HSTrackerTests {
         // 放在一起排一遍
         let sorted = [candidate(remaining: 8, nextTurn: 48, steps: 1), candidate(remaining: 1, nextTurn: 0, steps: 1),
                       candidate(remaining: 3, nextTurn: 3, steps: 6), candidate(remaining: 1, nextTurn: 1, steps: 9),
+                      candidate(remaining: 5, nextTurn: 32, steps: 12),
                       candidate(remaining: 2, nextTurn: 30, steps: 2, probed: false)]
-            .sorted(by: RDIceBreak.better)
-        XCTAssertEqual(sorted.map { $0.remaining }, [1, 3, 8, 1, 2], "可斩的按剩余 1 / 3 / 8，然后是斩不了的剩 1，最后是没探的")
-        XCTAssertEqual(sorted.map { $0.nextTurnDamage }, [1, 3, 48, 0, 30])
+            .sorted { RDIceBreak.better($0, $1) }
+        XCTAssertEqual(sorted.map { $0.remaining }, [5, 8, 1, 3, 1, 2],
+                       "稳的按剩余 5 / 8，不稳的（富余都是 0）按剩余 1 / 3，然后是斩不了的剩 1，最后是没探的")
+        XCTAssertEqual(sorted.map { $0.nextTurnDamage }, [32, 48, 1, 3, 0, 30])
+    }
+
+    /// 口径 14 落到搜索上：剩得最低的一档下回合可斩但不稳，剩得多的一档稳 —— 要稳的，而且探针不能因为低档「可斩」
+    /// 就不探高档（`scheduleProbes` 只在探出稳斩之后才停）。
+    /// 对方 9 血，鲨鱼在场；本回合 1 费，手里一张 1 费阿莱，场上一个能攻击的 9 攻随从。
+    ///   阿莱打脸：第一个 8 照扣剩 1，第二个 8 触发 —— 剩 1；阿莱用掉了，下回合只有匕首的 1 点，富余 0，不稳。
+    ///   随从攻脸：9 ≥ 9 触发 —— 剩 9；阿莱留着，下回合阿莱 16 + 匕首 1 = 17，富余 8，稳。
+    func testSafeLethalAtHigherRemainingBeatsUnsafeLowest() throws {
+        var s = root(mana: 1, maxMana: 9, enemy: 9)
+        minion(&s, .spiritOfTheShark)
+        let striker = minion(&s, .foxyFraud, canAttack: true, attack: 9)
+        let alex = card(&s, .alexstrasza, cost: 1, copy: true)
+        let r = solve(s)
+        XCTAssertEqual(r.verdict, .lethalNextTurn)
+        assertBacked(r)
+        XCTAssertEqual(try XCTUnwrap(r.line).actions, [.attack(attacker: .friendlyMinion(striker), defender: .enemyHero)])
+        XCTAssertEqual(r.remaining, 9)
+        XCTAssertEqual(r.nextTurnDamage, 17)
+        // 剩 1 的那条也搜到了、探过了：可斩但不稳
+        let low = try XCTUnwrap(r.candidates.first { $0.remaining == 1 })
+        XCTAssertEqual(low.line.actions, [play(alex, .alexstrasza, .enemyHero)])
+        XCTAssertTrue(low.probed)
+        XCTAssertEqual(low.margin, 0)
+
+        // 门槛设成 0（= 口径 14 之前）：剩 1 那一档探出「可斩」就不再探剩 9 的，选剩 1 的
+        var old = Self.detConfig()
+        old.iceBreak.safeMargin = 0
+        let before = RedDragonSearch.solveIceBreak(s, config: old)
+        XCTAssertEqual(before.remaining, 1)
+        XCTAssertEqual(before.nextTurnDamage, 1)
+        XCTAssertFalse(before.candidates.contains { $0.remaining == 9 && $0.probed }, "剩 9 的一档没轮到探")
     }
 
     /// 订正验收 ①（用户的例子）：对方 10 血。场上三个能攻击的随从，攻击力 10 / 9 / 1；鲨鱼在场、手里一张 1 费阿莱留给下回合
@@ -924,7 +977,7 @@ class RedDragonIceBreakTests: HSTrackerTests {
         var oneHit = try XCTUnwrap(r.candidates.first { $0.steps == 1 }, "一下打 10 的破法应该在候选里")
         XCTAssertEqual(oneHit.line.actions, [.attack(attacker: .friendlyMinion(ten), defender: .enemyHero)])
         XCTAssertEqual(oneHit.remaining, 10)
-        // 剩 1 的那一档已经探出可斩，剩得更多的档不用探（探了也排不到前面）；这里手工探一下，证明它确实可斩
+        // 剩 1 的那一档已经探出稳斩（富余 16），剩得更多的档不用探（探了也排不到前面）；这里手工探一下，证明它确实可斩
         XCTAssertFalse(oneHit.probed)
         let probe = RDIceBreak.probe(oneHit.nextTurnRoot, config: Self.detConfig(), deadline: .infinity)
         XCTAssertGreaterThanOrEqual(probe.damage, 10, "一下打满的那条下回合也可斩")
@@ -1008,16 +1061,18 @@ class RedDragonIceBreakTests: HSTrackerTests {
     }
 
     /// 探针名额怎么分（`RDIceBreak.scheduleProbes`，口径 12）：每一档都先探一两条，再回头把低档补满。
-    /// 只按「低档先探满」分的话，最低的几档探满了、都斩不了，名额就用完了，更高的档里有可斩的线也轮不到
+    /// 只按「低档先探满」分的话，最低的几档探满了、都斩不了，名额就用完了，更高的档里有可斩的线也轮不到。
+    /// 闭包返回的是「稳斩」（口径 14，`solveIceBreak` 里是富余 ≥ `safeMargin`）：只是可斩、不稳的返回 false，
+    /// 高档照探（搜索上的例子见 `testSafeLethalAtHigherRemainingBeatsUnsafeLowest`）
     func testEveryRemainingLevelIsProbedBeforeLowLevelsAreFilled() {
-        // 五档（剩 1…5），每档 10 条；只有剩 5 的那一档可斩。名额 32、每档先 2 条、再补到 8 条
+        // 五档（剩 1…5），每档 10 条；只有剩 5 的那一档稳斩。名额 32、每档先 2 条、再补到 8 条
         var calls: [(level: Int, index: Int)] = []
         let done = RDIceBreak.scheduleProbes(remaining: [1, 2, 3, 4, 5], counts: [10, 10, 10, 10, 10], quota: 32,
                                              first: 2, perLevel: 8) { level, index in
             calls.append((level, index))
             return level == 4
         }
-        XCTAssertEqual(done, [8, 8, 8, 6, 2], "第一轮每档 2 条（剩 5 的那档探出可斩），第二轮从低档起补到 8 条，名额用完为止")
+        XCTAssertEqual(done, [8, 8, 8, 6, 2], "第一轮每档 2 条（剩 5 的那档探出稳斩），第二轮从低档起补到 8 条，名额用完为止")
         XCTAssertEqual(calls.count, 32)
         XCTAssertEqual(calls.prefix(10).map { $0.level }, [0, 0, 1, 1, 2, 2, 3, 3, 4, 4], "第一轮：每一档都轮到")
         XCTAssertTrue(calls.allSatisfy { $0.index < 10 })
@@ -1026,13 +1081,17 @@ class RedDragonIceBreakTests: HSTrackerTests {
                                                 first: 0, perLevel: 8) { level, _ in level == 4 }
         XCTAssertEqual(starved, [8, 8, 8, 8, 0])
 
-        // 低档探出可斩，高档就不再探（剩得多的线排不到它前面）；低档自己接着探满
+        // 低档探出稳斩，高档就不再探（剩得多的线排不到它前面）；低档自己接着探满
         let low = RDIceBreak.scheduleProbes(remaining: [1, 2, 3], counts: [10, 10, 10], quota: 32,
                                             first: 2, perLevel: 8) { level, _ in level == 0 }
         XCTAssertEqual(low, [10, 0, 0])
-        // 进来之前已知可斩的最低剩余（`lethalAt`，盲抽线那一轮用）：比它高的档一条不探
+        // 低档的线都不稳（返回 false，哪怕可斩）：高档照探，一直探到出现稳斩的那一档为止
+        let unsafeLow = RDIceBreak.scheduleProbes(remaining: [1, 2, 3], counts: [3, 3, 3], quota: 32,
+                                                  first: 2, perLevel: 8) { level, _ in level == 1 }
+        XCTAssertEqual(unsafeLow, [3, 3, 0], "剩 1 不稳、剩 2 稳：剩 3 的不用探")
+        // 进来之前已知稳斩的最低剩余（`safeAt`，盲抽线那一轮用）：比它高的档一条不探
         let known = RDIceBreak.scheduleProbes(remaining: [3, 4], counts: [5, 5], quota: 8,
-                                              first: 2, perLevel: 8, lethalAt: 3) { _, _ in false }
+                                              first: 2, perLevel: 8, safeAt: 3) { _, _ in false }
         XCTAssertEqual(known, [5, 0])
         // 探不成（CPU 份额用完 / 被取消）：到此为止，后面一条都不再探
         var n = 0
@@ -1084,7 +1143,7 @@ class RedDragonIceBreakTests: HSTrackerTests {
 
         // 对方 17 血、3 费：阿莱（剩 1，冰还在）→ 英雄技能 → 匕首攻脸，这 1 点才是触发的那一下 → 剩 1。
         // 冰是第 3 步碎的，不是阿莱那一步。（另一条：两张阿莱都下，第二张的第一个 8 触发，也剩 1、少一步，
-        // 但下回合手里没阿莱了、只有匕首的 1 点 —— 同剩余时取下回合余量高一档的）
+        // 但下回合手里没阿莱了、只有匕首的 1 点 —— 富余 0，不稳，排在稳的后面）
         r = solve(position(mana: 3, enemy: 17))
         XCTAssertEqual(r.verdict, .lethalNextTurn)
         assertBacked(r)
@@ -1255,6 +1314,10 @@ class RedDragonIceBreakTests: HSTrackerTests {
         var remainingOfShort: [Int: Int] = [:]
         var notLowest = 0
         var cpuBudgetHits = 0
+        /// ① 的行里稳斩（富余 ≥ `safeMargin`，口径 14）和不稳的
+        let safeMargin = RDIceBreakConfig().safeMargin
+        var safeRows = 0
+        var unsafeRows: [String] = []
         /// 牌库里有和边牌同名的牌（幻觉药水 / 舞动 / 阿莱）的回合：Codex review P1 的局面在实战里会不会出现
         var sideboardNamedInDeck: [String] = []
         // 斩杀搜索只用来对照「能斩 ⇔ 能破冰」，不找缺件
@@ -1296,18 +1359,23 @@ class RedDragonIceBreakTests: HSTrackerTests {
                 row += " 本回合\(line.actions.count)步(第\(r.breakStep)步破冰) 剩\(r.remaining) 下回合\(r.nextTurnDamage)"
                     + (r.nextTurnLethalSteps.map { "(\($0)步斩)" } ?? "")
             }
-            // 口径 11 / 12：搜到的破冰线里剩余血量最低到多少、一共几档，选中的是不是最低的那一档
-            // （不是的话 = 更低的档探过、下回合斩不了，或者没排上探针）。再记它比最浅的破冰线多走了几步
+            // 口径 11 / 12 / 14：搜到的破冰线里剩余血量最低到多少、一共几档，选中的是不是最低的那一档
+            // （不是的话 = 更低的档探过、下回合斩不了或不稳，或者没排上探针）。再记它比最浅的破冰线多走了几步
             if let line = r.line, let lowest = r.candidates.map({ $0.remaining }).min(),
                let shallowest = r.candidates.map({ $0.steps }).min() {
                 let levels = Set(r.candidates.map { $0.remaining }).count
                 row += "｜候选 \(levels) 档、最低剩\(lowest)"
                 if r.remaining > lowest {
                     let below = r.candidates.filter { $0.remaining < r.remaining }
-                    row += "（更低的 \(below.count) 条里探过 \(below.filter { $0.probed }.count) 条，都斩不了）"
+                    let probed = below.filter { $0.probed }
+                    row += "（更低的 \(below.count) 条里探过 \(probed.count) 条，"
+                        + "可斩不稳 \(probed.filter { $0.margin >= 0 }.count) 条，其余斩不了）"
                     notLowest += 1
                 }
-                if r.verdict == .lethalNextTurn { remainingOfLethal[r.remaining, default: 0] += 1 }
+                if r.verdict == .lethalNextTurn {
+                    remainingOfLethal[r.remaining, default: 0] += 1
+                    if r.nextTurnDamage - r.remaining >= safeMargin { safeRows += 1 } else { unsafeRows.append(name) }
+                }
                 if r.verdict == .shortNextTurn { remainingOfShort[r.remaining, default: 0] += 1 }
                 if line.actions.count > shallowest {
                     extraSteps.append(line.actions.count - shallowest)
@@ -1355,6 +1423,7 @@ class RedDragonIceBreakTests: HSTrackerTests {
             + "\n斩杀搜索能斩（确定线）而破冰说破不了：\(lethalButCannotBreak)"
             + "\n斩杀搜索不斩而破冰说能破：\(breakWithoutLethal)"
             + "\n选中的线破冰后剩余血量的分布（剩N×行数，两张表合计）：① \(distribution(remainingOfLethal))；② \(distribution(remainingOfShort))"
+            + "\n① 里稳斩（富余 ≥ \(safeMargin)）\(safeRows) 行、不稳 \(unsafeRows.count) 行 \(unsafeRows)"
             + "\n选中的不是候选里剩余最低那一档的有 \(notLowest) 行"
             + "\n选中的线比最浅的破冰线长的有 \(extraSteps.count) 行，各多 \(extraSteps.sorted()) 步"
             + "\n牌库里有和边牌同名的牌的回合：\(sideboardNamedInDeck.count) / \(out.count) \(sideboardNamedInDeck)")
