@@ -1,9 +1,9 @@
 # HSTracker 个人分支：记录
 
-最后更新 2026-10-14。只记三样：提交记录、构建 / 测试记录、项目细节。10-14 之前的计划、待办、待定项和排查经过
+最后更新 2026-10-15。只记三样：提交记录、构建 / 测试记录、项目细节。10-14 之前的计划、待办、待定项和排查经过
 已整份归档（`docs/archive/plan-2026-10-14.md`、`docs/archive/refork-2026-09.md`、`docs/archive/tasks/`），按「已读、已决定」处理，不再跟进。
 
-`HearthSim/HSTracker` 的个人自用 fork，不回流上游。分支 `dev0923`，基座上游 **3.6.13**（`41f89c04`，09-29 合入；09-23 从 3.6.12 换轨重建）；
+`HearthSim/HSTracker` 的个人自用 fork，不回流上游。分支 `dev0923`，基座上游 **3.7.0**（`8d5ff469`，10-15 合入 `b227ef15`；09-23 从 3.6.12 换轨重建）；
 旧线 `dev`（基座 3.6.9，`647c310d`）冻结作回滚点；`master` 是上游纯镜像。上游合并见 `docs/upstream-merges.md`。
 
 ## 提交记录
@@ -12,7 +12,7 @@
 |---|---|
 | 地基：驱动循环 / 窗口层 / 部署目标 14.0 / 16ms 刷新合并 | Phase 0 T0–T6（旧线）；新线 REFORK S1 `17302764`、S5 `cc0fa753` + `d589ff8a` |
 | SwiftUI 记牌器 + 动效 | Phase 1 T1–T8，T8 `2e9713b5`；新线 S4 `8c2a4081` |
-| 合上游 3.6.7 / 3.6.8 / 3.6.9 / 3.6.13 | `eaa55850` / `5835f8a4` / `9da27c8e` / U4（HearthMirror 留 `912e88ea` + `Fork/HearthMirrorMinionPoolShim.swift`） |
+| 合上游 3.6.7 / 3.6.8 / 3.6.9 / 3.6.13 / 3.7.0 | `eaa55850` / `5835f8a4` / `9da27c8e` / U4 / U5 `b227ef15`（HearthMirror 升 `ec7b1d7e`，shim 已撤；BobsBuddy 1.92.7 / HearthDb 37.0.0） |
 | 换轨到 3.6.12（REFORK S0–S8） | S2 `3883c940`、S3 `687aa134`、S6a `8a86299d`、S6b `a8e59f43` / `2618be4b` / `b12ead8c` / `7312c31c`、S7 `aae3f397`、S8 `54576cce` |
 | 牌库 / 手牌 / 已打出分区 | T1 `1c44b212`；Bug T6 `e9a67db6` / T7 `7bd3192b` / T8+T9 `68ccc14e` / T10 `04dae47a` / T11 护栏 `f8fa4c86` |
 | 视觉重做与掉帧 | V1 `e3797ba8`；V2a+V2b `1745adfa`；Perf P1+P2 `143db6f3`；2.7 状态图标 `7dbc86b1` |
@@ -28,6 +28,7 @@
 
 | 日期 | 范围 | 结果 |
 |---|---|---|
+| 10-15 | 合上游 3.7.0：Debug clean build、全套（跳过 `LocalizationFormatTests`，负载 4.5）、Release clean build | 549 条挂 4 条：签名、反射断言（上游修好，测试已改）、红龙回放 2 条（CPU 预算抖动，单跑有全过）；Release 3.7.0 通过 |
 | 10-14 | 全套，受限环境，跳过 `LocalizationFormatTests`（T8 破冰终版） | 547 条：541 过 / 5 跳过 / 1 失败（签名，自编译包预期内），536 秒 |
 | 10-14 | 包体瘦身合入后 Debug 构建 + 启动 | 通过 |
 | 10-13 | 全套（T7） | 499 条，只挂签名 1 条 |
@@ -39,7 +40,7 @@
 **本机性能测试**（最近一次 10-09 晚，包内 `PerfLog` 来自没合的 PR #4，数据不在仓库里）：
 - 帧时间 A/B，`~/Desktop/dev/HSTracker-perf-builds/frames/`：不开 HSTracker 均 159.7 fps；官方包 137.6；我们的 Release 134.8；Debug 113.5（1% low 49.4 / 57.0 / 55.6 / 46.2）。
 - 每局性能日志，`~/Library/Logs/HSTracker/perf/`，10-09 22:58 ～ 10-10 00:38 天梯 8 局：CPU 平均 21–34%、p95 52–68%；内存峰值 303–498 MB；主线程卡顿 p95 10–20 ms、最大 24–178 ms。
-- 之后合进 `dev0923` 的：2.9、2.10、红龙 T6 / T7 / T8、包体瘦身（PR #3）。
+- 之后合进 `dev0923` 的：2.9、2.10、红龙 T6 / T7 / T8、包体瘦身（PR #3）、上游 3.7.0。
 
 ## 与上游的默认值差异
 
@@ -60,9 +61,9 @@
 
 ## 项目细节
 
-- Debug 包：`open ~/Library/Developer/Xcode/DerivedData/HSTracker-batppbchpubuefehmmfbulefeevu/Build/Products/Debug/HSTracker.app`。交测前看 `Contents/MacOS/HSTracker.debug.dylib` 的时间 ≥ HEAD 提交时间，不然增量 build 一次。10-14 起本机只留这一个包。
+- Release 包：`open ~/Library/Developer/Xcode/DerivedData/HSTracker-batppbchpubuefehmmfbulefeevu/Build/Products/Release/HSTracker.app`（10-15 起本机只留这一个包，Debug 包已清；要 Debug 包时增量 build，交测前看 `Contents/MacOS/HSTracker.debug.dylib` 的时间 ≥ HEAD 提交时间）。
 - 回旧线：`git checkout dev`（origin 上也有）。
-- HearthMirror 闭源，只能从 `libs.hearthsim.net/hstracker/<sha>/` 拿；上游 pin 的 `1a6012b5` 当前 404，变 200 就撤 shim（撤法在 `docs/upstream-merges.md` §4 U4）。Download 阶段失败会先 `rm -rf` 缓存，重跑前别慌。
+- HearthMirror 闭源，只能从 `libs.hearthsim.net/hstracker/<sha>/` 拿，合上游前先 `curl -I` 一下新 pin；Download 阶段失败会先 `rm -rf` 缓存，重跑前别慌。
 - 探针 `HSTRACKER_LATENCY_PROBE=1`（Release 包读 `~/Library/Logs/HSTracker/hstracker.log`）；掉帧分析 `docs/tasks/tools/frame_gaps.py`，跨录像对比加 `--busy`。
 - 环境：`brew install wget`（两个 build phase 依赖）；`Config.xcconfig` 本地签名（个人 Apple Development 证书，Team `DY725KK25V`）+ `skip-worktree`，换机器重做；SwiftLint 故意不装；git 身份 repo-local。
 - SwiftPM 在受限环境拉不到 github.com 时，临时加 `GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.https://github.com.proxy GIT_CONFIG_VALUE_0=<原 https_proxy>`。

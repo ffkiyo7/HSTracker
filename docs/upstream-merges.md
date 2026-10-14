@@ -4,7 +4,7 @@
 §1 / §2 有新的热点或新规则就补一行。本文与 `git log --merges dev0923` 一一对应。
 
 - 上游：`upstream` = https://github.com/HearthSim/HSTracker.git，只合 **tag**（`3.6.13` 这种），不合 `upstream/master` 中间态
-- 工作分支 `dev0923`，基座 **3.6.13**（09-29 合入；09-23 从 3.6.12 `c723bfd4` 换轨，见 `docs/archive/refork-2026-09.md`）；`master` 只做上游纯镜像（只允许 `--ff-only`）
+- 工作分支 `dev0923`，基座 **3.7.0**（10-15 合入；09-23 从 3.6.12 `c723bfd4` 换轨，见 `docs/archive/refork-2026-09.md`）；`master` 只做上游纯镜像（只允许 `--ff-only`）
 - 旧线 `dev`（基座 3.6.9）冻结作回滚点，不再合上游；它的三次合并记录（U / U2 / U3）留在 §4 末尾
 
 ## 0. 固定流程
@@ -35,8 +35,8 @@ git merge-tree --write-tree dev0923 <tag> | grep '^CONFLICT'                    
 
 | 文件 | 新线改了什么（行数 = 相对 3.6.12） | 合并时盯什么 |
 |---|---|---|
-| `HSTracker.xcodeproj/project.pbxproj`（259）、`xcshareddata/xcschemes/HSTracker.xcscheme`（+5） | ① `MACOSX_DEPLOYMENT_TARGET = 14.0`（上游 6 处 10.15）② fork 新文件登记（`Fork/` 11、`RedDragon/` 6、`SessionRecap/` 3、`SwiftUI/` 11、`LatencyProbe`、测试 4 + fixtures）③ `Embed Mono` / `HearthDb` 版本强校验 + wget PATH + 条件代理 ④ scheme 加 `HSTRACKER_LATENCY_PROBE` 环境变量 | 上游每个新 swift / xib / 图集必须四处登记齐（PBXBuildFile、PBXFileReference、group、phase），`grep -c 文件名` 应为 3~4；`MARKETING_VERSION` 取上游；上游删 Swift 包（3.6.13 删了 `Preferences`）连 `Package.resolved` 一起收 |
-| `HSTracker/BobsBuddy-version.txt`、`HearthDb-version.txt`（fork 新增）、`Vendor/Managed/*.zip` | 两份 zip 固定进仓库，版本文件是唯一真相，构建时强校验；DLL 装到 `Contents/Resources/Resources/Managed/`（`MonoHelper.load()` 真正读的位置） | 上游改版本号 = 必须重新 vendor，见 §2.2（3.6.13：1.76.3 → 1.78.2） |
+| `HSTracker.xcodeproj/project.pbxproj`（259）、`xcshareddata/xcschemes/HSTracker.xcscheme`（+5） | ① `MACOSX_DEPLOYMENT_TARGET = 14.0`（上游 6 处 10.15）② fork 新文件登记（`Fork/` 11、`RedDragon/` 6、`SessionRecap/` 3、`SwiftUI/` 11、`LatencyProbe`、测试 4 + fixtures）③ `Embed Mono` / `HearthDb` 版本强校验 + wget PATH + 条件代理 ④ scheme 加 `HSTRACKER_LATENCY_PROBE` 环境变量 | 上游每个新 swift / xib / 图集必须四处登记齐（PBXBuildFile、PBXFileReference、group、phase），`grep -c 文件名` 应为 3~4；`MARKETING_VERSION` 取上游；上游删 Swift 包（3.6.13 删了 `Preferences`）连 `Package.resolved` 一起收；`RedDragonCore` 本地包条目夹在上游包依赖中间，删包冲突时别连它一起删（U5） |
+| `HSTracker/BobsBuddy-version.txt`、`HearthDb-version.txt`（fork 新增）、`Vendor/Managed/*.zip` | 两份 zip 固定进仓库，版本文件是唯一真相，构建时强校验；DLL 装到 `Contents/Resources/Resources/Managed/`（`MonoHelper.load()` 真正读的位置） | 上游改版本号 = 必须重新 vendor，见 §2.2（3.6.13：1.76.3 → 1.78.2；3.7.0：1.92.7，HearthDb 跟 latest 到 37.0.0） |
 | `HSTracker/Logging/Game.swift`（153） | S3 / S4：三处 `tracker.update(cards:…)` 旁多传分区 `groups:`，`updateTrackers` 单次取数（Perf P1）；S5：3 处 `LatencyProbe` 埋点、`OverlayRefreshScheduler` 16ms 合并；S6a：排队显示牌组 + 清残留、场景门（`Fork/Game+TrackerGate.swift` 的入口） | 上游在 `updatePlayerTracker` / `updateOpponentTracker` 开头加门（3.6.13 加了 `gameTime == nil`）要落在我们传分区之前；`reset()` 加参数（3.6.13 `reset(updateUI:)`）时确认分区闩随 `entities` 一起清；埋点留在 main block 之内 |
 | `HSTracker/UIs/ImageUtils.swift`（130） | S5：LRU 256（`Fork/SynchronizedLRUCache.swift`）+ 404 负缓存 + 后台解码，回调回主线程 | 上游加「主线程 hop」「404 要回调」多半已有；上游新增图片类型要接进同一套 LRU / 队列 |
 | `HSTracker/Core/SizeHelper.swift`（101） | S5：AX 读挪后台 + `UnfairLock`，窗口轮询 0.25s（上游约 2s） | 上游改窗口探测 / 全屏判断时看锁的范围 |
@@ -74,7 +74,7 @@ scripts/update-managed-deps.sh --apply <BobsBuddy版本> <HearthDb版本>
 
 落盘版本可能高于上游钉的（U2：上游 1.70.0 → 落 1.70.2；U3：上游 1.70.7 → 落 1.71.1；S1：上游 1.76.3 → 落 1.76.10 / HearthDb 36.6.0）。
 vendor **折进 merge commit**，拆开会留下一个 version.txt 与 zip 不一致、构建不过的中间提交。
-latest 低于上游声明、下载失败、HearthDb 大版本跳变 → 停下来问。
+latest 低于上游声明、下载失败、HearthDb 大版本跳变 → 停下来问。（U5 例外：上游构建本身就拉 latest HearthDb，大版本跳变若与上游同步、构建测试都过，可以直接 vendor，在合并记录里写明。）
 
 ### 2.3 pbxproj
 
@@ -100,6 +100,25 @@ latest 低于上游声明、下载失败、HearthDb 大版本跳变 → 停下�
 上游 3.6.11 之后把 overlay 重写成单一 SwiftUI 画布并删了 `Tracker.swift` / `CardHud.swift`，旧线的记牌器窗口层改动整体作废。
 不合并，从 `3.6.12`（`c723bfd4`）开 `dev0923`，按 `docs/archive/refork-2026-09.md` S0–S8 只搬值得留的东西；每步的取舍、勘误、上游 bug 都记在那里。
 新线第一次 merge 是下面的 U4。
+
+### U5 — 3.7.0（2026-10-15，`b227ef15`，上游 `41f89c04..8d5ff469`，63 commits，含 3.6.14）
+
+**上游更新一览**：新扩展「黑色帝国」（约 90 个新 swift：关联卡 / 计数器 / 效果）、卡牌数据 254477、BobsBuddy 1.92.7 + `SupportedCardsProxy`（`f8106ff0`）、删 PromiseKit / FileKit / BigInt 等 11 个包与无用 AppKit 代码（`70ce0874` / `ea4fa7ac`）、内存读取器初始化挪出主线程（`2a27ad86`）、`CoreManager.init` 不读日志目录（`fbbd6c2d`）、OAuth 刷新串行化（`7e89ddda`）、点 overlay 激活 HSTracker 不再被后台隐藏收掉（`c22de622`，`Game.isGameInForeground`）、pre-lobby view model 改 `@MainActor`（`ab543832`）、协同高亮回到上游列表（`a17dfdd5`，我们的分区面板本来就有）、ReflectionHelper 双接口卡两表都登记（`4edaabf8`）、德语补全、战棋约 30 个。
+
+**冲突与处理**（8 个）：
+- `HearthMirror-version.txt`：取上游 `ec7b1d7e`（10-14 实测 200），按 U4 撤法撤 shim + pbxproj 4 处，`clean build` 过。
+- `BobsBuddy-version.txt`：`--apply 1.92.7 37.0.0`。HearthDb 36.6.0 → 37.0.0 是大版本跳变，按 §2.2 本该停下问；没停的理由：上游构建本来就拉 latest `HearthDb.zip`，官方 3.7.0 用的就是它，且新 `SupportedCardsProxy` 依赖新版。
+- `project.pbxproj`：14.0 + 3.7.0；上游删的 BigInt / CustomToolTip 依赖条目照删，**留 `RedDragonCore`**（与它们挤在同一冲突块里）。
+- `RealmHelper.swift`：`validateCardCounts` 守卫取上游（`d27422c7` 判定与我们相同）；`Fork/RealmHelper+CardCountFix.swift` 因 `DatabaseTests` 在用而保留。
+- `Game.swift`：三处 pre-lobby 写入取我们的整段 `main.async`（上游仍在 watcher 线程写 `battlegroundsSession` / `mulliganGuidePreLobbyViewModel`），吸收上游注释。
+- `SceneHandler.swift`：条件取上游 `to == .gameplay`，留注释。`WindowManager.swift`：删 `lastCardsUpdateRequest`，留 `orderFrontGate`。
+- `Localizable.xcstrings`：96 块（我们插 zh-Hans、上游插 de），没手解，按 key / 语言做三方 JSON 合并再按 Xcode 格式写回（`"" : {` 空对象要保持换行格式）。
+
+**被迫改的**：`TrackerMetricsTests` 的 LiftOff 断言反过来（上游修了 ReflectionHelper）；`Package.resolved` 由 Xcode 补回 OAuthSwift 的传递依赖（Erik / Kanna / FileKit / BrightFutures / Swifter，上游那份漏了）。
+
+**构建 / 测试**：Debug `clean build` 过；test 549 条挂 4 条（签名、上面的反射断言、红龙回放 `testRewindRereadKeepsFeeding` / `testAssistantLocksTheFormulaAndFollowsWithoutStaleness`）。红龙两条单跑三次结果不一、有一次全过，判定为引擎 CPU 预算在负载 4.5 下抖动，不是合并回归（红龙只从日志实体取局面，卡牌库只取名字；换回旧卡牌数据 251952 也照样时过时不过）。Release `clean build` 过。
+
+**白得与风险**：白得 = HearthMirror 跟上上游、shim 撤掉、启动和日志读取更省主线程、新扩展支持、overlay 点击不消失。风险 = HearthDb 大版本跳到 37.0.0 只有构建 + 测试覆盖。
 
 ### U4 — 3.6.13（2026-09-29，merge commit `merge: 合入 upstream 3.6.13`，上游 `c723bfd4..41f89c04`，28 commits）
 
