@@ -31,7 +31,7 @@ struct RDDifficultyWeights {
                                               perSideboardCard: 3.0)
 }
 
-enum RDDifficulty {
+public enum RDDifficulty {
 
     /// 大多数公式的起手：鱼 → 狐 → 刀 → 暗（刀）→ 牛
     static let openingTemplate: [RDCard] = [
@@ -53,11 +53,11 @@ enum RDDifficulty {
     static var basicThreshold = 23.0
     static var advancedThreshold = 33.0
 
-    enum Tier: String {
+    public enum Tier: String {
         case basic, advanced, hard
     }
 
-    static func tier(_ score: Double) -> Tier {
+    public static func tier(_ score: Double) -> Tier {
         if score <= basicThreshold { return .basic }
         if score <= advancedThreshold { return .advanced }
         return .hard

@@ -14,22 +14,22 @@ enum RDTermination: String {
     case budgetExceeded
 }
 
-struct RedDragonLine {
-    var actions: [RDAction]
-    var damage: Int
+public struct RedDragonLine {
+    public var actions: [RDAction]
+    public var damage: Int
     var difficulty: Double
     var components: RDDifficulty.Components
-    var tier: RDDifficulty.Tier
+    public var tier: RDDifficulty.Tier
     /// 抽牌分叉：这条线沿途抽到 / 发现到的牌
     var branchKey: [RDCard]
     /// 线里包含异教地图 / 垂钓时光这类不展开的过牌
-    var truncated: Bool
+    public var truncated: Bool
     /// 搜索内部用：每一步爆手时选定的场面顺序（只在爆手的全场弹回 / 复制处非空）。
     /// 返回前由 `RedDragonSearch` 翻译成 `actions` 里每次下随从的落位（并改写编号），然后清空
     var pendingBoardOrders: [RDOrderDecision?]? = nil
     /// 准备线（T4）：终局阿莱对友方回血的总量；`potential` = 终局作为下回合起手能打的伤害（探针，见 `RDSetup`）
     var healed = 0
-    var potential = 0
+    public var potential = 0
 }
 
 struct RedDragonBranch {
@@ -37,17 +37,17 @@ struct RedDragonBranch {
     var line: RedDragonLine
 }
 
-struct RedDragonResult {
-    var maxDamage: Int
-    var effectiveEnemyHealth: Int
-    var isLethal: Bool
+public struct RedDragonResult {
+    public var maxDamage: Int
+    public var effectiveEnemyHealth: Int
+    public var isLethal: Bool
     /// `lethalLines` 里有不靠随机抽牌的线（`RDLineWalker.dependsOnDraw` 为 false）。`isLethal` 为真而它为假 =
     /// 只找到「抽到才斩」的线：搜索没有在那一层收口，补搜照跑（T5 A1）
     var deterministicLethal = false
     var chosenLine: RedDragonLine?
-    var lethalLines: [RedDragonLine]
+    public var lethalLines: [RedDragonLine]
     var branches: [RedDragonBranch]
-    var missingPieces: [RDCard]
+    public var missingPieces: [RDCard]
     /// 缺件子搜索被 CPU 兜底截断（此时 `missingPieces` 不保证可复现）
     var missingPiecesBudgetExceeded: Bool
     var termination: RDTermination
@@ -67,12 +67,12 @@ struct RedDragonResult {
     /// 撞状态闸门（`maxStatesExpanded`）是可复现的正常收口
     var cpuBudgetHit = false
     /// 被 `RedDragonConfig.cancellation` 取消。取消了的结果不完整，调用方应丢掉
-    var cancelled = false
+    public var cancelled = false
     /// 有一遍搜索把可达局面**穷举**完了：束没裁过、每个节点的动作没截过、爆手排法没截过、没撞深度 / 状态 /
     /// CPU 上限、没取消。只有这时「没找到斩杀」才等于「按本模型不能斩杀」。生产配置下只有小局面能做到
     var exhaustive = false
     /// 准备线搜索（`config.setup` 非 nil）的结果，按优劣排好；斩杀搜索恒空
-    var setupLines: [RedDragonLine] = []
+    public var setupLines: [RedDragonLine] = []
     /// 破冰搜索的一遍（`config.iceBreakPass`）收下的候选：终局冰已打掉、重放校验过，按破冰后剩余血量升序、
     /// 同剩余按便宜分降序。还没探过下回合，取舍在 `RedDragonSearch.solveIceBreak`。其他搜索恒空
     var iceLines: [RedDragonLine] = []
@@ -84,7 +84,7 @@ struct RedDragonResult {
 }
 
 /// 本回合不斩杀时为下回合做准备的两类线（T4）
-enum RDSetupGoal: Equatable {
+public enum RDSetupGoal: Equatable {
     /// 打 / 回 16：一张阿莱在鲨鱼下对友方英雄回满 16（危险时用，目标永远是自己）
     case heal16
     /// 预启动：不要求回血，只要终局留下的东西让下回合伤害最高（幻觉药水把一套收回手里、鲨鱼留场）
@@ -92,24 +92,29 @@ enum RDSetupGoal: Equatable {
 }
 
 /// 后台计算的取消标记：新局面一到，旧的那次搜索就不用算完了。任何线程都可以 `cancel()`
-final class RDCancellation {
+public final class RDCancellation {
+    public init() {}
+
     private let lock = NSLock()
     private var flag = false
 
-    var isCancelled: Bool {
+    public var isCancelled: Bool {
         lock.lock()
         defer { lock.unlock() }
         return flag
     }
 
-    func cancel() {
+    public func cancel() {
         lock.lock()
         flag = true
         lock.unlock()
     }
 }
 
-struct RedDragonConfig {
+public struct RedDragonConfig {
+    /// 全部取默认值；public 是为了能当 public 函数的默认参数
+    public init() {}
+
     /// CPU 时间兜底（秒）。正常应先撞上 `maxStatesExpanded`；撞上 CPU 兜底时结果随机器负载变，
     /// 由 `termination == .budgetExceeded` 且 `statesExpanded` 没到上限标出来
     var cpuBudget: Double = 3.0
@@ -149,11 +154,11 @@ struct RedDragonConfig {
     /// 缺件的 CPU 兜底（秒）。只防极端局面卡住，正常应先撞上面的状态闸门
     var missingPieceBudget: Double = 2.0
     var weights: RDDifficultyWeights = .standard
-    var options: RDOptions = .search
+    public var options: RDOptions = .search
     /// nil = 不可取消。和 CPU 兜底在同一处检查（每展开一个节点一次）
-    var cancellation: RDCancellation? = nil
+    public var cancellation: RDCancellation? = nil
     /// 非 nil = 准备线搜索：不找斩杀，收集满足目标的终局（见 `RedDragonSearch.solveSetup`）
-    var setup: RDSetupGoal? = nil
+    public var setup: RDSetupGoal? = nil
     /// 准备线搜索自己的闸门（`solveSetup` 用，不动斩杀搜索的 `maxStatesExpanded` / `cpuBudget`）
     var setupMaxStates: Int = 200_000
     var setupCpuBudget: Double = 2.0
@@ -171,7 +176,7 @@ struct RedDragonConfig {
     /// 终局而不是找斩杀。见 RedDragonIceBreak.swift
     var iceBreakPass = false
     /// 破冰搜索自己的闸门和取舍（`solveIceBreak` 用，不动斩杀搜索的那几项）
-    var iceBreak = RDIceBreakConfig()
+    public var iceBreak = RDIceBreakConfig()
 
     static let exact: RedDragonConfig = {
         var c = RedDragonConfig()
@@ -187,7 +192,7 @@ struct RedDragonConfig {
     }()
 }
 
-enum RedDragonSearch {
+public enum RedDragonSearch {
     /// 一层束的取法
     private enum BeamSelection {
         /// 分桶保底 + 共识分 + 蓄力分（主搜索）
@@ -233,7 +238,7 @@ enum RedDragonSearch {
 
     // MARK: - 入口
 
-    static func solve(_ root: RDState, config: RedDragonConfig = RedDragonConfig())
+    public static func solve(_ root: RDState, config: RedDragonConfig = RedDragonConfig())
         -> RedDragonResult {
         let start = threadCPUTime()
         let deadline = start + config.cpuBudget
@@ -1406,7 +1411,7 @@ enum RedDragonSearch {
     /// 同一遍重放校验，只是不找斩杀，而是收集「满足目标的终局」。收完再给每个终局的「下回合能打多少」
     /// 做一次小预算的探针（把终局当下回合起手、对手血量放到够不着，量 `maxDamage`），按它排。
     /// 排序：下回合伤害按 8（一次阿莱触发）分档 → 步数少 → 伤害高。（档内差 < 8 的两条线不分高低，选步数少的）
-    static func solveSetup(_ root: RDState, goal: RDSetupGoal,
+    public static func solveSetup(_ root: RDState, goal: RDSetupGoal,
                            config base: RedDragonConfig = RedDragonConfig()) -> RedDragonResult {
         let start = threadCPUTime()
         var c = base

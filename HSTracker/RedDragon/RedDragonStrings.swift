@@ -7,7 +7,7 @@
 //
 
 import Foundation
-@testable import RedDragonCore
+import RedDragonCore
 
 enum RDText {
     // MARK: overlay 角标

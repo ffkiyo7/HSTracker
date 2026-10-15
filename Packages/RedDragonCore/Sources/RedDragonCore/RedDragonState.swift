@@ -14,12 +14,12 @@ enum RDEnchant: Equatable {
     case delta(Int)
 }
 
-struct RDDiscountLayer: Equatable {
+public struct RDDiscountLayer: Equatable {
     var amount: Int
-    var slots: Int
-    var filter: RDCardFilter
+    public var slots: Int
+    public var filter: RDCardFilter
 
-    static func == (lhs: RDDiscountLayer, rhs: RDDiscountLayer) -> Bool {
+    public static func == (lhs: RDDiscountLayer, rhs: RDDiscountLayer) -> Bool {
         return lhs.amount == rhs.amount && lhs.slots == rhs.slots
             && filterCode(lhs.filter) == filterCode(rhs.filter)
     }
@@ -34,9 +34,9 @@ struct RDDiscountLayer: Equatable {
     }
 }
 
-struct RDHandCard {
-    var entityId: Int
-    var card: RDCard
+public struct RDHandCard {
+    public var entityId: Int
+    public var card: RDCard
     /// 身份未定的牌：E.T.C. 发现（边牌三张之一）、未指定目标的暗影施法者复制。
     /// 精确搜索里恒为空（发现 / 复制都枚举成确定分支），只有公式表重放会用到。
     var pool: [RDCard]
@@ -103,60 +103,60 @@ struct RDStats: Equatable {
     var health: Int
 }
 
-struct RDBoardMinion {
-    var entityId: Int
-    var card: RDCard
-    var attack: Int
-    var health: Int
-    var maxHealth: Int
+public struct RDBoardMinion {
+    public var entityId: Int
+    public var card: RDCard
+    public var attack: Int
+    public var health: Int
+    public var maxHealth: Int
     /// 身材是被「1/1」附魔设出来的 —— 沉默会让它变回原身材
     var statsSetTo1x1: Bool
-    var silenced: Bool
+    public var silenced: Bool
     var summoningSick: Bool
-    var attacksThisTurn: Int
+    public var attacksThisTurn: Int
     /// 当前场上实体的费用附魔；回手时清除，不带入手牌。
     var enchants: [RDEnchant]
     /// 上场先后（越小越早）。舞动按它处理全场、后上场的放不下就被烧（T2b 日志订正，card-model H 节）；
     /// 与场位（`board` 里的下标）无关。并列时按场位。引擎新下的随从取 `RDState.takePlayOrder()`，
     /// 根局面由读取层从对局填（`EntityInfo.boardOrder`）
-    var playOrder: Int = 0
+    public var playOrder: Int = 0
 
     var isAlive: Bool { return health > 0 }
 }
 
-struct RDEnemyMinion {
-    var entityId: Int
-    var attack: Int
-    var health: Int
-    var taunt: Bool
-    var divineShield: Bool
-    var immune: Bool
-    var stealth: Bool
+public struct RDEnemyMinion {
+    public var entityId: Int
+    public var attack: Int
+    public var health: Int
+    public var taunt: Bool
+    public var divineShield: Bool
+    public var immune: Bool
+    public var stealth: Bool
     /// 本回合受过伤（背刺只能指未受伤的随从）。开局状态按未受伤算
     var damaged = false
     /// 不能成为法术的目标（扰魔）：骨刺 / 致聋 / 背刺指不到它，随从攻击和阿莱的战吼照常（T5 B1）
-    var elusive = false
+    public var elusive = false
     /// 剧毒：反击对我方随从造成伤害就消灭它（T5 B2）。`venomous` 是只生效一次的剧毒
-    var poisonous = false
-    var venomous = false
+    public var poisonous = false
+    public var venomous = false
 }
 
 /// 破冰模式（T8）下那张寒冰屏障的状态。假定对方挂着的奥秘是寒冰屏障
-enum RDIce: Equatable {
+public enum RDIce: Equatable {
     /// 冰还在：敌方英雄将受到致命伤害（这一次伤害 ≥ 血量 + 护甲）时这一次伤害不生效，转 `.broken`
     case armed
     /// 冰已经打掉，对方本回合免疫。本回合剩下的出牌只是为下回合做准备
     case broken
 }
 
-struct RDOpponent {
-    var health: Int
-    var armor: Int
-    var immune: Bool
-    var board: [RDEnemyMinion]
+public struct RDOpponent {
+    public var health: Int
+    public var armor: Int
+    public var immune: Bool
+    public var board: [RDEnemyMinion]
     var secretCount: Int
     /// nil = 不在破冰模式，规则和以前逐字相同。根局面由 `RDIceBreak.armed` 标上，之后只由引擎改
-    var ice: RDIce?
+    public var ice: RDIce?
 
     var effectiveHealth: Int { return health + armor }
     /// 免疫的英雄不能被攻击，也不能被法术 / 战吼指到。只在破冰模式下执行：不在破冰模式时保持原来的口径
@@ -173,16 +173,16 @@ struct RDOpponent {
     }
 }
 
-struct RDWeapon {
-    var attack: Int
-    var durability: Int
+public struct RDWeapon {
+    public var attack: Int
+    public var durability: Int
     var drawOnHeroAttack: Bool
 }
 
 /// 牌库剩余，按卡计数（不知道顺序）
-struct RDDeck {
+public struct RDDeck {
     private(set) var counts: [Int]
-    private(set) var total: Int
+    public private(set) var total: Int
     /// 盲抽掉的张数（`RDChoice.blind`，T8）：这几张已经不在牌库里，但不知道是哪几张 —— `counts` 没扣、`total` 扣了。
     /// 读取层读出来的牌库恒为 0，只有开着 `RDOptions.blindDraws` 的搜索会让它涨
     private(set) var unknownGone = 0
@@ -201,9 +201,9 @@ struct RDDeck {
         }
     }
 
-    func count(_ card: RDCard) -> Int { return counts[card.rawValue] }
+    public func count(_ card: RDCard) -> Int { return counts[card.rawValue] }
 
-    mutating func remove(_ card: RDCard) {
+    public mutating func remove(_ card: RDCard) {
         if counts[card.rawValue] > 0 {
             counts[card.rawValue] -= 1
             total -= 1
@@ -228,7 +228,7 @@ struct RDDeck {
     }
 
     /// 按 RDCard 顺序列出剩余的卡（确定性）
-    func remaining(filter: RDCardFilter) -> [RDCard] {
+    public func remaining(filter: RDCardFilter) -> [RDCard] {
         var out: [RDCard] = []
         guard total > 0 else { return out }
         for raw in 0..<counts.count where counts[raw] > 0 {
@@ -238,7 +238,7 @@ struct RDDeck {
         return out
     }
 
-    func count(filter: RDCardFilter) -> Int {
+    public func count(filter: RDCardFilter) -> Int {
         var n = 0
         for raw in 0..<counts.count where counts[raw] > 0 {
             guard let c = RDCard(rawValue: raw) else { continue }
@@ -248,23 +248,23 @@ struct RDDeck {
     }
 }
 
-struct RDState {
+public struct RDState {
     var maxMana: Int
-    var mana: Int
-    var tempMana: Int
-    var cardsPlayedThisTurn: Int
+    public var mana: Int
+    public var tempMana: Int
+    public var cardsPlayedThisTurn: Int
     var spellDamage: Int
     var heroAttackedThisTurn: Bool
     var heroPowerUsed: Bool
     /// 我方英雄被冻结：本回合不能攻击（含搜索途中新装备的武器）
-    var heroFrozen: Bool
-    var weapon: RDWeapon?
+    public var heroFrozen: Bool
+    public var weapon: RDWeapon?
 
-    var hand: [RDHandCard]
-    var board: [RDBoardMinion]
-    var opponent: RDOpponent
-    var deck: RDDeck
-    var sideboard: [RDCard]
+    public var hand: [RDHandCard]
+    public var board: [RDBoardMinion]
+    public var opponent: RDOpponent
+    public var deck: RDDeck
+    public var sideboard: [RDCard]
     var layers: [RDDiscountLayer]
     var secretsInPlay: [RDCard]
 
@@ -276,9 +276,9 @@ struct RDState {
     var damageDealt: Int
     /// 我方英雄血量 / 护甲 / 上限（T4 回血线用；斩杀搜索不看）。`healedRaw` 是阿莱对友方的回血总量（不扣上限溢出），
     /// 「奶 16」按它算；`heroHealth` 是封顶后的实际血量
-    var heroHealth: Int = 30
-    var heroArmor: Int = 0
-    var heroMaxHealth: Int = 30
+    public var heroHealth: Int = 30
+    public var heroArmor: Int = 0
+    public var heroMaxHealth: Int = 30
     var healedRaw: Int = 0
     var nextEntityId: Int
     /// 下一个上场随从的 `playOrder`（只增不减）。根局面要大于场上所有随从的 `playOrder`
@@ -289,7 +289,7 @@ struct RDState {
     /// 场上 7 格
     var boardLimit: Int
     /// 手牌 10 张。公式表的 `seed_for` 会给出 12~18 张起手，那批用例把上限放开（见 RedDragonTests）
-    var handLimit: Int
+    public var handLimit: Int
 
     var availableMana: Int { return mana + tempMana }
     var boardSlotsFree: Int { return boardLimit - board.count }
@@ -368,7 +368,7 @@ struct RDState {
         return total
     }
 
-    func cost(of card: RDHandCard, as identity: RDCard) -> Int {
+    public func cost(of card: RDHandCard, as identity: RDCard) -> Int {
         // 快枪生效（本回合进手）时的固定费用。口径：固定值，不再吃伺机待发 / 狐 / 刀油的减费层、
         // 也不吃费用附魔。依据只有玩家实测的说法；官方规则是「费用修改按产生先后依次生效，后设定的
         // 覆盖先前的」，快枪这次设定算在什么时刻没有查到确证 —— **待核**。取这个口径是因为它给出的

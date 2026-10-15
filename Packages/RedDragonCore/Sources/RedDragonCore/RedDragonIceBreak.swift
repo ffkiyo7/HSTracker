@@ -19,7 +19,10 @@
 import Foundation
 
 /// 破冰搜索自己的闸门和取舍（`RedDragonConfig.iceBreak`）。状态数是可复现的闸门，CPU 只做兜底
-struct RDIceBreakConfig {
+public struct RDIceBreakConfig {
+    /// 全部取默认值；public 是为了能当 public 函数的默认参数
+    public init() {}
+
     /// 整次 `solveIceBreak` 的 CPU 兜底（秒）：破冰搜索 + 准备步 + 下回合探针合计。正常应先撞状态闸门
     /// （破不了：压血连补搜 40 万态，没有准备步和探针；破得了：压血 20 万 + 准备步 12 万 + 探针 64 × 6000，
     /// 丢过随机抽牌的分支时再加盲抽补搜和探针的第二遍）。各闸门同时用满时会超过它，那时由它截断：
@@ -69,7 +72,7 @@ struct RDIceBreakConfig {
     var safeMargin: Int = 8
 }
 
-enum RDIceVerdict: Equatable {
+public enum RDIceVerdict: Equatable {
     /// 不适用：对方既没有奥秘也没有免疫，没有冰可破
     case notApplicable
     /// ① 本回合能破冰，下回合可斩（不靠随机抽牌，下回合线重放校验过）
@@ -82,46 +85,46 @@ enum RDIceVerdict: Equatable {
 }
 
 /// 一条本回合的线（终局冰已打掉）和它的下回合
-struct RDIceCandidate {
-    var line: RedDragonLine
+public struct RDIceCandidate {
+    public var line: RedDragonLine
     /// 破冰后对方剩余血量（血 + 甲）
-    var remaining: Int
+    public var remaining: Int
     /// 下回合起手（`RDIceBreak.nextTurn(终局)`）
     var nextTurnRoot: RDState
     /// 从 `nextTurnRoot` 出发伤害最高的线：已在它上面逐步重放过，伤害 = `nextTurnDamage`。探不出能打伤害的线时 nil
     var nextTurnLine: RedDragonLine?
-    var nextTurnDamage: Int
+    public var nextTurnDamage: Int
     /// `nextTurnLine` 打到第几步对方就死了（下回合不可斩时 nil）
     var nextTurnLethalSteps: Int?
     /// 下回合探过没有。false = 轮到它之前探针的预算用完了（CPU 兜底 / `maxProbes`）：本回合线照样是重放校验过的，
     /// 只是下回合伤害不知道（记 0）
     var probed = true
     /// 进候选的先后（只用来打破平局）
-    var order = 0
+    public var order = 0
 
-    var steps: Int { return line.actions.count }
+    public var steps: Int { return line.actions.count }
     /// 下回合伤害超出剩余血量多少（负 = 还差多少）
-    var margin: Int { return nextTurnDamage - remaining }
+    public var margin: Int { return nextTurnDamage - remaining }
 }
 
-struct RDIceBreakResult {
-    var verdict: RDIceVerdict
+public struct RDIceBreakResult {
+    public var verdict: RDIceVerdict
     /// 标好冰的根局面。`line` 从它重放；公式（`RDFormulaBuilder.formula`）、逐步提示（`RDLineWalker.walk`）
     /// 都要用它当根，不要用没标冰的那个（那样重放出来对方会被打死）
-    var root: RDState
+    public var root: RDState
     /// 进来时冰就已经打掉了（对方免疫）：`line` 只有准备步，可以是 0 步
     var alreadyBroken = false
     /// 本回合的线：破冰 + 之后为下回合做的准备。① ② 时非 nil（可以是 0 步），③ / 不适用时 nil
-    var line: RedDragonLine?
+    public var line: RedDragonLine?
     /// 冰是 `line` 的第几步打掉的（从 1 起）。`alreadyBroken` 或没有线时 0
-    var breakStep = 0
+    public var breakStep = 0
     /// 破冰后对方剩余血量（血 + 甲）
-    var remaining = 0
+    public var remaining = 0
     /// `line` 的终局过一个回合（法力 +1、留场随从不算攻击、对方不再免疫），和从它出发的下回合线
     var nextTurnRoot: RDState?
     var nextTurnLine: RedDragonLine?
     /// 下回合不靠随机抽牌能打的伤害（`nextTurnLine` 的，重放校验过）
-    var nextTurnDamage = 0
+    public var nextTurnDamage = 0
     /// ① 时：`nextTurnLine` 的前几步就够斩杀
     var nextTurnLethalSteps: Int?
     /// ② 时还差多少（剩余血量 − 下回合伤害）；其余为 0
@@ -129,9 +132,9 @@ struct RDIceBreakResult {
     /// `line` 的下回合探过没有。false = 探针的预算在轮到它之前用完了（`cpuBudgetHit`，或 `maxProbes` 给的是 0）：
     /// 「本回合能破冰」照样成立（`line` 重放校验过），结论落在 ②，但 `nextTurnDamage` / `shortBy` 只是「没探」，
     /// 不是「探过、只有这么多」—— 面板要写成下回合没算完，不能写破不了，也不能写差多少
-    var nextTurnProbed = true
+    public var nextTurnProbed = true
     /// 被 `config.cancellation` 取消：结果不完整，调用方丢掉
-    var cancelled = false
+    public var cancelled = false
     /// 撞了 CPU 兜底（结果随机器负载变）
     var cpuBudgetHit = false
     /// ③ 时：不靠随机抽牌的打法穷举完了，按本模型确实破不了（否则只是没搜到）
@@ -140,10 +143,10 @@ struct RDIceBreakResult {
     /// 破冰搜索 + 准备步 + 探针合计
     var statesExpanded = 0
     /// 全部候选（重放得过的本回合线），按口径排好（第一条就是 `line`）；下回合没探的排在后面。给测试和调参看
-    var candidates: [RDIceCandidate] = []
+    public var candidates: [RDIceCandidate] = []
 }
 
-enum RDIceBreak {
+public enum RDIceBreak {
 
     /// 给读取层读出来的根局面标上冰的状态。对方已经免疫 = 冰打掉了（本回合剩下的只是准备）；
     /// 不免疫、有奥秘 = 当它是寒冰屏障；两样都没有 = 不适用（nil）
@@ -323,17 +326,17 @@ enum RDIceBreak {
         return done
     }
 
-    struct Followed {
+    public struct Followed {
         /// 接到真实局面上的结论：`root` 是真实局面（标好冰），`line` 是剩下没打的步骤，下回合线已换成真实编号重放过
-        var result: RDIceBreakResult
+        public var result: RDIceBreakResult
         /// 真实局面对上的是原来那条线的第几步之后（0 = 一步没走）
-        var stepsTaken: Int
+        public var stepsTaken: Int
     }
 
     /// 跟手：用户照着 `plan.line` 打了几步（或一步没打）之后的真实局面 `real`（读取层读出来的，不用先标冰）还在线上时，
     /// 不重算，把结论接过去。对不上、剩下的步骤在真实局面上走不通、下回合线在真实终局上重放不过或结论变了，都返回 nil，
     /// 调用方照常重算（`solveIceBreak`）。`tolerant` 同 `RDContinuation.advance`（真实局面多抽了牌也算对上）
-    static func follow(_ plan: RDIceBreakResult, onto real: RDState, tolerant: Bool = false) -> Followed? {
+    public static func follow(_ plan: RDIceBreakResult, onto real: RDState, tolerant: Bool = false) -> Followed? {
         guard plan.verdict == .lethalNextTurn || plan.verdict == .shortNextTurn, let line = plan.line,
               let live = armed(real),
               let resumed = RDContinuation.resume(line, from: plan.root, onto: live, tolerant: tolerant,
@@ -379,7 +382,7 @@ extension RedDragonSearch {
     /// 从剩余血量最低的一档探起，探出稳斩的那一档以上不再探；
     /// ③ 按口径 11 + 14 排（`RDIceBreak.better`：稳斩的在前，稳的里剩余低的在前）。给出去的本回合线和下回合线都是引擎重放校验过的；
     /// 「下回合可斩」只在下回合线真的在下回合起手上把对方打死时才说
-    static func solveIceBreak(_ root: RDState, config: RedDragonConfig = RedDragonConfig()) -> RDIceBreakResult {
+    public static func solveIceBreak(_ root: RDState, config: RedDragonConfig = RedDragonConfig()) -> RDIceBreakResult {
         let start = threadCPUTime()
         // 两个截止时间：搜索（破冰 + 准备步）先到点，探针另有一份 —— 搜索把预算吃光时已经找到的破冰线还轮得到探
         let deadline = start + config.iceBreak.cpuBudget

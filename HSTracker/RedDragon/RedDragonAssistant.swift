@@ -35,9 +35,9 @@
 //
 
 import Foundation
-// 引擎在本地包里（Packages/RedDragonCore/Package.swift），为了 Debug 下也按 -O 编；包带 -enable-testing，
-// app 侧用 @testable 访问 internal 符号，不必把引擎改成 public
-@testable import RedDragonCore
+// 引擎在本地包里（Packages/RedDragonCore/Package.swift），为了 Debug 下也按 -O 编；app 侧只用引擎的 public 接口，
+// -enable-testing 只在 Debug 带，供测试 @testable 访问 internal 符号
+import RedDragonCore
 
 extension RDDeckGate {
     static func isRedDragonDeck(_ deck: PlayingDeck) -> Bool {
@@ -683,9 +683,10 @@ final class RedDragonAssistant {
                 //   是上一个操作还在结算——英雄攻击后随从死亡——照常重算，旧公式留在屏上等新的换掉）
                 if locking, live.state.opponent.health > 0, snap.optionsPlayedThisTurn != base.options {
                     let s = live.state
-                    logger.info("red dragon: deviated, mana \(s.mana)+\(s.tempMana), hand ["
-                        + s.hand.map { RDText.abbr($0.card) + "\(s.cost(of: $0, as: $0.card))" }.joined(separator: " ")
-                        + "], board [" + s.board.map { RDText.abbr($0.card) }.joined(separator: " ") + "]")
+                    let hand = s.hand.map { c -> String in RDText.abbr(c.card) + String(s.cost(of: c, as: c.card)) }
+                    let board = s.board.map { RDText.abbr($0.card) }
+                    logger.info("red dragon: deviated, mana \(s.mana)+\(s.tempMana), "
+                        + "hand [\(hand.joined(separator: " "))], board [\(board.joined(separator: " "))]")
                     deliverDeviated()
                 }
                 workQueue.asyncAfter(deadline: .now() + env.debounce, execute: search)

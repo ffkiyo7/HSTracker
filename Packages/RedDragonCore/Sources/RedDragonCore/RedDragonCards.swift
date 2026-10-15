@@ -13,7 +13,7 @@ enum RDCardType {
     case minion, spell, weapon, placeholder
 }
 
-enum RDCardFilter {
+public enum RDCardFilter {
     case any, spell, minion, comboCard
 }
 
@@ -58,7 +58,7 @@ enum RDEffect {
 }
 
 /// 24 张牌 + 两个公式表占位。identity 用英文名，公式表缩写的映射在测试侧。
-enum RDCard: Int, CaseIterable {
+public enum RDCard: Int, CaseIterable {
     case coin, preparation, shadowstep, shadowOfDemise
     case goneFishin, digForTreasure, deafen, blackwaterCutlass
     case cultistMap, foxyFraud, quickPick, swindle, serratedBoneSpike, evasion
@@ -108,7 +108,7 @@ struct RDCardDef {
     var isPlaceholder: Bool { return type == .placeholder }
 }
 
-enum RDCards {
+public enum RDCards {
 
     private static func def(_ card: RDCard,
                            _ ids: [String],
@@ -276,10 +276,10 @@ enum RDCards {
 
     /// 本牌组的英雄与英雄技能（`Cards.by(cardId:)` 过滤 hero / hero_power，查它们要用 `Cards.any(byId:)`）
     static let heroId = "HERO_03bm"
-    static let heroPowerId = "HERO_03bmhp"
+    public static let heroPowerId = "HERO_03bmhp"
 
     /// E.T.C. 的三张边牌
-    static let sideboardCards: [RDCard] = [.bounceAround, .potionOfIllusion, .alexstrasza]
+    public static let sideboardCards: [RDCard] = [.bounceAround, .potionOfIllusion, .alexstrasza]
 
     /// 主牌库里的 6 张随从（阿莱在边牌，不在牌库）
     static let deckMinions: [RDCard] = RDCards.table
@@ -287,14 +287,14 @@ enum RDCards {
         .map { $0.card }
         .sorted { $0.rawValue < $1.rawValue }
 
-    static func card(forId id: String) -> RDCard? {
+    public static func card(forId id: String) -> RDCard? {
         for d in table where d.ids.contains(id) {
             return d.card
         }
         return nil
     }
 
-    static func card(forDbfId dbfId: Int) -> RDCard? {
+    public static func card(forDbfId dbfId: Int) -> RDCard? {
         for d in table where d.dbfId == dbfId && dbfId != 0 {
             return d.card
         }

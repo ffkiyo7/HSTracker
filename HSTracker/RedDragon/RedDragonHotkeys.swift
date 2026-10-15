@@ -16,7 +16,7 @@
 
 import AppKit
 import Carbon.HIToolbox
-@testable import RedDragonCore
+import RedDragonCore
 
 final class RedDragonHotkeys {
 

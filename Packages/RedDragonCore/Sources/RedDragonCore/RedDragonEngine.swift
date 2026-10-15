@@ -8,7 +8,7 @@
 
 import Foundation
 
-enum RDTarget: Equatable {
+public enum RDTarget: Equatable {
     case none
     case friendlyMinion(Int)
     case enemyMinion(Int)
@@ -20,7 +20,7 @@ enum RDTarget: Equatable {
 }
 
 /// 发现 / 抽牌的确定化选择，按效果出现顺序消费
-enum RDChoice: Equatable {
+public enum RDChoice: Equatable {
     case pick(RDCard)
     /// 盲抽（T8 口径 3 / 4）：这次随机抽牌照常发生，但线不靠抽到的是哪张 —— 牌库少一张（不知道是哪张，
     /// `RDDeck.removeUnknown`），手里多一张打不出去的占位牌（`RDHandCard.blindDraw`，手牌满了就被烧）。
@@ -28,7 +28,7 @@ enum RDChoice: Equatable {
     case blind
 }
 
-enum RDAction: Equatable {
+public enum RDAction: Equatable {
     /// `position`：随从落位（插在场上第几格之前，0 = 最左）。nil = 最右。
     /// 真实炉石由玩家决定落位。只有幻觉药水（复制全场，按从左到右进手、放不下的丢掉，待核）
     /// 受落位影响；舞动按上场先后处理，与落位无关（T2b 日志订正）。法术 / 武器恒为 nil。
@@ -77,7 +77,7 @@ enum RDIllegal: Error, Equatable {
     case illegalPosition
 }
 
-struct RDOptions {
+public struct RDOptions {
     /// 公式表重放：发现结果留成 pool、暗影施法者允许不指定目标
     var deferredChoices = false
     /// 异教地图 / 垂钓时光在搜索里不展开（v1 已决）
@@ -100,7 +100,7 @@ struct RDOptions {
     /// 每列出一支盲抽 `dropped` 都置 true：「抽到某张并用上」的走法没展开，走完也不算穷举
     var blindDraws = false
 
-    static let search = RDOptions()
+    public static let search = RDOptions()
     static let replay = RDOptions(deferredChoices: true, allowTruncatedDraws: true,
                                   maxChoiceCombinations: 12, allowPlaceholderPlays: true)
 }

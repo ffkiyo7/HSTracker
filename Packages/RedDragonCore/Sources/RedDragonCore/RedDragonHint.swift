@@ -11,18 +11,18 @@ import Foundation
 
 /// 两档揭示。原来的 L1「参与牌」和手牌 / 场面上的框、序号 10-06 用户定删掉；rawValue 不动
 /// （`Settings.redDragonRevealLevel` 存的是它，存过 1 的读出来按「判定」）
-enum RDRevealLevel: Int, CaseIterable, Comparable {
+public enum RDRevealLevel: Int, CaseIterable, Comparable {
     /// L0 判定：只一个角标「可斩杀 28 / 27」或「最大 19 / 27」
     case verdict = 0
     /// L2 顺序：面板里一行「下一步」；设置选「顺序」时是锁定的完整公式
     case order = 2
 
-    static func < (lhs: RDRevealLevel, rhs: RDRevealLevel) -> Bool { return lhs.rawValue < rhs.rawValue }
+    public static func < (lhs: RDRevealLevel, rhs: RDRevealLevel) -> Bool { return lhs.rawValue < rhs.rawValue }
 }
 
 /// 搜索做到了什么程度。`.capped` 是生产配置下不斩杀局面的常态（40 万状态闸门），可复现，
 /// 不该当成「被截断」吓用户；只有撞上 CPU 兜底（结果随机器负载变）才是 `.truncated`
-enum RDCompleteness: Equatable {
+public enum RDCompleteness: Equatable {
     /// 找到斩杀，或把搜索空间走完
     case complete
     /// 没找到斩杀、状态预算用完：不是穷举，但同一局面总给同一个答案
@@ -45,7 +45,7 @@ struct RDHandMark: Equatable {
 }
 
 /// 步骤里指到的东西。`entityId` 都是游戏里的 entity id；指的是这回合才会造出来的牌（复制体等）时为 nil
-enum RDStepTarget: Equatable {
+public enum RDStepTarget: Equatable {
     case friendlyMinion(entityId: Int?, cardId: String)
     case enemyMinion(entityId: Int, cardId: String)
     case enemyHero
@@ -56,7 +56,7 @@ enum RDStepTarget: Equatable {
 // MARK: - 公式（T4）
 
 /// 公式里一步的目标。只留身份不留 entity id：公式是给人读的一串缩写，不用来落标记
-enum RDFormulaTarget: Equatable {
+public enum RDFormulaTarget: Equatable {
     case card(RDCard)
     case enemyMinion
     case enemyHero
@@ -65,24 +65,24 @@ enum RDFormulaTarget: Equatable {
 
 /// 公式表写法的一步：牌名缩写 + 打完剩余的费用 + 目标（`RDText.formulaToken` 渲染）。
 /// 只记牌名，不标来源（回收的复制体和原牌都写同一个缩写，由用户自己判断打哪张）
-struct RDFormulaToken: Equatable {
-    enum Kind: Equatable { case play, attack, heroPower }
-    var kind: Kind
+public struct RDFormulaToken: Equatable {
+    public enum Kind: Equatable { case play, attack, heroPower }
+    public var kind: Kind
     /// 打出的牌；攻击时是攻击方的牌（英雄攻击为 nil）
-    var card: RDCard?
+    public var card: RDCard?
     /// 殒命暗影本体（写成它当前变成的那张牌 +「（殒）」，例如「步（殒）」）
-    var original = false
+    public var original = false
     /// 这步打完剩余的可用法力
-    var mana: Int
-    var target: RDFormulaTarget?
+    public var mana: Int
+    public var target: RDFormulaTarget?
     /// 这步随机抽到的牌：线只有抽到它们才能继续（写「抽到 X 才继续」）
-    var draws: [RDCard] = []
+    public var draws: [RDCard] = []
     /// 乐队经理这步发现的边牌（写在牌名后的括号里，例如「牛（龙舞）1」）
-    var picks: [RDCard] = []
+    public var picks: [RDCard] = []
 }
 
-struct RDFormula: Equatable {
-    enum Goal: Equatable {
+public struct RDFormula: Equatable {
+    public enum Goal: Equatable {
         case lethal
         /// 打 / 回 16 的回血线（危险时）
         case heal16
@@ -90,23 +90,23 @@ struct RDFormula: Equatable {
         /// 破冰线（T8）：本回合把冰打掉 + 之后为下回合做的准备
         case iceBreak
     }
-    var goal: Goal
-    var tokens: [RDFormulaToken]
+    public var goal: Goal
+    public var tokens: [RDFormulaToken]
     /// 已经走完的前几步（锁定模式用来画划掉 / 高亮）
-    var done = 0
+    public var done = 0
     /// 破冰线：冰是第几步打掉的（从 1 起，对整条公式而言，跟手时不变）。nil = 这条公式里没有破冰的那一步
     /// （不是破冰线，或起手时冰已经碎了）
-    var breakStep: Int? = nil
+    public var breakStep: Int? = nil
     /// 回合结束留下的东西（准备线）：场上随从、手牌里能认出的牌
-    var leftBoard: [RDCard] = []
-    var leftHand: [RDCard] = []
+    public var leftBoard: [RDCard] = []
+    public var leftHand: [RDCard] = []
     /// 下回合从这个终局起手能打多少（探针，准备线）
-    var potential = 0
+    public var potential = 0
 }
 
 /// 本回合不斩杀时的准备建议（T4）
-struct RDSetupAdvice: Equatable {
-    enum Kind: Equatable {
+public struct RDSetupAdvice: Equatable {
+    public enum Kind: Equatable {
         /// 危险、斩不了：奶 16 的线
         case heal16
         /// 预启动线
@@ -114,13 +114,20 @@ struct RDSetupAdvice: Equatable {
         /// 危险、斩不了、奶 16 凑不出
         case doomed
     }
-    var kind: Kind
-    var formula: RDFormula?
+    public var kind: Kind
+    public var formula: RDFormula?
+
+    /// 和编译器合成的逐成员构造一致；写出来是为了 public（app 侧要用）
+    public init(kind: Kind,
+                formula: RDFormula? = nil) {
+        self.kind = kind
+        self.formula = formula
+    }
 }
 
 /// 破冰模式的结论（T8 口径 5 / 8 / 9）。开着破冰时面板只画它，不画普通的斩杀判定（那个假定没有冰）
-struct RDIceAdvice: Equatable {
-    enum Kind: Equatable {
+public struct RDIceAdvice: Equatable {
+    public enum Kind: Equatable {
         /// ① 本回合能破冰，下回合可斩（按对方回合不动场面、不回血算）
         case lethalNextTurn
         /// ② 本回合能破冰，下回合没搜到斩杀
@@ -128,29 +135,29 @@ struct RDIceAdvice: Equatable {
         /// ③ 本回合破不了冰
         case cannotBreak
     }
-    var kind: Kind
+    public var kind: Kind
     /// 本回合的线（破冰 + 准备步），① ② 时有，可以是 0 步。`breakStep` 标着冰在哪一步碎
-    var formula: RDFormula?
+    public var formula: RDFormula?
     /// 此刻冰已经碎了（对方免疫）：起手就是这样，或照着线打过了破冰那一步
-    var broken = false
+    public var broken = false
     /// 破冰后对方剩余血量（血 + 甲）
-    var remaining = 0
+    public var remaining = 0
     /// 下回合不靠随机抽牌能打的伤害（搜到的下界）
-    var nextTurnDamage = 0
+    public var nextTurnDamage = 0
     /// 下回合探过没有。false = 预算用完没轮到（`RDIceBreakResult.nextTurnProbed`）：不能把 `nextTurnDamage` 当数报
-    var nextTurnProbed = true
+    public var nextTurnProbed = true
     /// ③ 时：不靠随机抽牌的打法按本模型穷举完了（否则只是没搜到）
-    var proven = false
+    public var proven = false
 }
 
 /// 发现 / 抽牌的结果。`isDraw` = 随机抽牌（取决于抽到什么），false = E.T.C. 发现（自己选）
-struct RDPick: Equatable {
-    var cardId: String
-    var isDraw: Bool
+public struct RDPick: Equatable {
+    public var cardId: String
+    public var isDraw: Bool
 }
 
-struct RDStep: Equatable {
-    enum Kind: Equatable {
+public struct RDStep: Equatable {
+    public enum Kind: Equatable {
         /// 打一张现在就在手里的牌（`handEntityId` / `zonePosition` 有值）
         case playFromHand
         /// 打一张这回合才会进手的牌（复制体、弹回、发现、抽到的）
@@ -160,15 +167,15 @@ struct RDStep: Equatable {
         case heroPower
     }
     /// 从 1 起
-    var index: Int
-    var kind: Kind
-    var cardId: String?
+    public var index: Int
+    public var kind: Kind
+    public var cardId: String?
     var handEntityId: Int?
-    var zonePosition: Int?
+    public var zonePosition: Int?
     /// 攻击方：我方随从的 entity id（英雄攻击为 nil）
-    var attacker: RDStepTarget?
-    var target: RDStepTarget?
-    var picks: [RDPick]
+    public var attacker: RDStepTarget?
+    public var target: RDStepTarget?
+    public var picks: [RDPick]
     /// 随从落位：插在场上第几格之前（0 = 最左），nil = 最右
     var boardPosition: Int?
 }
@@ -183,15 +190,15 @@ struct RDBoardMark: Equatable {
 }
 
 /// 抽牌分叉：沿途随机抽到这些牌时这一支能打多少
-struct RDDrawBranch: Equatable {
-    var drawn: [String]
-    var damage: Int
-    var isLethal: Bool
+public struct RDDrawBranch: Equatable {
+    public var drawn: [String]
+    public var damage: Int
+    public var isLethal: Bool
 }
 
 /// 判定的确定程度。「没搜到斩杀」和「证明不能斩杀」是两回事：撞状态上限、束裁剪、手牌费用是推断的，
 /// 都只能说没搜到；斩杀要靠随机抽牌的也不是确定能斩
-enum RDLethalVerdict: Equatable {
+public enum RDLethalVerdict: Equatable {
     /// 有不靠随机抽牌的斩杀线
     case lethal
     /// 能斩，但每条线都要抽到某张牌
@@ -204,60 +211,60 @@ enum RDLethalVerdict: Equatable {
 }
 
 /// 一次搜索的完整结论（不含揭示档 / 答题判定，那两样随用户操作变，见 `RedDragonHint`）
-struct RDAnalysis: Equatable {
-    var turn: Int
+public struct RDAnalysis: Equatable {
+    public var turn: Int
     var availableMana: Int
     /// `verdict` 是 `.lethal` 或 `.lethalIfDraw`
-    var isLethal: Bool
-    var verdict: RDLethalVerdict
+    public var isLethal: Bool
+    public var verdict: RDLethalVerdict
     /// 有手牌的底费看不出来、按上限估的（`RDLiveState.inferredBaseCostEntities` 非空）。
     /// 估贵不会算出打不出的斩杀线，但「没搜到」就不能当证明
     var costsInferred: Bool
     /// 能斩，但每条斩杀线都要靠随机抽到某张牌
     var lethalDependsOnDraw: Bool
-    var maxDamage: Int
-    var effectiveEnemyHealth: Int
+    public var maxDamage: Int
+    public var effectiveEnemyHealth: Int
     /// `maxDamage - effectiveEnemyHealth`，≥ 0 即斩杀
-    var margin: Int { return maxDamage - effectiveEnemyHealth }
-    var completeness: RDCompleteness
+    public var margin: Int { return maxDamage - effectiveEnemyHealth }
+    public var completeness: RDCompleteness
     /// 最简斩杀线的难度档；不斩杀时为 nil
-    var tier: RDDifficulty.Tier?
+    public var tier: RDDifficulty.Tier?
     var handMarks: [RDHandMark]
     /// 前 3 步（不斩杀时是伤害最高那条线的前 3 步）
-    var steps: [RDStep]
-    var totalSteps: Int
+    public var steps: [RDStep]
+    public var totalSteps: Int
     var boardMarks: [RDBoardMark]
     var nextStepText: String
-    var drawBranches: [RDDrawBranch]
+    public var drawBranches: [RDDrawBranch]
     /// 牌库里「多这一张就能斩」的牌（只在不斩杀时算）
-    var missingPieces: [String]
+    public var missingPieces: [String]
     /// 缺件子搜索撞上 CPU 兜底，列表可能不全
-    var missingPiecesIncomplete: Bool
+    public var missingPiecesIncomplete: Bool
     /// 「单回合不够，考虑预启动」（spike 二、6）。只在 `verdict == .provenNotLethal` 时为 true
-    var singleTurnInsufficient: Bool
+    public var singleTurnInsufficient: Bool
     /// 「场面危险，必须下怪」：对方下回合场攻 ≥ 我方血量 + 护甲 − `RDHintBuilder.dangerMargin`
-    var boardDanger: Bool
-    var opponentHasSecrets: Bool
+    public var boardDanger: Bool
+    public var opponentHasSecrets: Bool
     /// 本回合已经做过的操作数（`NUM_OPTIONS_PLAYED_THIS_TURN`：出牌、攻击、英雄技能），回合内只增不减。
     /// 答题模式用它判断「做了一步」；不从场面推（攻击后死掉、被弹回的随从会让推出来的数倒退）
-    var actionsTaken: Int
+    public var actionsTaken: Int
 
     // 这个结论对应的手牌 / 场面排位（entity id，从左到右）。overlay 用它把标记落到第几张 / 第几格；
     // 只在结论不过时画标记，所以排位和屏上一致
-    var handOrder: [Int] = []
-    var boardSlots: [Int] = []
-    var opponentBoardSlots: [Int] = []
+    public var handOrder: [Int] = []
+    public var boardSlots: [Int] = []
+    public var opponentBoardSlots: [Int] = []
 
     /// 斩杀线的完整公式（`isLethal` 时有）。「顺序」档锁定时显示它
-    var formula: RDFormula? = nil
+    public var formula: RDFormula? = nil
     /// 准备建议：只在「斩不了 + 场面危险」时由助手补上（搜索较慢，晚于判定到）
-    var setup: RDSetupAdvice? = nil
+    public var setup: RDSetupAdvice? = nil
     /// 破冰模式的结论（T8）。非 nil = 这份结论是破冰口径的：上面的斩杀判定、伤害数字、步骤都是空的，面板只画它
-    var ice: RDIceAdvice? = nil
+    public var ice: RDIceAdvice? = nil
 }
 
 /// 答题模式（spike 二、1）：不显示序号，每做一步判卷
-enum RDQuizMark: Equatable {
+public enum RDQuizMark: Equatable {
     /// 打完这一步仍在某条斩杀线上
     case onLine
     /// 这一步打完已经不可能斩杀
@@ -265,8 +272,8 @@ enum RDQuizMark: Equatable {
 }
 
 /// overlay 读的全部状态
-struct RedDragonHint: Equatable {
-    enum Phase: Equatable {
+public struct RedDragonHint: Equatable {
+    public enum Phase: Equatable {
         /// 开关关着 / 不在对局 / 不是红龙贼套牌：什么都不画
         case inactive
         /// 对方回合
@@ -275,37 +282,37 @@ struct RedDragonHint: Equatable {
         case computing
         case ready
     }
-    var phase: Phase
-    var analysis: RDAnalysis?
+    public var phase: Phase
+    public var analysis: RDAnalysis?
     /// `analysis` 对应的不是当前局面
-    var isStale: Bool
+    public var isStale: Bool
     /// 当前生效的揭示档（已按难度封顶）
-    var revealLevel: RDRevealLevel
+    public var revealLevel: RDRevealLevel
     /// 这个结论最多能揭示到哪一档
-    var maxRevealLevel: RDRevealLevel
-    var quizMode: Bool
-    var quiz: RDQuizMark?
+    public var maxRevealLevel: RDRevealLevel
+    public var quizMode: Bool
+    public var quiz: RDQuizMark?
     /// 「顺序」档锁定：屏上是一条锁定的完整公式，不因「过时」隐藏、不因找到更优的线换掉（T4，10-06 用户定）
-    var locked = false
+    public var locked = false
     /// 锁定的线走不通了（打偏 / 对方介入）：不再显示旧公式，标「已偏离，重算中」直到新线锁定
-    var deviated = false
+    public var deviated = false
     /// 破冰模式开着（T8，用户点面板上的按键）。和 `analysis` 分开：刚点完、新结论还没到时按键就要变
-    var iceMode = false
+    public var iceMode = false
 
-    static let inactive = RedDragonHint(phase: .inactive, analysis: nil, isStale: false,
+    public static let inactive = RedDragonHint(phase: .inactive, analysis: nil, isStale: false,
                                         revealLevel: .verdict, maxRevealLevel: .verdict,
                                         quizMode: false, quiz: nil)
 }
 
 // MARK: - 揭示档规则
 
-enum RDRevealPolicy {
+public enum RDRevealPolicy {
 
     /// 难度档 → 最多揭示到哪一档。spike 二、1：最简可用线是「基础」档 → 不许升到 L2；
     /// 不斩杀时只有判定（L1 / L2 没有可指的线）。
     /// 设置选了「顺序」（`preference == .order`）时不按难度封顶：斩杀线一律给顺序，连招中途重算出更简单的线
     /// 也不降档（10-05 用户定：猎人那把打出幸运币后线变「基础」，顺序被封成参与牌，公式中途消失）
-    static func cap(isLethal: Bool, tier: RDDifficulty.Tier?, preference: RDRevealLevel? = nil) -> RDRevealLevel {
+    public static func cap(isLethal: Bool, tier: RDDifficulty.Tier?, preference: RDRevealLevel? = nil) -> RDRevealLevel {
         guard isLethal, let tier = tier else { return .verdict }
         if preference == .order { return .order }
         switch tier {
@@ -323,7 +330,7 @@ enum RDRevealPolicy {
     }
 
     /// `requested`：本回合用户按热键选的档（nil = 没按过）。结论变了（打出一张后重算）时照样封顶
-    static func effective(requested: RDRevealLevel?, preference: RDRevealLevel,
+    public static func effective(requested: RDRevealLevel?, preference: RDRevealLevel,
                           isLethal: Bool, tier: RDDifficulty.Tier?) -> RDRevealLevel {
         let top = cap(isLethal: isLethal, tier: tier, preference: preference)
         if let r = requested { return min(r, top) }
@@ -351,8 +358,8 @@ enum RDRevealPolicy {
 /// `pending` 的解除：① 计数涨了（这一步完成）；② 换回合；③ 计数器在 pending 期间**又**涨了（上一个操作计数
 /// 没涨就结束了、下一个已经开始）→ 用 pending 期间最后一份局面把上一步判完，再进入新的 pending；
 /// ④ 计数器比 pending 开始时小（不该发生，回合内只增不减）→ 当作重来，解除。
-struct RDQuizState: Equatable {
-    var turn: Int
+public struct RDQuizState: Equatable {
+    public var turn: Int
     /// 判过卷的最大操作数（本回合单调不减：快照里的计数就算倒退也不会重判）
     var lastActions: Int
     /// 最近一个「已完成」的局面（上一步完成时 / 回合开始，之后被同一局面的后续更新）
@@ -363,9 +370,9 @@ struct RDQuizState: Equatable {
     var lastOp: RDQuizOp?
     /// 攻击 / 技能已经开始、计数还没涨（nil = 没有）
     var pendingOp: RDQuizPending?
-    var mark: RDQuizMark?
+    public var mark: RDQuizMark?
 
-    var pending: Bool { return pendingOp != nil }
+    public var pending: Bool { return pendingOp != nil }
 
     /// 判卷：
     /// - 现在有确定斩杀线 → 绿；
@@ -378,7 +385,7 @@ struct RDQuizState: Equatable {
     }
 
     /// 新结论到了（`snapshot` 是算出这个结论的局面）
-    static func next(_ previous: RDQuizState?, snapshot: RDGameSnapshot,
+    public static func next(_ previous: RDQuizState?, snapshot: RDGameSnapshot,
                      verdict: RDLethalVerdict) -> RDQuizState {
         let actions = snapshot.optionsPlayedThisTurn
         guard let p = previous, p.turn == snapshot.turn else {
@@ -435,7 +442,7 @@ struct RDQuizState: Equatable {
     }
 
     /// 只差操作数的两个局面
-    static func sameIgnoringOptionCount(_ a: RDGameSnapshot, _ b: RDGameSnapshot) -> Bool {
+    public static func sameIgnoringOptionCount(_ a: RDGameSnapshot, _ b: RDGameSnapshot) -> Bool {
         var x = a
         x.optionsPlayedThisTurn = b.optionsPlayedThisTurn
         return x == b
@@ -489,14 +496,14 @@ struct RDOpCounters: Equatable {
 
 // MARK: - 搜索结果 → 结论
 
-enum RDHintBuilder {
+public enum RDHintBuilder {
 
     /// 手牌序号只标前几步（spike 二、7）
     static let stepsShown = 3
     /// 「场面危险」的余量：对方场攻离我方有效血量还差这么多以内就算危险
     static let dangerMargin = 5
 
-    static func analyze(snapshot snap: RDGameSnapshot, live: RDLiveState, result: RedDragonResult,
+    public static func analyze(snapshot snap: RDGameSnapshot, live: RDLiveState, result: RedDragonResult,
                         cardName: (String) -> String) -> RDAnalysis {
         let root = live.state
         // 优先不靠随机抽牌的斩杀线；搜索已按难度升序排好，所以第一条就是「最简单的那条」
@@ -609,7 +616,7 @@ enum RDHintBuilder {
     /// 破冰搜索的结果 → 结论（T8）。斩杀判定那几项留空（开着破冰时面板不画它们：那个判定假定没有冰），
     /// 只有 `ice` 和跟局面走的几项（排位、法力、操作数、危险、奥秘）有内容。
     /// `formula`：跟手时沿用上次的公式（`done` 已经加过），nil = 照 `result.line` 现生成（一步没走）
-    static func iceAnalysis(snapshot snap: RDGameSnapshot, live: RDLiveState, result r: RDIceBreakResult,
+    public static func iceAnalysis(snapshot snap: RDGameSnapshot, live: RDLiveState, result r: RDIceBreakResult,
                             formula: RDFormula? = nil) -> RDAnalysis {
         let kind: RDIceAdvice.Kind
         switch r.verdict {
@@ -667,7 +674,7 @@ enum RDHintBuilder {
     }
 
     /// 锁定的线不重新搜索：沿用上次的判定结论，只把跟局面走的几项（排位、法力、操作数、危险、奥秘）换成现在的
-    static func refreshed(_ prev: RDAnalysis, snapshot snap: RDGameSnapshot, live: RDLiveState) -> RDAnalysis {
+    public static func refreshed(_ prev: RDAnalysis, snapshot snap: RDGameSnapshot, live: RDLiveState) -> RDAnalysis {
         var a = prev
         a.turn = snap.turn
         a.availableMana = live.state.availableMana
@@ -683,7 +690,7 @@ enum RDHintBuilder {
 
     /// 准备线搜索的结果 → 建议。`danger` 之外不该调（不危险就不主动推荐）。
     /// heal16 目标：有线 → 给最好的一条；凑不出 → 等死。preLaunch 目标：有线给线，没有就 nil
-    static func setupAdvice(result: RedDragonResult, goal: RDSetupGoal, root: RDState) -> RDSetupAdvice? {
+    public static func setupAdvice(result: RedDragonResult, goal: RDSetupGoal, root: RDState) -> RDSetupAdvice? {
         switch goal {
         case .heal16:
             guard let best = result.setupLines.first else { return RDSetupAdvice(kind: .doomed, formula: nil) }
@@ -697,12 +704,12 @@ enum RDHintBuilder {
         }
     }
 
-    static func cardId(_ c: RDCard) -> String {
+    public static func cardId(_ c: RDCard) -> String {
         return RDCards.def(c).ids.first ?? ""
     }
 
     /// 一行「下一步」。只拼卡名和符号，不写死任何语言的文字（译文只放 .xcstrings）
-    static func text(for step: RDStep, opponentHeroCardId: String,
+    public static func text(for step: RDStep, opponentHeroCardId: String,
                      cardName: (String) -> String) -> String {
         func targetName(_ t: RDStepTarget) -> String {
             switch t {
@@ -731,7 +738,7 @@ enum RDHintBuilder {
 /// 引擎打出 / 弹回一张牌时会新编号，游戏里却是同一个实体（手 → 场 → 手 entity id 不变）。
 /// 沿线重放，记下「新编号 → 游戏 id」，才能把第 2、3 步的目标落到场上具体的随从上。
 /// 复制体是游戏里也还不存在的新实体，落不到 id（nil），打出一张后重算时它就有 id 了。
-enum RDLineWalker {
+public enum RDLineWalker {
 
     static func walk(_ actions: [RDAction], root: RDState, zones: [Int: Int],
                      enemyCards: [Int: String] = [:]) -> [RDStep] {
@@ -826,7 +833,7 @@ enum RDLineWalker {
     /// 打到致死（或这一步结算完已经致死），这次抽牌就不降低确定性。抽到的牌后面没用上、或抽牌发生在致死之后，
     /// 都属于这一类；抽到的牌后面要打（换一张就打不出、编号对不上）就依赖。
     /// 每一步单独换（其余步骤保持原样）；换了之后后面的抽牌对不上的，按依赖算（保守）
-    static func dependsOnDraw(_ actions: [RDAction], root: RDState, options: RDOptions = .search) -> Bool {
+    public static func dependsOnDraw(_ actions: [RDAction], root: RDState, options: RDOptions = .search) -> Bool {
         func isDraw(_ c: RDChoice) -> Bool {
             if case .pick(let card) = c { return !RDCards.sideboardCards.contains(card) }
             return false
@@ -863,9 +870,9 @@ enum RDLineWalker {
 // MARK: - 公式（T4）
 
 /// 一条线 → 公式表写法的 token 序列。沿线用同一套引擎推一遍，取每步打完剩余的法力
-enum RDFormulaBuilder {
+public enum RDFormulaBuilder {
 
-    static func formula(_ goal: RDFormula.Goal, _ actions: [RDAction], root: RDState,
+    public static func formula(_ goal: RDFormula.Goal, _ actions: [RDAction], root: RDState,
                         potential: Int = 0) -> RDFormula {
         var s = root
         var tokens: [RDFormulaToken] = []
@@ -887,7 +894,7 @@ enum RDFormulaBuilder {
         return f
     }
 
-    static func token(_ a: RDAction, before: RDState, after: RDState) -> RDFormulaToken {
+    public static func token(_ a: RDAction, before: RDState, after: RDState) -> RDFormulaToken {
         func drawn(_ cs: [RDChoice]) -> [RDCard] {
             return cs.compactMap { c in
                 guard case .pick(let card) = c, !RDCards.sideboardCards.contains(card) else { return nil }

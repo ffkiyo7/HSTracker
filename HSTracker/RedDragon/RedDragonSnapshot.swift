@@ -12,7 +12,7 @@
 //
 
 import Foundation
-@testable import RedDragonCore
+import RedDragonCore
 
 extension RDGameSnapshot {
 

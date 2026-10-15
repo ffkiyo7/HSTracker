@@ -9,7 +9,7 @@
 
 import Foundation
 import CoreGraphics
-@testable import RedDragonCore
+import RedDragonCore
 
 struct RDOverlayModel: Equatable {
 

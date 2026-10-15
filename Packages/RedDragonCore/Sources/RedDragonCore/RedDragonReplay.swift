@@ -50,14 +50,14 @@ enum RDReplay {
 /// 跟手（T3）：用户照着屏上的斩杀线打了几步，新局面就是引擎推出来的那个局面时，不重新搜索，
 /// 把线剩下的部分换成真实编号、在真实局面上重放校验一遍接着用。重放不过、对不上、剩下的要靠随机抽牌，都返回 nil，
 /// 调用方照常搜索
-enum RDContinuation {
+public enum RDContinuation {
 
-    struct Resumed {
-        var line: RedDragonLine
+    public struct Resumed {
+        public var line: RedDragonLine
         /// 真实局面对上的是线的第几步之后（0 = 一步没走）
-        var stepsTaken: Int
+        public var stepsTaken: Int
         /// `line` 是从这个局面重放校验的：真实局面，只是新编号的起点换成了推演局面的
-        var root: RDState
+        public var root: RDState
         /// 推演局面的编号 → `root` 里的编号（`idMap` 之外、从 `generatedFrom` 起的是引擎新造的，整体加 `idShift`）。
         /// 破冰的下回合线（接在这条线的终局后面，T8）要用同一份对应换编号
         var idMap: [Int: Int] = [:]
@@ -79,7 +79,7 @@ enum RDContinuation {
     /// `resumeAll`，带上通过的是第几个候选（锁定模式要把公式的已走步数记到对应的候选上）
     /// `tolerant`（锁定模式）：真实局面比推演多抽了牌 / 牌库有出入（回合开始触发的抽牌、对手洗牌入库）
     /// 也算对上，线在真实局面上重放能走通才算数
-    static func advance(_ candidates: [(root: RDState, line: RedDragonLine)], onto real: RDState,
+    public static func advance(_ candidates: [(root: RDState, line: RedDragonLine)], onto real: RDState,
                         goal: RDFormula.Goal = .lethal,
                         tolerant: Bool = false) -> [(index: Int, resumed: Resumed)] {
         let first = candidates.enumerated().compactMap { i, c in
@@ -188,7 +188,7 @@ enum RDContinuation {
 
     /// 接着用的线包成搜索结果：`lines` 是 `resumeAll` 的结果（同一个根局面），全部进 `lethalLines`，
     /// 分析器据此区分必打 / 可选；展示的是第一条
-    static func result(_ lines: [RedDragonLine], root: RDState) -> RedDragonResult {
+    public static func result(_ lines: [RedDragonLine], root: RDState) -> RedDragonResult {
         precondition(!lines.isEmpty)
         return RedDragonResult(maxDamage: lines.map { $0.damage }.max() ?? 0,
                                effectiveEnemyHealth: root.opponent.effectiveHealth,

@@ -20,7 +20,7 @@
 import AppKit
 import Combine
 import SwiftUI
-@testable import RedDragonCore
+import RedDragonCore
 
 final class RedDragonOverlayViewModel: ObservableObject {
 

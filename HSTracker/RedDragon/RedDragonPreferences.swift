@@ -9,7 +9,7 @@
 
 import AppKit
 import SwiftUI
-@testable import RedDragonCore
+import RedDragonCore
 
 final class RedDragonPreferences: PreferencePaneController, PreferencePane {
     var preferencePaneIdentifier = PreferencePaneIdentifier.redDragon

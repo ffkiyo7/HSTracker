@@ -10,20 +10,20 @@
 import Foundation
 
 /// 读取结果：搜索输入 + 展示层要用的对照
-struct RDLiveState {
-    var state: RDState
+public struct RDLiveState {
+    public var state: RDState
     /// 手牌 entityId → zonePosition（从 1 起）。根局面的手牌 / 场面 entityId 就是游戏里的 entity id
     var handZonePositions: [Int: Int]
     /// 「底费」靠推断的手牌（减费层把当前费用压到 0、看不出原值，按印刷费 / 复制体的 1 费封顶）
     var inferredBaseCostEntities: [Int]
 }
 
-enum RDDeckGate {
+public enum RDDeckGate {
 
     /// 判据（spike 二、8）：套牌里有 E.T.C.，它的乐队里有生命的缚誓者阿莱克丝塔萨，主牌里至少有
     /// 刀油 / 鲨鱼之灵 / 暗影施法者 / 晦鳞巢母 / 狐人老千里的 3 张。只看套牌，不看对局里出现了什么。
     /// E.T.C. 按卡表认（本地包里没有 app 的 `CardIds`）；收 `PlayingDeck` 的那个在 app 侧（RedDragonAssistant.swift）
-    static func isRedDragonDeck(cardIds: [String], sideboards: [String: [String]]) -> Bool {
+    public static func isRedDragonDeck(cardIds: [String], sideboards: [String: [String]]) -> Bool {
         func isETC(_ id: String) -> Bool { return RDCards.card(forId: id) == .etcBandManager }
         guard cardIds.contains(where: isETC),
               let band = sideboards.first(where: { isETC($0.key) })?.value,
@@ -38,9 +38,9 @@ enum RDDeckGate {
     }
 }
 
-enum RDStateReader {
+public enum RDStateReader {
 
-    static func read(_ snap: RDGameSnapshot) -> RDLiveState {
+    public static func read(_ snap: RDGameSnapshot) -> RDLiveState {
         // 回合内的减费层：玩家实体上的附魔。存在 = 还有槽；刀油的层由 TAG_SCRIPT_DATA_NUM_1 记已用张数
         var layers: [RDDiscountLayer] = []
         var comet = 0
@@ -164,7 +164,7 @@ enum RDStateReader {
     /// 根局面的一张手牌。费用只读 `entity[.cost]`；减费层还在时它已经被减过，所以「底费」=
     /// 当前费用 + 匹配层的减免，层用完后费用回到底费（与游戏一致）。当前费用被压到 0 时看不出原值，
     /// 底费按「印刷费 / 复制体的 1 费」封顶——只会往贵里估，不会算出打不出来的线。
-    static func handCard(_ c: RDGameSnapshot.HandCard,
+    public static func handCard(_ c: RDGameSnapshot.HandCard,
                         layers: [RDDiscountLayer]) -> (RDHandCard, inferred: Bool) {
         let demise = c.enchantments.contains { $0.hasPrefix(RDGameSnapshot.shadowOfDemisePrefix) }
         guard let identity = RDCards.card(forId: c.cardId) ?? (c.isCoin ? .coin : nil) else {

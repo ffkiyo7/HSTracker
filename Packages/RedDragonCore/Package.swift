@@ -6,7 +6,7 @@
 //
 // 源文件在标准目录 Sources/RedDragonCore/，加引擎文件不用改这里，也不用碰 project.pbxproj。
 // 依赖 `Game` / `Entity` / `Settings` 的调度、拷快照、面板、设置页仍编进 app（HSTracker/RedDragon/）。
-// -enable-testing：app 和测试都用 `@testable import RedDragonCore` 访问 internal 符号，引擎不必为此改成 public。
+// app 只用引擎的 public 接口（普通 import）；-enable-testing 只在 Debug 带，供测试 `@testable import` 访问 internal 符号。
 //
 import PackageDescription
 
@@ -20,7 +20,8 @@ let package = Package(
         .target(
             name: "RedDragonCore",
             swiftSettings: [
-                .unsafeFlags(["-O", "-enable-testing"])
+                .unsafeFlags(["-O"]),
+                .unsafeFlags(["-enable-testing"], .when(configuration: .debug))
             ]
         )
     ]
