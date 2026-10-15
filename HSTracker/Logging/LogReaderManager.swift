@@ -176,9 +176,9 @@ final class LogReaderManager {
                     }
                 }
                 processMap.removeAll()
-                // Fork: red dragon assistant snapshots here - between batches nothing else writes entities
-                RedDragonAssistant.shared.parserBatchDidEnd(coreManager.game, linesProcessed: !keys.isEmpty,
-                                                            idle: powerGameStateParser.currentBlock == nil)
+                // Fork: mods read the game here - between batches nothing else writes entities
+                ModManager.shared.parserBatchDidEnd(coreManager.game, linesProcessed: !keys.isEmpty,
+                                                    idle: powerGameStateParser.currentBlock == nil)
             }
             Thread.sleep(forTimeInterval: LogReaderManager.updateDelay)
         }
@@ -263,7 +263,7 @@ final class LogReaderManager {
                 // Fork: the outermost block just closed - a consistent point even when the next
                 // block opens later in this same batch (cards played back to back).
                 if inBlock && powerGameStateParser.currentBlock == nil {
-                    RedDragonAssistant.shared.parserTopBlockDidClose(coreManager.game)
+                    ModManager.shared.parserTopBlockDidClose(coreManager.game)
                 }
             }
         case .rachelle: self.rachelleHandler.handle(logLine: line)

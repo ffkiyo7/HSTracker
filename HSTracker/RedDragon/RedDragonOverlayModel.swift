@@ -3,12 +3,13 @@
 //  HSTracker
 //
 //  展示模型（`RedDragonHint`）→ overlay 上每样东西画不画、画成什么。纯值、纯函数：揭示档、答题、
-//  过时这些「画不画」的规则都在这里，视图只按它摆位置。几何（手牌 / 场面 / 角标的位置）也在这里，
-//  照搬 `BoardOverlayView` 的公式，保证和入场序号、悬停区域落在同一套坐标上。
+//  过时这些「画不画」的规则都在这里，视图只按它摆位置。几何（面板让开手牌 / 场面）也在这里，
+//  手牌和场面的位置取宿主给的（`ModBoardGeometry`），保证和入场序号、悬停区域落在同一套坐标上。
 //
 
 import Foundation
 import CoreGraphics
+import ModKit
 import RedDragonCore
 
 struct RDOverlayModel: Equatable {
@@ -302,39 +303,30 @@ struct RDOverlayModel: Equatable {
 
 // MARK: - 几何
 
-/// 全部在 `RootOverlayView` 的固定像素层里算（canvas = 炉石窗口的真实像素）：手牌和场面的位置照搬
-/// `BoardOverlayView`（它也在这一层，入场序号同样），尺寸按窗口高 / 1080 缩放
+/// 全部在宿主 overlay 的固定像素层里算（画布 = 炉石窗口的真实像素）：手牌和场面的位置取宿主的
+/// `ModBoardGeometry`（入场序号也在这一层，同一套），尺寸按窗口高 / 1080 缩放
 enum RDOverlayGeometry {
 
-    static func unit(_ canvas: CGSize) -> CGFloat { return canvas.height / 1080 }
+    static func unit(_ size: CGSize) -> CGFloat { return size.height / 1080 }
 
-    /// 悬停判定用的手牌矩形大小（`BoardOverlayView.handTargets`）
-    static func handCardSize(_ canvas: CGSize) -> CGSize {
-        return CGSize(width: canvas.height * 0.125, height: canvas.height * 0.189)
+    /// 悬停判定用的手牌矩形大小
+    static func handCardSize(_ canvas: ModOverlayCanvas) -> CGSize {
+        return canvas.geometry.handCard(index: 0, count: 1).size
     }
 
-    static func handCard(index: Int, count: Int, canvas: CGSize) -> (center: CGPoint, angle: Double) {
-        let pos = BoardOverlayView.handCardPosition(index: index, count: count, canvasSize: canvas)
-        return (pos, BoardOverlayView.handCardAngle(index: index, count: count, pos: pos, canvasSize: canvas))
+    static func handCard(index: Int, count: Int, canvas: ModOverlayCanvas) -> (center: CGPoint, angle: Double) {
+        let card = canvas.geometry.handCard(index: index, count: count)
+        return (card.center, card.angle)
     }
 
-    /// 入场序号同款徽章的高度（`BoardOrderSlotViewModel.badgeSize`）
-    static func badgeSize(_ canvas: CGSize) -> CGFloat {
-        return BoardOrderSlotViewModel.badgeSize(height: BoardOverlayView.boardHeight(canvas))
+    /// 入场序号同款徽章的高度
+    static func badgeSize(_ canvas: ModOverlayCanvas) -> CGFloat {
+        return canvas.geometry.boardBadgeSize
     }
 
-    /// 第 `index` 格随从（共 `count` 格）的矩形。横向照 `BoardOverlayView.row` 的居中 HStack，
-    /// 纵向是它的 `opponentTop` / `playerTop`（构筑模式，无佣兵偏移）
-    static func minionRect(isEnemy: Bool, index: Int, count: Int, canvas: CGSize) -> CGRect {
-        let width = BoardOverlayView.minionWidth(canvas)
-        let margin = BoardOverlayView.minionMargin(canvas, isMercenariesMatch: false)
-        let slot = width + 2 * margin
-        let height = BoardOverlayView.boardHeight(canvas)
-        let centerX = canvas.width / 2 + (CGFloat(index) - CGFloat(count - 1) / 2) * slot
-        let top = isEnemy
-            ? BoardOverlayView.opponentTop(canvas, isMercenariesMatch: false, isMainAction: false, mercsToNominate: false)
-            : BoardOverlayView.playerTop(canvas, isMercenariesMatch: false, isMainAction: false, mercsToNominate: false)
-        return CGRect(x: centerX - width / 2, y: top, width: width, height: height)
+    /// 第 `index` 格随从（共 `count` 格）的矩形（构筑模式口径）
+    static func minionRect(isEnemy: Bool, index: Int, count: Int, canvas: ModOverlayCanvas) -> CGRect {
+        return canvas.geometry.minionFrame(isOpponent: isEnemy, index: index, count: count)
     }
 
     // MARK: 判定面板的位置
@@ -365,7 +357,7 @@ enum RDOverlayGeometry {
     static let panelGap: CGFloat = 8
 
     /// 1~10 张手牌全部（转过角的悬停矩形）的外接框
-    static func handBox(_ canvas: CGSize) -> CGRect {
+    static func handBox(_ canvas: ModOverlayCanvas) -> CGRect {
         let size = handCardSize(canvas)
         var box = CGRect.null
         for count in 1...10 {
@@ -382,11 +374,10 @@ enum RDOverlayGeometry {
     }
 
     /// 和记牌器无关的固定障碍（位置照各组件的默认百分比；场攻图标 75 px、计数器一行 400 u 宽都按偏大估）
-    static func fixedObstacles(_ canvas: CGSize, hand: CGRect? = nil) -> [CGRect] {
-        let u = unit(canvas)
-        let h = canvas.height
-        let ratio = BoardOverlayView.ratio(canvas)
-        let x43 = { (f: CGFloat) in SizeHelper.getScaledXPos(f, width: canvas.width, ratio: ratio) }
+    static func fixedObstacles(_ canvas: ModOverlayCanvas, hand: CGRect? = nil) -> [CGRect] {
+        let u = unit(canvas.size)
+        let h = canvas.size.height
+        let x43 = canvas.geometry.scaledX
         let board = minionRect(isEnemy: false, index: 0, count: 7, canvas: canvas)
             .union(minionRect(isEnemy: false, index: 6, count: 7, canvas: canvas))
         let enemyBoard = minionRect(isEnemy: true, index: 0, count: 7, canvas: canvas)
@@ -397,48 +388,14 @@ enum RDOverlayGeometry {
             board,
             CGRect(x: x43(0.255), y: h * 0.6762, width: icon, height: icon),                         // 我方场攻
             CGRect(x: x43(0.677), y: h * 0.684, width: 400 * u, height: 51 * u),                     // 我方计数器
-            CGRect(x: canvas.width / 2 - h * 0.2, y: h * 0.70, width: h * 0.4, height: h * 0.17),    // 我方英雄 / 武器 / 技能
+            CGRect(x: canvas.size.width / 2 - h * 0.2, y: h * 0.70, width: h * 0.4, height: h * 0.17),    // 我方英雄 / 武器 / 技能
             CGRect(x: x43(0.752), y: h * 0.956, width: 160 * u, height: 40 * u),                     // 法力
             // 对方半场（面板只在最后一档、贴着记牌器上沿时才会去上半屏）
             enemyBoard,
             CGRect(x: x43(0.255), y: h * 0.2239, width: icon, height: icon),                         // 对方场攻
-            CGRect(x: canvas.width / 2 - h * 0.2, y: h * 0.09, width: h * 0.4, height: h * 0.2),     // 对方英雄 / 武器 / 技能
-            CGRect(x: canvas.width / 2 - 220 * u, y: 0, width: 440 * u, height: 48 * u)               // 对方手牌标记
+            CGRect(x: canvas.size.width / 2 - h * 0.2, y: h * 0.09, width: h * 0.4, height: h * 0.2),     // 对方英雄 / 武器 / 技能
+            CGRect(x: canvas.size.width / 2 - 220 * u, y: 0, width: 440 * u, height: 48 * u)               // 对方手牌标记
         ]
-    }
-
-    /// 记牌器的位置参数（`TrackerPanelViewModel` 的 top / left / height / scaling / isShown）
-    struct TrackerPlacement: Equatable {
-        var isOpponent: Bool
-        var isShown: Bool
-        var left: Double
-        var top: Double
-        var height: Double
-        var scaling: Double
-    }
-
-    /// 记牌器占的矩形，照 `TrackerPanelView` 的摆法：对手的左沿挂在 left%，我方的右沿挂在 left%；
-    /// 高 = height% H；宽取「按区域分组」和老布局两种宽度的大者（不管哪种布局都不会少算）
-    static func trackerBox(_ p: TrackerPlacement, cardSize: CardSize, canvas: CGSize) -> CGRect? {
-        guard p.isShown else { return nil }
-        let scale = CGFloat(max(p.scaling / 100, 0.01))
-        let width = max(TrackerMetrics.panelWidth(windowWidth: canvas.width, windowHeight: canvas.height,
-                                                  cardSize: cardSize),
-                        legacyTrackerWidth(cardSize)) * scale
-        let anchor = canvas.width * CGFloat(p.left / 100)
-        return CGRect(x: p.isOpponent ? anchor : anchor - width, y: canvas.height * CGFloat(p.top / 100),
-                      width: width, height: canvas.height * CGFloat(p.height / 100))
-    }
-
-    /// `SizeHelper.trackerWidth` 的同一张表，按参数而不是当前设置取
-    static func legacyTrackerWidth(_ cardSize: CardSize) -> CGFloat {
-        switch cardSize {
-        case .tiny: return CGFloat(kTinyFrameWidth)
-        case .small: return CGFloat(kSmallFrameWidth)
-        case .medium: return CGFloat(kMediumFrameWidth)
-        case .big: return CGFloat(kFrameWidth)
-        case .huge: return CGFloat(kHighRowFrameWidth)
-        }
     }
 
     struct PanelLayout: Equatable {
@@ -454,27 +411,29 @@ enum RDOverlayGeometry {
     }
 
     /// 按上面的降级顺序找第一个放得下的位置；nil = 哪都放不下，不画面板
-    static func panelLayout(canvas: CGSize, badge: RDOverlayModel.Badge, lines: [RDOverlayModel.Line],
-                            trackers: [CGRect]) -> PanelLayout? {
-        let u = unit(canvas)
+    /// `canvas.reservedFrames`：宿主面板（记牌器）占的位置，面板也要让开
+    static func panelLayout(canvas: ModOverlayCanvas, badge: RDOverlayModel.Badge,
+                            lines: [RDOverlayModel.Line]) -> PanelLayout? {
+        let u = unit(canvas.size)
         guard u > 0 else { return nil }
         let gap = panelGap * u
         let hand = handBox(canvas)
+        let trackers = canvas.reservedFrames
         let obstacles = fixedObstacles(canvas, hand: hand) + trackers.filter { !$0.isEmpty }
-        let inset = SizeHelper.getScaledXPos(panelInsetFraction, width: canvas.width, ratio: BoardOverlayView.ratio(canvas))
+        let inset = canvas.geometry.scaledX(panelInsetFraction)
         // 左沿候选：4:3 内缩；画布左边（记牌器被拖进 4:3 区域、让出了黑边时）；每个障碍的右沿 + 间隙
         var xs = [inset, gap]
         for x in obstacles.map({ $0.maxX + gap }).sorted() where x > gap && !xs.contains(x) {
             xs.append(x)
         }
         // 底边候选：默认一行；手牌上沿之上；每个记牌器的上沿之上（记牌器占满左下时贴着它的头顶放）
-        var bottoms = [canvas.height * panelBottomFraction, hand.minY - gap]
+        var bottoms = [canvas.size.height * panelBottomFraction, hand.minY - gap]
         for t in trackers.map({ $0.minY - gap }).sorted(by: >) where t > gap && !bottoms.contains(t) {
             bottoms.append(t)
         }
-        let bounds = CGRect(origin: .zero, size: canvas)
+        let bounds = CGRect(origin: .zero, size: canvas.size)
         // 面板只在画面左半边找位置（我方英雄区左边）：右半边有法力水晶、牌库、我方记牌器，跑过去也不好找
-        let region = canvas.width / 2 - canvas.height * 0.2 - gap
+        let region = canvas.size.width / 2 - canvas.size.height * 0.2 - gap
         xs = xs.filter { $0 < region }
 
         let handLimit = hand.minX - gap

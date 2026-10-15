@@ -66,10 +66,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
                 CountersPreferences(),
                 BattlegroundsPreferences(nibName: "BattlegroundsPreferences", bundle: nil),
                 ArenaPreferences(nibName: "ArenaPreferences", bundle: nil),
-                MercenariesPreferences(nibName: "MercenariesPreferences", bundle: nil),
-                // Fork: HSTracker/RedDragon/RedDragonPreferences.swift
-                RedDragonPreferences()
-            ])
+                MercenariesPreferences(nibName: "MercenariesPreferences", bundle: nil)
+            ]),
+            // Fork: the mod list and each mod's own pane (HSTracker/Mods/ModsPreferences.swift)
+            PreferencePaneGroup(title: "Mod", panes: [ModsPreferences()]
+                + ModManager.shared.preferencePanes.map { ModPreferencePaneController(manifest: $0.manifest, pane: $0.pane) })
         ])
     }()
     
@@ -108,6 +109,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
         }
         AppDelegate.migrateLegacyBundleIdPreferences()
         AppDelegate.migrateSessionMinionTypesPreference()
+        // Fork: load and activate mods before the overlay and the settings window ask for them
+        ModManager.shared.start()
         
         // warn user about memory reading
         if Settings.showMemoryReadingWarning {
@@ -399,6 +402,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
 
     func applicationWillTerminate(_ notification: Notification) {
         coreManager?.stopTracking()
+        // Fork: mods deactivate and ModHost records a clean exit (HSTracker/Mods/ModManager.swift)
+        ModManager.shared.shutdown()
         if appWillRestart {
             let appPath = Bundle.main.bundlePath
             let task = Process()

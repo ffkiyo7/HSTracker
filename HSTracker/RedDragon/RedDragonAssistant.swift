@@ -35,16 +35,31 @@
 //
 
 import Foundation
-// 引擎在本地包里（Packages/RedDragonCore/Package.swift），为了 Debug 下也按 -O 编；app 侧只用引擎的 public 接口，
+import ModKit
+// 引擎在本地包里（Packages/RedDragonCore/Package.swift），为了 Debug 下也按 -O 编；这里只用引擎的 public 接口，
 // -enable-testing 只在 Debug 带，供测试 @testable 访问 internal 符号
 import RedDragonCore
 
 extension RDDeckGate {
-    static func isRedDragonDeck(_ deck: PlayingDeck) -> Bool {
-        var sideboards: [String: [String]] = [:]
-        for s in deck.sideboards { sideboards[s.ownerCardId] = s.cards.map { $0.id } }
-        return isRedDragonDeck(cardIds: deck.cards.map { $0.id }, sideboards: sideboards)
+    static func isRedDragonDeck(_ deck: ModDeck) -> Bool {
+        return isRedDragonDeck(cardIds: Array(deck.cards.keys), sideboards: deck.sideboards)
     }
+}
+
+/// 红龙辅助的设置键（ModKit 的 mod 设置，宿主自动加 `mod.red-dragon.` 前缀）
+enum RDSettings {
+    /// 总开关。关着时解析线程上的挂点直接返回，不调度任何计算
+    static let assist = "assist"
+    /// 进回合时默认揭示到哪一档：0 判定 / 1 参与牌 / 2 顺序（`RDRevealLevel`）
+    static let revealLevel = "revealLevel"
+    /// 答题模式：不给序号，每出一张牌判对错
+    static let quizMode = "quizMode"
+
+    static func isEnabled(_ s: any ModSettings) -> Bool { s.bool(assist, default: false) }
+    static func reveal(_ s: any ModSettings) -> RDRevealLevel {
+        RDRevealLevel(rawValue: s.int(revealLevel, default: 0)) ?? .verdict
+    }
+    static func quiz(_ s: any ModSettings) -> Bool { s.bool(quizMode, default: false) }
 }
 
 /// 解析线程判定出的当前情形
@@ -68,17 +83,25 @@ final class RedDragonAssistant {
         var followsLine = true
         /// 危险、奶 16 凑不出时再搜一遍预启动线（T4 用户定「等死」，默认不搜；留作开关）
         var suggestsPreLaunch = false
+        /// 实测反馈用的几行日志（锁定的公式、偏离、破冰开关）
+        var log: (String) -> Void = { _ in }
 
-        static let live = Environment(
-            isEnabled: { Settings.redDragonAssist },
-            revealPreference: { RDRevealLevel(rawValue: Settings.redDragonRevealLevel) ?? .verdict },
-            quizMode: { Settings.redDragonQuizMode },
-            debounce: 0.12,
-            config: RedDragonConfig(),
-            cardName: { Cards.any(byId: $0)?.name ?? $0 })
+        static let liveDebounce: TimeInterval = 0.12
+
+        /// 线上用的：设置、卡名、日志都走 HSTracker 给的宿主服务
+        static func live(_ host: any ModHostServices) -> Environment {
+            let settings = host.settings
+            var env = Environment(
+                isEnabled: { RDSettings.isEnabled(settings) },
+                revealPreference: { RDSettings.reveal(settings) },
+                quizMode: { RDSettings.quiz(settings) },
+                debounce: liveDebounce,
+                config: RedDragonConfig(),
+                cardName: { host.cardName($0) ?? $0 })
+            env.log = { [weak host] in host?.info($0) }
+            return env
+        }
     }
-
-    static let shared = RedDragonAssistant(environment: .live, observeSettings: true)
 
     private let env: Environment
     private let workQueue = DispatchQueue(label: "net.hearthsim.hstracker.reddragon", qos: .utility)
@@ -191,35 +214,29 @@ final class RedDragonAssistant {
     private var turn: Int?
     private var requestedReveal: RDRevealLevel?
     private var quizState: RDQuizState?
-    private var observers: [NSObjectProtocol] = []
+    private var observers: [ModObservation] = []
 
-    init(environment: Environment, observeSettings: Bool = false, recordsFeeds: Bool = false) {
+    /// `settings`：要热切换时给（开关、揭示档、答题模式变了在主线程回调这里）；`environment` 照样从它读
+    init(environment: Environment, settings: (any ModSettings)? = nil, recordsFeeds: Bool = false) {
         env = environment
         enabledCache = environment.isEnabled()
         self.recordsFeeds = recordsFeeds
-        guard observeSettings else { return }
-        let center = NotificationCenter.default
-        observers.append(center.addObserver(forName: Notification.Name(rawValue: Settings.red_dragon_assist),
-                                            object: nil, queue: .main) { [weak self] _ in
+        guard let settings else { return }
+        observers.append(settings.observe(RDSettings.assist) { [weak self] in
             self?.settingsDidChange()
         })
-        for key in [Settings.red_dragon_reveal_level, Settings.red_dragon_quiz_mode] {
-            observers.append(center.addObserver(forName: Notification.Name(rawValue: key),
-                                                object: nil, queue: .main) { [weak self] _ in
+        for key in [RDSettings.revealLevel, RDSettings.quizMode] {
+            observers.append(settings.observe(key) { [weak self] in
                 self?.recompose()
             })
         }
     }
 
-    deinit {
-        for o in observers { NotificationCenter.default.removeObserver(o) }
-    }
-
     // MARK: - 挂点（解析线程）
 
-    /// `LogReaderManager` 每处理完一批日志行调一次（包括没有新行的空批）。
+    /// 每处理完一批日志行调一次（包括没有新行的空批；ModKit 的 `batchEnded`）。
     /// `idle`：解析器没有未闭合的 BLOCK
-    func parserBatchDidEnd(_ game: Game, linesProcessed: Bool, idle: Bool) {
+    func parserBatchDidEnd(_ game: any ModGameState, linesProcessed: Bool, idle: Bool) {
         lock.lock()
         guard enabledCache else {
             lock.unlock()
@@ -257,10 +274,10 @@ final class RedDragonAssistant {
         captureAndFeed(game)
     }
 
-    /// `LogReaderManager` 在一行把最外层 BLOCK 闭合时调（T7）。连着出牌时上一个 BLOCK 的 BLOCK_END 和下一个的
+    /// 一行把最外层 BLOCK 闭合时调（T7，ModKit 的 `topBlockClosed`）。连着出牌时上一个 BLOCK 的 BLOCK_END 和下一个的
     /// BLOCK_START 落在同一批（同一时间戳），批尾永远不是一致边界：10-13 实测鱼 / 狐 / 刀连出，6.3 秒没拷到一个局面。
     /// 这一行处理完的那一刻没有未闭合的 BLOCK，和批尾一样只有本线程写实体，可以拷
-    func parserTopBlockDidClose(_ game: Game) {
+    func parserTopBlockDidClose(_ game: any ModGameState) {
         lock.lock()
         let enabled = enabledCache
         lock.unlock()
@@ -268,7 +285,7 @@ final class RedDragonAssistant {
         captureAndFeed(game)
     }
 
-    private func captureAndFeed(_ game: Game) {
+    private func captureAndFeed(_ game: any ModGameState) {
         let start = recordsFeeds ? DispatchTime.now().uptimeNanoseconds : 0
         feed(input(from: game))
         if recordsFeeds {
@@ -280,18 +297,18 @@ final class RedDragonAssistant {
     }
 
     /// 解析线程，一致边界上。先做最便宜的判断：不在对局 / 不是这副牌时不碰实体
-    private func input(from game: Game) -> RDAssistantInput {
-        guard !game.isInMenu, !game.gameEnded, let deck = game.currentDeck else { return .inactive }
-        guard isEligible(deck), !game.isBattlegroundsMatch(), !game.isMercenariesMatch(),
-              game.isMulliganDone() else { return .inactive }
-        guard RDGameSnapshot.playerEntity(game: game)?.isCurrentPlayer == true else { return .opponentTurn }
-        guard let snap = RDGameSnapshot.capture(game: game) else { return .inactive }
+    private func input(from game: any ModGameState) -> RDAssistantInput {
+        guard !game.isInMenu, !game.isGameOver, let deck = game.currentDeck else { return .inactive }
+        guard isEligible(deck), !game.isBattlegrounds, !game.isMercenaries,
+              game.isMulliganDone else { return .inactive }
+        guard RDGameSnapshot.playerEntity(state: game)?.isCurrentPlayer == true else { return .opponentTurn }
+        guard let snap = RDGameSnapshot.capture(state: game) else { return .inactive }
         return .snapshot(snap)
     }
 
     /// 套牌判定，按套牌 id + sideboard 张数缓存。任何线程可调
-    func isEligible(_ deck: PlayingDeck) -> Bool {
-        let sideboardCards = deck.sideboards.reduce(0) { $0 + $1.cards.count }
+    func isEligible(_ deck: ModDeck) -> Bool {
+        let sideboardCards = deck.sideboards.values.reduce(0) { $0 + $1.count }
         lock.lock()
         if let gate = deckGateCache, gate.id == deck.id, gate.sideboardCards == sideboardCards {
             lock.unlock()
@@ -449,7 +466,7 @@ final class RedDragonAssistant {
         }
         iceMode.toggle()
         iceMatch = iceMode ? lastMatch : nil
-        logger.info("red dragon: ice-break mode \(iceMode ? "on" : "off")")
+        env.log("red dragon: ice-break mode \(iceMode ? "on" : "off")")
         // 上一份结论提交之后可能还有晚到的准备线在后台算（奶 16：`commit` 已经把 `inFlight` 清掉，`invalidate` 取消不到它）。
         // 平常由解析线程在下一次投递时取消（`feed`）；这里没有新投递，自己取消 —— 不然这次重算要排在它后面
         lock.lock()
@@ -490,7 +507,7 @@ final class RedDragonAssistant {
         iceMode = false
         iceMatch = nil
         quizState = nil
-        logger.info("red dragon: ice-break mode off (\(otherMatch ? "new game" : "no secret left"))")
+        env.log("red dragon: ice-break mode off (\(otherMatch ? "new game" : "no secret left"))")
         if following {
             markDeviated()
         } else {
@@ -645,7 +662,7 @@ final class RedDragonAssistant {
                 let live = RDStateReader.read(snap)
                 guard let followed = RDIceBreak.follow(plan, onto: live.state, tolerant: locking) else {
                     if locking, snap.optionsPlayedThisTurn != base.options {
-                        logger.info("red dragon: ice line deviated at \(shown.formula.done)/\(shown.formula.tokens.count)")
+                        env.log("red dragon: ice line deviated at \(shown.formula.done)/\(shown.formula.tokens.count)")
                         deliverDeviated()
                     }
                     workQueue.asyncAfter(deadline: .now() + env.debounce, execute: iceSearch)
@@ -685,7 +702,7 @@ final class RedDragonAssistant {
                     let s = live.state
                     let hand = s.hand.map { c -> String in RDText.abbr(c.card) + String(s.cost(of: c, as: c.card)) }
                     let board = s.board.map { RDText.abbr($0.card) }
-                    logger.info("red dragon: deviated, mana \(s.mana)+\(s.tempMana), "
+                    env.log("red dragon: deviated, mana \(s.mana)+\(s.tempMana), "
                         + "hand [\(hand.joined(separator: " "))], board [\(board.joined(separator: " "))]")
                     deliverDeviated()
                 }
@@ -737,7 +754,7 @@ final class RedDragonAssistant {
     /// 锁定的公式写一行日志（公式全文 + 已走几步），实测反馈时对照「当时显示的是什么」
     private func logLocked(_ formula: RDFormula?, base: FollowBase?) {
         guard lockMode, base != nil, let f = formula else { return }
-        logger.info("red dragon: locked \(f.goal) \(f.done)/\(f.tokens.count): "
+        env.log("red dragon: locked \(f.goal) \(f.done)/\(f.tokens.count): "
             + f.tokens.map { RDText.formulaToken($0) }.joined(separator: " "))
     }
 
@@ -801,7 +818,7 @@ final class RedDragonAssistant {
         recompose()
     }
 
-    /// 开关变了（`Settings.red_dragon_assist` 的通知，主线程）。打开：解析线程下一批（≤ 50 ms，没有新行也算）
+    /// 开关变了（设置 `RDSettings.assist` 的观察回调，主线程）。打开：解析线程下一批（≤ 50 ms，没有新行也算）
     /// 拷一次；关掉：解析线程不再拷，作废在算的、清空结果
     func settingsDidChange() {
         let enabled = env.isEnabled()
@@ -870,4 +887,22 @@ final class RedDragonAssistant {
     }
 
     var subscriberCount: Int { return subscribers.count }
+}
+
+// MARK: - ModKit 口子 1：对局事件
+
+extension RedDragonAssistant: ModGameEventHandler {
+    /// 解析线程，同步（见 ModKit 的 GameEvents.swift）
+    func handle(_ event: ModGameEvent, game: any ModGameState) {
+        switch event {
+        case .batchEnded(let linesProcessed, let idle):
+            parserBatchDidEnd(game, linesProcessed: linesProcessed, idle: idle)
+        case .topBlockClosed:
+            parserTopBlockDidClose(game)
+        case .gameStarted, .gameEnded:
+            break
+        @unknown default:
+            break
+        }
+    }
 }

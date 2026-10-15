@@ -11,6 +11,7 @@
 
 import XCTest
 import SwiftUI
+import ModKit
 @testable import HSTracker
 @testable import RedDragonCore
 
@@ -420,7 +421,7 @@ class RedDragonOverlayTests: HSTrackerTests {
         XCTAssertEqual(RDOverlayGeometry.lineCaps(m1.lines), [4, 2])
     }
 
-    /// 按键上报点击区域（`InteractiveRegionPreferenceKey`，`RootOverlayWindow` 据此只在这一块里接鼠标）：
+    /// 按键上报点击区域（ModKit 的 `ModInteractiveRegionKey`，宿主转给 `RootOverlayWindow`，据此只在这一块里接鼠标）：
     /// 画了按键才报，报的就是按键那一小块、落在面板里；没有按键 / 面板不画时一块都不报（整层照旧点击穿透）。
     /// 点那一块 → view model → `RedDragonAssistant.toggleIceBreak`；点面板别处不触发
     @MainActor
@@ -434,8 +435,8 @@ class RedDragonOverlayTests: HSTrackerTests {
         final class Sink { var regions: [CGRect] = [] }
         let sink = Sink()
         let view = RedDragonOverlayView(viewModel: vm, canvasSize: canvas)
-            .coordinateSpace(name: "rootOverlayCanvas")
-            .onPreferenceChange(InteractiveRegionPreferenceKey.self) { sink.regions = $0 }
+            .coordinateSpace(name: ModOverlayCoordinateSpace.name)
+            .onPreferenceChange(ModInteractiveRegionKey.self) { sink.regions = $0 }
         let hosting = NSHostingView(rootView: view)
         hosting.frame = CGRect(origin: .zero, size: canvas)
         let window = NSWindow(contentRect: hosting.frame, styleMask: [.borderless], backing: .buffered, defer: false)
@@ -536,8 +537,8 @@ class RedDragonOverlayTests: HSTrackerTests {
             RDPanel(badge: model.badge!, layout: layout, canvas: canvas)
         }
         .frame(width: canvas.width, height: canvas.height, alignment: .topLeading)
-        .coordinateSpace(name: "rootOverlayCanvas")
-        .onPreferenceChange(InteractiveRegionPreferenceKey.self) { plainSink.regions = $0 })
+        .coordinateSpace(name: ModOverlayCoordinateSpace.name)
+        .onPreferenceChange(ModInteractiveRegionKey.self) { plainSink.regions = $0 })
         plain.frame = CGRect(origin: .zero, size: canvas)
         window.contentView = plain
         spin(until: { false }, timeout: 0.05)
@@ -546,12 +547,13 @@ class RedDragonOverlayTests: HSTrackerTests {
         XCTAssertTrue(plainSink.regions.isEmpty)
     }
 
-    /// 真的 `RootOverlayView`（坐标空间和 `onPreferenceChange` 都是上游现成的，T8 没动 `Overlay/Root/`）：
+    /// 真的 `RootOverlayView`（坐标空间和 `onPreferenceChange` 都是上游现成的，mod 图层把 mod 报的区域转过去）：
     /// 按键的外框进到 `RootOverlayViewModel.interactiveRegions` —— `RootOverlayWindow` 判断点击穿透用的就是这一份；
     /// 没有按键 / 面板不画时红龙不贡献任何区域
     func testIceButtonRegionReachesTheRootOverlay() throws {
         try waitForCoreManager()
         let root = RootOverlayViewModel()
+        root.installTestRedDragon(cardName: Self.zh)
         let size = CGSize(width: 1920, height: 1080)
         let hosting = NSHostingView(rootView: RootOverlayView(viewModel: root))
         hosting.frame = CGRect(origin: .zero, size: size)
@@ -1140,17 +1142,15 @@ class RedDragonOverlayTests: HSTrackerTests {
         return t.snapshot()
     }
 
-    /// 改 `Settings.redDragonAssist`（UserDefault → 通知 → assistant 清空 → onChange → view model main.async 提交）：
+    /// 改 mod 设置的开关（`ModSettingsStore` → 观察回调 → assistant 清空 → onChange → view model main.async 提交）：
     /// 关掉 overlay 立即消失；再开、来一个局面，overlay 出现
     func testHotSwitchShowsAndHidesOverlay() {
-        let saved = Settings.redDragonAssist
-        defer { Settings.redDragonAssist = saved }
-        Settings.redDragonAssist = true
+                RDTestSettings.assist = true
         spin(until: { false }, timeout: 0.05)
         let env = RedDragonAssistant.Environment(
-            isEnabled: { Settings.redDragonAssist }, revealPreference: { .verdict }, quizMode: { false },
+            isEnabled: { RDTestSettings.assist }, revealPreference: { .verdict }, quizMode: { false },
             debounce: 0, config: RedDragonConfig(), cardName: { $0 })
-        let assistant = RedDragonAssistant(environment: env, observeSettings: true)
+        let assistant = RedDragonAssistant(environment: env, settings: RDTestSettings.store)
         let vm = RedDragonOverlayViewModel(assistant: assistant, cardName: Self.zh)
         XCTAssertEqual(assistant.subscriberCount, 1)
         XCTAssertNil(assistant.onChange, "overlay 不占单回调位")
@@ -1161,12 +1161,12 @@ class RedDragonOverlayTests: HSTrackerTests {
         XCTAssertTrue(vm.model.isVisible)
         XCTAssertEqual(vm.model.badge?.numbers, "8 / 8")
 
-        Settings.redDragonAssist = false
+        RDTestSettings.assist = false
         spin { !vm.model.isVisible }
         XCTAssertFalse(vm.model.isVisible, "关掉开关 overlay 消失")
         XCTAssertEqual(assistant.hint, .inactive)
 
-        Settings.redDragonAssist = true
+        RDTestSettings.assist = true
         spin(until: { false }, timeout: 0.1)
         assistant.submit(.snapshot(lethalSnapshot()))
         spin { vm.model.isVisible && vm.model.badge?.statuses.isEmpty == true }
@@ -1242,8 +1242,8 @@ class RedDragonOverlayTests: HSTrackerTests {
     }
 
     func testHotkeyActionsDriveAssistant() {
-        let savedQuiz = Settings.redDragonQuizMode
-        defer { Settings.redDragonQuizMode = savedQuiz }
+        let settings = RDTestSettings.store
+        let savedQuiz = RDSettings.quiz(settings)
         let env = RedDragonAssistant.Environment(
             isEnabled: { true }, revealPreference: { .verdict }, quizMode: { false },
             debounce: 0, config: RedDragonConfig(), cardName: { $0 })
@@ -1251,12 +1251,12 @@ class RedDragonOverlayTests: HSTrackerTests {
         assistant.submit(.snapshot(lethalSnapshot()))
         spin { assistant.hint.phase == .ready }
         XCTAssertEqual(assistant.hint.revealLevel, .verdict)
-        RedDragonHotkeys.perform(.raise, assistant: assistant)
+        RedDragonHotkeys.perform(.raise, assistant: assistant, settings: settings)
         XCTAssertEqual(assistant.hint.revealLevel, .order)
-        RedDragonHotkeys.perform(.lower, assistant: assistant)
+        RedDragonHotkeys.perform(.lower, assistant: assistant, settings: settings)
         XCTAssertEqual(assistant.hint.revealLevel, .verdict)
-        RedDragonHotkeys.perform(.quiz, assistant: assistant)
-        XCTAssertEqual(Settings.redDragonQuizMode, !savedQuiz)
+        RedDragonHotkeys.perform(.quiz, assistant: assistant, settings: settings)
+        XCTAssertEqual(RDSettings.quiz(settings), !savedQuiz)
     }
 
     // MARK: - 不卡顿：只在自己的状态变化时重算
@@ -1271,13 +1271,14 @@ class RedDragonOverlayTests: HSTrackerTests {
     }
 
     /// 把真的 `RootOverlayView` 放进离屏窗口：
-    /// - 改 `RootOverlayViewModel` 上与红龙无关的 @Published（RootOverlayView 的 body 因此重算，红龙视图被重新构造），
-    ///   红龙视图的 body 不重算；
+    /// - 改 `RootOverlayViewModel` 上与红龙无关的 @Published（RootOverlayView 的 body 因此重算；mod 图层的输入没变，
+    ///   红龙视图连重新构造都没有），红龙视图的 body 不重算；
     /// - 红龙状态变了：红龙视图 body 重算，`RootOverlayViewModel.objectWillChange` 不发（RootOverlayView 不重算）。
     /// 另量一次「receive → 提交 → 布局 + 绘制」的主线程耗时（Debug）
     func testRedrawOnlyOnOwnStateAndMainThreadCost() throws {
         try waitForCoreManager()
         let root = RootOverlayViewModel()
+        root.installTestRedDragon(cardName: Self.zh)
         var rootChanges = 0
         let sink = root.objectWillChange.sink { rootChanges += 1 }
         defer { sink.cancel() }
@@ -1310,7 +1311,6 @@ class RedDragonOverlayTests: HSTrackerTests {
         let unrelatedBodies = RedDragonOverlayView.bodyEvaluations - bodies0
         let unrelatedBuilds = RedDragonOverlayView.constructions - builds0
         XCTAssertGreaterThan(rootChanges - rootChanges0, 0)
-        XCTAssertGreaterThan(unrelatedBuilds, 0, "RootOverlayView 确实重算了（红龙视图被重新构造）")
         XCTAssertEqual(unrelatedBodies, 0, "无关刷新不让红龙视图 body 重算")
 
         // 2. 红龙状态变化 ×40（L2 斩杀 ↔ 正在算，交替）
@@ -1353,6 +1353,7 @@ class RedDragonOverlayTests: HSTrackerTests {
     func testPanelFollowsTrackerDragWithoutUnrelatedRedraws() throws {
         try waitForCoreManager()
         let root = RootOverlayViewModel()
+        root.installTestRedDragon(cardName: Self.zh)
         let size = CGSize(width: 1920, height: 1080)
         let hosting = NSHostingView(rootView: RootOverlayView(viewModel: root))
         hosting.frame = CGRect(origin: .zero, size: size)
@@ -1370,7 +1371,7 @@ class RedDragonOverlayTests: HSTrackerTests {
         spin { root.redDragon.commits > 0 }
         settle()
         let before = try XCTUnwrap(RedDragonOverlayView.lastPanelLayout)
-        let obstacles = root.redDragon.trackers
+        let obstacles = root.mods.reserved
 
         // 1. 无关刷新 ×50：卡牌列表、计数、重读设置（位置没变）
         let bodies0 = RedDragonOverlayView.bodyEvaluations
@@ -1687,10 +1688,11 @@ class RedDragonOverlayTests: HSTrackerTests {
                 t.scaling = p.scaling
                 return t
             }
-            let vm = RedDragonOverlayViewModel(assistant: nil, trackers: trackerVMs, cardName: Self.zh)
+            let vm = RedDragonOverlayViewModel(assistant: nil, cardName: Self.zh)
+            let reserved = ModReservedFrames(trackers: trackerVMs)
             vm.receive(scene.hint)
             spin { vm.commits > 0 || !RDOverlayModel.make(scene.hint, cardName: Self.zh).isVisible }
-            let boxes = scene.trackers.isEmpty ? nil : vm.trackers.boxes(canvas: size)
+            let boxes = scene.trackers.isEmpty ? nil : reserved.frames(canvas: size)
             // 标题后面注上面板实际的缩放档和像素
             if let badge = vm.model.badge {
                 let layout = RDOverlayGeometry.panelLayout(canvas: size, badge: badge, lines: vm.model.lines,
@@ -1700,7 +1702,7 @@ class RedDragonOverlayTests: HSTrackerTests {
             }
             let view = ZStack(alignment: .topLeading) {
                 RDSchematicBoard(scene: scene, canvas: size, trackerBoxes: boxes)
-                RedDragonOverlayView(viewModel: vm, canvasSize: size)
+                RedDragonOverlayView(viewModel: vm, canvasSize: size, trackers: boxes ?? [])
             }
             .frame(width: size.width, height: size.height)
             try writePNG(view, size: size, to: (dir as NSString).appendingPathComponent(scene.file))
@@ -1722,17 +1724,14 @@ class RedDragonOverlayTests: HSTrackerTests {
 
     /// 设置页亮 / 暗：AppKit 控件 ImageRenderer 画不出来，放进离屏窗口用 cacheDisplay 抓
     private func renderSettings(dir: String) throws {
-        let saved = (Settings.redDragonAssist, Settings.redDragonRevealLevel, Settings.redDragonQuizMode)
-        defer {
-            Settings.redDragonAssist = saved.0
-            Settings.redDragonRevealLevel = saved.1
-            Settings.redDragonQuizMode = saved.2
-        }
-        Settings.redDragonAssist = true
-        Settings.redDragonRevealLevel = RDRevealLevel.order.rawValue
-        Settings.redDragonQuizMode = false
+        let settings = RDTestSettings.store
+        settings.set(true, forKey: RDSettings.assist)
+        settings.set(RDRevealLevel.order.rawValue, forKey: RDSettings.revealLevel)
+        settings.set(false, forKey: RDSettings.quizMode)
         for (name, appearance) in [("11-settings-light.png", NSAppearance.Name.aqua), ("12-settings-dark.png", .darkAqua)] {
-            let pane = RedDragonPreferences()
+            // 宿主把 mod 的设置页包成设置窗的一页（ModPreferencePaneController），这里走同一层
+            let pane = ModPreferencePaneController(manifest: RedDragonMod.manifest,
+                                                   pane: RedDragonPreferences.pane(settings: settings))
             let content = pane.view
             let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: PreferencePaneController.fixedWidth, height: 400),
                                   styleMask: [.titled], backing: .buffered, defer: false)

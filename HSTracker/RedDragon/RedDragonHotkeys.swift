@@ -16,6 +16,7 @@
 
 import AppKit
 import Carbon.HIToolbox
+import ModKit
 import RedDragonCore
 
 final class RedDragonHotkeys {
@@ -46,11 +47,13 @@ final class RedDragonHotkeys {
     /// 'RDHK'
     private static let signature: OSType = 0x5244_484B
 
-    static let shared = RedDragonHotkeys()
-
+    private let assistant: RedDragonAssistant
+    private let settings: any ModSettings
+    private let log: (String) -> Void
     private var refs: [EventHotKeyRef] = []
     private var handler: EventHandlerRef?
-    private var observers: [(NotificationCenter, NSObjectProtocol)] = []
+    private var observers: [NSObjectProtocol] = []
+    private var settingsObservation: ModObservation?
     private var started = false
     /// 注册失败的组合键（被别的程序占了），测试 / 日志用
     private(set) var failed: [Action] = []
@@ -62,13 +65,19 @@ final class RedDragonHotkeys {
         return enabled && frontmostBundleId == hearthstoneBundleId
     }
 
+    init(assistant: RedDragonAssistant, settings: any ModSettings, log: @escaping (String) -> Void) {
+        self.assistant = assistant
+        self.settings = settings
+        self.log = log
+    }
+
     /// 热键动作。只在主线程调（Carbon 的回调在主线程的事件循环里）
-    static func perform(_ action: Action, assistant: RedDragonAssistant) {
+    static func perform(_ action: Action, assistant: RedDragonAssistant, settings: any ModSettings) {
         switch action {
         case .raise: assistant.raiseReveal()
         case .lower: assistant.lowerReveal()
-        // 走设置键：通知 → assistant.recompose，设置页也跟着变
-        case .quiz: Settings.redDragonQuizMode = !Settings.redDragonQuizMode
+        // 走设置键：观察回调 → assistant.recompose，设置页也跟着变
+        case .quiz: settings.set(!RDSettings.quiz(settings), forKey: RDSettings.quizMode)
         }
     }
 
@@ -77,21 +86,33 @@ final class RedDragonHotkeys {
         started = true
         let workspace = NSWorkspace.shared.notificationCenter
         for name in [NSWorkspace.didActivateApplicationNotification, NSWorkspace.didDeactivateApplicationNotification] {
-            observers.append((workspace, workspace.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+            observers.append(workspace.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
                 self?.update()
-            }))
+            })
         }
-        let center = NotificationCenter.default
-        observers.append((center, center.addObserver(forName: Notification.Name(rawValue: Settings.red_dragon_assist),
-                                                     object: nil, queue: .main) { [weak self] _ in
+        settingsObservation = settings.observe(RDSettings.assist) { [weak self] in
             self?.update()
-        }))
+        }
         update()
+    }
+
+    /// mod 停用（HSTracker 退出）：注销热键、摘掉事件处理
+    func stop() {
+        guard started else { return }
+        started = false
+        for o in observers { NSWorkspace.shared.notificationCenter.removeObserver(o) }
+        observers = []
+        settingsObservation = nil
+        unregister()
+        if let handler {
+            RemoveEventHandler(handler)
+            self.handler = nil
+        }
     }
 
     func update() {
         let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
-        if Self.shouldRegister(enabled: Settings.redDragonAssist, frontmostBundleId: front) {
+        if Self.shouldRegister(enabled: RDSettings.isEnabled(settings), frontmostBundleId: front) {
             register()
         } else {
             unregister()
@@ -102,19 +123,21 @@ final class RedDragonHotkeys {
         guard refs.isEmpty else { return }
         if handler == nil {
             var type = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
-            let status = InstallEventHandler(GetApplicationEventTarget(), { _, event, _ -> OSStatus in
+            // C 回调带不了上下文，自己的指针放在 userData 里（`stop` 摘掉处理之前自己一直活着：mod 持有它）
+            let me = Unmanaged.passUnretained(self).toOpaque()
+            let status = InstallEventHandler(GetApplicationEventTarget(), { _, event, userData -> OSStatus in
                 var id = EventHotKeyID()
                 let got = GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID),
                                             nil, MemoryLayout<EventHotKeyID>.size, nil, &id)
                 guard got == noErr, id.signature == RedDragonHotkeys.signature,
-                      let action = RedDragonHotkeys.Action(rawValue: id.id) else {
+                      let action = RedDragonHotkeys.Action(rawValue: id.id), let userData else {
                     return OSStatus(eventNotHandledErr)
                 }
-                RedDragonHotkeys.shared.fire(action)
+                Unmanaged<RedDragonHotkeys>.fromOpaque(userData).takeUnretainedValue().fire(action)
                 return noErr
-            }, 1, &type, nil, &handler)
+            }, 1, &type, me, &handler)
             if status != noErr {
-                logger.error("red dragon hotkeys: InstallEventHandler failed \(status)")
+                log("red dragon hotkeys: InstallEventHandler failed \(status)")
                 return
             }
         }
@@ -127,7 +150,7 @@ final class RedDragonHotkeys {
                 refs.append(ref)
             } else {
                 failed.append(b.action)
-                logger.warning("red dragon hotkeys: \(b.display) not registered (\(status))")
+                log("red dragon hotkeys: \(b.display) not registered (\(status))")
             }
         }
     }
@@ -140,7 +163,7 @@ final class RedDragonHotkeys {
     private func fire(_ action: Action) {
         // 注销和失焦之间可能还排着一个按键事件
         guard NSWorkspace.shared.frontmostApplication?.bundleIdentifier == Self.hearthstoneBundleId,
-              Settings.redDragonAssist else { return }
-        Self.perform(action, assistant: .shared)
+              RDSettings.isEnabled(settings) else { return }
+        Self.perform(action, assistant: assistant, settings: settings)
     }
 }

@@ -130,8 +130,9 @@ class RootOverlayViewModel: ObservableObject {
     // stack.
     let linkOpponentDeck = LinkOpponentDeckPanelViewModel()
 
-    // Fork: red dragon assist, fed by RedDragonAssistant.shared; its panel keeps clear of both trackers.
-    lazy var redDragon = RedDragonOverlayViewModel(trackers: [playerTracker, opponentTracker])
+    // Fork: the mods' overlay layers (HSTracker/Mods/ModOverlayLayer.swift); they keep clear of both trackers.
+    lazy var mods = ModOverlayLayerModel(providers: ModManager.shared.overlayProviders,
+                                         trackers: [playerTracker, opponentTracker])
 
     // Settings.windowsLocked, HDT's _uiMovable inverted. Mirrored here because
     // the trackers stop being click-through - and gain their drag and resize

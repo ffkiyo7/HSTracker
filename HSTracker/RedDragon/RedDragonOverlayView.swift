@@ -3,30 +3,27 @@
 //  HSTracker
 //
 //  红龙辅助的 overlay：只有左下角的判定面板（手牌 / 场面上的框和序号 10-06 删掉了）。
-//  挂在 `RootOverlayView` 的固定像素层（canvas = 炉石窗口的真实像素）：面板让位用的手牌 / 场面几何
-//  （`BoardOverlayView.handCardPosition`、`playerTop` 等）都在这一层；
-//  面板的尺寸按窗口高 / 1080 缩放，效果等同于缩放层。
+//  ModKit 口子 3：宿主把它放进 overlay 的固定像素层（画布 = 炉石窗口的真实像素），面板让位用的手牌 / 场面几何
+//  和记牌器位置都从宿主给的 `ModOverlayCanvas` 来；面板的尺寸按窗口高 / 1080 缩放，效果等同于缩放层。
 //
 //  状态只从 `RedDragonAssistant.subscribe` 来，到这里再投一次 `main.async`、在同一个 block 里一次提交
-//  （见 `RedDragonOverlayViewModel.receive`）。视图只观察自己的 view model 和记牌器位置（`RDTrackerObstacles`，
-//  去重后只在影响让位的值变了时发）：记牌器内容刷新不会让它重算，它变了也不会让 `RootOverlayView` 重算。
-//  接鼠标的只有面板标签行里的破冰按键（T8，`RDIceButton`）：它把自己的外框报成交互区域，光标进了那一块窗口才接鼠标；
-//  面板其余部分、面板不显示时都不报区域，窗口保持点击穿透。点按键 → `RedDragonOverlayViewModel.toggleIceBreak`
+//  （见 `RedDragonOverlayViewModel.receive`）。视图只观察自己的 view model；记牌器拖动、缩放时宿主换一份画布重算它，
+//  宿主 overlay 里别的刷新不会让它重算。
+//  接鼠标的只有面板标签行里的破冰按键（T8，`RDIceButton`）：它用 `.modInteractiveRegion()` 报自己的外框，光标进了那一块
+//  窗口才接鼠标；面板其余部分、面板不显示时都不报区域，窗口保持点击穿透。点按键 → `RedDragonOverlayViewModel.toggleIceBreak`
 //  → `RedDragonAssistant.toggleIceBreak`（都在主线程，同步），结果照常从订阅回来。
-//  悬停手牌时游戏放大的那张牌由 overlay 根上的 opacity mask 整块挖掉（`setCardOpacityMask` 的 hand 分支），
-//  这里画在同一个被 mask 的 ZStack 里，所以标记不会盖住它。
+//  悬停手牌时游戏放大的那张牌由宿主 overlay 根上的 opacity mask 整块挖掉，这一层在被 mask 的那一层里，标记不会盖住它。
 //
 
 import AppKit
 import Combine
+import ModKit
 import SwiftUI
 import RedDragonCore
 
 final class RedDragonOverlayViewModel: ObservableObject {
 
     @Published private(set) var model = RDOverlayModel.hidden
-    /// 记牌器的位置（面板让位用）。单独一个 ObservableObject：只在影响让位的值变了时才发
-    let trackers: RDTrackerObstacles
 
     private let cardName: (String) -> String
     private var pending: RedDragonHint?
@@ -36,21 +33,15 @@ final class RedDragonOverlayViewModel: ObservableObject {
     /// 提交了几次（测试 / 性能数据用）
     private(set) var commits = 0
 
-    /// 订阅 assistant（多订阅，不占 `onChange`；释放时退订）。接的是 `RedDragonAssistant.shared` 时顺带启动热键。
-    /// `trackers`：两个记牌器的 view model，面板据它们的位置让位
-    init(assistant: RedDragonAssistant? = .shared, trackers: [TrackerPanelViewModel] = [],
-         cardName: @escaping (String) -> String = { Cards.any(byId: $0)?.name ?? $0 }) {
+    /// 订阅 assistant（多订阅，不占 `onChange`；释放时退订）
+    init(assistant: RedDragonAssistant?, cardName: @escaping (String) -> String) {
         self.cardName = cardName
-        self.trackers = RDTrackerObstacles(trackers: trackers)
         guard let assistant else { return }
         self.assistant = assistant
         subscription = assistant.subscribe { [weak self] hint in
             self?.receive(hint)
         }
         receive(assistant.hint)
-        if assistant === RedDragonAssistant.shared {
-            RedDragonHotkeys.shared.start()
-        }
     }
 
     deinit {
@@ -64,7 +55,7 @@ final class RedDragonOverlayViewModel: ObservableObject {
         }
     }
 
-    /// 主线程（assistant 的提交 block、设置通知、热键）。再投一次 `main.async`：一个 runloop 里连着来的几份
+    /// 主线程（assistant 的提交 block、设置回调、热键）。再投一次 `main.async`：一个 runloop 里连着来的几份
     /// （例如「正在算」紧跟「结果」）只提交最后一份，提交在同一个 block 里一次写完
     func receive(_ hint: RedDragonHint) {
         pending = hint
@@ -92,87 +83,23 @@ final class RedDragonOverlayViewModel: ObservableObject {
     }
 }
 
-/// 两个记牌器占的位置。订阅它们 view model 的 isShown / left / top / height / scaling（拖动、改高度时
-/// 这些 @Published 每一步都变，存盘要等松手）和卡牌尺寸设置；去重后才发，记牌器内容刷新不会让红龙重算。
-/// 变化先攒着，下一跳 main.async 里一次提交（同一 runloop 内的 left / top 只提交一次）
-final class RDTrackerObstacles: ObservableObject {
-    struct State: Equatable {
-        var placements: [RDOverlayGeometry.TrackerPlacement]
-        var cardSize: CardSize
+/// ModKit 口子 3 的提供方：宿主每次重排都调 `overlayView(canvas:)`
+final class RedDragonOverlay: ModOverlayProvider {
+    let viewModel: RedDragonOverlayViewModel
+
+    init(viewModel: RedDragonOverlayViewModel) {
+        self.viewModel = viewModel
     }
 
-    @Published private(set) var state: State
-    /// 提交了几次（测试用）
-    private(set) var commits = 0
-    private var cancellables: [AnyCancellable] = []
-    private var cardSizeObserver: NSObjectProtocol?
-
-    init(trackers: [TrackerPanelViewModel]) {
-        state = State(placements: trackers.map(Self.placement), cardSize: Settings.cardSize)
-        for (i, vm) in trackers.enumerated() {
-            let isOpponent = vm.playerType == .opponent
-            Publishers.CombineLatest(Publishers.CombineLatest3(vm.$isShown, vm.$left, vm.$top),
-                                     Publishers.CombineLatest(vm.$height, vm.$scaling))
-                .map { a, b in
-                    RDOverlayGeometry.TrackerPlacement(isOpponent: isOpponent, isShown: a.0, left: a.1, top: a.2,
-                                                       height: b.0, scaling: b.1)
-                }
-                .removeDuplicates()
-                .sink { [weak self] p in
-                    self?.stage { $0.placements[i] = p }
-                }
-                .store(in: &cancellables)
-        }
-        cardSizeObserver = NotificationCenter.default.addObserver(
-            forName: Notification.Name(rawValue: Settings.card_size), object: nil, queue: .main) { [weak self] _ in
-                self?.stage { $0.cardSize = Settings.cardSize }
-            }
-    }
-
-    deinit {
-        if let cardSizeObserver {
-            NotificationCenter.default.removeObserver(cardSizeObserver)
-        }
-    }
-
-    private static func placement(_ vm: TrackerPanelViewModel) -> RDOverlayGeometry.TrackerPlacement {
-        return RDOverlayGeometry.TrackerPlacement(isOpponent: vm.playerType == .opponent, isShown: vm.isShown,
-                                                  left: vm.left, top: vm.top, height: vm.height, scaling: vm.scaling)
-    }
-
-    private var staged: State?
-    private var flushScheduled = false
-
-    /// 主线程（记牌器的 @Published 在主线程写）。拖动一步会先后改 left、top：先攒着，下一跳 main.async 一次提交
-    private func stage(_ change: (inout State) -> Void) {
-        var next = staged ?? state
-        change(&next)
-        staged = next
-        guard !flushScheduled else { return }
-        flushScheduled = true
-        DispatchQueue.main.async { [weak self] in
-            self?.flush()
-        }
-    }
-
-    private func flush() {
-        flushScheduled = false
-        guard let next = staged else { return }
-        staged = nil
-        guard next != state else { return }
-        state = next
-        commits += 1
-    }
-
-    func boxes(canvas: CGSize) -> [CGRect] {
-        return state.placements.compactMap { RDOverlayGeometry.trackerBox($0, cardSize: state.cardSize, canvas: canvas) }
+    @MainActor
+    func overlayView(canvas: ModOverlayCanvas) -> AnyView {
+        AnyView(RedDragonOverlayView(viewModel: viewModel, canvas: canvas))
     }
 }
 
 struct RedDragonOverlayView: View {
     @ObservedObject var viewModel: RedDragonOverlayViewModel
-    @ObservedObject private var trackers: RDTrackerObstacles
-    let canvasSize: CGSize
+    let canvas: ModOverlayCanvas
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -184,13 +111,17 @@ struct RedDragonOverlayView: View {
     static var lastPanelLayout: RDOverlayGeometry.PanelLayout?
     #endif
 
-    init(viewModel: RedDragonOverlayViewModel, canvasSize: CGSize) {
+    init(viewModel: RedDragonOverlayViewModel, canvas: ModOverlayCanvas) {
         self.viewModel = viewModel
-        self._trackers = ObservedObject(wrappedValue: viewModel.trackers)
-        self.canvasSize = canvasSize
+        self.canvas = canvas
         #if DEBUG
         Self.constructions += 1
         #endif
+    }
+
+    /// 宿主只在画布可用时放这一层；这里再挡一次（尺寸为 0 / 非有限值时换算会出 NaN）
+    static func isUsable(_ size: CGSize) -> Bool {
+        return size.width.isFinite && size.height.isFinite && size.width > 0 && size.height > 0
     }
 
     var body: some View {
@@ -198,10 +129,10 @@ struct RedDragonOverlayView: View {
         Self.bodyEvaluations += 1
         #endif
         let model = viewModel.model
-        let usable = RootOverlayView.isUsableCanvas(canvasSize)
+        let canvasSize = canvas.size
+        let usable = Self.isUsable(canvasSize)
         let layout: RDOverlayGeometry.PanelLayout? = usable ? model.badge.flatMap {
-            RDOverlayGeometry.panelLayout(canvas: canvasSize, badge: $0, lines: model.lines,
-                                          trackers: trackers.boxes(canvas: canvasSize))
+            RDOverlayGeometry.panelLayout(canvas: canvas, badge: $0, lines: model.lines)
         } : nil
         #if DEBUG
         Self.lastPanelLayout = layout
@@ -222,19 +153,36 @@ struct RedDragonOverlayView: View {
     }
 }
 
-// MARK: - 样式（借自现有 overlay 组件，见任务书执行结果「借用样式表」）
+// MARK: - 样式（记牌器的配色和数字字体，宿主给的 `ModTrackerStyle`）
 
 enum RDStyle {
-    static let panelFill = TrackerBarStyle.base.opacity(0.9)
-    static let panelLine = TrackerBarStyle.line
-    static let text = TrackerBarStyle.text
-    static let dimText = TrackerBarStyle.text.opacity(TrackerBarStyle.dimContent + 0.15)
-    static let gold = TrackerBarStyle.gold
-    static let step = TrackerBarStyle.star
-    static let target = TrackerBarStyle.flame
-    static let lethal = TrackerBarStyle.highlight(.green) ?? .green
-    static let draw = TrackerBarStyle.highlight(.orange) ?? .orange
-    static let optional = TrackerBarStyle.highlight(.teal) ?? .teal
+    /// 宿主的记牌器样式。mod 启用时换成宿主给的那份；之前（测试里直接画面板）用记牌器的默认配色
+    static var tracker = ModTrackerStyle(
+        base: Color(red: 0x1B / 255, green: 0x14 / 255, blue: 0x10 / 255),
+        gold: Color(red: 0xD6 / 255, green: 0xB2 / 255, blue: 0x6E / 255),
+        line: Color(red: 0xD6 / 255, green: 0xB2 / 255, blue: 0x6E / 255).opacity(0.28),
+        rowLine: Color(red: 0xD6 / 255, green: 0xB2 / 255, blue: 0x6E / 255).opacity(0.10),
+        text: Color(red: 0xF4 / 255, green: 0xEA / 255, blue: 0xD4 / 255),
+        star: Color(red: 0xFF / 255, green: 0xB6 / 255, blue: 0x41 / 255),
+        skull: Color(red: 0xE8 / 255, green: 0xDF / 255, blue: 0xCC / 255),
+        flame: Color(red: 0xFF / 255, green: 0x6B / 255, blue: 0x2C / 255),
+        dimContentOpacity: 0.45, digitFontName: "Belwe Bd BT",
+        highlights: [.teal: Color(red: 0x3F / 255, green: 0xC7 / 255, blue: 0xC0 / 255),
+                     .orange: Color(red: 0xFF / 255, green: 0x9A / 255, blue: 0x3C / 255),
+                     .green: Color(red: 0x5D / 255, green: 0xD1 / 255, blue: 0x62 / 255)])
+
+    static var base: Color { tracker.base }
+    static var rowLine: Color { tracker.rowLine }
+    static var panelFill: Color { tracker.base.opacity(0.9) }
+    static var panelLine: Color { tracker.line }
+    static var text: Color { tracker.text }
+    static var dimText: Color { tracker.text.opacity(tracker.dimContentOpacity + 0.15) }
+    static var gold: Color { tracker.gold }
+    static var step: Color { tracker.star }
+    static var target: Color { tracker.flame }
+    static var lethal: Color { tracker.highlight(.green) ?? .green }
+    static var draw: Color { tracker.highlight(.orange) ?? .orange }
+    static var optional: Color { tracker.highlight(.teal) ?? .teal }
     static let wrong = Color(red: 0xE5 / 255, green: 0x48 / 255, blue: 0x3C / 255)
     /// 破冰按键的冰蓝
     static let ice = Color(red: 0x7F / 255, green: 0xC9 / 255, blue: 0xF2 / 255)
@@ -251,7 +199,7 @@ enum RDStyle {
         }
     }
 
-    static let skullGrey = TrackerBarStyle.skull.opacity(0.75)
+    static var skullGrey: Color { tracker.skull.opacity(0.75) }
 
     /// 面板文字：主题字体（简中是 AR LisuGB），数字用 Belwe —— 和记牌器面板同一套
     static func label(_ u: CGFloat, _ size: CGFloat) -> Font {
@@ -259,16 +207,18 @@ enum RDStyle {
     }
 
     static func digits(_ u: CGFloat, _ size: CGFloat) -> Font {
-        return TrackerBarStyle.digits(u, size: size * fontScale)
+        return tracker.digits(size: size * fontScale * u)
     }
 
     /// 面板字号整体放大（1080 下标题约 19 px，和计数器的 15 px ChunkFive 数字同一量级）
     static let fontScale: CGFloat = RDPanelMetrics.fontScale
 
-    /// `TrackerMotion.duration` 的同一条曲线；系统「减弱动态效果」打开时不动
+    /// 和记牌器动效同一条曲线（0.28 s easeOut）；系统「减弱动态效果」打开时不动
+    static let motionDuration: Double = 0.28
+
     static func animation(reduceMotion: Bool) -> Animation? {
         guard !reduceMotion, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else { return nil }
-        return .easeOut(duration: TrackerMotion.duration)
+        return .easeOut(duration: motionDuration)
     }
 }
 
@@ -330,7 +280,7 @@ struct RDPanelContent: View {
                 quizRow(u).allowsHitTesting(false)
             }
             if !lines.isEmpty {
-                Rectangle().fill(TrackerBarStyle.rowLine).frame(height: 1).allowsHitTesting(false)
+                Rectangle().fill(RDStyle.rowLine).frame(height: 1).allowsHitTesting(false)
                 ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
                     RDLineView(line: line, u: u).allowsHitTesting(false)
                 }
@@ -592,7 +542,7 @@ private struct RDChip: View {
     var body: some View {
         Text(verbatim: text)
             .font(RDStyle.label(u, 11))
-            .foregroundColor(filled ? TrackerBarStyle.base : color)
+            .foregroundColor(filled ? RDStyle.base : color)
             .lineLimit(1)
             .padding(.horizontal, 6 * u)
             .padding(.vertical, 1.5 * u)
@@ -602,9 +552,8 @@ private struct RDChip: View {
 }
 
 /// 破冰按键（T8）：面板上唯一接鼠标的东西。和标签同字号、同高，左右多留一点、方角，开 = 实心、关 = 空心，
-/// 文字本身也写着开 / 关（估宽见 `RDPanelMetrics.buttonWidth`）。点击区域照 2.10 段头折叠的做法上报：
-/// 自己的外框换算到 `rootOverlayCanvas`，经 `InteractiveRegionPreferenceKey` 交给 `RootOverlayWindow`，
-/// 光标进了这块窗口才接鼠标，别处照旧点击穿透。窗口是不激活的面板，点它炉石不失去前台
+/// 文字本身也写着开 / 关（估宽见 `RDPanelMetrics.buttonWidth`）。点击区域用 ModKit 的 `.modInteractiveRegion()` 上报，
+/// 宿主交给 overlay 窗口：光标进了这块窗口才接鼠标，别处照旧点击穿透。窗口是不激活的面板，点它炉石不失去前台
 private struct RDIceButton: View {
     let on: Bool
     let u: CGFloat
@@ -616,7 +565,7 @@ private struct RDIceButton: View {
         let shape = RoundedRectangle(cornerRadius: 4 * u)
         let face = Text(verbatim: RDText.iceButton(on: on))
             .font(RDStyle.label(u, 11))
-            .foregroundColor(on ? TrackerBarStyle.base : color)
+            .foregroundColor(on ? RDStyle.base : color)
             .lineLimit(1)
             .padding(.horizontal, (6 + RDPanelMetrics.buttonExtraPaddingH / 2) * u)
             .padding(.vertical, 1.5 * u)
@@ -626,10 +575,7 @@ private struct RDIceButton: View {
             face
                 .contentShape(Rectangle())
                 .onTapGesture(perform: action)
-                .background(GeometryReader { proxy in
-                    Color.clear.preference(key: InteractiveRegionPreferenceKey.self,
-                                           value: [proxy.frame(in: .rootOverlayCanvas)])
-                })
+                .modInteractiveRegion()
         } else {
             face.allowsHitTesting(false)
         }

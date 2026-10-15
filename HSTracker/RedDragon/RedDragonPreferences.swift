@@ -2,50 +2,47 @@
 //  RedDragonPreferences.swift
 //  HSTracker
 //
-//  设置窗「覆盖层」组里单独一页「红龙辅助」：总开关 + 默认揭示档 + 答题模式 + 热键说明。
-//  单开一页：它不属于任何现有页的主题（记牌器 / 计数器 / 各模式），现有页都是 nib，加控件得动 .xib。
-//  写设置一律走 `Settings` 的属性（它会发通知，assistant 和热键靠通知热切换）；不用 @AppStorage，那条路不发通知。
+//  ModKit 口子 4：设置窗里红龙辅助的一页：总开关 + 默认揭示档 + 答题模式 + 热键说明。
+//  读写一律走 mod 的设置（`ModSettings`，它会通知观察者，assistant 和热键靠它热切换）；不用 @AppStorage，那条路不通知。
 //
 
 import AppKit
+import ModKit
 import SwiftUI
 import RedDragonCore
 
-final class RedDragonPreferences: PreferencePaneController, PreferencePane {
-    var preferencePaneIdentifier = PreferencePaneIdentifier.redDragon
-
-    var preferencePaneTitle = RDText.prefsTitle
-
-    var preferencePaneIcon: NSImage = NSImage(systemSymbolName: "flame", accessibilityDescription: RDText.prefsTitle)
-        ?? NSImage(named: "settings-counters") ?? NSImage()
-
-    var preferencePaneSearchText: [String] {
-        return [RDText.prefsEnable, RDText.prefsEnableNote, RDText.prefsReveal, RDText.prefsRevealNote,
-                RDText.prefsQuiz, RDText.prefsQuizNote, RDText.prefsHotkeys]
+enum RedDragonPreferences {
+    static func pane(settings: any ModSettings) -> ModPreferencePane {
+        let icon = NSImage(systemSymbolName: "flame", accessibilityDescription: RDText.prefsTitle) ?? NSImage()
+        let terms = [RDText.prefsEnable, RDText.prefsEnableNote, RDText.prefsReveal, RDText.prefsRevealNote,
+                     RDText.prefsQuiz, RDText.prefsQuizNote, RDText.prefsHotkeys]
             + RDRevealLevel.allCases.map(RDText.level)
-    }
-
-    override func makeContentView() -> NSView? {
-        let hosting = NSHostingView(rootView: RedDragonPreferencesView())
-        hosting.translatesAutoresizingMaskIntoConstraints = false
-        return hosting
+        return ModPreferencePane(title: RDText.prefsTitle, icon: icon, searchTerms: terms) {
+            AnyView(RedDragonPreferencesView(settings: settings))
+        }
     }
 }
 
-extension PreferencePaneIdentifier {
-    static let redDragon = Self("redDragon")
-}
-
+/// 宿主把它包成设置页（宽度、边距由设置窗定）
 struct RedDragonPreferencesView: View {
-    @SwiftUI.State private var enabled = Settings.redDragonAssist
-    @SwiftUI.State private var reveal = RDRevealLevel(rawValue: Settings.redDragonRevealLevel) ?? .verdict
-    @SwiftUI.State private var quiz = Settings.redDragonQuizMode
+    let settings: any ModSettings
+    @SwiftUI.State private var enabled: Bool
+    @SwiftUI.State private var reveal: RDRevealLevel
+    @SwiftUI.State private var quiz: Bool
+    @SwiftUI.State private var quizObservation: ModObservation?
+
+    init(settings: any ModSettings) {
+        self.settings = settings
+        _enabled = SwiftUI.State(initialValue: RDSettings.isEnabled(settings))
+        _reveal = SwiftUI.State(initialValue: RDSettings.reveal(settings))
+        _quiz = SwiftUI.State(initialValue: RDSettings.quiz(settings))
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
                 Toggle(RDText.prefsEnable, isOn: $enabled)
-                    .onChange(of: enabled) { _, on in Settings.redDragonAssist = on }
+                    .onChange(of: enabled) { _, on in settings.set(on, forKey: RDSettings.assist) }
                 note(RDText.prefsEnableNote)
             }
 
@@ -60,7 +57,7 @@ struct RedDragonPreferencesView: View {
                     .pickerStyle(.segmented)
                     .labelsHidden()
                     .fixedSize()
-                    .onChange(of: reveal) { _, level in Settings.redDragonRevealLevel = level.rawValue }
+                    .onChange(of: reveal) { _, level in settings.set(level.rawValue, forKey: RDSettings.revealLevel) }
                 }
                 note(RDText.prefsRevealNote)
             }
@@ -68,7 +65,7 @@ struct RedDragonPreferencesView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Toggle(RDText.prefsQuiz, isOn: $quiz)
-                    .onChange(of: quiz) { _, on in Settings.redDragonQuizMode = on }
+                    .onChange(of: quiz) { _, on in settings.set(on, forKey: RDSettings.quizMode) }
                 note(RDText.prefsQuizNote)
             }
             .disabled(!enabled)
@@ -82,12 +79,14 @@ struct RedDragonPreferencesView: View {
             }
             .padding(.top, 4)
         }
-        .frame(width: PreferencePaneController.fixedWidth - 40, alignment: .leading)
-        .padding(20)
         // 热键切了答题模式时跟上
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name(rawValue: Settings.red_dragon_quiz_mode))) { _ in
-            if quiz != Settings.redDragonQuizMode { quiz = Settings.redDragonQuizMode }
+        .onAppear {
+            quizObservation = settings.observe(RDSettings.quizMode) {
+                let now = RDSettings.quiz(settings)
+                if quiz != now { quiz = now }
+            }
         }
+        .onDisappear { quizObservation = nil }
     }
 
     static func label(_ action: RedDragonHotkeys.Action) -> String {

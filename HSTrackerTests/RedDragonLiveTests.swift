@@ -866,22 +866,20 @@ class RedDragonLiveTests: HSTrackerTests {
         XCTAssertEqual(assistant.scheduledComputations, 2)
     }
 
-    /// 走真实的设置链：改 `Settings.redDragonAssist` → UserDefault 发通知 → 主线程观察者 → 开关缓存。
+    /// 走真实的设置链：改 mod 设置的开关（`ModSettingsStore`）→ 主线程观察者 → 开关缓存。
     /// 关着时挂点（`feed`）直接丢，不投 main.async
     func testHotSwitchThroughSettingsNotifications() {
-        let saved = Settings.redDragonAssist
-        defer { Settings.redDragonAssist = saved }
-        Settings.redDragonAssist = true
+                RDTestSettings.assist = true
         let env = RedDragonAssistant.Environment(
-            isEnabled: { Settings.redDragonAssist }, revealPreference: { .verdict }, quizMode: { false },
+            isEnabled: { RDTestSettings.assist }, revealPreference: { .verdict }, quizMode: { false },
             debounce: 0, config: RedDragonConfig(), cardName: { $0 })
-        let assistant = RedDragonAssistant(environment: env, observeSettings: true, recordsFeeds: true)
+        let assistant = RedDragonAssistant(environment: env, settings: RDTestSettings.store, recordsFeeds: true)
 
         assistant.feed(.snapshot(lethalSnapshot()))
         spin { assistant.hint.phase == .ready }
         XCTAssertEqual(assistant.hint.analysis?.isLethal, true)
 
-        Settings.redDragonAssist = false
+        RDTestSettings.assist = false
         spin { assistant.hint == .inactive }
         XCTAssertEqual(assistant.hint, .inactive, "通知到了就清空")
         assistant.feed(.snapshot(lethalSnapshot(health: 7)))
@@ -889,7 +887,7 @@ class RedDragonLiveTests: HSTrackerTests {
         XCTAssertEqual(assistant.fedInputs.count, 1, "关着时挂点不投递")
         XCTAssertEqual(assistant.scheduledComputations, 1)
 
-        Settings.redDragonAssist = true
+        RDTestSettings.assist = true
         spin(until: { false }, timeout: 0.1)
         assistant.feed(.snapshot(lethalSnapshot(health: 7)))
         spin { assistant.hint.phase == .ready && assistant.hint.analysis?.effectiveEnemyHealth == 7 }
@@ -1522,7 +1520,7 @@ class RedDragonLiveTests: HSTrackerTests {
             }
             let env = RedDragonAssistant.Environment(
                 isEnabled: { true }, revealPreference: { .verdict }, quizMode: { false },
-                debounce: RedDragonAssistant.Environment.live.debounce, config: RedDragonConfig(), cardName: { $0 })
+                debounce: RedDragonAssistant.Environment.liveDebounce, config: RedDragonConfig(), cardName: { $0 })
             let assistant = RedDragonAssistant(environment: env)
             assistant.submit(.snapshot(snap))
             spin(until: { assistant.hint.phase == .ready }, timeout: 30)
