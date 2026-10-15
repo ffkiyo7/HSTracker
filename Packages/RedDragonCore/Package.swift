@@ -23,6 +23,14 @@ let package = Package(
                 .unsafeFlags(["-O"]),
                 .unsafeFlags(["-enable-testing"], .when(configuration: .debug))
             ]
+        ),
+        // 只碰引擎的测试：`swift test` 直接跑，不启动 app、不加载卡库。
+        // 卡表对卡库的核对、日志回放、overlay 的测试要 HSTracker 在场，留在 HSTrackerTests
+        .testTarget(
+            name: "RedDragonCoreTests",
+            dependencies: ["RedDragonCore"],
+            exclude: ["Fixtures/sim.py"],
+            resources: [.copy("Fixtures/formulas.json")]
         )
     ]
 )

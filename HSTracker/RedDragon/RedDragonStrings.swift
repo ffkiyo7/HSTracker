@@ -117,7 +117,7 @@ enum RDText {
         return "抽到" + cards.map(abbr).joined(separator: "/") + "才继续"
     }
 
-    /// 公式表的牌名缩写（`HSTrackerTests/Fixtures/RedDragon/formulas.json` 的 `notation`）。
+    /// 公式表的牌名缩写（`Packages/RedDragonCore/Tests/RedDragonCoreTests/Fixtures/formulas.json` 的 `notation`）。
     /// 表里没有缩写的牌（不在公式里出现过的）取最常用的叫法
     static func abbr(_ card: RDCard) -> String {
         switch card {

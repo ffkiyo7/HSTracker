@@ -23,12 +23,13 @@
 | 排队显示牌组、局末小结窗 | Phase 6 / 7；新线 S6a / S6b |
 | 包体瘦身（不打包 `HearthDb.xml`，.NET 基础库只嵌本架构） | PR #3 `aecd42bf` |
 | 红龙贼 combo 提示器 | T0+T1 `0a921d6b`；T2a `d73f8a6`；T2b `61fbcbd`；T2c `359916c`；T3 跟手 `507d354`；T4 奶 16 + 完整公式 `a3326ac`；T5 引擎核对 `35a783f6`；T6 面板 1.6 倍 `1f6384bf`；T7 跟手延迟 `cf73e238`；T8 破冰 `8f5a1636` + `2a126604` + `d8da0b4b` + `e2a85b3d` |
-| 红龙解耦与 mod 化（评估 `docs/research/red-dragon-mod-eval.md`） | M1 引擎包挪到 `Packages/RedDragonCore/`、去掉 `sources:` 点名、pbxproj 删 12 条导航引用；M2 引擎立公开接口（顶层 53 个类型标 `public`，比评估的 30 个多出的是 public 签名连带的；`-enable-testing` 只在 Debug，app 侧改普通 `import`）（分支 `claude/project-thread-rdkiom`） |
+| 红龙解耦与 mod 化（评估 `docs/research/red-dragon-mod-eval.md`） | M1 引擎包挪到 `Packages/RedDragonCore/`、去掉 `sources:` 点名、pbxproj 删 12 条导航引用；M2 引擎立公开接口（顶层 53 个类型标 `public`，比评估的 30 个多出的是 public 签名连带的；`-enable-testing` 只在 Debug，app 侧改普通 `import`）；M3 拆测试：只碰引擎的 100 条（`RedDragonTests` 54、`RedDragonIceBreakTests` 32、`RedDragonSetupTests` 6、`RedDragonFormulaTests` 8 整个）挪进包的 `RedDragonCoreTests`，`formulas.json` / `sim.py` 跟着挪，HSTrackerTests 留 105 条（分支 `claude/project-thread-rdkiom`） |
 
 ## 构建 / 测试记录
 
 | 日期 | 范围 | 结果 |
 |---|---|---|
+| 10-15 | M3 拆测试：`swift test`（包，不启动 app）、app `build-for-testing` | 包 100 条过（跳过 1 条：生产配置 CPU 只在 -O 下测，和原来一样），125 秒；两边合计 205 条与拆前相同；HSTrackerTests 里的 105 条未跑（在打炉石） |
 | 10-15 | M2 引擎立公开接口：包 `swift build` Debug / Release、app Debug 增量 build、`build-for-testing` | 都通过；红龙测试未跑（在打炉石） |
 | 10-15 | M1 引擎包挪目录：`swift build` 单独编包、Debug clean build（独立 DerivedData，复用本机包缓存） | 都通过；红龙测试未跑（当时在打炉石，测试会启动 Debug 包） |
 | 10-15 | 合上游 3.7.0：Debug clean build、全套（跳过 `LocalizationFormatTests`，负载 4.5）、Release clean build | 549 条挂 4 条：签名、反射断言（上游修好，测试已改）、红龙回放 2 条（CPU 预算抖动，单跑有全过）；Release 3.7.0 通过 |
@@ -74,4 +75,5 @@
 - Release 包只写 `~/Library/Logs/HSTracker/hstracker.log`；首次从 `Build/Products/Release` 启动被 AppMover 模态框挡住，点 Don't Move。排查渲染前确认包内有 `Contents/Resources/CardDefs.bin`、`Contents/Resources/Managed/`。
 - build phase 的 inputs 必须覆盖真正读的东西；`Embed Mono` 整拷 `net8.0` 目录；vendored 安装阶段保留 staging → 校验 → `cp`；代理 `127.0.0.1:7890` 探到才设；`grep -c 新文件.swift project.pbxproj` 应为 3~4。
 - `-configuration Release` 下测试 target 编不过（`HSTracker-Test-Bridging-Header.h:13` 找不到 HockeySDK）。
+- 红龙引擎测试：`cd Packages/RedDragonCore && swift test`（同样去掉代理环境变量、`PATH=/usr/bin:/bin:/usr/sbin:/sbin`），不启动 app、不读卡库；要 HSTracker 在场的红龙测试仍在 HSTrackerTests。
 - 红龙解耦 / mod 化评估（10-15，只评估，没动代码）：`docs/research/red-dragon-mod-eval.md`。结论是让 HSTracker 支持 mod、红龙做成第一个 mod，分三阶段，第一阶段是仓库内解耦。

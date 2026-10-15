@@ -1,6 +1,6 @@
 //
 //  RedDragonFormulaTests.swift
-//  HSTrackerTests
+//  RedDragonCoreTests
 //
 //  红龙 T2a：公式表（formulas.json）逐案例由引擎下结论 + 从声明的起手搜索 + 齐件 / 缺件分组。
 //
@@ -30,7 +30,6 @@
 //
 
 import XCTest
-@testable import HSTracker
 @testable import RedDragonCore
 
 // MARK: - 公式表缩写
@@ -249,8 +248,7 @@ private func parseErrata(_ any: Any?) -> RDErrata? {
 }
 
 private func loadRows() -> [RDRow] {
-    guard let url = Bundle(for: RedDragonFormulaTests.self).url(forResource: "formulas",
-                                                                withExtension: "json"),
+    guard let url = Bundle.module.url(forResource: "formulas", withExtension: "json"),
           let data = try? Data(contentsOf: url),
           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
           let raw = json["rows"] as? [[String: Any]] else {
@@ -929,7 +927,7 @@ private func describe(_ actions: [RDAction], from start: RDState) -> String {
 
 // MARK: -
 
-class RedDragonFormulaTests: HSTrackerTests {
+class RedDragonFormulaTests: XCTestCase {
 
     private static var rows: [RDRow] = []
     private static var cases: [RDCase] = []
