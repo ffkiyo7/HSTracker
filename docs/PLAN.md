@@ -23,11 +23,13 @@
 | 排队显示牌组、局末小结窗 | Phase 6 / 7；新线 S6a / S6b |
 | 包体瘦身（不打包 `HearthDb.xml`，.NET 基础库只嵌本架构） | PR #3 `aecd42bf` |
 | 红龙贼 combo 提示器 | T0+T1 `0a921d6b`；T2a `d73f8a6`；T2b `61fbcbd`；T2c `359916c`；T3 跟手 `507d354`；T4 奶 16 + 完整公式 `a3326ac`；T5 引擎核对 `35a783f6`；T6 面板 1.6 倍 `1f6384bf`；T7 跟手延迟 `cf73e238`；T8 破冰 `8f5a1636` + `2a126604` + `d8da0b4b` + `e2a85b3d` |
+| 红龙解耦与 mod 化（评估 `docs/research/red-dragon-mod-eval.md`） | M1 引擎包挪到 `Packages/RedDragonCore/`、去掉 `sources:` 点名、pbxproj 删 12 条导航引用（分支 `claude/project-thread-rdkiom`） |
 
 ## 构建 / 测试记录
 
 | 日期 | 范围 | 结果 |
 |---|---|---|
+| 10-15 | M1 引擎包挪目录：`swift build` 单独编包、Debug clean build（独立 DerivedData，复用本机包缓存） | 都通过；红龙测试未跑（当时在打炉石，测试会启动 Debug 包） |
 | 10-15 | 合上游 3.7.0：Debug clean build、全套（跳过 `LocalizationFormatTests`，负载 4.5）、Release clean build | 549 条挂 4 条：签名、反射断言（上游修好，测试已改）、红龙回放 2 条（CPU 预算抖动，单跑有全过）；Release 3.7.0 通过 |
 | 10-14 | 全套，受限环境，跳过 `LocalizationFormatTests`（T8 破冰终版） | 547 条：541 过 / 5 跳过 / 1 失败（签名，自编译包预期内），536 秒 |
 | 10-14 | 包体瘦身合入后 Debug 构建 + 启动 | 通过 |

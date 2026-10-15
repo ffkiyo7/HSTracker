@@ -35,7 +35,7 @@
 //
 
 import Foundation
-// 引擎在本地包里（HSTracker/RedDragon/Package.swift），为了 Debug 下也按 -O 编；包带 -enable-testing，
+// 引擎在本地包里（Packages/RedDragonCore/Package.swift），为了 Debug 下也按 -O 编；包带 -enable-testing，
 // app 侧用 @testable 访问 internal 符号，不必把引擎改成 public
 @testable import RedDragonCore
 

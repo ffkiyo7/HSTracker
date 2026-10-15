@@ -2153,18 +2153,8 @@
 		B8DD0F00000000000000A00B /* 2026-09-14-standard.log */ = {isa = PBXFileReference; lastKnownFileType = text; name = "2026-09-14-standard.log"; path = "Fixtures/ZoneReplay/2026-09-14-standard.log"; sourceTree = "<group>"; };
 		B8DD0F00000000000000A00D /* 2026-09-19-bug-t10.log */ = {isa = PBXFileReference; lastKnownFileType = text; name = "2026-09-19-bug-t10.log"; path = "Fixtures/ZoneReplay/2026-09-19-bug-t10.log"; sourceTree = "<group>"; };
 		B8DD0F00000000000000A00E /* 2026-09-20-bug-t11.log */ = {isa = PBXFileReference; lastKnownFileType = text; name = "2026-09-20-bug-t11.log"; path = "Fixtures/ZoneReplay/2026-09-20-bug-t11.log"; sourceTree = "<group>"; };
-		B8DD0F00000000000000A001 /* RedDragonCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonCards.swift; sourceTree = "<group>"; };
-		B8DD0F00000000000000A002 /* RedDragonState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonState.swift; sourceTree = "<group>"; };
-		B8DD0F00000000000000A003 /* RedDragonEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonEngine.swift; sourceTree = "<group>"; };
-		B8DD0F00000000000000A004 /* RedDragonReplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonReplay.swift; sourceTree = "<group>"; };
-		B8DD0F00000000000000A005 /* RedDragonDifficulty.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonDifficulty.swift; sourceTree = "<group>"; };
-		B8DD0F00000000000000A006 /* RedDragonSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonSearch.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A007 /* RedDragonTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonTests.swift; sourceTree = "<group>"; };
-		B8DD0F00000000000000A010 /* RedDragonComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonComponents.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A012 /* RedDragonSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonSnapshot.swift; sourceTree = "<group>"; };
-		B8DD0F00000000000000A013 /* RedDragonReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonReader.swift; sourceTree = "<group>"; };
-		B8DD0F00000000000000A014 /* RedDragonHint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonHint.swift; sourceTree = "<group>"; };
-		B8DD0F00000000000000A032 /* RedDragonIceBreak.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonIceBreak.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A015 /* RedDragonAssistant.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonAssistant.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A01E /* RedDragonStrings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonStrings.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A01F /* RedDragonOverlayModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonOverlayModel.swift; sourceTree = "<group>"; };
@@ -2172,8 +2162,6 @@
 		B8DD0F00000000000000A022 /* RedDragonHotkeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonHotkeys.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A023 /* RedDragonPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonPreferences.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A024 /* RedDragonOverlayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonOverlayTests.swift; sourceTree = "<group>"; };
-		B8DD0F00000000000000A01C /* Package.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Package.swift; sourceTree = "<group>"; };
-		B8DD0F00000000000000A01D /* RedDragonGameSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonGameSnapshot.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A016 /* RedDragonLiveReplayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedDragonLiveReplayTests.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A017 /* 2026-10-01-g4-second.log */ = {isa = PBXFileReference; lastKnownFileType = text; name = "2026-10-01-g4-second.log"; path = "Fixtures/RedDragon/2026-10-01-g4-second.log"; sourceTree = "<group>"; };
 		B8DD0F00000000000000A018 /* 2026-10-01-g5-first.log */ = {isa = PBXFileReference; lastKnownFileType = text; name = "2026-10-01-g5-first.log"; path = "Fixtures/RedDragon/2026-10-01-g5-first.log"; sourceTree = "<group>"; };
@@ -4500,25 +4488,13 @@
 		B8DD0F00000000000000F000 /* RedDragon */ = {
 			isa = PBXGroup;
 			children = (
-				B8DD0F00000000000000A001 /* RedDragonCards.swift */,
-				B8DD0F00000000000000A002 /* RedDragonState.swift */,
-				B8DD0F00000000000000A003 /* RedDragonEngine.swift */,
-				B8DD0F00000000000000A004 /* RedDragonReplay.swift */,
-				B8DD0F00000000000000A005 /* RedDragonDifficulty.swift */,
-				B8DD0F00000000000000A006 /* RedDragonSearch.swift */,
-				B8DD0F00000000000000A010 /* RedDragonComponents.swift */,
 				B8DD0F00000000000000A012 /* RedDragonSnapshot.swift */,
-				B8DD0F00000000000000A013 /* RedDragonReader.swift */,
-				B8DD0F00000000000000A014 /* RedDragonHint.swift */,
-				B8DD0F00000000000000A032 /* RedDragonIceBreak.swift */,
 				B8DD0F00000000000000A015 /* RedDragonAssistant.swift */,
-				B8DD0F00000000000000A01D /* RedDragonGameSnapshot.swift */,
 				B8DD0F00000000000000A01E /* RedDragonStrings.swift */,
 				B8DD0F00000000000000A01F /* RedDragonOverlayModel.swift */,
 				B8DD0F00000000000000A021 /* RedDragonOverlayView.swift */,
 				B8DD0F00000000000000A022 /* RedDragonHotkeys.swift */,
 				B8DD0F00000000000000A023 /* RedDragonPreferences.swift */,
-				B8DD0F00000000000000A01C /* Package.swift */,
 			);
 			path = RedDragon;
 			sourceTree = "<group>";
@@ -7228,7 +7204,7 @@
 				B889F6072CEC1CFB001506F4 /* XCRemoteSwiftPackageReference "swift-atomics" */,
 				B8E1E5A12CF94F2A00383975 /* XCRemoteSwiftPackageReference "AppMover" */,
 				3CB1A35B2E8C3A390090486F /* XCRemoteSwiftPackageReference "mixpanel-swift" */,
-				B8DD0F00000000000000D001 /* XCLocalSwiftPackageReference "HSTracker/RedDragon" */,
+				B8DD0F00000000000000D001 /* XCLocalSwiftPackageReference "Packages/RedDragonCore" */,
 			);
 			productRefGroup = 439C7E491C7772C000D29859 /* Products */;
 			projectDirPath = "";
@@ -10008,9 +9984,9 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		B8DD0F00000000000000D001 /* XCLocalSwiftPackageReference "HSTracker/RedDragon" */ = {
+		B8DD0F00000000000000D001 /* XCLocalSwiftPackageReference "Packages/RedDragonCore" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = HSTracker/RedDragon;
+			relativePath = Packages/RedDragonCore;
 		};
 /* End XCLocalSwiftPackageReference section */
 
