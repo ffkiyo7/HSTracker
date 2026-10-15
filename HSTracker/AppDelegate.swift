@@ -109,9 +109,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
         }
         AppDelegate.migrateLegacyBundleIdPreferences()
         AppDelegate.migrateSessionMinionTypesPreference()
-        // Fork: load and activate mods before the overlay and the settings window ask for them
-        ModManager.shared.start()
-        
+
         // warn user about memory reading
         if Settings.showMemoryReadingWarning {
             let alert = NSAlert()
@@ -205,7 +203,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, SPUStandardUserDriverDelegat
         file.logFileAmount = 2
         logger.addDestination(file)
         logger.info("*** Starting \(Version.buildName) ***")
-        
+        // Fork: load and activate mods once the logger is up (so their load messages land in the log),
+        // before the overlay and the settings window ask for them
+        ModManager.shared.start()
+
         HSReplayNetHelper.initialize()
         
         // check if we have valid settings

@@ -29,6 +29,7 @@
 
 | 日期 | 范围 | 结果 |
 |---|---|---|
+| 10-16 | M5 验收（炉石关着）：包 `swift test`；HSTrackerTests 红龙 7 个类；10 局 fixture 逐回合导出（`describe`，确定性配置）对比 M4 之前的 `ab35b73f`（独立目录、独立 DerivedData）；Debug 包装 mod 启动 | 包 100 条 99 过 1 跳过；红龙 105 条 101 过 4 跳过（按需开的 4 条，基线同样跳过）0 失败，基线同；10 局 71 行逐回合一致（去掉 CPU 秒；整套跑时卡名语言随测试宿主卡库加载先后变，单跑两边逐字节一致）；mod 已加载、已启用，老设置抄到 `mod.red-dragon.*`，正常退出不进安全模式。顺手修：`ModManager.start()` 挪到 logger 建好之后，原来加载日志全丢 |
 | 10-16 | M5 红龙搬成 mod：`Mods/RedDragon/build.sh`（导出入口、不带 ModKit）、app Debug 增量 build、`build-for-testing` | 都通过；app 二进制里红龙符号 0 个，测试包里有；105 条红龙测试、回放逐回合比对、Debug 包加载 mod 未跑（在打炉石） |
 | 10-16 | M4 适配层 + 红龙改走 ModKit：Debug 增量 build、`build-for-testing`（HSTrackerTests 链接 ModKit，app 里只有一份 ModKit.framework） | 都通过；HSTrackerTests 里的 105 条红龙测试未跑（在打炉石） |
 | 10-15 | M3 拆测试：`swift test`（包，不启动 app）、app `build-for-testing` | 包 100 条过（跳过 1 条：生产配置 CPU 只在 -O 下测，和原来一样），125 秒；两边合计 205 条与拆前相同；HSTrackerTests 里的 105 条未跑（在打炉石） |
