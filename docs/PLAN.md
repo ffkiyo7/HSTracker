@@ -71,3 +71,4 @@
 - Release 包只写 `~/Library/Logs/HSTracker/hstracker.log`；首次从 `Build/Products/Release` 启动被 AppMover 模态框挡住，点 Don't Move。排查渲染前确认包内有 `Contents/Resources/CardDefs.bin`、`Contents/Resources/Managed/`。
 - build phase 的 inputs 必须覆盖真正读的东西；`Embed Mono` 整拷 `net8.0` 目录；vendored 安装阶段保留 staging → 校验 → `cp`；代理 `127.0.0.1:7890` 探到才设；`grep -c 新文件.swift project.pbxproj` 应为 3~4。
 - `-configuration Release` 下测试 target 编不过（`HSTracker-Test-Bridging-Header.h:13` 找不到 HockeySDK）。
+- 红龙解耦 / mod 化评估（10-15，只评估，没动代码）：`docs/research/red-dragon-mod-eval.md`。结论是让 HSTracker 支持 mod、红龙做成第一个 mod，分三阶段，第一阶段是仓库内解耦。
