@@ -1,6 +1,6 @@
 //
 //  RedDragonOverlayModel.swift
-//  HSTracker
+//  RedDragonMod
 //
 //  展示模型（`RedDragonHint`）→ overlay 上每样东西画不画、画成什么。纯值、纯函数：揭示档、答题、
 //  过时这些「画不画」的规则都在这里，视图只按它摆位置。几何（面板让开手牌 / 场面）也在这里，

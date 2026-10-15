@@ -1,6 +1,6 @@
 //
 //  RedDragonPreferences.swift
-//  HSTracker
+//  RedDragonMod
 //
 //  ModKit 口子 4：设置窗里红龙辅助的一页：总开关 + 默认揭示档 + 答题模式 + 热键说明。
 //  读写一律走 mod 的设置（`ModSettings`，它会通知观察者，assistant 和热键靠它热切换）；不用 @AppStorage，那条路不通知。

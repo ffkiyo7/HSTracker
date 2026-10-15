@@ -1,6 +1,6 @@
 //
 //  RedDragonSnapshot.swift
-//  HSTracker
+//  RedDragonMod
 //
 //  红龙辅助的「局面读取」第一步：把对局里用得到的数据拷成纯值。
 //  在解析线程上、一致边界（ModKit 的 `batchEnded(idle: true)` / `topBlockClosed`）上拷（`RedDragonAssistant`）：

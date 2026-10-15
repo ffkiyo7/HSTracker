@@ -6,10 +6,9 @@
 //  `RootOverlayView`、`AppDelegate` 的设置页分组；外加 `AppDelegate` 启动 / 退出各一行），
 //  它再把 ModKit 的 5 个口子接到已启用的 mod 上。上游改宿主类型时改的是 HSTracker/Mods/ 这一层，mod 不动。
 //
-//  mod 的来源：
-//  - 编进 app 的（`builtInRegistrations`），启动时直接登记；
-//  - `~/Library/Application Support/HSTracker/Mods/` 里的动态库，由 ModHost 扫描、判版本、dlopen、判安全模式。
-//  两种 mod 走同一套宿主服务和口子。设置里关掉某个 mod 下次启动生效（Swift 库加载后卸不掉）。
+//  mod 是 `~/Library/Application Support/HSTracker/Mods/` 里的动态库，由 ModHost 扫描、判版本、dlopen、判安全模式；
+//  这里给每个 mod 一份宿主服务，再把它们交回的口子接上。设置里关掉某个 mod 下次启动生效（Swift 库加载后卸不掉）。
+//  红龙辅助是第一个 mod（Mods/RedDragon/，`build.sh --install` 装进 Mods 目录）。
 //
 //  线程：`start` / `shutdown` / 读口子在主线程；对局事件在解析线程（`LogReaderManager` 的串行队列）上同步派发，
 //  回调列表启动后不再变，派发时在锁里拷一份。
@@ -24,9 +23,6 @@ final class ModManager {
 
     static let shared = ModManager()
 
-    /// 编进 app 的 mod（排在 Mods 目录里的前面）。红龙辅助搬成 Mods/RedDragon/ 的动态库之前先编在这里
-    static var builtInRegistrations: [() -> ModRegistration] = [RedDragonMod.registration]
-
     /// 宿主老版本存过的设置键 → mod 的设置键（mod id → [(老键, 新键)]）。启动时抄一次，老键留着给旧版用
     static let legacySettings: [String: [(legacy: String, key: String)]] = [
         // 红龙辅助编在 app 里时（Settings+Fork.swift）的三个键
@@ -39,14 +35,10 @@ final class ModManager {
 
     /// 一个 mod 在设置页列表里的一行
     struct Entry {
-        enum Source {
-            case builtIn
-            case file(URL)
-        }
         var id: String?
         var name: String
         var version: String?
-        var source: Source
+        var url: URL
         var status: String
         var isActive: Bool
     }
@@ -57,7 +49,6 @@ final class ModManager {
     private(set) var entries: [Entry] = []
     private(set) var overlayProviders: [(id: String, provider: any ModOverlayProvider)] = []
     private(set) var preferencePanes: [(manifest: ModManifest, pane: ModPreferencePane)] = []
-    private var builtInMods: [(manifest: ModManifest, mod: any HSTrackerMod)] = []
     private var started = false
 
     // —— 解析线程（`handlers` 启动时写一次，之后只读；都在 `lock` 下）——
@@ -83,58 +74,24 @@ final class ModManager {
     func start() {
         guard !started else { return }
         started = true
-        let disabled = Self.disabledModIDs
-        var contributions: [(manifest: ModManifest, contributions: ModContributions)] = []
-
-        var builtInIDs = Set<String>()
-        for make in Self.builtInRegistrations {
-            let registration = make()
-            let manifest = registration.manifest
-            var entry = Entry(id: manifest.id, name: manifest.name, version: manifest.version, source: .builtIn,
-                              status: "", isActive: false)
-            defer { entries.append(entry) }
-            guard ModManifest.isValidID(manifest.id), !builtInIDs.contains(manifest.id) else {
-                entry.status = ModStatus.invalidID.summary
-                continue
-            }
-            builtInIDs.insert(manifest.id)
-            guard !disabled.contains(manifest.id) else {
-                entry.status = ModStatus.disabledByUser.summary
-                continue
-            }
-            let mod = registration.makeMod()
-            do {
-                let c = try mod.activate(services(for: manifest))
-                builtInMods.append((manifest, mod))
-                contributions.append((manifest, c))
-                entry.status = ModStatus.active.summary
-                entry.isActive = true
-                logger.info("mods: 已启用内置 mod \(manifest.id) \(manifest.version)")
-            } catch {
-                entry.status = ModStatus.activationFailed(String(describing: error)).summary
-                logger.error("mods: 内置 mod \(manifest.id) 启用失败：\(error)")
-            }
-        }
-
         // 跑测试时不扫 Mods 目录：测试宿主结束时不走 applicationWillTerminate，会被 ModHost 当成崩溃，下次启动进安全模式
-        if !AppDelegate.isRunningTests {
-            let forceSafeMode = NSEvent.modifierFlags.contains(.shift)
-            let configuration = ModHostConfiguration.standard(disabledModIDs: disabled, forceSafeMode: forceSafeMode) { level, message in
-                Self.log(level, "mods: \(message)")
-            }
-            let host = ModHost(configuration: configuration)
-            self.host = host
-            host.loadMods()
-            host.activateMods { [unowned self] manifest in self.services(for: manifest) }
-            for record in host.records {
-                let duplicate = record.modID.map(builtInIDs.contains) ?? false
-                entries.append(Entry(id: record.modID, name: record.manifest?.name ?? record.label,
-                                     version: record.manifest?.version, source: .file(record.candidate.url),
-                                     status: duplicate ? "id 和内置 mod 重复，未接入" : record.status.summary,
-                                     isActive: !duplicate && { if case .active = record.status { return true }; return false }()))
-            }
-            contributions += host.activeContributions.filter { !builtInIDs.contains($0.manifest.id) }
+        guard !AppDelegate.isRunningTests else { return }
+        let forceSafeMode = NSEvent.modifierFlags.contains(.shift)
+        let configuration = ModHostConfiguration.standard(disabledModIDs: Self.disabledModIDs,
+                                                          forceSafeMode: forceSafeMode) { level, message in
+            Self.log(level, "mods: \(message)")
         }
+        let host = ModHost(configuration: configuration)
+        self.host = host
+        host.loadMods()
+        host.activateMods { [unowned self] manifest in self.services(for: manifest) }
+        entries = host.records.map { record in
+            let active: Bool
+            if case .active = record.status { active = true } else { active = false }
+            return Entry(id: record.modID, name: record.manifest?.name ?? record.label, version: record.manifest?.version,
+                         url: record.candidate.url, status: record.status.summary, isActive: active)
+        }
+        let contributions = host.activeContributions
 
         lock.lock()
         handlers = contributions.compactMap { item in item.contributions.gameEvents.map { (item.manifest.id, $0) } }
@@ -146,8 +103,6 @@ final class ModManager {
     /// `applicationWillTerminate`：逐个 `deactivate`，告诉 ModHost 正常退出
     @MainActor
     func shutdown() {
-        for item in builtInMods { item.mod.deactivate() }
-        builtInMods = []
         host?.shutdown()
     }
 

@@ -1,6 +1,6 @@
 //
 //  RedDragonStrings.swift
-//  HSTracker
+//  RedDragonMod
 //
 //  红龙辅助自有的界面文案，全部集中在这里。AGENTS.md 不许给 .xcstrings 增 key，所以直接写中文字面量；
 //  卡名不在这里，跟随应用语言由 HSTracker 给（宿主服务 `cardName`）。

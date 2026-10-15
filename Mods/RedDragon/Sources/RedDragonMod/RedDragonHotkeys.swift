@@ -1,6 +1,6 @@
 //
 //  RedDragonHotkeys.swift
-//  HSTracker
+//  RedDragonMod
 //
 //  红龙辅助的热键：升档 / 降档 / 答题模式开关。
 //

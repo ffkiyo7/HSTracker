@@ -23,12 +23,13 @@
 | 排队显示牌组、局末小结窗 | Phase 6 / 7；新线 S6a / S6b |
 | 包体瘦身（不打包 `HearthDb.xml`，.NET 基础库只嵌本架构） | PR #3 `aecd42bf` |
 | 红龙贼 combo 提示器 | T0+T1 `0a921d6b`；T2a `d73f8a6`；T2b `61fbcbd`；T2c `359916c`；T3 跟手 `507d354`；T4 奶 16 + 完整公式 `a3326ac`；T5 引擎核对 `35a783f6`；T6 面板 1.6 倍 `1f6384bf`；T7 跟手延迟 `cf73e238`；T8 破冰 `8f5a1636` + `2a126604` + `d8da0b4b` + `e2a85b3d` |
-| 红龙解耦与 mod 化（评估 `docs/research/red-dragon-mod-eval.md`） | M1 引擎包挪到 `Packages/RedDragonCore/`、去掉 `sources:` 点名、pbxproj 删 12 条导航引用；M2 引擎立公开接口（顶层 53 个类型标 `public`，比评估的 30 个多出的是 public 签名连带的；`-enable-testing` 只在 Debug，app 侧改普通 `import`）；M3 拆测试：只碰引擎的 100 条（`RedDragonTests` 54、`RedDragonIceBreakTests` 32、`RedDragonSetupTests` 6、`RedDragonFormulaTests` 8 整个）挪进包的 `RedDragonCoreTests`，`formulas.json` / `sim.py` 跟着挪，HSTrackerTests 留 105 条；M4 合入 ModKit / ModHost，app 适配层 `HSTracker/Mods/`（mod 管理器、对局 / 实体适配、宿主服务和 mod 设置存取、overlay 图层、设置窗「Mod」分组），5 处挂点改调 `ModManager`，红龙胶水改走 ModKit、作为内置 mod 仍编在 app 里，设置键改成 `mod.red-dragon.*`（老 `red_dragon_*` 键启动时抄一次、不删）（分支 `claude/project-thread-rdkiom`） |
+| 红龙解耦与 mod 化（评估 `docs/research/red-dragon-mod-eval.md`） | M1 引擎包挪到 `Packages/RedDragonCore/`、去掉 `sources:` 点名、pbxproj 删 12 条导航引用；M2 引擎立公开接口（顶层 53 个类型标 `public`，比评估的 30 个多出的是 public 签名连带的；`-enable-testing` 只在 Debug，app 侧改普通 `import`）；M3 拆测试：只碰引擎的 100 条（`RedDragonTests` 54、`RedDragonIceBreakTests` 32、`RedDragonSetupTests` 6、`RedDragonFormulaTests` 8 整个）挪进包的 `RedDragonCoreTests`，`formulas.json` / `sim.py` 跟着挪，HSTrackerTests 留 105 条；M4 合入 ModKit / ModHost，app 适配层 `HSTracker/Mods/`（mod 管理器、对局 / 实体适配、宿主服务和 mod 设置存取、overlay 图层、设置窗「Mod」分组），5 处挂点改调 `ModManager`，红龙胶水改走 ModKit、作为内置 mod 仍编在 app 里，设置键改成 `mod.red-dragon.*`（老 `red_dragon_*` 键启动时抄一次、不删）；M5 红龙胶水 8 个文件挪到 `Mods/RedDragon/`（SwiftPM 动态库 + 入口 `hstracker_mod_entry`，`build.sh` 编 Release、把 ModKit 依赖改指 app 里的 `ModKit.framework`、ad hoc 签名，`--install` 装进 Mods 目录），app 不再含红龙（RedDragonCore 也移出 app target），HSTrackerTests 直接编 mod 源码（除入口文件）、Debug 加 `-DDEBUG`（分支 `claude/project-thread-rdkiom`） |
 
 ## 构建 / 测试记录
 
 | 日期 | 范围 | 结果 |
 |---|---|---|
+| 10-16 | M5 红龙搬成 mod：`Mods/RedDragon/build.sh`（导出入口、不带 ModKit）、app Debug 增量 build、`build-for-testing` | 都通过；app 二进制里红龙符号 0 个，测试包里有；105 条红龙测试、回放逐回合比对、Debug 包加载 mod 未跑（在打炉石） |
 | 10-16 | M4 适配层 + 红龙改走 ModKit：Debug 增量 build、`build-for-testing`（HSTrackerTests 链接 ModKit，app 里只有一份 ModKit.framework） | 都通过；HSTrackerTests 里的 105 条红龙测试未跑（在打炉石） |
 | 10-15 | M3 拆测试：`swift test`（包，不启动 app）、app `build-for-testing` | 包 100 条过（跳过 1 条：生产配置 CPU 只在 -O 下测，和原来一样），125 秒；两边合计 205 条与拆前相同；HSTrackerTests 里的 105 条未跑（在打炉石） |
 | 10-15 | M2 引擎立公开接口：包 `swift build` Debug / Release、app Debug 增量 build、`build-for-testing` | 都通过；红龙测试未跑（在打炉石） |
@@ -59,7 +60,7 @@
 | `show_constructed_session_recap` | — | true | 局末小结 |
 | `keep_power_log` | — | true | `Power.log` 不截断 |
 | `tracker_motion`、`tracker_perf_*` | — | 诊断键，不进设置页 | — |
-| `red_dragon_assist` / `red_dragon_reveal_level` / `red_dragon_quiz_mode` | — | false / 0 / false | 红龙，热切换 |
+| `mod.red-dragon.assist` / `.revealLevel` / `.quizMode`（老键 `red_dragon_*`） | — | false / 0 / false | 红龙 mod，热切换 |
 
 合并还要保住：`NET_VERSION = net8.0`；`MACOSX_DEPLOYMENT_TARGET = 14.0`；`Card.copy()` 补拷 `enText`；
 `RealmHelper.add(mirrorDeck:)` 补存 sideboard（`507d354`，不补则新导入套牌首局 E.T.C. 为空、红龙 overlay 不出）。
@@ -77,5 +78,5 @@
 - build phase 的 inputs 必须覆盖真正读的东西；`Embed Mono` 整拷 `net8.0` 目录；vendored 安装阶段保留 staging → 校验 → `cp`；代理 `127.0.0.1:7890` 探到才设；`grep -c 新文件.swift project.pbxproj` 应为 3~4。
 - `-configuration Release` 下测试 target 编不过（`HSTracker-Test-Bridging-Header.h:13` 找不到 HockeySDK）。
 - 红龙引擎测试：`cd Packages/RedDragonCore && swift test`（同样去掉代理环境变量、`PATH=/usr/bin:/bin:/usr/sbin:/sbin`），不启动 app、不读卡库；要 HSTracker 在场的红龙测试仍在 HSTrackerTests。
-- mod：app 侧只在 `HSTracker/Mods/` 接 ModKit（上游改宿主类型时只改这层）；`~/Library/Application Support/HSTracker/Mods/` 里的动态库由 ModHost 加载，启动时按住 ⇧ 进安全模式；设置窗「Mod」页的开关下次启动生效；跑测试时不扫 Mods 目录（测试宿主退出不走 `applicationWillTerminate`，会被当成崩溃）。红龙测试的设置用单独的 UserDefaults 域（`RedDragonTestSupport.swift`）。
+- mod：app 侧只在 `HSTracker/Mods/` 接 ModKit（上游改宿主类型时只改这层）；`~/Library/Application Support/HSTracker/Mods/` 里的动态库由 ModHost 加载，启动时按住 ⇧ 进安全模式；设置窗「Mod」页的开关下次启动生效；跑测试时不扫 Mods 目录（测试宿主退出不走 `applicationWillTerminate`，会被当成崩溃）。红龙测试的设置用单独的 UserDefaults 域（`RedDragonTestSupport.swift`）。红龙 mod：`Mods/RedDragon/build.sh --install`（受限环境，装到 Mods 目录；Release 3.7.0 不读这个目录），改了 mod 源码要重装再重启 HSTracker。
 - 红龙解耦 / mod 化评估（10-15，只评估，没动代码）：`docs/research/red-dragon-mod-eval.md`。结论是让 HSTracker 支持 mod、红龙做成第一个 mod，分三阶段，第一阶段是仓库内解耦。

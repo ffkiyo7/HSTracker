@@ -55,5 +55,7 @@ archives
 # Appcast private key
 dsa_priv.pem
 
-# 红龙本地 SwiftPM 包的工作目录（Xcode / swift build 生成）
+# 本地 SwiftPM 包的工作目录（Xcode / swift build 生成）
 HSTracker/RedDragon/.swiftpm/
+Packages/*/.swiftpm/
+Mods/*/.swiftpm/

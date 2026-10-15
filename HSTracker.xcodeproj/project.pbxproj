@@ -4107,7 +4107,6 @@
 				B8D75BC325BD10B600446923 /* OAuthSwift in Frameworks */,
 				4C68AF2B2447D35B00E52834 /* HearthMirror.framework in Frameworks */,
 				B8196F112CC1BB58007C0371 /* Sentry in Frameworks */,
-				B8DD0F00000000000000B020 /* RedDragonCore in Frameworks */,
 				B8DD0F0000000000000E0020 /* ModKit in Frameworks */,
 				B8DD0F0000000000000E0021 /* ModHost in Frameworks */,
 			);
@@ -4124,6 +4123,7 @@
 				B8D75BD125BDAF1300446923 /* OAuthSwift in Frameworks */,
 				B8D75BC525BDAF1300446923 /* SwiftyBeaver in Frameworks */,
 				B8DD0F0000000000000E0023 /* ModKit in Frameworks */,
+				B8DD0F00000000000000B020 /* RedDragonCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -4476,7 +4476,6 @@
 				B82F4EA924E3020800905024 /* Mono */,
 				B82AE5FC28BE8631004A8FE0 /* mono-version.txt */,
 				432AD9571DAD468000D8F959 /* Network */,
-				B8DD0F00000000000000F000 /* RedDragon */,
 				B8DE0F00000000000000F000 /* Mods */,
 				439C7E8E1C777D6C00D29859 /* Resources */,
 				C99C0C9B1D0A607D000DD6FB /* Statistics */,
@@ -4516,7 +4515,7 @@
 			path = Mods;
 			sourceTree = "<group>";
 		};
-		B8DD0F00000000000000F000 /* RedDragon */ = {
+		B8DD0F00000000000000F000 /* RedDragonMod */ = {
 			isa = PBXGroup;
 			children = (
 				B8DD0F00000000000000A012 /* RedDragonSnapshot.swift */,
@@ -4528,8 +4527,9 @@
 				B8DD0F00000000000000A023 /* RedDragonPreferences.swift */,
 				B8DE0F00000000000000A101 /* RedDragonMod.swift */,
 			);
-			path = RedDragon;
-			sourceTree = "<group>";
+			name = RedDragonMod;
+			path = Mods/RedDragon/Sources/RedDragonMod;
+			sourceTree = SOURCE_ROOT;
 		};
 		439C7E5F1C7772C100D29859 /* HSTrackerTests */ = {
 			isa = PBXGroup;
@@ -4540,6 +4540,7 @@
 				B8DD0F00000000000000A016 /* RedDragonLiveReplayTests.swift */,
 				B8DD0F00000000000000A024 /* RedDragonOverlayTests.swift */,
 				B8DE0F00000000000000A102 /* RedDragonTestSupport.swift */,
+				B8DD0F00000000000000F000 /* RedDragonMod */,
 				B8DD0F00000000000000A028 /* RedDragonFeedbackTests.swift */,
 				B8DD0F00000000000000A030 /* RedDragonSetupTests.swift */,
 				B8DD0F00000000000000A033 /* RedDragonIceBreakTests.swift */,
@@ -7147,7 +7148,6 @@
 				B889F6082CEC1CFB001506F4 /* Atomics */,
 				B8E1E5A22CF94FB900383975 /* AppMover */,
 				3CB1A35C2E8C3A400090486F /* Mixpanel */,
-				B8DD0F00000000000000D002 /* RedDragonCore */,
 				B8DD0F0000000000000E0002 /* ModKit */,
 				B8DD0F0000000000000E0004 /* ModHost */,
 			);
@@ -7175,6 +7175,7 @@
 				B8D75BD025BDAF1300446923 /* OAuthSwift */,
 				B8D75BEB25BDFA2500446923 /* RealmSwift */,
 				B8DD0F0000000000000E0005 /* ModKit */,
+				B8DD0F00000000000000D002 /* RedDragonCore */,
 			);
 			productName = HSTrackerTests;
 			productReference = 439C7E5C1C7772C100D29859 /* HSTrackerTests.xctest */;
@@ -8382,19 +8383,11 @@
 				B846CC9E2E1C217E00552F9C /* InsectClaw.swift in Sources */,
 				434910521D09773D00B22DB2 /* IBoardEntity.swift in Sources */,
 				43BDF0BE1DB89A830081964A /* WindowManager.swift in Sources */,
-				B8DD0F00000000000000B012 /* RedDragonSnapshot.swift in Sources */,
-				B8DD0F00000000000000B015 /* RedDragonAssistant.swift in Sources */,
-				B8DD0F00000000000000B01E /* RedDragonStrings.swift in Sources */,
-				B8DD0F00000000000000B01F /* RedDragonOverlayModel.swift in Sources */,
-				B8DD0F00000000000000B021 /* RedDragonOverlayView.swift in Sources */,
-				B8DD0F00000000000000B022 /* RedDragonHotkeys.swift in Sources */,
-				B8DD0F00000000000000B023 /* RedDragonPreferences.swift in Sources */,
 				B8DE0F00000000000000B001 /* ModGameAdapter.swift in Sources */,
 				B8DE0F00000000000000B002 /* ModServices.swift in Sources */,
 				B8DE0F00000000000000B003 /* ModOverlayLayer.swift in Sources */,
 				B8DE0F00000000000000B004 /* ModManager.swift in Sources */,
 				B8DE0F00000000000000B005 /* ModsPreferences.swift in Sources */,
-				B8DE0F00000000000000B101 /* RedDragonMod.swift in Sources */,
 				B89865C52D92010C00BA5649 /* ElvenMinstrel.swift in Sources */,
 				B8B78F9D2C93C39000DD33EC /* IShowInGlobalEffectList.swift in Sources */,
 				B89865992D91D1DA00BA5649 /* MalygosTheSpellweaverCore.swift in Sources */,
@@ -9434,6 +9427,14 @@
 				B8DD0F00000000000000B033 /* RedDragonIceBreakTests.swift in Sources */,
 				B8DD0F00000000000000B024 /* RedDragonOverlayTests.swift in Sources */,
 				B8DE0F00000000000000B102 /* RedDragonTestSupport.swift in Sources */,
+				B8DE0F00000000000000B101 /* RedDragonMod.swift in Sources */,
+				B8DD0F00000000000000B023 /* RedDragonPreferences.swift in Sources */,
+				B8DD0F00000000000000B022 /* RedDragonHotkeys.swift in Sources */,
+				B8DD0F00000000000000B021 /* RedDragonOverlayView.swift in Sources */,
+				B8DD0F00000000000000B01F /* RedDragonOverlayModel.swift in Sources */,
+				B8DD0F00000000000000B01E /* RedDragonStrings.swift in Sources */,
+				B8DD0F00000000000000B015 /* RedDragonAssistant.swift in Sources */,
+				B8DD0F00000000000000B012 /* RedDragonSnapshot.swift in Sources */,
 				43C1C9FD1E96CCE9008C20B1 /* DatabaseTests.swift in Sources */,
 				439BD8C91EBCD40200959F69 /* EnumTests.swift in Sources */,
 				B8AA00022C00000100000002 /* OfficialBuildTests.swift in Sources */,
@@ -9938,7 +9939,7 @@
 				);
 				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/downloaded-frameworks/mono/runtimes/osx-x64/native";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				OTHER_SWIFT_FLAGS = "-DHSTTEST";
+				OTHER_SWIFT_FLAGS = "-DHSTTEST -DDEBUG";
 				PRODUCT_BUNDLE_IDENTIFIER = net.hearthsim.hstracker.HSTrackerTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "HSTrackerTests/HSTracker-Test-Bridging-Header.h";

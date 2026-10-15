@@ -1,6 +1,6 @@
 //
 //  RedDragonAssistant.swift
-//  HSTracker
+//  RedDragonMod
 //
 //  红龙辅助的调度：解析边界上的挂点 → 解析线程拷快照 → 主线程去抖调度 → 后台读取 + 搜索 → 主线程一次提交。
 //

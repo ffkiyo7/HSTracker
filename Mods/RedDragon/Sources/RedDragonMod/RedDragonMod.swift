@@ -1,6 +1,6 @@
 //
 //  RedDragonMod.swift
-//  HSTracker
+//  RedDragonMod
 //
 //  红龙辅助作为 HSTracker mod 的入口：只通过 ModKit 的口子和 HSTracker 打交道（对局事件、读对局状态、overlay 图层、
 //  设置页、宿主服务），不碰宿主类型。

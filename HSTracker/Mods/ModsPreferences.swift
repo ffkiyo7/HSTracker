@@ -119,17 +119,12 @@ struct ModsPreferencesView: View {
                     if let version = entry.version {
                         Text(version).foregroundColor(.secondary)
                     }
-                    if case .builtIn = entry.source {
-                        Text("内置").font(.caption).foregroundColor(.secondary)
-                    }
                 }
                 Text(entry.status)
                     .font(.callout)
                     .foregroundColor(entry.isActive ? .secondary : .orange)
                     .fixedSize(horizontal: false, vertical: true)
-                if case .file(let url) = entry.source {
-                    Text(url.path).font(.caption).foregroundColor(.secondary).lineLimit(1).truncationMode(.middle)
-                }
+                Text(entry.url.path).font(.caption).foregroundColor(.secondary).lineLimit(1).truncationMode(.middle)
             }
         }
     }

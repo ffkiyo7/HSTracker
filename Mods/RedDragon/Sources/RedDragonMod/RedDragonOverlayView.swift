@@ -1,6 +1,6 @@
 //
 //  RedDragonOverlayView.swift
-//  HSTracker
+//  RedDragonMod
 //
 //  红龙辅助的 overlay：只有左下角的判定面板（手牌 / 场面上的框和序号 10-06 删掉了）。
 //  ModKit 口子 3：宿主把它放进 overlay 的固定像素层（画布 = 炉石窗口的真实像素），面板让位用的手牌 / 场面几何
