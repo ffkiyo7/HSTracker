@@ -73,8 +73,8 @@ public struct RedDragonResult {
     var exhaustive = false
     /// 准备线搜索（`config.setup` 非 nil）的结果，按优劣排好；斩杀搜索恒空
     public var setupLines: [RedDragonLine] = []
-    /// 破冰搜索的一遍（`config.iceBreakPass`）收下的候选：终局冰已打掉、重放校验过，按破冰后剩余血量升序、
-    /// 同剩余按便宜分降序。还没探过下回合，取舍在 `RedDragonSearch.solveIceBreak`。其他搜索恒空
+    /// 破冰搜索的一遍（`config.iceBreakPass`）收下的候选：终局冰已打掉、重放校验过，按档排好（下回合手里阿莱多的在前、
+    /// 同阿莱剩余血量低的在前，`RDIceBreak.Level`），同档按便宜分降序。还没探过下回合，取舍在 `RedDragonSearch.solveIceBreak`。其他搜索恒空
     var iceLines: [RedDragonLine] = []
     /// 破冰搜索里花在「冰已打掉之后」的展开状态数（含在 `statesExpanded` 里）
     var prepStatesExpanded = 0
@@ -388,11 +388,12 @@ public enum RedDragonSearch {
         //   另开一束（`prepBeamWidth`），最多走 `maxPrepLayers` 步，状态数从 `prepMaxStates` 里分、低档先分。
         //   根局面进来冰就已经打掉时只有这一段、只有一档。
         //
+        // 「一档」= 破冰后剩余血量相同、下回合手里阿莱张数也相同（`RDIceBreak.Level`，口径 15）。
         // 候选（`iceKept`）= 每档、每个步数（本回合这条线一共几步）便宜分最高的 `keepPerDepth` 个终局。
         // 便宜分只是下回合的乐观估计，靠不住：所以按「档 × 步数」分开留，不让深处估得高的把浅的整批挤掉 ——
         // 同档里步数少的那条正是口径 11 最后要比的。探下回合、排先后都在 `solveIceBreak`
         struct IceKey: Hashable {
-            var remaining: Int
+            var level: RDIceBreak.Level
             var steps: Int
         }
         typealias IceSeed = (steps: Int, child: Child)
@@ -400,15 +401,16 @@ public enum RedDragonSearch {
         let ice = config.iceBreak
         /// 第二段开始了没有
         var icePrep = icePass && root.opponent.ice == .broken
-        /// 第一段存下的破冰局面：剩余血量 → 这一档的局面（带着它是第几步破的冰），每档最多留 `prepBeamWidth` 个
-        var iceSeeds: [Int: [IceSeed]] = [:]
+        /// 第一段存下的破冰局面：档（破冰那一刻的阿莱张数、剩余血量）→ 这一档的局面（带着它是第几步破的冰），
+        /// 每档最多留 `prepBeamWidth` 个
+        var iceSeeds: [RDIceBreak.Level: [IceSeed]] = [:]
         /// 候选：（剩余血量，步数）→ 便宜分降序的前 `keepPerDepth` 个。造线（要算难度分）留到收尾时做
         var iceKept: [IceKey: [Child]] = [:]
         /// 剩余 1 的破冰最早出现在第几层
         var lowestBreakDepth: Int?
-        /// 第二段：还没展开的档（剩余血量升序）、当前档已经走了几步准备、当前档的状态数用到多少为止（`prepStates` 的值）、
+        /// 第二段：还没展开的档（阿莱多的在前、同阿莱剩余血量低的在前）、当前档已经走了几步准备、当前档的状态数用到多少为止（`prepStates` 的值）、
         /// 正在展开的那个节点的线有几步
-        var prepPending: [Int] = []
+        var prepPending: [RDIceBreak.Level] = []
         var prepLayer = 0
         var prepCap = ice.prepMaxStates
         var prepParentSteps = 0
@@ -422,7 +424,8 @@ public enum RedDragonSearch {
         }
         /// 候选只留每个（档，步数）便宜分最高的几个
         func keepIce(_ c: Child, steps: Int) {
-            let key = IceKey(remaining: c.state.opponent.effectiveHealth, steps: steps)
+            let key = IceKey(level: RDIceBreak.Level(dragons: RDIceBreak.dragons(c.state),
+                                                     remaining: c.state.opponent.effectiveHealth), steps: steps)
             if let kept = iceKept[key], kept.count >= ice.keepPerDepth, let last = kept.last, !byScore(c, last) {
                 return
             }
@@ -458,7 +461,7 @@ public enum RedDragonSearch {
             }
             return n
         }
-        /// 第二段换到下一档：还没展开的档里剩余血量最低的那一档，返回它的破冰局面（下一层的束）。
+        /// 第二段换到下一档：还没展开的档里排在最前的那一档，返回它的破冰局面（下一层的束）。
         /// 没有档了、或准备步的状态数已经用完，返回空
         func nextPrepLevel() -> [Child] {
             while !prepPending.isEmpty {
@@ -467,11 +470,11 @@ public enum RedDragonSearch {
                     pruned = true
                     return []
                 }
-                let remaining = prepPending.removeFirst()
-                // 低档先分：每档最多用掉还剩的一半，最后一档拿走全部剩下的
+                let level = prepPending.removeFirst()
+                // 前面的档先分：每档最多用掉还剩的一半，最后一档拿走全部剩下的
                 prepCap = prepStates + (prepPending.isEmpty ? left : max(1, left / 2))
                 prepLayer = 0
-                let all = iceSeeds[remaining] ?? []
+                let all = iceSeeds[level] ?? []
                 let seeds = thinSeeds(all, width: ice.prepBeamWidth)
                 if seeds.count < all.count { pruned = true }
                 if !seeds.isEmpty { return seeds.map { $0.child } }
@@ -608,11 +611,12 @@ public enum RedDragonSearch {
                     }
                     // 第一段：就是这一步把冰打掉的（这一段按层走，这条线正好 `depth + 1` 步）。
                     // 不进束，存进它那一档等第二段；不做准备它也是候选
-                    let remaining = next.opponent.effectiveHealth
+                    let level = RDIceBreak.Level(dragons: RDIceBreak.dragons(next),
+                                                 remaining: next.opponent.effectiveHealth)
                     if usable { keepIce(child, steps: depth + 1) }
-                    iceSeeds[remaining, default: []].append((depth + 1, child))
-                    if let all = iceSeeds[remaining], all.count > 2 * ice.prepBeamWidth {
-                        iceSeeds[remaining] = thinSeeds(all, width: ice.prepBeamWidth)
+                    iceSeeds[level, default: []].append((depth + 1, child))
+                    if let all = iceSeeds[level], all.count > 2 * ice.prepBeamWidth {
+                        iceSeeds[level] = thinSeeds(all, width: ice.prepBeamWidth)
                         pruned = true
                     }
                     return
@@ -781,7 +785,7 @@ public enum RedDragonSearch {
             if icePass {
                 if !icePrep {
                     // 第一段：`children` 里只有冰还在的节点（把冰打掉的已经存进 `iceSeeds`）
-                    if lowestBreakDepth == nil, iceSeeds.keys.contains(where: { $0 <= 1 }) { lowestBreakDepth = depth }
+                    if lowestBreakDepth == nil, iceSeeds.keys.contains(where: { $0.remaining <= 1 }) { lowestBreakDepth = depth }
                     // 收口只有三种：状态闸门、层数上限，或者剩余 1 的破冰已经出现了 `extraBreakLayers` 层。
                     // 「已经有破冰线了」不是收口的理由 —— 剩得更少的破法在更深处
                     var stop = breakSearchStopped || depth >= config.maxDepth
@@ -791,7 +795,7 @@ public enum RedDragonSearch {
                         pruned = true
                     }
                     if children.isEmpty {
-                        // 压血走到头了：转第二段，从剩余血量最低的一档起
+                        // 压血走到头了：转第二段，从排在最前的一档起（阿莱多的、同阿莱剩余低的）
                         icePrep = true
                         prepPending = iceSeeds.keys.sorted()
                         children = nextPrepLevel()
@@ -877,15 +881,18 @@ public enum RedDragonSearch {
 
         // 收尾（落位翻译、去重排序、重放校验）每条线都要重放，线多时不便宜：每一步之间、每条线之前都看取消
         if icePass {
-            // 候选收尾（预算在半路用完时，已经记下的候选照样收）。次序：剩余血量低的在前，同档便宜分高的在前 ——
+            // 候选收尾（预算在半路用完时，已经记下的候选照样收）。次序：档在前的在前（`RDIceBreak.Level`），同档便宜分高的在前 ——
             // `solveIceBreak` 就按这个次序分档、排探针
             // （字典的遍历次序每个进程不一样：先按键排好再取，最后用取出来的先后打破平局，结果才可复现）
             var kept: [Child] = []
-            for key in iceKept.keys.sorted(by: { ($0.remaining, $0.steps) < ($1.remaining, $1.steps) }) {
+            for key in iceKept.keys.sorted(by: { $0.level != $1.level ? $0.level < $1.level : $0.steps < $1.steps }) {
                 kept += iceKept[key] ?? []
             }
+            func level(_ c: Child) -> RDIceBreak.Level {
+                return RDIceBreak.Level(dragons: RDIceBreak.dragons(c.state), remaining: c.state.opponent.effectiveHealth)
+            }
             let ordered = kept.enumerated().sorted { a, b in
-                let (x, y) = (a.element.state.opponent.effectiveHealth, b.element.state.opponent.effectiveHealth)
+                let (x, y) = (level(a.element), level(b.element))
                 if x != y { return x < y }
                 if a.element.score != b.element.score { return a.element.score > b.element.score }
                 if a.element.hash != b.element.hash { return a.element.hash < b.element.hash }

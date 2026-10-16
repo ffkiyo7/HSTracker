@@ -261,12 +261,12 @@ class RedDragonOverlayTests: HSTrackerTests {
 
     /// 破冰口径的结论（`RDHintBuilder.iceAnalysis` 给的那种：没有斩杀判定，只有 `ice`）
     static func iceAnalysis(_ kind: RDIceAdvice.Kind, formula: RDFormula? = nil, remaining: Int = 0, damage: Int = 0,
-                            broken: Bool = false, probed: Bool = true, proven: Bool = false, secrets: Bool = true,
+                            dragons: Int = 0, broken: Bool = false, probed: Bool = true, proven: Bool = false, secrets: Bool = true,
                             danger: Bool = false, completeness: RDCompleteness = .complete) -> RDAnalysis {
         var a = analysis(verdict: .notFound, damage: 0, health: 12, hand: [101, 102, 103, 104, 105, 106, 107],
                          danger: danger, secrets: secrets, completeness: completeness)
         a.ice = RDIceAdvice(kind: kind, formula: formula, broken: broken, remaining: remaining, nextTurnDamage: damage,
-                            nextTurnProbed: probed, proven: proven)
+                            nextTurnDragons: dragons, nextTurnProbed: probed, proven: proven)
         return a
     }
 
@@ -333,7 +333,8 @@ class RedDragonOverlayTests: HSTrackerTests {
     /// 不受揭示档和答题模式影响；一行下回合摘要；① 另有一行前提；② 不写「差多少」；③ 穷举了写破不了冰，没搜完写没搜到破冰线
     func testIcePanelContents() {
         // ① 破冰，下回合可斩
-        let lethal = Self.iceAnalysis(.lethalNextTurn, formula: Self.iceFormula(done: 1), remaining: 4, damage: 16)
+        let lethal = Self.iceAnalysis(.lethalNextTurn, formula: Self.iceFormula(done: 1), remaining: 4, damage: 16,
+                                      dragons: 2)
         let m1 = make(Self.iceHint(lethal))
         XCTAssertEqual(m1.badge?.title, "破冰，下回合可斩")
         XCTAssertEqual(m1.badge?.tone, .setup)
@@ -347,8 +348,8 @@ class RedDragonOverlayTests: HSTrackerTests {
         XCTAssertEqual(m1.lines[0].pieces.map { $0.text }, ["鱼3", "刀1", "龙0", "冰碎"], "冰在第 3 步碎，记号跟在那一步后面")
         XCTAssertEqual(m1.lines[1].pieces.map { $0.text }, ["币1", "步-龙1"], "冰碎之后的准备步另起一行")
         XCTAssertEqual(m1.lines.flatMap { $0.pieces.map { $0.state } }, [.done, .next, .pending, .note, .pending, .pending])
-        XCTAssertEqual(m1.lines[2].text, "破冰后剩 4｜下回合伤害 16")
-        XCTAssertEqual(m1.lines[3].text, "前提：对方回合不动场面、不回血")
+        XCTAssertEqual(m1.lines[2].text, "破冰后剩 4｜下回合手里 2 龙、伤害 16")
+        XCTAssertEqual(m1.lines[3].text, "前提：对方不回血、不再挂冰；场上随从不算")
         XCTAssertFalse(m1.lines.contains { $0.kind == .nextStep || $0.kind == .leftover })
 
         // 不受揭示档 / 答题模式影响：判定档、答题模式下还是整条公式，不画答题行
@@ -371,7 +372,7 @@ class RedDragonOverlayTests: HSTrackerTests {
         XCTAssertEqual(short.badge?.title, "能破冰")
         XCTAssertEqual(short.badge?.tone, .notFound)
         XCTAssertEqual(short.lines.map { $0.kind }, [.formula(setup: true), .formula(setup: true), .iceNextTurn(lethal: false)])
-        XCTAssertEqual(short.lines[2].text, "下回合没搜到斩杀：已知伤害 8｜破冰后剩 9")
+        XCTAssertEqual(short.lines[2].text, "下回合没搜到斩杀：手里 0 龙、伤害 8｜破冰后剩 9")
         XCTAssertFalse(short.lines.contains { $0.kind == .icePremise }, "没说可斩，不用前提")
         for line in short.lines { XCTAssertFalse(line.text.contains("差"), line.text) }
         XCTAssertFalse(short.badge?.title.contains("差") ?? true)
@@ -379,7 +380,7 @@ class RedDragonOverlayTests: HSTrackerTests {
         let unprobed = make(Self.iceHint(Self.iceAnalysis(.shortNextTurn, formula: Self.iceFormula(), remaining: 9,
                                                           probed: false, completeness: .truncated)))
         XCTAssertEqual(unprobed.badge?.title, "能破冰")
-        XCTAssertEqual(unprobed.lines[2].text, "下回合没算完｜破冰后剩 9")
+        XCTAssertEqual(unprobed.lines[2].text, "下回合没算完：手里 0 龙｜破冰后剩 9")
         XCTAssertEqual(unprobed.badge?.statuses, [.truncated])
         // 冰已碎、一步都不用打
         var zero = RDFormula(goal: .iceBreak, tokens: [])

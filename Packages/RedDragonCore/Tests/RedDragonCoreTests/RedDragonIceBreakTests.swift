@@ -111,9 +111,12 @@ class RedDragonIceBreakTests: XCTestCase {
         XCTAssertEqual(next.opponent.effectiveHealth, r.remaining, "下回合对方就是剩余血量", file: file, line: line)
         XCTAssertFalse(next.opponent.immune, file: file, line: line)
         XCTAssertNil(next.opponent.ice, "下回合回到平常规则", file: file, line: line)
+        XCTAssertEqual(r.nextTurnDragons, RDIceBreak.dragons(next), file: file, line: line)
         if let nl = r.nextTurnLine {
-            XCTAssertFalse(hasRandomDraw(nl.actions, from: next), "下回合的线不靠随机抽牌", file: file, line: line)
-            let ev = RDIceBreak.evidence(nl, on: next)
+            // 下回合线在它量的那种起手上重放：清场的（口径 15）或场面留着的
+            let start = r.nextTurnBoardCleared ? RDIceBreak.cleared(next) : next
+            XCTAssertFalse(hasRandomDraw(nl.actions, from: start), "下回合的线不靠随机抽牌", file: file, line: line)
+            let ev = RDIceBreak.evidence(nl, on: start)
             XCTAssertEqual(ev?.damage, r.nextTurnDamage, "下回合伤害是那条线重放出来的", file: file, line: line)
             XCTAssertEqual(ev?.lethalSteps, r.nextTurnLethalSteps, file: file, line: line)
         } else {
@@ -490,7 +493,10 @@ class RedDragonIceBreakTests: XCTestCase {
         assertBacked(r)
         XCTAssertTrue(r.alreadyBroken)
         XCTAssertEqual(try XCTUnwrap(r.line).actions.count, 0)
-        XCTAssertEqual(r.nextTurnDamage, 16)
+        // 口径 15：场上的鲨鱼不算（对方回合可能清场），下回合靠得住的只有手里这张阿莱的 8
+        XCTAssertEqual(r.nextTurnDamage, 8)
+        XCTAssertEqual(r.nextTurnDragons, 1)
+        XCTAssertTrue(r.nextTurnBoardCleared)
     }
 
     /// 只给不靠随机抽牌的破法（对方 3 血，行骗抽一张法术）：牌库里两种法术、抽到袋底藏沙才破得了 → 不算；
@@ -558,11 +564,11 @@ class RedDragonIceBreakTests: XCTestCase {
         let other = try RDEngine.apply(unlucky, to: next)
         XCTAssertThrowsError(try RDEngine.apply(drink, to: other))
 
-        // 对照：同一张药水从 E.T.C. 发现来（边牌里还有两张可选）是自己选的，照收
+        // 对照：E.T.C. 的发现（边牌里有两张可选）是自己选的，照收。下回合 10 费：1 费 E.T.C. 发现阿莱、9 费下阿莱 8 点。
+        // （原来这里是「发现药水、复制场上的阿莱」：场上的随从口径 15 起不算下回合的伤害，换成直接发现阿莱）
         var d = root(mana: 0, enemy: 8, secrets: 0, immune: true)
-        d.sideboard = [.bounceAround, .potionOfIllusion]
-        minion(&d, .alexstrasza)
-        card(&d, .etcBandManager)
+        d.sideboard = [.bounceAround, .alexstrasza]
+        card(&d, .etcBandManager, cost: 1)
         d.deck = RDDeck([(.potionOfIllusion, 1), (.preparation, 1)])
         let chosen = solve(d)
         assertBacked(chosen)
@@ -794,13 +800,15 @@ class RedDragonIceBreakTests: XCTestCase {
     // 搜索会不会因为已经有一条浅的破冰线就不往下找、压得最低的那条下回合斩不了怎么办、两次 8 在搜索里有没有被当成一次 16。
 
     /// 排序用的假候选：只有 `RDIceBreak.better` 看的几项是真的（剩余血量、下回合伤害、本回合步数、探没探）
-    private func candidate(remaining: Int, nextTurn: Int, steps: Int, probed: Bool = true) -> RDIceCandidate {
+    private func candidate(remaining: Int, nextTurn: Int, steps: Int, probed: Bool = true,
+                           dragons: Int = 0) -> RDIceCandidate {
         let comps = RDDifficulty.components(for: [], sideboardCardsTaken: 0, weights: .standard)
         let line = RedDragonLine(actions: Array(repeating: .heroPower, count: steps), damage: 0,
                                  difficulty: comps.score, components: comps, tier: RDDifficulty.tier(comps.score),
                                  branchKey: [], truncated: false)
         return RDIceCandidate(line: line, remaining: remaining, nextTurnRoot: root(mana: 0, enemy: remaining),
-                              nextTurnLine: nil, nextTurnDamage: nextTurn, nextTurnLethalSteps: nil, probed: probed)
+                              dragons: dragons, nextTurnLine: nil, nextTurnDamage: nextTurn, nextTurnLethalSteps: nil,
+                              probed: probed)
     }
 
     /// 口径 11 + 14 的先后，一项一项钉住。每一对里前一个应该排在后一个前面。
@@ -860,6 +868,19 @@ class RedDragonIceBreakTests: XCTestCase {
         assertFirst(candidate(remaining: 3, nextTurn: 0, steps: 1, probed: false),
                     candidate(remaining: 3, nextTurn: 0, steps: 2, probed: false), "都没探、同剩余：步数少的在前")
 
+        // 口径 15：都可斩时下回合手里阿莱多的在前，压过稳不稳、剩余血量和步数（2 张、剩 8、刚好够 > 1 张、剩 1、富余 15）
+        assertFirst(candidate(remaining: 8, nextTurn: 8, steps: 9, dragons: 2),
+                    candidate(remaining: 1, nextTurn: 16, steps: 1, dragons: 1), "都可斩：阿莱多的在前")
+        // 都斩不了时也一样：阿莱多的在前，哪怕差得多
+        assertFirst(candidate(remaining: 8, nextTurn: 0, steps: 1, dragons: 1),
+                    candidate(remaining: 2, nextTurn: 1, steps: 1, dragons: 0), "都斩不了：阿莱多的在前")
+        // 可斩仍在阿莱张数前面：手里 2 张却下不来（斩不了）< 1 张能斩
+        assertFirst(candidate(remaining: 5, nextTurn: 8, steps: 3, dragons: 1),
+                    candidate(remaining: 5, nextTurn: 1, steps: 3, dragons: 2), "可斩的在前，再比阿莱")
+        // 没探的照旧排在探过的后面，阿莱再多也一样（它的伤害不知道）
+        assertFirst(candidate(remaining: 5, nextTurn: 0, steps: 3, dragons: 0),
+                    candidate(remaining: 5, nextTurn: 0, steps: 3, probed: false, dragons: 3), "探过的在前")
+
         // 放在一起排一遍
         let sorted = [candidate(remaining: 8, nextTurn: 48, steps: 1), candidate(remaining: 1, nextTurn: 0, steps: 1),
                       candidate(remaining: 3, nextTurn: 3, steps: 6), candidate(remaining: 1, nextTurn: 1, steps: 9),
@@ -871,12 +892,13 @@ class RedDragonIceBreakTests: XCTestCase {
         XCTAssertEqual(sorted.map { $0.nextTurnDamage }, [32, 48, 1, 3, 0, 30])
     }
 
-    /// 口径 14 落到搜索上：剩得最低的一档下回合可斩但不稳，剩得多的一档稳 —— 要稳的，而且探针不能因为低档「可斩」
-    /// 就不探高档（`scheduleProbes` 只在探出稳斩之后才停）。
+    /// 口径 15 落到搜索上（10-16 用户定：「下回合手里的红龙数量 > 破冰后对方剩余血量低」）：剩得最低的那条把阿莱用掉了，
+    /// 剩得多的那条阿莱留在手里 —— 要留阿莱的。对方再挂一个冰，只有手里还有阿莱才破得动。
     /// 对方 9 血，鲨鱼在场；本回合 1 费，手里一张 1 费阿莱，场上一个能攻击的 9 攻随从。
-    ///   阿莱打脸：第一个 8 照扣剩 1，第二个 8 触发 —— 剩 1；阿莱用掉了，下回合只有匕首的 1 点，富余 0，不稳。
-    ///   随从攻脸：9 ≥ 9 触发 —— 剩 9；阿莱留着，下回合阿莱 16 + 匕首 1 = 17，富余 8，稳。
-    func testSafeLethalAtHigherRemainingBeatsUnsafeLowest() throws {
+    ///   阿莱打脸：第一个 8 照扣剩 1，第二个 8 触发 —— 剩 1；阿莱用掉了，下回合手里 0 张、只有匕首的 1 点（够斩，不稳）。
+    ///   随从攻脸：9 ≥ 9 触发 —— 剩 9；阿莱留着，下回合手里 1 张：阿莱 8 + 匕首 1 = 9（场上的鲨鱼不算），够斩。
+    /// （口径 15 之前按鲨鱼算 16 + 1 = 17、稳，同样选剩 9，理由是「稳」；现在理由是手里的阿莱）
+    func testKeepingAlexInHandBeatsLowerRemaining() throws {
         var s = root(mana: 1, maxMana: 9, enemy: 9)
         minion(&s, .spiritOfTheShark)
         let striker = minion(&s, .foxyFraud, canAttack: true, attack: 9)
@@ -886,20 +908,58 @@ class RedDragonIceBreakTests: XCTestCase {
         assertBacked(r)
         XCTAssertEqual(try XCTUnwrap(r.line).actions, [.attack(attacker: .friendlyMinion(striker), defender: .enemyHero)])
         XCTAssertEqual(r.remaining, 9)
-        XCTAssertEqual(r.nextTurnDamage, 17)
-        // 剩 1 的那条也搜到了、探过了：可斩但不稳
+        XCTAssertEqual(r.nextTurnDragons, 1)
+        XCTAssertEqual(r.nextTurnDamage, 9)
+        // 剩 1 的那条也搜到了：阿莱用掉了。阿莱多的一档已经可斩，它排不到前面，不用探
         let low = try XCTUnwrap(r.candidates.first { $0.remaining == 1 })
         XCTAssertEqual(low.line.actions, [play(alex, .alexstrasza, .enemyHero)])
-        XCTAssertTrue(low.probed)
-        XCTAssertEqual(low.margin, 0)
+        XCTAssertEqual(low.dragons, 0)
+        XCTAssertFalse(low.probed)
+        // 它真探一下是可斩的（匕首 1 ≥ 1）：输在阿莱张数上，不是输在斩不了
+        let probe = RDIceBreak.reliable(low.nextTurnRoot) {
+            RDIceBreak.probe($0, config: Self.detConfig(), deadline: .infinity)
+        }
+        XCTAssertEqual(probe.damage, 1)
+        var probedLow = low
+        probedLow.probed = true
+        probedLow.nextTurnDamage = probe.damage
+        XCTAssertTrue(RDIceBreak.better(try XCTUnwrap(r.candidates.first), probedLow))
+    }
 
-        // 门槛设成 0（= 口径 14 之前）：剩 1 那一档探出「可斩」就不再探剩 9 的，选剩 1 的
-        var old = Self.detConfig()
-        old.iceBreak.safeMargin = 0
-        let before = RedDragonSearch.solveIceBreak(s, config: old)
-        XCTAssertEqual(before.remaining, 1)
-        XCTAssertEqual(before.nextTurnDamage, 1)
-        XCTAssertFalse(before.candidates.contains { $0.remaining == 9 && $0.probed }, "剩 9 的一档没轮到探")
+    /// 口径 15 的伤害口径：下回合的伤害只信手里的。用户实战（10-15 对法师 T15）报「剩 4、下回合 17 可斩」，
+    /// 下回合手里一张阿莱都没有，那 17 点是「鲨鱼 → E.T.C. 发现药水 → 复制场上的阿莱 → 1 费阿莱 16」，靠的是场上那条阿莱
+    /// 熬过对方回合。这里同一个结构：冰已碎、剩 4，场上阿莱，手里 1 费 E.T.C.（边牌只剩药水）+ 1 费鲨鱼
+    func testBoardAlexIsNotNextTurnDamage() throws {
+        var s = root(mana: 0, enemy: 4, secrets: 0, immune: true)
+        s.sideboard = [.potionOfIllusion]
+        minion(&s, .alexstrasza)
+        card(&s, .etcBandManager, cost: 1)
+        card(&s, .spiritOfTheShark, cost: 1)
+        let r = solve(s)
+        assertBacked(r)
+        XCTAssertTrue(r.alreadyBroken)
+        XCTAssertEqual(r.nextTurnDragons, 0)
+        XCTAssertEqual(r.verdict, .shortNextTurn, "手里没有阿莱，场上的阿莱复制不了也算不进来")
+        XCTAssertLessThan(r.nextTurnDamage, 4)
+        XCTAssertTrue(r.nextTurnBoardCleared)
+        // 场面原样留着的那种起手确实打得出 17：这正是原来报「可斩」的那条
+        let kept = RDIceBreak.probe(try XCTUnwrap(r.nextTurnRoot), config: Self.detConfig(), deadline: .infinity)
+        XCTAssertGreaterThanOrEqual(kept.damage, 16)
+    }
+
+    /// 口径 15 的另一头：对方回合不动场面时格子还占着。清场的起手斩得了、不清场的起手卡格子斩不了 —— 取低的
+    func testBoardThatStaysCanStillClogNextTurn() throws {
+        var s = root(mana: 0, maxMana: 9, enemy: 5, secrets: 0, immune: true)
+        for _ in 0..<7 { minion(&s, .foxyFraud) }
+        card(&s, .alexstrasza, cost: 1, copy: true)
+        let r = solve(s)
+        assertBacked(r)
+        XCTAssertEqual(r.nextTurnDragons, 1)
+        XCTAssertEqual(r.verdict, .shortNextTurn, "场面留着的话 7 格全满，阿莱下不来")
+        XCTAssertFalse(r.nextTurnBoardCleared)
+        let cleared = RDIceBreak.probe(RDIceBreak.cleared(try XCTUnwrap(r.nextTurnRoot)), config: Self.detConfig(),
+                                       deadline: .infinity)
+        XCTAssertGreaterThanOrEqual(cleared.damage, 8, "清场的那种起手斩得了")
     }
 
     /// 订正验收 ①（用户的例子）：对方 10 血。场上三个能攻击的随从，攻击力 10 / 9 / 1；鲨鱼在场、手里一张 1 费阿莱留给下回合
@@ -945,8 +1005,9 @@ class RedDragonIceBreakTests: XCTestCase {
     /// 对方 11 血，鲨鱼在场，2 费 + 一枚硬币，手里两张 1 费阿莱。
     ///   浅：阿莱打脸（8 照扣剩 3，第二个 8 触发）—— 1 步，剩 3。
     ///   深：硬币 → 英雄技能 → 匕首攻脸（剩 10）→ 阿莱打脸（8 照扣剩 2，第二个 8 触发）—— 4 步，剩 2。
-    /// 两条下回合都是另一张阿莱 16 + 匕首 1 = 17，超出 14 和 15 同在 1 档：订正前「同档取步数少的」给的是浅的那条，
-    /// 而且深的那条比最浅的破冰多 3 层，超过原来的「再走两层」，根本搜不到
+    /// 两条下回合手里都还有一张阿莱，靠得住的伤害都是阿莱 8 + 匕首 1 = 9（口径 15：场上的鲨鱼不算），都可斩、都不稳，
+    /// 富余 7 > 6 选深的。（口径 15 之前按鲨鱼算 17，超出 14 和 15 同在 1 档：订正前「同档取步数少的」给的是浅的那条，
+    /// 而且深的那条比最浅的破冰多 3 层，超过原来的「再走两层」，根本搜不到）
     func testDeeperBreakThatLeavesLessBeatsTheShallowOne() throws {
         var s = root(mana: 2, maxMana: 9, enemy: 11)
         minion(&s, .spiritOfTheShark)
@@ -971,8 +1032,13 @@ class RedDragonIceBreakTests: XCTestCase {
         XCTAssertEqual(shallow.remaining, 3)
         XCTAssertGreaterThan(line.actions.count - shallow.steps, RDIceBreakConfig().extraBreakLayers,
                              "步数差超过「剩 1 之后再走几层」：靠的是压血那一段不因为有了破冰线就停")
-        let probe = RDIceBreak.probe(shallow.nextTurnRoot, config: Self.detConfig(), deadline: .infinity)
+        let probe = RDIceBreak.reliable(shallow.nextTurnRoot) {
+            RDIceBreak.probe($0, config: Self.detConfig(), deadline: .infinity)
+        }
         XCTAssertGreaterThanOrEqual(probe.damage, shallow.remaining)
+        XCTAssertEqual(shallow.dragons, 1)
+        XCTAssertEqual(r.nextTurnDragons, 1)
+        XCTAssertEqual(r.nextTurnDamage, 9)
         // 两条超出的部分在同一个 8 分档里（订正前就会按步数选浅的）
         XCTAssertEqual((probe.damage - shallow.remaining) / 8, (r.nextTurnDamage - r.remaining) / 8)
     }
@@ -981,80 +1047,100 @@ class RedDragonIceBreakTests: XCTestCase {
     /// 局面同 `breakAndLethalRoot`（对方 16 血；3 水晶 + 2 临时水晶；鲨鱼在场；1 费阿莱 + 4 费幻觉药水）。
     ///   剩 7：英雄技能 → 匕首攻脸（15）→ 阿莱（8 照扣剩 7，第二个 8 触发）。法力花光，药水没喝；下回合 4 费只够喝药水，
     ///         复制出来的阿莱下不来，只有匕首的 1 点 —— 斩不了。
-    ///   剩 8：阿莱（剩 8）→ 喝药水。下回合 4 费下 1 费阿莱，16 ≥ 8 —— 可斩。
+    ///   剩 8：阿莱（剩 8）→ 喝药水（鲨鱼、阿莱各一张 1 费复制体进手）。下回合 4 费：鲨鱼 → 阿莱 16 —— 可斩。
+    /// 口径 15 起剩 8 的那条下回合手里有一张阿莱、剩 7 的一张都没有，排在前面先探；它可斩，剩 7 的就不用探了
     func testLowestRemainingThatCannotKillLosesToOneThatCan() throws {
         let state = breakAndLethalRoot().state
         let r = solve(state)
         XCTAssertEqual(r.verdict, .lethalNextTurn)
         assertBacked(r)
         XCTAssertEqual(r.remaining, 8, "剩 7 的那条下回合斩不了，取能斩的剩 8")
+        XCTAssertEqual(r.nextTurnDragons, 1)
+        XCTAssertGreaterThanOrEqual(r.nextTurnDamage, 16, "清场后手里的鲨鱼复制体 + 阿莱复制体")
         XCTAssertEqual(r.candidates.map { $0.remaining }.min(), 7, "压得最低的破法是剩 7")
         let lowest = r.candidates.filter { $0.remaining == 7 }
         XCTAssertFalse(lowest.isEmpty)
-        XCTAssertTrue(lowest.allSatisfy { $0.probed }, "最低的一档都探过了，不是没轮到")
-        XCTAssertTrue(lowest.allSatisfy { $0.margin < 0 }, "探出来都斩不了")
+        XCTAssertTrue(lowest.allSatisfy { $0.dragons == 0 }, "剩 7 的把阿莱用掉了")
+        XCTAssertTrue(lowest.allSatisfy { !$0.probed }, "阿莱多的一档已经可斩，它排不到前面，不用探")
         XCTAssertEqual(lowest.map { $0.steps }.min(), 3)
+        // 手工探一下剩 7 的：确实斩不了
+        let probe = RDIceBreak.reliable(try XCTUnwrap(lowest.first).nextTurnRoot) {
+            RDIceBreak.probe($0, config: Self.detConfig(), deadline: .infinity)
+        }
+        XCTAssertLessThan(probe.damage, 7)
 
-        // 探针从剩余最低的一档探起（口径 12）：只给 1 个名额，探的就是剩 7 的；结论只能说「下回合没搜到斩杀」
+        // 探针从阿莱多的一档探起（口径 15）：只给 1 个名额，探的就是剩 8 的那档的队首「阿莱 → 药水」
         var few = Self.detConfig()
         few.iceBreak.maxProbes = 1
         let one = RedDragonSearch.solveIceBreak(state, config: few)
-        XCTAssertEqual(one.candidates.filter { $0.probed }.map { $0.remaining }, [7])
-        XCTAssertEqual(one.verdict, .shortNextTurn)
-        XCTAssertEqual(one.remaining, 7)
-
-        // 2 个名额：剩 7 的一档只有 1 条，另 1 个名额给剩 8 的一档的队首 —— 那一档便宜分最高的「阿莱 → 药水」
-        // （剩 8 的一档里步数最少的「只下阿莱」下回合斩不了；队首若是它，这 2 个名额就都白花）
-        few.iceBreak.maxProbes = 2
-        let two = RedDragonSearch.solveIceBreak(state, config: few)
-        XCTAssertEqual(two.candidates.filter { $0.probed }.map { $0.remaining }.sorted(), [7, 8])
-        XCTAssertEqual(two.verdict, .lethalNextTurn)
-        XCTAssertEqual(two.remaining, 8)
-        XCTAssertEqual(two.line?.actions.count, 2)
+        XCTAssertEqual(one.candidates.filter { $0.probed }.map { $0.remaining }, [8])
+        XCTAssertEqual(one.verdict, .lethalNextTurn)
+        XCTAssertEqual(one.remaining, 8)
+        XCTAssertEqual(one.line?.actions.count, 2)
     }
 
-    /// 探针名额怎么分（`RDIceBreak.scheduleProbes`，口径 12）：每一档都先探一两条，再回头把低档补满。
-    /// 只按「低档先探满」分的话，最低的几档探满了、都斩不了，名额就用完了，更高的档里有可斩的线也轮不到。
-    /// 闭包返回的是「稳斩」（口径 14，`solveIceBreak` 里是富余 ≥ `safeMargin`）：只是可斩、不稳的返回 false，
-    /// 高档照探（搜索上的例子见 `testSafeLethalAtHigherRemainingBeatsUnsafeLowest`）
+    /// 探针名额怎么分（`RDIceBreak.scheduleProbes`，口径 12 + 15）：每一档都先探一两条，再回头把前面的档补满。
+    /// 只按「前面的档先探满」分的话，前几档探满了、都斩不了，名额就用完了，后面的档里有可斩的线也轮不到。
+    /// 闭包返回探针的结果：只是可斩、不稳的（`.lethal`）挡不住同阿莱剩得多的档（搜索上的例子见
+    /// `testSafeLethalAtHigherRemainingBeatsUnsafeLowest`）
     func testEveryRemainingLevelIsProbedBeforeLowLevelsAreFilled() {
-        // 五档（剩 1…5），每档 10 条；只有剩 5 的那一档稳斩。名额 32、每档先 2 条、再补到 8 条
+        typealias L = RDIceBreak.Level
+        func levels(_ rs: [Int], dragons: Int = 0) -> [L] { return rs.map { L(dragons: dragons, remaining: $0) } }
+        // 五档（剩 1…5，阿莱都是 0 张），每档 10 条；只有剩 5 的那一档稳斩。名额 32、每档先 2 条、再补到 8 条
         var calls: [(level: Int, index: Int)] = []
-        let done = RDIceBreak.scheduleProbes(remaining: [1, 2, 3, 4, 5], counts: [10, 10, 10, 10, 10], quota: 32,
+        let done = RDIceBreak.scheduleProbes(levels: levels([1, 2, 3, 4, 5]), counts: [10, 10, 10, 10, 10], quota: 32,
                                              first: 2, perLevel: 8) { level, index in
             calls.append((level, index))
-            return level == 4
+            return level == 4 ? .safe : .short
         }
-        XCTAssertEqual(done, [8, 8, 8, 6, 2], "第一轮每档 2 条（剩 5 的那档探出稳斩），第二轮从低档起补到 8 条，名额用完为止")
+        XCTAssertEqual(done, [8, 8, 8, 6, 2], "第一轮每档 2 条（剩 5 的那档探出稳斩），第二轮从前面的档补到 8 条，名额用完为止")
         XCTAssertEqual(calls.count, 32)
         XCTAssertEqual(calls.prefix(10).map { $0.level }, [0, 0, 1, 1, 2, 2, 3, 3, 4, 4], "第一轮：每一档都轮到")
         XCTAssertTrue(calls.allSatisfy { $0.index < 10 })
-        // 对照：不先给每档探一两条（`first` = 0），32 个名额全花在最低的四档上，剩 5 的那档一条都轮不到
-        let starved = RDIceBreak.scheduleProbes(remaining: [1, 2, 3, 4, 5], counts: [10, 10, 10, 10, 10], quota: 32,
-                                                first: 0, perLevel: 8) { level, _ in level == 4 }
+        // 对照：不先给每档探一两条（`first` = 0），32 个名额全花在前四档上，剩 5 的那档一条都轮不到
+        let starved = RDIceBreak.scheduleProbes(levels: levels([1, 2, 3, 4, 5]), counts: [10, 10, 10, 10, 10],
+                                                quota: 32, first: 0, perLevel: 8) { level, _ in
+            level == 4 ? .safe : .short
+        }
         XCTAssertEqual(starved, [8, 8, 8, 8, 0])
 
-        // 低档探出稳斩，高档就不再探（剩得多的线排不到它前面）；低档自己接着探满
-        let low = RDIceBreak.scheduleProbes(remaining: [1, 2, 3], counts: [10, 10, 10], quota: 32,
-                                            first: 2, perLevel: 8) { level, _ in level == 0 }
+        // 低档探出稳斩，同阿莱的高档就不再探（剩得多的线排不到它前面）；低档自己接着探满
+        let low = RDIceBreak.scheduleProbes(levels: levels([1, 2, 3]), counts: [10, 10, 10], quota: 32,
+                                            first: 2, perLevel: 8) { level, _ in level == 0 ? .safe : .short }
         XCTAssertEqual(low, [10, 0, 0])
-        // 低档的线都不稳（返回 false，哪怕可斩）：高档照探，一直探到出现稳斩的那一档为止
-        let unsafeLow = RDIceBreak.scheduleProbes(remaining: [1, 2, 3], counts: [3, 3, 3], quota: 32,
-                                                  first: 2, perLevel: 8) { level, _ in level == 1 }
+        // 低档的线都不稳（可斩也一样）：高档照探，一直探到出现稳斩的那一档为止
+        let unsafeLow = RDIceBreak.scheduleProbes(levels: levels([1, 2, 3]), counts: [3, 3, 3], quota: 32,
+                                                  first: 2, perLevel: 8) { level, _ in
+            level == 1 ? .safe : .lethal
+        }
         XCTAssertEqual(unsafeLow, [3, 3, 0], "剩 1 不稳、剩 2 稳：剩 3 的不用探")
-        // 进来之前已知稳斩的最低剩余（`safeAt`，盲抽线那一轮用）：比它高的档一条不探
-        let known = RDIceBreak.scheduleProbes(remaining: [3, 4], counts: [5, 5], quota: 8,
-                                              first: 2, perLevel: 8, safeAt: 3) { _, _ in false }
+        // 进来之前已知的结果（盲抽线那一轮用）：已知剩 3 稳斩，同阿莱剩得多的档一条不探
+        let known = RDIceBreak.scheduleProbes(levels: levels([3, 4]), counts: [5, 5], quota: 8, first: 2, perLevel: 8,
+                                              known: RDIceBreak.ProbeBound(safe: L(dragons: 0, remaining: 3),
+                                                                           lethalDragons: 0)) { _, _ in .short }
         XCTAssertEqual(known, [5, 0])
         // 探不成（CPU 份额用完 / 被取消）：到此为止，后面一条都不再探
         var n = 0
-        let stopped = RDIceBreak.scheduleProbes(remaining: [1, 2], counts: [5, 5], quota: 32,
+        let stopped = RDIceBreak.scheduleProbes(levels: levels([1, 2]), counts: [5, 5], quota: 32,
                                                 first: 2, perLevel: 8) { _, _ in
             n += 1
-            return n <= 2 ? false : nil
+            return n <= 2 ? .short : nil
         }
         XCTAssertEqual(stopped, [2, 0])
         XCTAssertEqual(n, 3)
+
+        // 口径 15：阿莱多的档排在前面、先探；它探出可斩（哪怕不稳），阿莱少的档就不用探 —— 排不到它前面
+        let ordered = [L(dragons: 0, remaining: 1), L(dragons: 2, remaining: 6), L(dragons: 1, remaining: 2)].sorted()
+        XCTAssertEqual(ordered, [L(dragons: 2, remaining: 6), L(dragons: 1, remaining: 2), L(dragons: 0, remaining: 1)])
+        let byDragons = RDIceBreak.scheduleProbes(levels: ordered, counts: [3, 3, 3], quota: 32, first: 2, perLevel: 8) {
+            level, _ in level == 0 ? .lethal : .safe
+        }
+        XCTAssertEqual(byDragons, [3, 0, 0], "2 张阿莱的档可斩：1 张、0 张的档都不探")
+        // 阿莱多的档斩不了：后面的档照探
+        let shortTop = RDIceBreak.scheduleProbes(levels: ordered, counts: [3, 3, 3], quota: 32, first: 2, perLevel: 8) {
+            level, _ in level == 1 ? .safe : .short
+        }
+        XCTAssertEqual(shortTop, [3, 3, 0])
     }
 
     /// 订正验收 ④（口径 13）：鲨鱼在场时阿莱的战吼是两次 8，每一次单独看是不是致命 —— 搜出来的线和剩余血量。
@@ -1106,10 +1192,12 @@ class RedDragonIceBreakTests: XCTestCase {
         XCTAssertTrue(isAlexToFace(line.actions[0]))
         XCTAssertEqual(Array(line.actions.suffix(2)), [.heroPower, swing])
         XCTAssertEqual(r.breakStep, 3)
-        XCTAssertGreaterThanOrEqual(r.nextTurnDamage, 16)
+        XCTAssertEqual(r.nextTurnDamage, 9, "手里那张阿莱 8 + 匕首 1（场上的鲨鱼不算）")
+        XCTAssertEqual(r.nextTurnDragons, 1)
         let bothAlex = try XCTUnwrap(r.candidates.first { $0.steps == 2 && $0.remaining == 1 }, "两张阿莱都下的那条")
         XCTAssertTrue(bothAlex.line.actions.allSatisfy(isAlexToFace))
-        XCTAssertEqual(bothAlex.nextTurnDamage, 1, "下回合只剩匕首的 1 点：够斩（剩 1），但没有余量")
+        XCTAssertEqual(bothAlex.dragons, 0, "下回合手里没阿莱了，排在留了一张的后面（不用探）")
+        XCTAssertFalse(bothAlex.probed)
 
         // 对方 17 血、2 费：只够两张阿莱。第二张的第一个 8 ≥ 1 触发 → 剩 1；下回合靠英雄技能的 1 点斩
         r = solve(position(mana: 2, enemy: 17))
@@ -1160,12 +1248,16 @@ class RedDragonIceBreakTests: XCTestCase {
         let r = solve(s)
         XCTAssertEqual(r.verdict, .lethalNextTurn)
         assertBacked(r)
-        XCTAssertEqual(r.remaining, 7, "英雄技能没被裁掉：先垫 1 点再下阿莱")
-        let line = try XCTUnwrap(r.line)
-        XCTAssertEqual(Array(line.actions.prefix(2)), [.heroPower, .attack(attacker: .friendlyHero, defender: .enemyHero)])
-        XCTAssertEqual(line.actions.count, 3)
-        XCTAssertEqual(r.breakStep, 3)
-        XCTAssertTrue(r.candidates.contains { $0.remaining == 8 && $0.steps == 1 })
+        // 剩 7 的破法搜到了：英雄技能没被裁掉，先垫 1 点再下阿莱
+        let chip = try XCTUnwrap(r.candidates.first { $0.remaining == 7 }, "英雄技能没被裁掉：先垫 1 点再下阿莱")
+        XCTAssertEqual(Array(chip.line.actions.prefix(2)),
+                       [.heroPower, .attack(attacker: .friendlyHero, defender: .enemyHero)])
+        XCTAssertEqual(chip.steps, 3)
+        // 选中的是剩 8、下回合手里还有阿莱的那条（口径 15）：阿莱打脸破冰，再用暗影步把场上的阿莱收回手里
+        XCTAssertEqual(r.remaining, 8)
+        XCTAssertEqual(r.nextTurnDragons, 1)
+        XCTAssertEqual(chip.dragons, 0)
+        XCTAssertEqual(r.breakStep, 1)
         // 不开破冰时动作上限照旧：同一个局面的斩杀搜索不受这条影响（16 血一张阿莱正好斩）
         XCTAssertTrue(RedDragonSearch.solve(s, config: Self.deterministic).isLethal)
     }

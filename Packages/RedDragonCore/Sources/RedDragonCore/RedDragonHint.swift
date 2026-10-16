@@ -128,7 +128,7 @@ public struct RDSetupAdvice: Equatable {
 /// 破冰模式的结论（T8 口径 5 / 8 / 9）。开着破冰时面板只画它，不画普通的斩杀判定（那个假定没有冰）
 public struct RDIceAdvice: Equatable {
     public enum Kind: Equatable {
-        /// ① 本回合能破冰，下回合可斩（按对方回合不动场面、不回血算）
+        /// ① 本回合能破冰，下回合可斩（只算手里的牌，对方回合清不清场都斩得了；按对方不回血、不再挂冰算）
         case lethalNextTurn
         /// ② 本回合能破冰，下回合没搜到斩杀
         case shortNextTurn
@@ -142,8 +142,10 @@ public struct RDIceAdvice: Equatable {
     public var broken = false
     /// 破冰后对方剩余血量（血 + 甲）
     public var remaining = 0
-    /// 下回合不靠随机抽牌能打的伤害（搜到的下界）
+    /// 下回合不靠随机抽牌、不靠场上随从能打的伤害（搜到的下界；口径 15）
     public var nextTurnDamage = 0
+    /// 下回合起手手里几张阿莱（口径 15）
+    public var nextTurnDragons = 0
     /// 下回合探过没有。false = 预算用完没轮到（`RDIceBreakResult.nextTurnProbed`）：不能把 `nextTurnDamage` 当数报
     public var nextTurnProbed = true
     /// ③ 时：不靠随机抽牌的打法按本模型穷举完了（否则只是没搜到）
@@ -634,6 +636,7 @@ public enum RDHintBuilder {
         advice.broken = r.alreadyBroken
         advice.remaining = r.remaining
         advice.nextTurnDamage = r.nextTurnDamage
+        advice.nextTurnDragons = r.nextTurnDragons
         advice.nextTurnProbed = r.nextTurnProbed
         advice.proven = kind == .cannotBreak && r.exhaustive && !costsInferred && !unmodeledInDeck && !r.cancelled
         var a = RDAnalysis(

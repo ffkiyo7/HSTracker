@@ -207,22 +207,22 @@ enum RDText {
     static let iceBreakMark = "冰碎"
     /// 冰已碎、线是 0 步
     static let iceNothingToDo = "本回合不用再出牌"
-    /// ① 的前提（口径 9）：下回合起手是拿本回合终局原样算的
-    static let icePremise = "前提：对方回合不动场面、不回血"
+    /// ① 的前提（口径 9 + 15）：下回合伤害只算手里的牌（对方回合清不清场都打得出），对方回血、再挂冰就不算数
+    static let icePremise = "前提：对方不回血、不再挂冰；场上随从不算"
 
-    /// ① 的下回合摘要
-    static func iceNextTurn(remaining: Int, damage: Int) -> String {
-        return "破冰后剩 \(remaining)｜下回合伤害 \(damage)"
+    /// ① 的下回合摘要：手里几张阿莱（口径 15）、靠得住的伤害
+    static func iceNextTurn(remaining: Int, dragons: Int, damage: Int) -> String {
+        return "破冰后剩 \(remaining)｜下回合手里 \(dragons) 龙、伤害 \(damage)"
     }
 
     /// ② 的下回合摘要：伤害是搜到的下界，不写「差多少」
-    static func iceNextTurnNotFound(remaining: Int, damage: Int) -> String {
-        return "下回合没搜到斩杀：已知伤害 \(damage)｜破冰后剩 \(remaining)"
+    static func iceNextTurnNotFound(remaining: Int, dragons: Int, damage: Int) -> String {
+        return "下回合没搜到斩杀：手里 \(dragons) 龙、伤害 \(damage)｜破冰后剩 \(remaining)"
     }
 
-    /// ② 而且下回合没探（预算用完）：伤害不知道，不报数
-    static func iceNextTurnUnprobed(remaining: Int) -> String {
-        return "下回合没算完｜破冰后剩 \(remaining)"
+    /// ② 而且下回合没探（预算用完）：伤害不知道，不报数；阿莱张数不用探，照报
+    static func iceNextTurnUnprobed(remaining: Int, dragons: Int) -> String {
+        return "下回合没算完：手里 \(dragons) 龙｜破冰后剩 \(remaining)"
     }
 
     static let singleTurnInsufficient = "单回合不够，考虑预启动"

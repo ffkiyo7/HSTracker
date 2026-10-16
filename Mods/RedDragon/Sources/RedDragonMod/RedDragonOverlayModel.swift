@@ -58,7 +58,7 @@ struct RDOverlayModel: Equatable {
         case leftover
         /// 破冰线的下回合摘要：破冰后剩余血量、下回合伤害。`lethal`：下回合可斩
         case iceNextTurn(lethal: Bool)
-        /// 「下回合可斩」的前提（对方回合不动场面、不回血）
+        /// 「下回合可斩」的前提（对方不回血、不再挂冰；场上随从不算）
         case icePremise
     }
 
@@ -236,12 +236,14 @@ struct RDOverlayModel: Equatable {
             switch ice.kind {
             case .lethalNextTurn:
                 model.lines.append(Line(kind: .iceNextTurn(lethal: true),
-                                        text: RDText.iceNextTurn(remaining: ice.remaining, damage: ice.nextTurnDamage)))
+                                        text: RDText.iceNextTurn(remaining: ice.remaining, dragons: ice.nextTurnDragons,
+                                                                damage: ice.nextTurnDamage)))
                 model.lines.append(Line(kind: .icePremise, text: RDText.icePremise))
             case .shortNextTurn:
                 let text = ice.nextTurnProbed
-                    ? RDText.iceNextTurnNotFound(remaining: ice.remaining, damage: ice.nextTurnDamage)
-                    : RDText.iceNextTurnUnprobed(remaining: ice.remaining)
+                    ? RDText.iceNextTurnNotFound(remaining: ice.remaining, dragons: ice.nextTurnDragons,
+                                                 damage: ice.nextTurnDamage)
+                    : RDText.iceNextTurnUnprobed(remaining: ice.remaining, dragons: ice.nextTurnDragons)
                 model.lines.append(Line(kind: .iceNextTurn(lethal: false), text: text))
             case .cannotBreak:
                 break

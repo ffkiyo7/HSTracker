@@ -125,9 +125,12 @@ class RedDragonIceBreakTests: HSTrackerTests {
         XCTAssertEqual(next.opponent.effectiveHealth, r.remaining, "下回合对方就是剩余血量", file: file, line: line)
         XCTAssertFalse(next.opponent.immune, file: file, line: line)
         XCTAssertNil(next.opponent.ice, "下回合回到平常规则", file: file, line: line)
+        XCTAssertEqual(r.nextTurnDragons, RDIceBreak.dragons(next), file: file, line: line)
         if let nl = r.nextTurnLine {
-            XCTAssertFalse(hasRandomDraw(nl.actions, from: next), "下回合的线不靠随机抽牌", file: file, line: line)
-            let ev = RDIceBreak.evidence(nl, on: next)
+            // 下回合线在它量的那种起手上重放：清场的（口径 15）或场面留着的
+            let start = r.nextTurnBoardCleared ? RDIceBreak.cleared(next) : next
+            XCTAssertFalse(hasRandomDraw(nl.actions, from: start), "下回合的线不靠随机抽牌", file: file, line: line)
+            let ev = RDIceBreak.evidence(nl, on: start)
             XCTAssertEqual(ev?.damage, r.nextTurnDamage, "下回合伤害是那条线重放出来的", file: file, line: line)
             XCTAssertEqual(ev?.lethalSteps, r.nextTurnLethalSteps, file: file, line: line)
         } else {
@@ -212,6 +215,55 @@ class RedDragonIceBreakTests: HSTrackerTests {
         XCTAssertEqual(RDLineWalker.walk(actions, root: armed, zones: [:]).count, 2)
     }
 
+    // MARK: - 对法师实录（10-16，口径 15）
+
+    /// 10-14 第 7 局（对法师，赢）、10-15 第 2 局（对法师，输）
+    static let mageGames: [(String, Int)] = [("2026-10-14-g7-mage-won", 1), ("2026-10-15-g2-mage-lost", 2)]
+
+    /// 用户实战里的误判（10-15 第 2 局 T15）：对方 37 血挂着冰，破冰线把手里的阿莱全用掉了，面板却报「剩 4、下回合 17 可斩」——
+    /// 那 17 点是「鲨鱼 → E.T.C. 发现药水 → 复制场上的阿莱 → 1 费阿莱 16 + 匕首」，靠的是场上那条阿莱熬过对方回合。
+    /// 实际对方回合又挂了一个冰（T17 对方 5 + 8 甲、奥秘 1），这局输了。口径 15 起下回合伤害只信手里的牌、
+    /// 手里阿莱多的破法排在前面：这一回合不再报可斩。
+    /// 对方真挂着奥秘的每个我方回合开头都跑一遍，打印 `MAGEDUMP`（结论、剩余、下回合手里几张阿莱、伤害、两条线）
+    func testMageGamesIceBreak() throws {
+        waitForHostApp()
+        var rows: [String: RDIceBreakResult] = [:]
+        for (fixture, pid) in Self.mageGames {
+            let bs = RedDragonSetupTests.boundaries(lines: RedDragonFeedbackTests.lines(fixture), playerId: pid)
+            var byTurn: [Int: [RedDragonFeedbackTests.Boundary]] = [:]
+            for b in bs { byTurn[b.snapshot.turn, default: []].append(b) }
+            for turn in byTurn.keys.sorted() {
+                guard let all = byTurn[turn], let top = all.map({ $0.snapshot.resources }).max(),
+                      let b = all.first(where: { $0.snapshot.resources == top && $0.snapshot.resourcesUsed == 0 })
+                        ?? all.first(where: { $0.snapshot.resources == top }) else { continue }
+                let s = RDStateReader.read(b.snapshot).state
+                guard s.opponent.secretCount > 0 || s.opponent.immune else { continue }
+                let r = RedDragonSearch.solveIceBreak(s, config: Self.detConfig())
+                assertBacked(r)
+                rows["\(fixture) T\(turn)"] = r
+                var row = "\(fixture) T\(turn) 行\(b.line) 法力\(s.availableMana)/\(s.maxMana) 对方\(s.opponent.health)+\(s.opponent.armor)"
+                    + " 奥秘\(s.opponent.secretCount) 手里龙\(RDIceBreak.dragons(s)) → \(r.verdict)"
+                if let line = r.line, let next = r.nextTurnRoot {
+                    row += " 剩\(r.remaining) 下回合手里龙\(r.nextTurnDragons) 伤害\(r.nextTurnDamage)"
+                        + (r.nextTurnBoardCleared ? "（清场）" : "（不清场）")
+                        + "\n  本回合：" + RDFormulaBuilder.formula(.preLaunch, line.actions, root: r.root).tokens
+                        .map { RDText.formulaToken($0) }.joined(separator: " ")
+                    if let nl = r.nextTurnLine {
+                        let start = r.nextTurnBoardCleared ? RDIceBreak.cleared(next) : next
+                        row += "\n  下回合：" + RDFormulaBuilder.formula(.preLaunch, nl.actions, root: start).tokens
+                            .map { RDText.formulaToken($0) }.joined(separator: " ")
+                    }
+                }
+                print("MAGEDUMP " + row)
+            }
+        }
+        let t15 = try XCTUnwrap(rows["2026-10-15-g2-mage-lost T15"])
+        XCTAssertNotEqual(t15.verdict, .cannotBreak, "这一回合破得了冰")
+        // 原来报的那条（阿莱全用掉、下回合手里 0 张）不再排第一
+        XCTAssertFalse(t15.verdict == .lethalNextTurn && t15.nextTurnDragons == 0 && t15.nextTurnDamage >= 16,
+                       "不再报「下回合手里没阿莱、伤害 16+ 可斩」")
+    }
+
     // MARK: - fixture 扫表
 
     /// 现有 fixture 的每个我方回合（回合开始的局面）都当成「对方有冰」跑一遍：回合、对方血量、结论档、本回合步数、
@@ -222,7 +274,7 @@ class RedDragonIceBreakTests: HSTrackerTests {
         let fixtures: [(String, Int)] = [("2026-10-01-g2-bounce-overflow", 1), ("2026-10-01-g3-lost", 1),
                                          ("2026-10-01-g4-second", 2), ("2026-10-01-g5-first", 1)]
             + RedDragonFeedbackTests.games.map { ($0.fixture, $0.playerId) }
-            + [("2026-10-13-g12-chain", 1)]
+            + [("2026-10-13-g12-chain", 1)] + Self.mageGames
         var out: [String] = []
         var lowOut: [String] = []
         var tally: [RDIceVerdict: Int] = [:]
@@ -352,9 +404,8 @@ class RedDragonIceBreakTests: HSTrackerTests {
             + "\n选中的不是候选里剩余最低那一档的有 \(notLowest) 行"
             + "\n选中的线比最浅的破冰线长的有 \(extraSteps.count) 行，各多 \(extraSteps.sorted()) 步"
             + "\n牌库里有和边牌同名的牌的回合：\(sideboardNamedInDeck.count) / \(out.count) \(sideboardNamedInDeck)")
-        // 根局面（已当成有冰）打成字面量：给 scratchpad 里 `swiftc -O` 的基准和调闸门用。破不了的（三遍搜索跑满）
-        // 取最慢的 6 个；破得了的（压血 + 准备步 + 探针）全打出来，按耗时降序
-        for s in slow.filter({ !$0.broke }).prefix(6) + slow.filter({ $0.broke }) {
+        // 根局面（已当成有冰）打成字面量：给 scratchpad 里 `swiftc -O` 的基准、新旧对比和调闸门用。全部打出来，按耗时降序
+        for s in slow {
             print("T8ROOT \(s.name) \(String(format: "%.2f", s.cpu))s :: \(s.literal)")
         }
         XCTAssertGreaterThan(rows, 0)

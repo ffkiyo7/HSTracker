@@ -1,6 +1,6 @@
 # HSTracker 个人分支：记录
 
-最后更新 2026-10-15。只记三样：提交记录、构建 / 测试记录、项目细节。10-14 之前的计划、待办、待定项和排查经过
+最后更新 2026-10-16。只记三样：提交记录、构建 / 测试记录、项目细节。10-14 之前的计划、待办、待定项和排查经过
 已整份归档（`docs/archive/plan-2026-10-14.md`、`docs/archive/refork-2026-09.md`、`docs/archive/tasks/`），按「已读、已决定」处理，不再跟进。
 
 `HearthSim/HSTracker` 的个人自用 fork，不回流上游。分支 `dev0923`，基座上游 **3.7.0**（`8d5ff469`，10-15 合入 `b227ef15`；09-23 从 3.6.12 换轨重建）；
@@ -22,13 +22,14 @@
 | Dock 打勾 + Toast、菜单栏按 tag 定位 | `35fea72a`（S6a 搬新线） |
 | 排队显示牌组、局末小结窗 | Phase 6 / 7；新线 S6a / S6b |
 | 包体瘦身（不打包 `HearthDb.xml`，.NET 基础库只嵌本架构） | PR #3 `aecd42bf` |
-| 红龙贼 combo 提示器 | T0+T1 `0a921d6b`；T2a `d73f8a6`；T2b `61fbcbd`；T2c `359916c`；T3 跟手 `507d354`；T4 奶 16 + 完整公式 `a3326ac`；T5 引擎核对 `35a783f6`；T6 面板 1.6 倍 `1f6384bf`；T7 跟手延迟 `cf73e238`；T8 破冰 `8f5a1636` + `2a126604` + `d8da0b4b` + `e2a85b3d` |
+| 红龙贼 combo 提示器 | T0+T1 `0a921d6b`；T2a `d73f8a6`；T2b `61fbcbd`；T2c `359916c`；T3 跟手 `507d354`；T4 奶 16 + 完整公式 `a3326ac`；T5 引擎核对 `35a783f6`；T6 面板 1.6 倍 `1f6384bf`；T7 跟手延迟 `cf73e238`；T8 破冰 `8f5a1636` + `2a126604` + `d8da0b4b` + `e2a85b3d`；T9 破冰改按下回合手里阿莱张数排序、下回合伤害不算场上随从（口径 15，`docs/research/red-dragon-card-model.md` J3；分支 `claude/project-thread-t36isn`） |
 | 红龙解耦与 mod 化（评估 `docs/research/red-dragon-mod-eval.md`） | M1 引擎包挪到 `Packages/RedDragonCore/`、去掉 `sources:` 点名、pbxproj 删 12 条导航引用；M2 引擎立公开接口（顶层 53 个类型标 `public`，比评估的 30 个多出的是 public 签名连带的；`-enable-testing` 只在 Debug，app 侧改普通 `import`）；M3 拆测试：只碰引擎的 100 条（`RedDragonTests` 54、`RedDragonIceBreakTests` 32、`RedDragonSetupTests` 6、`RedDragonFormulaTests` 8 整个）挪进包的 `RedDragonCoreTests`，`formulas.json` / `sim.py` 跟着挪，HSTrackerTests 留 105 条；M4 合入 ModKit / ModHost，app 适配层 `HSTracker/Mods/`（mod 管理器、对局 / 实体适配、宿主服务和 mod 设置存取、overlay 图层、设置窗「Mod」分组），5 处挂点改调 `ModManager`，红龙胶水改走 ModKit、作为内置 mod 仍编在 app 里，设置键改成 `mod.red-dragon.*`（老 `red_dragon_*` 键启动时抄一次、不删）；M5 红龙胶水 8 个文件挪到 `Mods/RedDragon/`（SwiftPM 动态库 + 入口 `hstracker_mod_entry`，`build.sh` 编 Release、把 ModKit 依赖改指 app 里的 `ModKit.framework`、ad hoc 签名，`--install` 装进 Mods 目录），app 不再含红龙（RedDragonCore 也移出 app target），HSTrackerTests 直接编 mod 源码（除入口文件）、Debug 加 `-DDEBUG`（分支 `claude/project-thread-rdkiom`） |
 
 ## 构建 / 测试记录
 
 | 日期 | 范围 | 结果 |
 |---|---|---|
+| 10-16 | T9 破冰口径 15（炉石关着）：包 `swift test`；全套 HSTrackerTests（含新加的两局对法师 fixture）；152 个局面（12 局逐回合当对方挂冰，原血和改 12 血）新旧对比 `8d0458c6`，确定性 + 生产配置、-O | 包 103 条 102 过 1 跳过；全套 455 条 450 过 / 4 跳过（按需开的红龙）/ 1 失败（签名，自编译包预期内），540 秒；结论档不变（可斩 24 / 差一点 6 / 破不了 122），22 行换了路线，下回合手里阿莱没有一行变少，旧版 9 行「0 张阿莱报可斩」都留下 1–4 张；最慢 1.11 s，合计 19.0 → 20.8 s，没撞 CPU 兜底 |
 | 10-16 | M5 验收（炉石关着）：包 `swift test`；HSTrackerTests 红龙 7 个类；10 局 fixture 逐回合导出（`describe`，确定性配置）对比 M4 之前的 `ab35b73f`（独立目录、独立 DerivedData）；Debug 包装 mod 启动 | 包 100 条 99 过 1 跳过；红龙 105 条 101 过 4 跳过（按需开的 4 条，基线同样跳过）0 失败，基线同；10 局 71 行逐回合一致（去掉 CPU 秒；整套跑时卡名语言随测试宿主卡库加载先后变，单跑两边逐字节一致）；mod 已加载、已启用，老设置抄到 `mod.red-dragon.*`，正常退出不进安全模式。顺手修：`ModManager.start()` 挪到 logger 建好之后，原来加载日志全丢 |
 | 10-16 | M5 红龙搬成 mod：`Mods/RedDragon/build.sh`（导出入口、不带 ModKit）、app Debug 增量 build、`build-for-testing` | 都通过；app 二进制里红龙符号 0 个，测试包里有；105 条红龙测试、回放逐回合比对、Debug 包加载 mod 未跑（在打炉石） |
 | 10-16 | M4 适配层 + 红龙改走 ModKit：Debug 增量 build、`build-for-testing`（HSTrackerTests 链接 ModKit，app 里只有一份 ModKit.framework） | 都通过；HSTrackerTests 里的 105 条红龙测试未跑（在打炉石） |
