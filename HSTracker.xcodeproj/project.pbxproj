@@ -1885,6 +1885,7 @@
 		D37AF84D544EC2A3C60CB831 /* SecretsPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D1FA45FE119F6CC9EA54A96 /* SecretsPanelView.swift */; };
 		D3B8222070C6E6247EDBDF69 /* TheStormBringer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C3E1C61FCDB7EA3C051A656 /* TheStormBringer.swift */; };
 		D3C2807B4E8F4EAB8F7192DB /* BattlegroundsTrinketPickingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64AB9CC69639454D9FB39A13 /* BattlegroundsTrinketPickingView.swift */; };
+		C0FFEE01B0D50A1500000002 /* BoundSoul.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FFEE01B0D50A1500000001 /* BoundSoul.swift */; };
 		D488D99F131EF318C118F87E /* Netherwalker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 879400B57B55DB7ED5658DEA /* Netherwalker.swift */; };
 		D49F499AA6AEFD2B0CD2C9FC /* BattlegroundsHeroGuidesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFADC808A9C0FDF14DD7DDB1 /* BattlegroundsHeroGuidesViewModel.swift */; };
 		D4A5138D3DE8CE1FFCC9C339 /* OutlinedText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 981DE23C2336148B1CE4DD38 /* OutlinedText.swift */; };
@@ -2742,6 +2743,7 @@
 		8710EB77B7B79FE2F598AEBA /* MulliganTipIconView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MulliganTipIconView.swift; sourceTree = "<group>"; };
 		8724759D0B6412C8283A19D3 /* DesperateMeasures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesperateMeasures.swift; sourceTree = "<group>"; };
 		873E3052927B48C8AF6B3C4C /* HDTCanvasIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HDTCanvasIcon.swift; sourceTree = "<group>"; };
+		C0FFEE01B0D50A1500000001 /* BoundSoul.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoundSoul.swift; sourceTree = "<group>"; };
 		879400B57B55DB7ED5658DEA /* Netherwalker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Netherwalker.swift; sourceTree = "<group>"; };
 		87D0C9B02B89AE2BA38E7B17 /* RunefueledGolem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunefueledGolem.swift; sourceTree = "<group>"; };
 		87F213C266C5FFA8BAF416D6 /* StateValuePoolCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StateValuePoolCard.swift; sourceTree = "<group>"; };
@@ -6580,6 +6582,7 @@
 				4F4DCD140528AACA491CA6BC /* KurtrusAshfallen.swift */,
 				55FC72C7EE79DFD077F2A735 /* NagaAllies.swift */,
 				A6494558F4F06234B3F1BFE6 /* NespirahEnthralled.swift */,
+				C0FFEE01B0D50A1500000001 /* BoundSoul.swift */,
 				879400B57B55DB7ED5658DEA /* Netherwalker.swift */,
 				C8E9FB8542DD96AE639265A5 /* OasisOutlaws.swift */,
 				3F2D5A00B9AAFE41DA7B3EC9 /* Outlander.swift */,
@@ -8868,6 +8871,7 @@
 				A3E206D08D72208EC2CFFBD8 /* KurtrusAshfallen.swift in Sources */,
 				93BE1C6F5128F20F7C4EE359 /* NagaAllies.swift in Sources */,
 				A1F62487078F4BD5E3AF21DE /* NespirahEnthralled.swift in Sources */,
+				C0FFEE01B0D50A1500000002 /* BoundSoul.swift in Sources */,
 				D488D99F131EF318C118F87E /* Netherwalker.swift in Sources */,
 				AB69F926B8E760C03330972C /* OasisOutlaws.swift in Sources */,
 				583F90A7477EE03C2711DCCC /* Outlander.swift in Sources */,

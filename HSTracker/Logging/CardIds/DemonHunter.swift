@@ -124,6 +124,7 @@ extension CardIds.NonCollectible {
         static let AzsharanDefector_SunkenDefectorToken = "TSC_057t"
         static let PatchesthePilot_ParachuteToken = "VAC_933t"
         static let FierceOutsider_IntrovertedEnchantment = "RLK_207e"
+        static let SouleatersScythe_BoundSoulToken = "RLK_214t"
         static let JotuntheEternal_JotunsSwiftnessToken = "TTN_842t1"
         static let LoadtheChamber_LoadedNagaEnchantment = "WW_409e"
         static let ManaBurn_ManaBurnedEnchantment = "BT_753e"

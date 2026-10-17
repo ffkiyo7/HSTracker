@@ -462,6 +462,19 @@ class PowerGameStateParser: LogEventParser {
                         soulFermenterBlock.soulFermenterRevealedEntities.append(revealed)
                     }
 
+                    // Souleater's Scythe's Start of Game block reveals each devoured minion as it moves
+                    // it to SETASIDE (the Bound Souls it leaves are FULL_ENTITY, not SHOW_ENTITY), so
+                    // remember them on the Scythe for the related-cards tooltip.
+                    if let scytheBlock = currentBlock, scytheBlock.type == "TRIGGER",
+                       let scythe = eventHandler.entities[scytheBlock.sourceEntityId],
+                       scythe.cardId == CardIds.Collectible.DemonHunter.SouleatersScythe,
+                       scythe.isControlled(by: eventHandler.player.id),
+                       entity.isControlled(by: eventHandler.player.id),
+                       Cards.by(cardId: cardId)?.type == .minion,
+                       scythe.info.storedCardIds.count < 3 {
+                        scythe.info.storedCardIds.append(cardId)
+                    }
+
                     if entity.info.guessedCardState != GuessedCardState.none {
                         entity.info.guessedCardState = GuessedCardState.revealed
                     }
