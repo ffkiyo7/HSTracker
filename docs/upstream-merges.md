@@ -4,7 +4,7 @@
 §1 / §2 有新的热点或新规则就补一行。本文与 `git log --merges dev0923` 一一对应。
 
 - 上游：`upstream` = https://github.com/HearthSim/HSTracker.git，只合 **tag**（`3.6.13` 这种），不合 `upstream/master` 中间态
-- 工作分支 `dev0923`，基座 **3.7.0**（10-15 合入；09-23 从 3.6.12 `c723bfd4` 换轨，见 `docs/archive/refork-2026-09.md`）；`master` 只做上游纯镜像（只允许 `--ff-only`）
+- 工作分支 `dev0923`，基座 **3.7.1**（10-24 合入，U6；3.7.0 10-15 合入；09-23 从 3.6.12 `c723bfd4` 换轨，见 `docs/archive/refork-2026-09.md`）；`master` 只做上游纯镜像（只允许 `--ff-only`）
 - 旧线 `dev`（基座 3.6.9）冻结作回滚点，不再合上游；它的三次合并记录（U / U2 / U3）留在 §4 末尾
 
 ## 0. 固定流程
@@ -37,6 +37,7 @@ git merge-tree --write-tree dev0923 <tag> | grep '^CONFLICT'                    
 |---|---|---|
 | `HSTracker.xcodeproj/project.pbxproj`（259）、`xcshareddata/xcschemes/HSTracker.xcscheme`（+5） | ① `MACOSX_DEPLOYMENT_TARGET = 14.0`（上游 6 处 10.15）② fork 新文件登记（`Fork/` 11、`RedDragon/` 6、`SessionRecap/` 3、`SwiftUI/` 11、`LatencyProbe`、测试 4 + fixtures）③ `Embed Mono` / `HearthDb` 版本强校验 + wget PATH + 条件代理 ④ scheme 加 `HSTRACKER_LATENCY_PROBE` 环境变量 | 上游每个新 swift / xib / 图集必须四处登记齐（PBXBuildFile、PBXFileReference、group、phase），`grep -c 文件名` 应为 3~4；`MARKETING_VERSION` 取上游；上游删 Swift 包（3.6.13 删了 `Preferences`）连 `Package.resolved` 一起收；`RedDragonCore` 本地包条目夹在上游包依赖中间，删包冲突时别连它一起删（U5） |
 | `HSTracker/BobsBuddy-version.txt`、`HearthDb-version.txt`（fork 新增）、`Vendor/Managed/*.zip` | 两份 zip 固定进仓库，版本文件是唯一真相，构建时强校验；DLL 装到 `Contents/Resources/Resources/Managed/`（`MonoHelper.load()` 真正读的位置） | 上游改版本号 = 必须重新 vendor，见 §2.2（3.6.13：1.76.3 → 1.78.2；3.7.0：1.92.7，HearthDb 跟 latest 到 37.0.0） |
+| `HSTracker/HSTracker.entitlements` | 保留 `com.apple.security.cs.disable-library-validation`：mod 是 ad hoc 签名、`dlopen` 进来的 | 上游 3.7.1 删了它，**自动合并不报冲突**；合完必须 `grep disable-library-validation`（U6） |
 | `HSTracker/Logging/Game.swift`（153） | S3 / S4：三处 `tracker.update(cards:…)` 旁多传分区 `groups:`，`updateTrackers` 单次取数（Perf P1）；S5：3 处 `LatencyProbe` 埋点、`OverlayRefreshScheduler` 16ms 合并；S6a：排队显示牌组 + 清残留、场景门（`Fork/Game+TrackerGate.swift` 的入口） | 上游在 `updatePlayerTracker` / `updateOpponentTracker` 开头加门（3.6.13 加了 `gameTime == nil`）要落在我们传分区之前；`reset()` 加参数（3.6.13 `reset(updateUI:)`）时确认分区闩随 `entities` 一起清；埋点留在 main block 之内 |
 | `HSTracker/UIs/ImageUtils.swift`（130） | S5：LRU 256（`Fork/SynchronizedLRUCache.swift`）+ 404 负缓存 + 后台解码，回调回主线程 | 上游加「主线程 hop」「404 要回调」多半已有；上游新增图片类型要接进同一套 LRU / 队列 |
 | `HSTracker/Core/SizeHelper.swift`（101） | S5：AX 读挪后台 + `UnfairLock`，窗口轮询 0.25s（上游约 2s） | 上游改窗口探测 / 全屏判断时看锁的范围 |
@@ -100,6 +101,23 @@ latest 低于上游声明、下载失败、HearthDb 大版本跳变 → 停下�
 上游 3.6.11 之后把 overlay 重写成单一 SwiftUI 画布并删了 `Tracker.swift` / `CardHud.swift`，旧线的记牌器窗口层改动整体作废。
 不合并，从 `3.6.12`（`c723bfd4`）开 `dev0923`，按 `docs/archive/refork-2026-09.md` S0–S8 只搬值得留的东西；每步的取舍、勘误、上游 bug 都记在那里。
 新线第一次 merge 是下面的 U4。
+
+### U6 — 3.7.1（2026-10-24，上游 `8d5ff469..782c881c`，11 commits）
+
+**上游更新一览**：HDT 1.59.1–1.59.5 移植（Assemble 拼装界面：`AssembleStateWatcher`、`RelatedCardsManager.getEffectCardId` 等、opacity mask；Tier7 试用、战棋随从钉选 / 攻略 / 场次面板；删 `BattlegroundsCompositionPopularity*` 三个文件和 `comp-pin-example.png`；`tavern_markers_panel_expanded` 改键名并默认收起）、HearthMirror `a5086993`、卡牌数据 255130、BobsBuddy 1.93.19 + 失败上报带 .NET 栈、内存读取器绝不在主线程初始化（`5134e068`，`MirrorHelper` 大改）、Rosetta 警告 / 登录失败不再 `runModal()`（`c7f7bdae`）、战棋上局列表加锁（`db64cb38`）、pre-lobby 不在进对局时重开（`031c2ab8`）、上游自带战棋设置简中（`fbc60c02`）、删 `allow-dyld-environment-variables` / `disable-library-validation` 两个 entitlement 和 `--deep`（`ed13d1c6`）。
+
+**冲突与处理**（2 个）：
+- `project.pbxproj`：14.0 + 3.7.1；两处 `OTHER_CODE_SIGN_FLAGS = "--deep"` 照上游删；`Embed Mono` 脚本留我们的「只嵌本次构建的架构 + 整份 BCL」，把上游新加的 libcoreclr / libSystem.Native 重签名段插在拷 dylib 之后（`--deep` 删了以后就靠它把 ad hoc 的 Mono dylib 签成 app 的身份）。
+- `BattlegroundsPreferences.xcstrings`：18 块都是简中措辞分歧，按 §1 取我们的；另有 3 处「鲍勃助手 → 鲍勃之友」是自动合进来的，`check_xcstrings.py` E5 报出后改回。合完整份文件与合并前一致。
+
+**手工复核的自动合并项**：
+- `HSTracker.entitlements`：**自动合并删掉了 `disable-library-validation`，手动加回**（带注释）。app 用 Apple Development 证书签名 + hardened runtime，`Mods/RedDragon/build.sh` 出的 mod 是 ad hoc 签名，由 ModHost `dlopen`；没有这一项，library validation 会以 Team ID 不同拒绝加载。`allow-dyld-environment-variables` 我们也不用，照上游删。以后要收紧，就让 `build.sh` 用 app 同一个证书签 mod，再删这一项。
+- `Game.swift`（上游 +250 行）：上游没碰我们删掉的 `guiNeedsUpdate` / `shouldShowTracker`；pre-lobby 修复落在 `updateBattlegroundsGuidesPreLobbyVisibility`，与我们挪到 `main.async` 的写入不在同一段。
+- `AppDelegate` / `CoreManager` / `SceneHandler` / `RootOverlayViewModel` / `Settings`：都是两边各加各的。`tavern_markers_panel_expanded` 不在「与上游的默认值差异」表里，取上游。
+- pbxproj 登记：`AssembleStateWatcher.swift` 4 处；删掉的三个 swift 和 png 0 处；`RedDragonCore` / `ModKit` / `ModHost` 条目都在。
+- 食魂者之镰（`PowerGameStateParser` / `BoundSoul`）上游没碰。
+
+**vendor / 构建 / 测试**（云端连不上 `libs.hearthsim.net`，在本机补，折进 merge commit）：`update-managed-deps.sh` 落 **BobsBuddy 1.93.29**（上游钉 1.93.19，latest 更高）、HearthDb 37.0.0 不变（zip 逐字节相同）。受限环境 Debug `clean build` 过；`test -skip-testing:HSTrackerTests/LocalizationFormatTests` **460 条 455 过 / 4 跳过 / 1 失败（签名，自编译包预期内）**，552 秒（合前 455 条）；包 `swift test`：ModHost 20、ModKit 7、RedDragonCore 102（1 跳过）全过。`Mods/RedDragon/build.sh --install` 后起 Debug 包，日志「已加载 / 已启用 red-dragon 1.0」，`disable-library-validation` 加回有效。
 
 ### U5 — 3.7.0（2026-10-15，`b227ef15`，上游 `41f89c04..8d5ff469`，63 commits，含 3.6.14）
 

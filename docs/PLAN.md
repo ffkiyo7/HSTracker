@@ -1,9 +1,9 @@
 # HSTracker 个人分支：记录
 
-最后更新 2026-10-18。只记三样：提交记录、构建 / 测试记录、项目细节。10-14 之前的计划、待办、待定项和排查经过
+最后更新 2026-10-24。只记三样：提交记录、构建 / 测试记录、项目细节。10-14 之前的计划、待办、待定项和排查经过
 已整份归档（`docs/archive/plan-2026-10-14.md`、`docs/archive/refork-2026-09.md`、`docs/archive/tasks/`），按「已读、已决定」处理，不再跟进。
 
-`HearthSim/HSTracker` 的个人自用 fork，不回流上游。分支 `dev0923`，基座上游 **3.7.0**（`8d5ff469`，10-15 合入 `b227ef15`；09-23 从 3.6.12 换轨重建）；
+`HearthSim/HSTracker` 的个人自用 fork，不回流上游。分支 `dev0923`，基座上游 **3.7.1**（`782c881c`，10-24 合入，分支 `claude/project-thread-y79oo9`；3.7.0 `8d5ff469` 10-15 合入 `b227ef15`；09-23 从 3.6.12 换轨重建）；
 旧线 `dev`（基座 3.6.9，`647c310d`）冻结作回滚点；`master` 是上游纯镜像。上游合并见 `docs/upstream-merges.md`。
 
 ## 提交记录
@@ -12,7 +12,7 @@
 |---|---|
 | 地基：驱动循环 / 窗口层 / 部署目标 14.0 / 16ms 刷新合并 | Phase 0 T0–T6（旧线）；新线 REFORK S1 `17302764`、S5 `cc0fa753` + `d589ff8a` |
 | SwiftUI 记牌器 + 动效 | Phase 1 T1–T8，T8 `2e9713b5`；新线 S4 `8c2a4081` |
-| 合上游 3.6.7 / 3.6.8 / 3.6.9 / 3.6.13 / 3.7.0 | `eaa55850` / `5835f8a4` / `9da27c8e` / U4 / U5 `b227ef15`（HearthMirror 升 `ec7b1d7e`，shim 已撤；BobsBuddy 1.92.7 / HearthDb 37.0.0） |
+| 合上游 3.6.7 / 3.6.8 / 3.6.9 / 3.6.13 / 3.7.0 / 3.7.1 | `eaa55850` / `5835f8a4` / `9da27c8e` / U4 / U5 `b227ef15`（HearthMirror 升 `ec7b1d7e`，shim 已撤；BobsBuddy 1.92.7 / HearthDb 37.0.0） / U6（HearthMirror `a5086993`、BobsBuddy 1.93.29（上游钉 1.93.19）/ HearthDb 37.0.0；entitlements 保留 `disable-library-validation` 给 mod） |
 | 换轨到 3.6.12（REFORK S0–S8） | S2 `3883c940`、S3 `687aa134`、S6a `8a86299d`、S6b `a8e59f43` / `2618be4b` / `b12ead8c` / `7312c31c`、S7 `aae3f397`、S8 `54576cce` |
 | 牌库 / 手牌 / 已打出分区 | T1 `1c44b212`；Bug T6 `e9a67db6` / T7 `7bd3192b` / T8+T9 `68ccc14e` / T10 `04dae47a` / T11 护栏 `f8fa4c86` |
 | 视觉重做与掉帧 | V1 `e3797ba8`；V2a+V2b `1745adfa`；Perf P1+P2 `143db6f3`；2.7 状态图标 `7dbc86b1` |
@@ -30,6 +30,7 @@
 
 | 日期 | 范围 | 结果 |
 |---|---|---|
+| 10-24 | 合上游 3.7.1：vendor BobsBuddy 1.93.29 / HearthDb 37.0.0、Debug clean build、全套（跳过 `LocalizationFormatTests`）、包 `swift test`、红龙 mod `build.sh --install` 后起 Debug 包 | build 通过；460 条 455 过 / 4 跳过 / 1 失败（签名，自编译包预期内），552 秒；包 ModHost 20 / ModKit 7 / RedDragonCore 102（1 跳过）全过；mod 已加载、已启用 |
 | 10-18 | 食魂者之镰关联卡牌：Debug 增量 build、全套 HSTrackerTests | build 通过；455 条 450 过 / 4 跳过 / 1 失败（签名，自编译包预期内），575 秒；游戏内悬浮未实测 |
 | 10-16 | T9 破冰口径 15（炉石关着）：包 `swift test`；全套 HSTrackerTests（含新加的两局对法师 fixture）；152 个局面（12 局逐回合当对方挂冰，原血和改 12 血）新旧对比 `8d0458c6`，确定性 + 生产配置、-O | 包 103 条 102 过 1 跳过；全套 455 条 450 过 / 4 跳过（按需开的红龙）/ 1 失败（签名，自编译包预期内），540 秒；结论档不变（可斩 24 / 差一点 6 / 破不了 122），22 行换了路线，下回合手里阿莱没有一行变少，旧版 9 行「0 张阿莱报可斩」都留下 1–4 张；最慢 1.11 s，合计 19.0 → 20.8 s，没撞 CPU 兜底 |
 | 10-16 | M5 验收（炉石关着）：包 `swift test`；HSTrackerTests 红龙 7 个类；10 局 fixture 逐回合导出（`describe`，确定性配置）对比 M4 之前的 `ab35b73f`（独立目录、独立 DerivedData）；Debug 包装 mod 启动 | 包 100 条 99 过 1 跳过；红龙 105 条 101 过 4 跳过（按需开的 4 条，基线同样跳过）0 失败，基线同；10 局 71 行逐回合一致（去掉 CPU 秒；整套跑时卡名语言随测试宿主卡库加载先后变，单跑两边逐字节一致）；mod 已加载、已启用，老设置抄到 `mod.red-dragon.*`，正常退出不进安全模式。顺手修：`ModManager.start()` 挪到 logger 建好之后，原来加载日志全丢 |
