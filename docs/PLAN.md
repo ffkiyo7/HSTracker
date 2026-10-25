@@ -24,12 +24,14 @@
 | 包体瘦身（不打包 `HearthDb.xml`，.NET 基础库只嵌本架构） | PR #3 `aecd42bf` |
 | 红龙贼 combo 提示器 | T0+T1 `0a921d6b`；T2a `d73f8a6`；T2b `61fbcbd`；T2c `359916c`；T3 跟手 `507d354`；T4 奶 16 + 完整公式 `a3326ac`；T5 引擎核对 `35a783f6`；T6 面板 1.6 倍 `1f6384bf`；T7 跟手延迟 `cf73e238`；T8 破冰 `8f5a1636` + `2a126604` + `d8da0b4b` + `e2a85b3d`；T9 破冰改按下回合手里阿莱张数排序、下回合伤害不算场上随从（口径 15，`docs/research/red-dragon-card-model.md` J3；分支 `claude/project-thread-t36isn`） |
 | 食魂者之镰 / 受缚之魂悬浮显示被吞食的随从（解析镰刀开局块亮到 SETASIDE 的随从记到镰刀 `storedCardIds`；新增 `BoundSoul` 关联卡牌类） | 分支 `claude/project-thread-1suo58` |
+| 回溯重放卡死：半稳定传送门「回溯时间线」让 `handleRewind` 从开局重读整局，计数器每变一次就往主线程丢一块、每块重算全部计数器可见性，Debug 包主线程连着忙 1~2 分钟（无响应、切出游戏 overlay 还挂着、计数显示滞后）。`BaseCounter.onCounterChanged` 每个计数器最多挂一块、`CounterManager.notifyCountersChanged` 合成一次；构筑局悬浮计数器不再读战棋种族。合并前就有，非 3.7.1 / 合并 / mod 引入 | 分支 `claude/project-thread-y79oo9` |
 | 红龙解耦与 mod 化（评估 `docs/research/red-dragon-mod-eval.md`） | M1 引擎包挪到 `Packages/RedDragonCore/`、去掉 `sources:` 点名、pbxproj 删 12 条导航引用；M2 引擎立公开接口（顶层 53 个类型标 `public`，比评估的 30 个多出的是 public 签名连带的；`-enable-testing` 只在 Debug，app 侧改普通 `import`）；M3 拆测试：只碰引擎的 100 条（`RedDragonTests` 54、`RedDragonIceBreakTests` 32、`RedDragonSetupTests` 6、`RedDragonFormulaTests` 8 整个）挪进包的 `RedDragonCoreTests`，`formulas.json` / `sim.py` 跟着挪，HSTrackerTests 留 105 条；M4 合入 ModKit / ModHost，app 适配层 `HSTracker/Mods/`（mod 管理器、对局 / 实体适配、宿主服务和 mod 设置存取、overlay 图层、设置窗「Mod」分组），5 处挂点改调 `ModManager`，红龙胶水改走 ModKit、作为内置 mod 仍编在 app 里，设置键改成 `mod.red-dragon.*`（老 `red_dragon_*` 键启动时抄一次、不删）；M5 红龙胶水 8 个文件挪到 `Mods/RedDragon/`（SwiftPM 动态库 + 入口 `hstracker_mod_entry`，`build.sh` 编 Release、把 ModKit 依赖改指 app 里的 `ModKit.framework`、ad hoc 签名，`--install` 装进 Mods 目录），app 不再含红龙（RedDragonCore 也移出 app target），HSTrackerTests 直接编 mod 源码（除入口文件）、Debug 加 `-DDEBUG`（分支 `claude/project-thread-rdkiom`） |
 
 ## 构建 / 测试记录
 
 | 日期 | 范围 | 结果 |
 |---|---|---|
+| 10-25 | 回溯重放卡死修复：Debug 增量 build、全套 HSTrackerTests（新增 2 条计数器通知合并测试） | build 通过；467 条 462 过 / 4 跳过 / 1 失败（签名，自编译包预期内），562 秒；游戏内回溯未实测 |
 | 10-24 | 合上游 3.7.1：vendor BobsBuddy 1.93.29 / HearthDb 37.0.0、Debug clean build、全套（跳过 `LocalizationFormatTests`）、包 `swift test`、红龙 mod `build.sh --install` 后起 Debug 包 | build 通过；460 条 455 过 / 4 跳过 / 1 失败（签名，自编译包预期内），552 秒；包 ModHost 20 / ModKit 7 / RedDragonCore 102（1 跳过）全过；mod 已加载、已启用 |
 | 10-18 | 食魂者之镰关联卡牌：Debug 增量 build、全套 HSTrackerTests | build 通过；455 条 450 过 / 4 跳过 / 1 失败（签名，自编译包预期内），575 秒；游戏内悬浮未实测 |
 | 10-16 | T9 破冰口径 15（炉石关着）：包 `swift test`；全套 HSTrackerTests（含新加的两局对法师 fixture）；152 个局面（12 局逐回合当对方挂冰，原血和改 12 血）新旧对比 `8d0458c6`，确定性 + 生产配置、-O | 包 103 条 102 过 1 跳过；全套 455 条 450 过 / 4 跳过（按需开的红龙）/ 1 失败（签名，自编译包预期内），540 秒；结论档不变（可斩 24 / 差一点 6 / 破不了 122），22 行换了路线，下回合手里阿莱没有一行变少，旧版 9 行「0 张阿莱报可斩」都留下 1–4 张；最慢 1.11 s，合计 19.0 → 20.8 s，没撞 CPU 兜底 |
@@ -74,6 +76,7 @@
 
 - Release 包：`open ~/Library/Developer/Xcode/DerivedData/HSTracker-batppbchpubuefehmmfbulefeevu/Build/Products/Release/HSTracker.app`（10-15 起本机只留这一个包，Debug 包已清；要 Debug 包时增量 build，交测前看 `Contents/MacOS/HSTracker.debug.dylib` 的时间 ≥ HEAD 提交时间）。
 - 回旧线：`git checkout dev`（origin 上也有）。
+- 卡死排查：系统会在 `/Library/Logs/DiagnosticReports/HSTracker_*.cpu_resource.diag` 留 CPU 超限报告（Debug 包带符号，直接看主线程最重的栈）；`hstracker.log` 里 `LogReaderManager.stop` 前面没有 `Stop Tracking` 的，是回溯重放。
 - HearthMirror 闭源，只能从 `libs.hearthsim.net/hstracker/<sha>/` 拿，合上游前先 `curl -I` 一下新 pin；Download 阶段失败会先 `rm -rf` 缓存，重跑前别慌。
 - 探针 `HSTRACKER_LATENCY_PROBE=1`（Release 包读 `~/Library/Logs/HSTracker/hstracker.log`）；掉帧分析 `docs/tasks/tools/frame_gaps.py`，跨录像对比加 `--busy`。
 - 环境：`brew install wget`（两个 build phase 依赖）；`Config.xcconfig` 本地签名（个人 Apple Development 证书，Team `DY725KK25V`）+ `skip-worktree`，换机器重做；SwiftLint 故意不装；git 身份 repo-local。

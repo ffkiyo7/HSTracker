@@ -117,10 +117,31 @@ class CounterManager {
         }
     }
 
+    // A listener re-evaluates every counter's visibility, so the changes of a
+    // burst (several counters at once, or a game read back from its start) are
+    // folded into one call on the main thread instead of one per change.
+    private var notifyScheduled = false
+
     private func notifyCountersChanged() {
-        let listeners = lock.around { countersChanged }
-        for listener in listeners {
-            listener()
+        let schedule = lock.around { () -> Bool in
+            if notifyScheduled {
+                return false
+            }
+            notifyScheduled = true
+            return true
+        }
+        guard schedule else {
+            return
+        }
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            let listeners = self.lock.around { () -> [CountersChangedListener] in
+                self.notifyScheduled = false
+                return self.countersChanged
+            }
+            for listener in listeners {
+                listener()
+            }
         }
     }
 }

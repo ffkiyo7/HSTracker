@@ -191,4 +191,51 @@ class CounterVisibilitySettingsTests: HSTrackerTests {
         XCTAssertEqual(counter.visibilityOverride, .enabled)
         XCTAssertFalse(counter.isVisible())
     }
+
+    // MARK: - Change notifications
+
+    private func drainMainQueue() {
+        let drained = expectation(description: "main queue drained")
+        DispatchQueue.main.async { drained.fulfill() }
+        wait(for: [drained], timeout: 5)
+    }
+
+    /// A game read back from its start changes a counter many times in a row; the overlay
+    /// has to be told once for the burst, not once per change.
+    func testABurstOfChangesNotifiesOnce() {
+        let counter = PogoHopperCounter(controlledByPlayer: true, game: makeGame())
+        var notifications = 0
+        counter.counterChanged = { notifications += 1 }
+
+        DispatchQueue.global().sync {
+            for value in 1...1000 {
+                counter.counter = value
+            }
+        }
+        drainMainQueue()
+        XCTAssertEqual(notifications, 1)
+
+        // The next change after the notification ran gets one of its own.
+        counter.counter = 1001
+        drainMainQueue()
+        XCTAssertEqual(notifications, 2)
+    }
+
+    func testCounterManagerFoldsABurstIntoOneListenerCall() {
+        let game = makeGame()
+        let manager = CounterManager()
+        manager.initialize(game: game)
+        var calls = 0
+        manager.addCountersChangedListener { calls += 1 }
+
+        DispatchQueue.global().sync {
+            for (index, counter) in manager.playerCounters.compactMap({ $0 as? NumericCounter }).enumerated() {
+                counter.counter = index + 1
+            }
+        }
+        // One hop for the counters' own notifications, one for the folded listener call.
+        drainMainQueue()
+        drainMainQueue()
+        XCTAssertEqual(calls, 1)
+    }
 }

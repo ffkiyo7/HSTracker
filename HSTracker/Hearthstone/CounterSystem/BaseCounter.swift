@@ -207,7 +207,9 @@ class BaseCounter: NSObject {
     }
     
     var cardsToDisplay: [Card] {
-        let availableCardIds = getAvailableCardIds()
+        // Only the Battlegrounds filter below uses it; outside Battlegrounds the
+        // race lookup misses its cache and reads the mirror on every hover.
+        let availableCardIds = isBattlegroundsCounter ? getAvailableCardIds() : nil
 
         // The opponent branch of getCardsToDisplay() filters by their class, which would drop the
         // cards Azalina copied out of our deck and leave the tooltip empty under the pill.
@@ -231,9 +233,30 @@ class BaseCounter: NSObject {
     var counterChanged: (() -> Void)?
     var propertyChanged: ((String?) -> Void)?
 
+    // Set while a change notification is queued on the main thread. A game read
+    // back from its start (a Rewind, or launching mid-game) changes the counters
+    // thousands of times in a burst; a main-thread block for each change, each
+    // one refreshing the whole counters overlay, kept the main thread busy for
+    // minutes. One pending block covers every change made before it runs.
+    private let changeLock = UnfairLock()
+    private var changeScheduled = false
+
     // Method to raise events
     func onCounterChanged() {
+        let schedule = changeLock.around { () -> Bool in
+            if changeScheduled {
+                return false
+            }
+            changeScheduled = true
+            return true
+        }
+        guard schedule else {
+            return
+        }
         DispatchQueue.main.async {
+            // Cleared before anything is read, so a change landing after this
+            // point queues a block of its own.
+            self.changeLock.around { self.changeScheduled = false }
             self.counterChanged?()
             self.onPropertyChanged("counterValue")
             self.onPropertyChanged("cardsToDisplay")
