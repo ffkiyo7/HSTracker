@@ -9,6 +9,12 @@ import XCTest
 
 @testable import HSTracker
 
+/// A match's game type only comes from HearthMirror, so counters that gate on
+/// `isTraditionalHearthstoneMatch` get a game that says it is one.
+private class TraditionalMatchGame: Game {
+    override var isTraditionalHearthstoneMatch: Bool { true }
+}
+
 class HdtPortTests: HSTrackerTests {
 
     private func waitForCard(_ cardId: String, line: UInt = #line) {
@@ -64,5 +70,59 @@ class HdtPortTests: HSTrackerTests {
 
         XCTAssertTrue(NzothDreamsEnd().getRelatedCards(player: game.player).isEmpty)
         XCTAssertFalse(NzothDreamsEnd().shouldShowForOpponent(opponent: game.opponent))
+    }
+
+    // MARK: - W3b C'Thun, Eye of the Empire (HDT ba5eb9e)
+
+    private let wrath = CardIds.NonCollectible.Neutral.CThunEyeoftheEmpire_WrathOfCthunToken
+    private let domain = CardIds.NonCollectible.Neutral.CThunEyeoftheEmpire_DomainOfCthunToken
+    private let glare = CardIds.NonCollectible.Neutral.CThunEyeoftheEmpire_GlareOfCthunToken1
+    private let servants = CardIds.NonCollectible.Neutral.CThunEyeoftheEmpire_ServantsOfCthunToken
+
+    /// Our C'Thun in hand, so the player counter has something to show before any ability.
+    private func makeCthunCounter() -> (TraditionalMatchGame, CthunAbilitiesTriggeredCounter, Entity) {
+        let game = TraditionalMatchGame(hearthstoneRunState: HearthstoneRunState(isRunning: false, isActive: false))
+        game.player.id = 1
+        game.opponent.id = 2
+        let cthun = Entity(id: 30)
+        cthun.cardId = CardIds.Collectible.Neutral.CthunEyeOfTheEmpire
+        cthun[.zone] = Zone.hand.rawValue
+        cthun[.controller] = 1
+        cthun[.cardtype] = CardType.minion.rawValue
+        cthun.info.originalZone = .deck
+        game.entities[cthun.id] = cthun
+        return (game, CthunAbilitiesTriggeredCounter(controlledByPlayer: true, game: game), cthun)
+    }
+
+    private func trigger(_ tag: GameTag, on counter: CthunAbilitiesTriggeredCounter, by entity: Entity) {
+        counter.handleTagChange(tag: tag, entity: entity, value: 1, prevValue: 0)
+    }
+
+    func testCthunCounterShowsCthunBeforeAnyAbility() {
+        let (_, counter, _) = makeCthunCounter()
+
+        XCTAssertEqual(counter.counter, 0)
+        XCTAssertEqual(counter.getCardsToDisplay(), [CardIds.Collectible.Neutral.CthunEyeOfTheEmpire])
+    }
+
+    func testCthunCounterShowsTheOneAbilityUsed() {
+        let (_, counter, cthun) = makeCthunCounter()
+
+        trigger(.cthun_ability3_used, on: counter, by: cthun)
+
+        XCTAssertEqual(counter.counter, 1)
+        XCTAssertEqual(counter.getCardsToDisplay(), [glare])
+    }
+
+    func testCthunCounterShowsAllFourAbilitiesInHdtOrder() {
+        let (_, counter, cthun) = makeCthunCounter()
+
+        for tag in [GameTag.cthun_ability4_used, .cthun_ability1_used, .cthun_ability3_used,
+                    .cthun_ability2_used, .cthun_ability1_used] {
+            trigger(tag, on: counter, by: cthun)
+        }
+
+        XCTAssertEqual(counter.counter, 4, "an ability counts once however often it triggers")
+        XCTAssertEqual(counter.getCardsToDisplay(), [wrath, domain, glare, servants])
     }
 }
