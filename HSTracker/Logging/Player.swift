@@ -29,6 +29,7 @@ class DynamicEntity {
         self.stolen = stolen
         self.isInHand = isInHand
         self.entity = entity
+        self.extraInfo = extraInfo
     }
 }
 
@@ -41,6 +42,8 @@ extension DynamicEntity: Hashable {
         stolen.hash(into: &hasher)
         cardMark.hash(into: &hasher)
         isInHand.hash(into: &hasher)
+        // Only the type: equal values always share a type, so equal entities still hash alike.
+        hasher.combine(extraInfo.map { ObjectIdentifier(type(of: $0)) })
     }
 
     static func == (lhs: DynamicEntity, rhs: DynamicEntity) -> Bool {
@@ -50,7 +53,19 @@ extension DynamicEntity: Hashable {
             lhs.discarded == rhs.discarded &&
             lhs.cardMark == rhs.cardMark &&
             lhs.stolen == rhs.stolen &&
-            lhs.isInHand == rhs.isInHand
+            lhs.isInHand == rhs.isInHand &&
+            extraInfoEqual(lhs.extraInfo, rhs.extraInfo)
+    }
+
+    private static func extraInfoEqual(_ lhs: (any ICardExtraInfo)?, _ rhs: (any ICardExtraInfo)?) -> Bool {
+        switch (lhs, rhs) {
+        case (nil, nil):
+            return true
+        case let (lhs?, rhs?):
+            return lhs.isEqual(to: rhs)
+        default:
+            return false
+        }
     }
 }
 

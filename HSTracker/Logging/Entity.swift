@@ -262,7 +262,7 @@ extension Entity: NSCopying {
         e.info.prepared = info.prepared
         e.info.drawerId = info.drawerId
         e.info.copyOfCardId = info.copyOfCardId
-        e.info.extraInfo = e.info.extraInfo
+        e.info.extraInfo = info.extraInfo?.copy() as? (any ICardExtraInfo)
         e.info.costReduction = info.costReduction
         e.info.revealedOnHistory = info.revealedOnHistory
         e.info.creatorId = info.creatorId

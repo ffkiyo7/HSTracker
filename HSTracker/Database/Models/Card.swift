@@ -484,6 +484,7 @@ extension Card: NSCopying {
         copy.isCreated = self.isCreated
         copy.wasDiscarded = self.wasDiscarded
         copy.zoneStatus = self.zoneStatus
+        copy.extraInfo = self.extraInfo?.copy() as? (any ICardExtraInfo)
         copy.highlightDraw = self.highlightDraw
         copy.highlightInHand = self.highlightInHand
         copy.highlightFrame = self.highlightFrame
