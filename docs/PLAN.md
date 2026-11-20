@@ -27,12 +27,14 @@
 | 回溯重放卡死：半稳定传送门「回溯时间线」让 `handleRewind` 从开局重读整局，计数器每变一次就往主线程丢一块、每块重算全部计数器可见性，Debug 包主线程连着忙 1~2 分钟（无响应、切出游戏 overlay 还挂着、计数显示滞后）。`BaseCounter.onCounterChanged` 每个计数器最多挂一块、`CounterManager.notifyCountersChanged` 合成一次；构筑局悬浮计数器不再读战棋种族。合并前就有，非 3.7.1 / 合并 / mod 引入 | 分支 `claude/project-thread-y79oo9` |
 | 红龙解耦与 mod 化（评估 `docs/research/red-dragon-mod-eval.md`） | M1 引擎包挪到 `Packages/RedDragonCore/`、去掉 `sources:` 点名、pbxproj 删 12 条导航引用；M2 引擎立公开接口（顶层 53 个类型标 `public`，比评估的 30 个多出的是 public 签名连带的；`-enable-testing` 只在 Debug，app 侧改普通 `import`）；M3 拆测试：只碰引擎的 100 条（`RedDragonTests` 54、`RedDragonIceBreakTests` 32、`RedDragonSetupTests` 6、`RedDragonFormulaTests` 8 整个）挪进包的 `RedDragonCoreTests`，`formulas.json` / `sim.py` 跟着挪，HSTrackerTests 留 105 条；M4 合入 ModKit / ModHost，app 适配层 `HSTracker/Mods/`（mod 管理器、对局 / 实体适配、宿主服务和 mod 设置存取、overlay 图层、设置窗「Mod」分组），5 处挂点改调 `ModManager`，红龙胶水改走 ModKit、作为内置 mod 仍编在 app 里，设置键改成 `mod.red-dragon.*`（老 `red_dragon_*` 键启动时抄一次、不删）；M5 红龙胶水 8 个文件挪到 `Mods/RedDragon/`（SwiftPM 动态库 + 入口 `hstracker_mod_entry`，`build.sh` 编 Release、把 ModKit 依赖改指 app 里的 `ModKit.framework`、ad hoc 签名，`--install` 装进 Mods 目录），app 不再含红龙（RedDragonCore 也移出 app target），HSTrackerTests 直接编 mod 源码（除入口文件）、Debug 加 `-DDEBUG`（分支 `claude/project-thread-rdkiom`） |
 | 包 0 上游断供后的规则与仓库整理（W4–W6）：`AGENTS.md` 本地化改为新内容词条随功能新增 key（D1），`check_xcstrings.py --allow-new-key` 说明跟着改；补 `BE` 的 zh-Hans「黑暗帝国的统治」；`docs/upstream-merges.md` 加断供交接记录和 §5 新拓展包维护流程 | 分支 `claude/project-thread-mbpeaq` |
+| 包 1 卡牌数据跟国服 build：`cards-version.txt` 255130 → 255790（国服客户端 11-17 `Power.log` 的 `BuildNumber`，hsdata 有此 tag） | 分支 `claude/project-thread-hcje7g` |
 | 包 2 修 extraInfo 丢失（W3f）：`DynamicEntity` 存下 `extraInfo` 并参与 `==`（`ICardExtraInfo.isEqual(to:)`）/ `hash`（只放类型），带附加信息的同名卡按附加信息分行；`Entity.copy()` 深拷贝 `extraInfo`（原来自己赋给自己）；`sortCardList` 后缀比较 `$0` 对 `$0` 改成 `$0` 对 `$1`；`Card.copy()` 带上 `extraInfo`（分区面板的牌库行和 `annotateCards` 都从副本出行，不带就又丢了）。新增 `CardExtraInfoTests` | 分支 `claude/project-thread-emyo0v` |
 
 ## 构建 / 测试记录
 
 | 日期 | 范围 | 结果 |
 |---|---|---|
+| 11-21 | 包 1：Debug 增量 build（`cards-version.txt` 255790）、`DatabaseTests` | build 通过，34 秒；`downloaded-frameworks/cards/255790/` 三个 XML 齐全（70.5 / 15.8 / 19.6 MB），无 `.partial`；CardDefsCompiler 36390 实体，101.1 → 50.6 MB；DatabaseTests 7 条全过；实机抽查留到第一轮 |
 | 11-21 | 包 0：`check_xcstrings.py --baseline b0c03707`、Debug 增量 build；本地 `master` 快进到 3.7.1、`gh repo set-default` | 校验通过；build 通过；Debug 包 `zh-Hans.lproj/Localizable.strings` 里 `BE` = 黑暗帝国的统治；`master` = `782c881c`，origin/master 不变；牌组管理器界面未打开看 |
 | 10-25 | 回溯重放卡死修复：Debug 增量 build、全套 HSTrackerTests（新增 2 条计数器通知合并测试） | build 通过；467 条 462 过 / 4 跳过 / 1 失败（签名，自编译包预期内），562 秒；游戏内回溯未实测 |
 | 10-24 | 合上游 3.7.1：vendor BobsBuddy 1.93.29 / HearthDb 37.0.0、Debug clean build、全套（跳过 `LocalizationFormatTests`）、包 `swift test`、红龙 mod `build.sh --install` 后起 Debug 包 | build 通过；460 条 455 过 / 4 跳过 / 1 失败（签名，自编译包预期内），552 秒；包 ModHost 20 / ModKit 7 / RedDragonCore 102（1 跳过）全过；mod 已加载、已启用 |
