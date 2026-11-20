@@ -22,6 +22,13 @@ class CthunAbilitiesTriggeredCounter: NumericCounter {
         ]
     }
 
+    private static let abilityCardIds = [
+        CardIds.NonCollectible.Neutral.CThunEyeoftheEmpire_WrathOfCthunToken,
+        CardIds.NonCollectible.Neutral.CThunEyeoftheEmpire_DomainOfCthunToken,
+        CardIds.NonCollectible.Neutral.CThunEyeoftheEmpire_GlareOfCthunToken1,
+        CardIds.NonCollectible.Neutral.CThunEyeoftheEmpire_ServantsOfCthunToken
+    ]
+
     private var abilitiesUsed = [Bool](repeating: false, count: CthunAbilitiesTriggeredCounter.abilityCount)
 
     required init(controlledByPlayer: Bool, game: Game) {
@@ -37,6 +44,11 @@ class CthunAbilitiesTriggeredCounter: NumericCounter {
     }
 
     override func getCardsToDisplay() -> [String] {
+        if counter > 0 {
+            return CthunAbilitiesTriggeredCounter.abilityCardIds.enumerated()
+                .filter { abilitiesUsed[$0.offset] }
+                .map { $0.element }
+        }
         return isPlayerCounter
             ? getCardsInDeckOrKnown(cardIds: relatedCards)
             : filterCardsByClassAndFormat(cardIds: relatedCards, playerClass: game.opponent.originalClass)

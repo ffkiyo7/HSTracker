@@ -29,11 +29,13 @@
 | 包 0 上游断供后的规则与仓库整理（W4–W6）：`AGENTS.md` 本地化改为新内容词条随功能新增 key（D1），`check_xcstrings.py --allow-new-key` 说明跟着改；补 `BE` 的 zh-Hans「黑暗帝国的统治」；`docs/upstream-merges.md` 加断供交接记录和 §5 新拓展包维护流程 | 分支 `claude/project-thread-mbpeaq` |
 | 包 1 卡牌数据跟国服 build：`cards-version.txt` 255130 → 255790（国服客户端 11-17 `Power.log` 的 `BuildNumber`，hsdata 有此 tag） | 分支 `claude/project-thread-hcje7g` |
 | 包 2 修 extraInfo 丢失（W3f）：`DynamicEntity` 存下 `extraInfo` 并参与 `==`（`ICardExtraInfo.isEqual(to:)`）/ `hash`（只放类型），带附加信息的同名卡按附加信息分行；`Entity.copy()` 深拷贝 `extraInfo`（原来自己赋给自己）；`sortCardList` 后缀比较 `$0` 对 `$0` 改成 `$0` 对 `$1`；`Card.copy()` 带上 `extraInfo`（分区面板的牌库行和 `annotateCards` 都从副本出行，不带就又丢了）。新增 `CardExtraInfoTests` | 分支 `claude/project-thread-emyo0v` |
+| 包 3 HDT 构筑修复移植（W3a–c）：恩佐斯（`NzothDreamsEnd`）改继承 `ResurrectionCard`，悬浮显示我方已死亡的亡语随从、去重（HDT `ff1e3ea`）；克苏恩能力计数器用过能力后只显示已用的能力 token，按 Wrath / Domain / Glare / Servants 排（`ba5eb9e`）；对手锻造时 DECK_ACTION 下 POWER block 揭示的抉择选项标为隐藏，不再泄露 Gloomstone Guardian（`9564545`）。新增 `HdtPortTests` | 分支 `claude/project-thread-ggvweq` |
 
 ## 构建 / 测试记录
 
 | 日期 | 范围 | 结果 |
 |---|---|---|
+| 11-21 | 包 3 HDT 移植（head `9ee86368`）：Debug 增量 build；`HdtPortTests`；全套 HSTrackerTests | build 通过（22 秒）；单跑 9 条全过；全套 483 条 478 过 / 4 跳过 / 1 失败（签名，自编译包预期内），594 秒；三张卡实机未看（放第一轮） |
 | 11-21 | 包 2 extraInfo（PR #13，head `e7af7288`）：Debug 增量 build；`CardExtraInfoTests` + `CardZoneGroupsTests`；全套 HSTrackerTests | build 通过（43 秒）；单跑 60 条全过（新增 7 条）；全套 474 条 469 过 / 4 跳过 / 1 失败（签名，自编译包预期内），618 秒；伊辛迪奥斯后缀实机未看（放第一轮） |
 | 11-21 | 包 1：Debug 增量 build（`cards-version.txt` 255790）、`DatabaseTests` | build 通过，34 秒；`downloaded-frameworks/cards/255790/` 三个 XML 齐全（70.5 / 15.8 / 19.6 MB），无 `.partial`；CardDefsCompiler 36390 实体，101.1 → 50.6 MB；DatabaseTests 7 条全过；实机抽查留到第一轮 |
 | 11-21 | 包 0：`check_xcstrings.py --baseline b0c03707`、Debug 增量 build；本地 `master` 快进到 3.7.1、`gh repo set-default` | 校验通过；build 通过；Debug 包 `zh-Hans.lproj/Localizable.strings` 里 `BE` = 黑暗帝国的统治；`master` = `782c881c`，origin/master 不变；牌组管理器界面未打开看 |

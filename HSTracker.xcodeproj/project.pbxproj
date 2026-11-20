@@ -417,6 +417,7 @@
 		43C1C9F71E96CCE9008C20B1 /* AlgorithmTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CF1B5891E81426D007DCBF2 /* AlgorithmTests.swift */; };
 		B8DD0F00000000000000B009 /* CardZoneGroupsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A009 /* CardZoneGroupsTests.swift */; };
 		B8DD0F00000000000002B001 /* CardExtraInfoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000002A001 /* CardExtraInfoTests.swift */; };
+		B8DD0F00000000000003B001 /* HdtPortTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000003A001 /* HdtPortTests.swift */; };
 		B8DD0F00000000000000B00A /* ZoneGroupsReplayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A00A /* ZoneGroupsReplayTests.swift */; };
 		B8DD0F00000000000000B00C /* TrackerMetricsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A00C /* TrackerMetricsTests.swift */; };
 		B8DD0F00000000000000B00B /* 2026-09-14-standard.log in Resources */ = {isa = PBXBuildFile; fileRef = B8DD0F00000000000000A00B /* 2026-09-14-standard.log */; };
@@ -2161,6 +2162,7 @@
 		1CF1B5891E81426D007DCBF2 /* AlgorithmTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AlgorithmTests.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A009 /* CardZoneGroupsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardZoneGroupsTests.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000002A001 /* CardExtraInfoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardExtraInfoTests.swift; sourceTree = "<group>"; };
+		B8DD0F00000000000003A001 /* HdtPortTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HdtPortTests.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A00A /* ZoneGroupsReplayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneGroupsReplayTests.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A00C /* TrackerMetricsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerMetricsTests.swift; sourceTree = "<group>"; };
 		B8DD0F00000000000000A00B /* 2026-09-14-standard.log */ = {isa = PBXFileReference; lastKnownFileType = text; name = "2026-09-14-standard.log"; path = "Fixtures/ZoneReplay/2026-09-14-standard.log"; sourceTree = "<group>"; };
@@ -4562,6 +4564,7 @@
 				B8DD0F00000000000000A02A /* 2026-10-05-g6-first.log */,
 				B8DD0F00000000000000A009 /* CardZoneGroupsTests.swift */,
 				B8DD0F00000000000002A001 /* CardExtraInfoTests.swift */,
+				B8DD0F00000000000003A001 /* HdtPortTests.swift */,
 				B8DD0F00000000000000A00A /* ZoneGroupsReplayTests.swift */,
 				B8DD0F00000000000000A00C /* TrackerMetricsTests.swift */,
 				B8DD0F00000000000000A00B /* 2026-09-14-standard.log */,
@@ -9417,6 +9420,7 @@
 				43C1C9F71E96CCE9008C20B1 /* AlgorithmTests.swift in Sources */,
 				B8DD0F00000000000000B009 /* CardZoneGroupsTests.swift in Sources */,
 				B8DD0F00000000000002B001 /* CardExtraInfoTests.swift in Sources */,
+				B8DD0F00000000000003B001 /* HdtPortTests.swift in Sources */,
 				B8DD0F00000000000000B00A /* ZoneGroupsReplayTests.swift in Sources */,
 				B8DD0F00000000000000B00C /* TrackerMetricsTests.swift in Sources */,
 				B8DD0F00000000000000B007 /* RedDragonTests.swift in Sources */,

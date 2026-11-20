@@ -480,7 +480,17 @@ class PowerGameStateParser: LogEventParser {
                     }
                     let shouldHideForBlock = AppDelegate.instance().coreManager.logReaderManager.powerGameStateParser.currentBlock?.hideShowEntities ?? false && !(entity.info.revealedOnHistory) && !(entity.has(tag: .displayed_creator))
                     let beforeMulligan = eventHandler.gameEntity?[.step] ?? Step.main_begin.rawValue < Step.begin_mulligan.rawValue
-                    entity.info.hidden = shouldHideForBlock || beforeMulligan
+                    // Forging an opponent's card reveals its pre-created Choose One options (e.g. Gloomstone Guardian's)
+                    // before the block's OVERRIDE_HISTORY, which would leak the identity of the card in hand.
+                    var revealedByOpponentForge = false
+                    if let forgeBlock = currentBlock, forgeBlock.type == "POWER", forgeBlock.parent?.type == "DECK_ACTION",
+                       forgeBlock.sourceEntityId != entityId,
+                       let forgeSource = eventHandler.entities[forgeBlock.sourceEntityId] {
+                        revealedByOpponentForge = forgeSource.info.forged
+                            && forgeSource.isInHand
+                            && forgeSource.isControlled(by: eventHandler.opponent.id)
+                    }
+                    entity.info.hidden = shouldHideForBlock || beforeMulligan || revealedByOpponentForge
                     
                     if entity.info.deckIndex < 0, let currentBlock = currentBlock, currentBlock.sourceEntityId != 0 {
                         if let source = eventHandler.entities[currentBlock.sourceEntityId], source.hasDredge {
