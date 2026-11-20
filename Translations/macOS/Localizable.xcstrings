@@ -9799,6 +9799,12 @@
             "state" : "translated",
             "value" : "Herrschaft des Schwarzen Imperiums"
           }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "黑暗帝国的统治"
+          }
         }
       }
     },
