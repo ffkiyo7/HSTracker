@@ -30,7 +30,9 @@ env -u http_proxy -u https_proxy -u all_proxy -u HTTP_PROXY -u HTTPS_PROXY -u AL
 
 ## 本地化
 
-- 译文只放 `.xcstrings`；只增改 zh-Hans，不增删 key、不改其他语言、不覆盖已有译文。
+- 译文只放 `.xcstrings`；只增改 zh-Hans，不删 key、不改已有的其他语言译文、不覆盖已有的 zh-Hans 译文。
+  炉石新内容带来的游戏内词条（新系列名、新机制名等）随功能**新增 key**：en 用官方英文名，zh-Hans 取国服客户端
+  `Strings/zhCN/GLOBAL.txt` 里的官方译名；校验时用 `--allow-new-key <KEY>` 逐个放行。
 - 动过 `.xcstrings` 必须过 `python3 docs/tasks/tools/check_xcstrings.py --baseline <改动前 ref>`。
 
 ## 文档

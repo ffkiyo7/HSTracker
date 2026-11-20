@@ -137,7 +137,8 @@ def main():
     ap.add_argument('--allow-zh-edit', action='store_true',
                     help='允许修改已存在的 zh-Hans 译文（仅采纳 gaenyong 差异译法的任务需要）')
     ap.add_argument('--allow-new-key', action='append', default=[], metavar='KEY',
-                    help='允许新增的 key，可重复。只给 T3 补的 Archive / Unarchive 用')
+                    help='允许新增的 key，可重复。炉石新内容带来的游戏内词条（新系列名、新机制名等）'
+                         '按 AGENTS.md「本地化」逐个放行')
     ap.add_argument('--self-test', action='store_true', help='只跑校验器自测')
     args = ap.parse_args()
     if args.self_test:

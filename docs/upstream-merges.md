@@ -3,6 +3,10 @@
 每次把 HearthSim/HSTracker 的新 tag 合进工作分支都按本文走。**合完必须更新本文**：§4 追加一节记录，
 §1 / §2 有新的热点或新规则就补一行。本文与 `git log --merges dev0923` 一一对应。
 
+> **上游已断供（交接记录）**：10-28 上游仓库私有化，此后不再合并上游。最后一次可对齐的上游基座是 `3.7.1`（`782c881c`，§4 U6）；
+> HDT 公开源码可以参考到 `2698623`（11-03，标题为 v1.59.8，没有 git tag）为止，按需移植。§0–§4 留作历史记录，
+> 新拓展包按 §5 维护。本地 `master` 只快进到 `3.7.1`，不推送。
+
 - 上游：`upstream` = https://github.com/HearthSim/HSTracker.git，只合 **tag**（`3.6.13` 这种），不合 `upstream/master` 中间态
 - 工作分支 `dev0923`，基座 **3.7.1**（10-24 合入，U6；3.7.0 10-15 合入；09-23 从 3.6.12 `c723bfd4` 换轨，见 `docs/archive/refork-2026-09.md`）；`master` 只做上游纯镜像（只允许 `--ff-only`）
 - 旧线 `dev`（基座 3.6.9）冻结作回滚点，不再合上游；它的三次合并记录（U / U2 / U3）留在 §4 末尾
@@ -220,3 +224,20 @@ xcstrings：`check_xcstrings.py --baseline 3.6.13 --allow-zh-edit` 只报我们 
 `MainMenu.xcstrings`（61 块逐块保留双方）。
 
 **结果**：卡点 ① 已实战（2026-08-30），串卡修复确认，产出 5 条反馈（见 PLAN）。
+
+## 5. 新拓展包维护流程
+
+上游断供后，炉石出新拓展包时按下面走。参照上游 37.0 的 `aa2ac1a9`（加系列）和 `06709ccc`（计数器 / 关联卡）。
+
+1. **卡牌数据**：`HSTracker/cards-version.txt` 等于国服客户端 `Power.log` 里 `GameState.DebugPrintGame() - BuildNumber=` 的值；
+   hsdata 没有这个 tag 时保持原值，不追外服的最新 build（规则见 `docs/tasks/maintenance-2026-11/packages/01-cards.md`）。
+2. **系列枚举**：`HSTracker/Logging/Enums/CardSet.swift` 两处都要改：
+   - 字符串枚举 `CardSet`：加 case，并加进 `deckManagerValidCardSets`；
+   - 整数枚举 `CardSetInt`：加 ID（取 hsdata `CARD_SET` 的值）。
+
+   少改一处，新卡就会在 `Database.swift:224-233` 被丢弃，或者在牌组管理器里筛不出来。
+3. **新机制**：`GameTag.swift` 按需加 tag；`Database.mechanics`（`Database.swift:12-73`）按需加映射。
+4. **系列名 key**：按 `AGENTS.md`「本地化」新增 key（key 是 `CardSet` case 名的大写，见 `EditDeck.swift:421`），en 用官方英文名，
+   zh-Hans 取国服 `Strings/zhCN/GLOBAL.txt` 里的 `GLOBAL_CARD_SET_<缩写>`；`check_xcstrings.py --baseline` 加 `--allow-new-key <KEY>`。
+5. **新卡规则**：只补实际遇到的计数器和关联卡。卡牌 ID 补进 `HSTracker/Logging/CardIds/*.swift`；每个新 `.swift` 在 `project.pbxproj` 登记 4 处
+   （漏了不报错，这张卡静默失效）。

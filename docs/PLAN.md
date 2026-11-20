@@ -1,6 +1,6 @@
 # HSTracker 个人分支：记录
 
-最后更新 2026-10-24。只记三样：提交记录、构建 / 测试记录、项目细节。10-14 之前的计划、待办、待定项和排查经过
+最后更新 2026-11-21。只记三样：提交记录、构建 / 测试记录、项目细节。10-14 之前的计划、待办、待定项和排查经过
 已整份归档（`docs/archive/plan-2026-10-14.md`、`docs/archive/refork-2026-09.md`、`docs/archive/tasks/`），按「已读、已决定」处理，不再跟进。
 
 `HearthSim/HSTracker` 的个人自用 fork，不回流上游。分支 `dev0923`，基座上游 **3.7.1**（`782c881c`，10-24 合入，分支 `claude/project-thread-y79oo9`；3.7.0 `8d5ff469` 10-15 合入 `b227ef15`；09-23 从 3.6.12 换轨重建）；
@@ -26,6 +26,7 @@
 | 食魂者之镰 / 受缚之魂悬浮显示被吞食的随从（解析镰刀开局块亮到 SETASIDE 的随从记到镰刀 `storedCardIds`；新增 `BoundSoul` 关联卡牌类） | 分支 `claude/project-thread-1suo58` |
 | 回溯重放卡死：半稳定传送门「回溯时间线」让 `handleRewind` 从开局重读整局，计数器每变一次就往主线程丢一块、每块重算全部计数器可见性，Debug 包主线程连着忙 1~2 分钟（无响应、切出游戏 overlay 还挂着、计数显示滞后）。`BaseCounter.onCounterChanged` 每个计数器最多挂一块、`CounterManager.notifyCountersChanged` 合成一次；构筑局悬浮计数器不再读战棋种族。合并前就有，非 3.7.1 / 合并 / mod 引入 | 分支 `claude/project-thread-y79oo9` |
 | 红龙解耦与 mod 化（评估 `docs/research/red-dragon-mod-eval.md`） | M1 引擎包挪到 `Packages/RedDragonCore/`、去掉 `sources:` 点名、pbxproj 删 12 条导航引用；M2 引擎立公开接口（顶层 53 个类型标 `public`，比评估的 30 个多出的是 public 签名连带的；`-enable-testing` 只在 Debug，app 侧改普通 `import`）；M3 拆测试：只碰引擎的 100 条（`RedDragonTests` 54、`RedDragonIceBreakTests` 32、`RedDragonSetupTests` 6、`RedDragonFormulaTests` 8 整个）挪进包的 `RedDragonCoreTests`，`formulas.json` / `sim.py` 跟着挪，HSTrackerTests 留 105 条；M4 合入 ModKit / ModHost，app 适配层 `HSTracker/Mods/`（mod 管理器、对局 / 实体适配、宿主服务和 mod 设置存取、overlay 图层、设置窗「Mod」分组），5 处挂点改调 `ModManager`，红龙胶水改走 ModKit、作为内置 mod 仍编在 app 里，设置键改成 `mod.red-dragon.*`（老 `red_dragon_*` 键启动时抄一次、不删）；M5 红龙胶水 8 个文件挪到 `Mods/RedDragon/`（SwiftPM 动态库 + 入口 `hstracker_mod_entry`，`build.sh` 编 Release、把 ModKit 依赖改指 app 里的 `ModKit.framework`、ad hoc 签名，`--install` 装进 Mods 目录），app 不再含红龙（RedDragonCore 也移出 app target），HSTrackerTests 直接编 mod 源码（除入口文件）、Debug 加 `-DDEBUG`（分支 `claude/project-thread-rdkiom`） |
+| 包 0 上游断供后的规则与仓库整理（W4–W6）：`AGENTS.md` 本地化改为新内容词条随功能新增 key（D1），`check_xcstrings.py --allow-new-key` 说明跟着改；补 `BE` 的 zh-Hans「黑暗帝国的统治」；`docs/upstream-merges.md` 加断供交接记录和 §5 新拓展包维护流程 | 分支 `claude/project-thread-mbpeaq` |
 
 ## 构建 / 测试记录
 
@@ -89,3 +90,4 @@
 - mod：app 侧只在 `HSTracker/Mods/` 接 ModKit（上游改宿主类型时只改这层）；`~/Library/Application Support/HSTracker/Mods/` 里的动态库由 ModHost 加载，启动时按住 ⇧ 进安全模式；设置窗「Mod」页的开关下次启动生效；跑测试时不扫 Mods 目录（测试宿主退出不走 `applicationWillTerminate`，会被当成崩溃）。红龙测试的设置用单独的 UserDefaults 域（`RedDragonTestSupport.swift`）。红龙 mod：`Mods/RedDragon/build.sh --install`（受限环境，装到 Mods 目录；Release 3.7.0 不读这个目录），改了 mod 源码要重装再重启 HSTracker。
 - 红龙解耦 / mod 化评估（10-15，只评估，没动代码）：`docs/research/red-dragon-mod-eval.md`。结论是让 HSTracker 支持 mod、红龙做成第一个 mod，分三阶段，第一阶段是仓库内解耦。
 - 上游私有化后的独立维护 spec（11-21，只规划，没动代码）：`docs/tasks/maintenance-2026-11/spec.md`，拆成 8 个包，放在同目录 `packages/` 下，按 spec 第 4 节的顺序做。
+- 上游断供后的本地 git（包 0，不进提交）：删掉 `remote.upstream.gh-resolved`、`gh repo set-default ffkiyo7/HSTracker`，`upstream` remote 保留；本地 `master` 快进到 `3.7.1`（`782c881c`），不推送，origin 上的 `master` 不动。
