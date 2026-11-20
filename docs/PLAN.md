@@ -34,6 +34,7 @@
 
 | 日期 | 范围 | 结果 |
 |---|---|---|
+| 11-21 | 包 2 extraInfo（PR #13，head `e7af7288`）：Debug 增量 build；`CardExtraInfoTests` + `CardZoneGroupsTests`；全套 HSTrackerTests | build 通过（43 秒）；单跑 60 条全过（新增 7 条）；全套 474 条 469 过 / 4 跳过 / 1 失败（签名，自编译包预期内），618 秒；伊辛迪奥斯后缀实机未看（放第一轮） |
 | 11-21 | 包 1：Debug 增量 build（`cards-version.txt` 255790）、`DatabaseTests` | build 通过，34 秒；`downloaded-frameworks/cards/255790/` 三个 XML 齐全（70.5 / 15.8 / 19.6 MB），无 `.partial`；CardDefsCompiler 36390 实体，101.1 → 50.6 MB；DatabaseTests 7 条全过；实机抽查留到第一轮 |
 | 11-21 | 包 0：`check_xcstrings.py --baseline b0c03707`、Debug 增量 build；本地 `master` 快进到 3.7.1、`gh repo set-default` | 校验通过；build 通过；Debug 包 `zh-Hans.lproj/Localizable.strings` 里 `BE` = 黑暗帝国的统治；`master` = `782c881c`，origin/master 不变；牌组管理器界面未打开看 |
 | 10-25 | 回溯重放卡死修复：Debug 增量 build、全套 HSTrackerTests（新增 2 条计数器通知合并测试） | build 通过；467 条 462 过 / 4 跳过 / 1 失败（签名，自编译包预期内），562 秒；游戏内回溯未实测 |
