@@ -88,3 +88,4 @@
 - 红龙引擎测试：`cd Packages/RedDragonCore && swift test`（同样去掉代理环境变量、`PATH=/usr/bin:/bin:/usr/sbin:/sbin`），不启动 app、不读卡库；要 HSTracker 在场的红龙测试仍在 HSTrackerTests。
 - mod：app 侧只在 `HSTracker/Mods/` 接 ModKit（上游改宿主类型时只改这层）；`~/Library/Application Support/HSTracker/Mods/` 里的动态库由 ModHost 加载，启动时按住 ⇧ 进安全模式；设置窗「Mod」页的开关下次启动生效；跑测试时不扫 Mods 目录（测试宿主退出不走 `applicationWillTerminate`，会被当成崩溃）。红龙测试的设置用单独的 UserDefaults 域（`RedDragonTestSupport.swift`）。红龙 mod：`Mods/RedDragon/build.sh --install`（受限环境，装到 Mods 目录；Release 3.7.0 不读这个目录），改了 mod 源码要重装再重启 HSTracker。
 - 红龙解耦 / mod 化评估（10-15，只评估，没动代码）：`docs/research/red-dragon-mod-eval.md`。结论是让 HSTracker 支持 mod、红龙做成第一个 mod，分三阶段，第一阶段是仓库内解耦。
+- 上游私有化后的独立维护 spec（11-21，只规划，没动代码）：`docs/tasks/maintenance-2026-11/spec.md`，拆成 8 个包，放在同目录 `packages/` 下，按 spec 第 4 节的顺序做。
