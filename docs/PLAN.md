@@ -77,7 +77,7 @@
 ## 项目细节
 
 - Release 包：`open ~/Library/Developer/Xcode/DerivedData/HSTracker-batppbchpubuefehmmfbulefeevu/Build/Products/Release/HSTracker.app`（10-15 起本机只留这一个包，Debug 包已清；要 Debug 包时增量 build，交测前看 `Contents/MacOS/HSTracker.debug.dylib` 的时间 ≥ HEAD 提交时间）。
-- 回旧线：`git checkout dev`（origin 上也有）。
+- 回旧线：`git checkout dev`（只在本机；origin 上的 `dev` 11-21 已删，没有异地备份）。
 - 卡死排查：系统会在 `/Library/Logs/DiagnosticReports/HSTracker_*.cpu_resource.diag` 留 CPU 超限报告（Debug 包带符号，直接看主线程最重的栈）；`hstracker.log` 里 `LogReaderManager.stop` 前面没有 `Stop Tracking` 的，是回溯重放。
 - HearthMirror 闭源，只能从 `libs.hearthsim.net/hstracker/<sha>/` 拿，合上游前先 `curl -I` 一下新 pin；Download 阶段失败会先 `rm -rf` 缓存，重跑前别慌。
 - 探针 `HSTRACKER_LATENCY_PROBE=1`（Release 包读 `~/Library/Logs/HSTracker/hstracker.log`）；掉帧分析 `docs/tasks/tools/frame_gaps.py`，跨录像对比加 `--busy`。
