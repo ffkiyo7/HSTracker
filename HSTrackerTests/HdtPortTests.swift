@@ -125,4 +125,92 @@ class HdtPortTests: HSTrackerTests {
         XCTAssertEqual(counter.counter, 4, "an ability counts once however often it triggers")
         XCTAssertEqual(counter.getCardsToDisplay(), [wrath, domain, glare, servants])
     }
+
+    // MARK: - W3c Gloomstone Guardian's options when forged (HDT 9564545)
+
+    private let option = CardIds.Collectible.Neutral.ChillwindYeti
+
+    /// A card in hand (id 40) that has been forged, and one of its pre-created
+    /// Choose One options (id 81) waiting in SETASIDE.
+    private func makeForgeGame(controller: Int, forged: Bool = true) -> (Game, PowerGameStateParser) {
+        // `blockStart` reaches through `AppDelegate.instance().coreManager`, which
+        // the host app only wires up once it has finished launching.
+        let launched = Date().addingTimeInterval(30)
+        while AppDelegate.instance().coreManager == nil && Date() < launched {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+        }
+        XCTAssertNotNil(AppDelegate.instance().coreManager, "the test host app never finished launching")
+        waitForCard(option)
+
+        let game = makeGame()
+        let parser = PowerGameStateParser(with: game)
+
+        let source = Entity(id: 40)
+        source[.zone] = Zone.hand.rawValue
+        source[.controller] = controller
+        source[.cardtype] = CardType.minion.rawValue
+        source.info.forged = forged
+        game.entities[source.id] = source
+
+        let choice = Entity(id: 81)
+        choice[.zone] = Zone.setaside.rawValue
+        choice[.controller] = controller
+        game.entities[choice.id] = choice
+
+        return (game, parser)
+    }
+
+    private func feed(_ parser: PowerGameStateParser, _ contents: [String]) {
+        for content in contents {
+            parser.handle(logLine: LogLine(namespace: .power,
+                                           line: "D 14:04:05.1234567 GameState.DebugPrintPower() - " + content))
+        }
+    }
+
+    private func forgeLines(blockType: String, player: Int) -> [String] {
+        let source = "[entityName=UNKNOWN ENTITY [cardType=INVALID] id=40 zone=HAND zonePos=3 cardId= player=\(player)]"
+        let effect = "EffectCardId=System.Collections.Generic.List`1[System.String]"
+        return [
+            "BLOCK_START BlockType=\(blockType) Entity=\(source) \(effect) EffectIndex=0 Target=0 SubOption=-1 ",
+            "    BLOCK_START BlockType=POWER Entity=\(source) \(effect) EffectIndex=0 Target=0 SubOption=-1 ",
+            "        SHOW_ENTITY - Updating Entity=[entityName=UNKNOWN ENTITY [cardType=INVALID] id=81 zone=SETASIDE zonePos=0 cardId= player=\(player)] CardID=\(option)",
+            "            tag=CONTROLLER value=\(player)",
+            "            tag=CARDTYPE value=MINION",
+            "            tag=ZONE value=SETASIDE"
+        ]
+    }
+
+    func testOpponentForgeHidesTheRevealedOption() {
+        let (game, parser) = makeForgeGame(controller: 2)
+
+        feed(parser, forgeLines(blockType: "DECK_ACTION", player: 2))
+
+        XCTAssertEqual(game.entities[81]?.cardId, option)
+        XCTAssertEqual(game.entities[81]?.info.hidden, true, "the option would give away the forged card in hand")
+    }
+
+    func testOurForgeLeavesTheRevealedOptionVisible() {
+        let (game, parser) = makeForgeGame(controller: 1)
+
+        feed(parser, forgeLines(blockType: "DECK_ACTION", player: 1))
+
+        XCTAssertEqual(game.entities[81]?.cardId, option)
+        XCTAssertEqual(game.entities[81]?.info.hidden, false)
+    }
+
+    func testOpponentPowerOutsideADeckActionIsNotHidden() {
+        let (game, parser) = makeForgeGame(controller: 2)
+
+        feed(parser, forgeLines(blockType: "PLAY", player: 2))
+
+        XCTAssertEqual(game.entities[81]?.info.hidden, false)
+    }
+
+    func testOpponentDeckActionOfAnUnforgedCardIsNotHidden() {
+        let (game, parser) = makeForgeGame(controller: 2, forged: false)
+
+        feed(parser, forgeLines(blockType: "DECK_ACTION", player: 2))
+
+        XCTAssertEqual(game.entities[81]?.info.hidden, false)
+    }
 }
