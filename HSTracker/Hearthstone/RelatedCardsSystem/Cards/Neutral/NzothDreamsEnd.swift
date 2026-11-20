@@ -9,23 +9,20 @@
 import Foundation
 
 // "Old God Cost (1) less for each Deathrattle minion you've summoned this game."
-class NzothDreamsEnd: ICardWithRelatedCards {
+// Shows the candidates of its Army of N'Zoth ability: "Resurrect 4 different Deathrattle minions."
+// "Different" means each resurrected minion is distinct, so the grid is de-duplicated.
+class NzothDreamsEnd: ResurrectionCard {
     required init() {}
 
-    func getCardId() -> String {
+    override func getCardId() -> String {
         return CardIds.Collectible.Neutral.NzothDreamsEnd
     }
 
-    func shouldShowForOpponent(opponent: Player) -> Bool {
-        return false
+    override func filterCard(card: Card) -> Bool {
+        return card.type == .minion && card.hasDeathrattle()
     }
 
-    func getRelatedCards(player: Player) -> [Card?] {
-        return [
-            Cards.any(byId: CardIds.NonCollectible.Neutral.NZothDreamsEnd_CallOfNzothToken),
-            Cards.any(byId: CardIds.NonCollectible.Neutral.NZothDreamsEnd_MasteryOfNzothToken),
-            Cards.any(byId: CardIds.NonCollectible.Neutral.NZothDreamsEnd_ArmyOfNzothToken),
-            Cards.any(byId: CardIds.NonCollectible.Neutral.NZothDreamsEnd_DomainOfNzothToken1)
-        ]
+    override func resurrectsMultipleCards() -> Bool {
+        return false
     }
 }
